@@ -1,0 +1,34 @@
+# ===== DEFINE DEFAULT DOCKER IMAGE =====
+# dockerhub image generated using docker/Dockerfile_simple
+image: continuumio/anaconda3:latest
+
+
+# ===== TEST PyWake debian=====
+test_PyWake:  # name the job what we like
+  stage:  # build, test, deploy defined by default [2]
+    test
+  script:
+  - pip install -e .
+  - py.test
+  tags:  # only runners with this tag can do the job [3]
+  - python
+
+  
+# ===== Check code style =====
+check_code_style:  # name the job what we like
+  stage:  # build, test, deploy defined by default [2]
+    test
+  script:
+  - pip install -e .
+  - pycodestyle --ignore=E501,W504 py_wake
+  tags:  # only runners with this tag can do the job [3]
+  - python
+
+# ===== TEST PyWake on Windows =====
+test_PyWake_windows:  # name the job what we like
+  stage:  # build, test, deploy defined by default [2]
+    test
+  script:  # runs on windows machine due to tag below
+  - c:/Anaconda3/envs/pyTopfarm/python.exe -m pytest --cov-report term-missing:skip-covered --cov=py_wake --cov-config .coveragerc
+  tags:  # tag for shared runner on windows machine
+  - CPAV_old_PC

@@ -1,0 +1,6 @@
+[run]
+omit = 
+	py_wake/tests/*
+	py_wake/examples/data/*
+[report]
+fail_under = 95
