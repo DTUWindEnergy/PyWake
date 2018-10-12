@@ -4,7 +4,6 @@ import pkgutil
 import warnings
 
 import pytest
-import matplotlib.pyplot as plt
 import sys
 
 from unittest import mock
@@ -33,6 +32,7 @@ def test_main(module):
     # check that all main module examples run without errors
     if os.name == 'posix' and "DISPLAY" not in os.environ:
         pytest.xfail("No display")
+    import matplotlib.pyplot as plt
 
     def no_show(*args, **kwargs):
         pass
