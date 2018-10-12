@@ -24,12 +24,12 @@ class FugaWakeModel(WakeModel, LinearSum):
             case_name = struct.unpack('127s', fid.read(127))[0]
             r = struct.unpack('d', fid.read(8))[0]
             zhub = struct.unpack('d', fid.read(8))[0]
-            lo_level = struct.unpack('I', fid.read(4))[0]
-            hi_level = struct.unpack('I', fid.read(4))[0]
+            lo_level = struct.unpack('L', fid.read(4))[0]
+            hi_level = struct.unpack('L', fid.read(4))[0]
             z0 = struct.unpack('d', fid.read(8))[0]
             zi = struct.unpack('d', fid.read(8))[0]
             ds = struct.unpack('d', fid.read(8))[0]
-            closure = struct.unpack('I', fid.read(4))[0]
+            closure = struct.unpack('L', fid.read(4))[0]
             zeta0 = struct.unpack('d', fid.read(8))[0]
 
         def psim(zeta):
@@ -51,7 +51,7 @@ class FugaWakeModel(WakeModel, LinearSum):
         self.lo_level, self.hi_level = map(int, lines[11:13])
         self.dsAll = ds
 
-        zlevels = np.arange(self.lo_level, self.hi_level + 1)
+        zlevels = np.arange(self.lo_level, self.hi_level)
         mdu = [np.fromfile(path + prefix + '%04dUL.dat' % j, np.dtype('<f'), -1)
                for j in zlevels]
 
@@ -96,8 +96,8 @@ def main():
         import matplotlib.pyplot as plt
         x_j = np.linspace(-1500, 1500, 500)
         y_j = np.linspace(-1500, 1500, 300)
-        from py_wake.tests.test_files import tfp
-        path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
+
+        path = r'C:\mmpe\programming\python\Topfarm\TopFarm2\topfarm\cost_models\fuga\Colonel\LUTs-T\Vestas_V80_(2_MW_offshore)[h=70.00]\Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
         wake_model = FugaWakeModel(path, windTurbines)
         aep = AEP(site, windTurbines, wake_model)
         X, Y, Z = aep.wake_map(x_j, y_j, 110, x, y, wd=[0], ws=[9])
