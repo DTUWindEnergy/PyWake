@@ -3,4 +3,15 @@
 
 # PyWake
 
+This is a work-in-progress attempt to make something like FUSEDWAKE 2.0. Its relation to FUSEDWAKE is, however, not determined yet.
+The idea is that it should:
+
+- Reduce duplicated code
+- Include wakemap functions
+- Be faster
+- Be suitable for layout optimization
+- Support use of load surrrogate models
+- Support complex terrain
+- Support gradient based optimization
+
 
