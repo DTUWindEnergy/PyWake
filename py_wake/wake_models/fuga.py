@@ -51,7 +51,7 @@ class FugaWakeModel(WakeModel, LinearSum):
         self.lo_level, self.hi_level = map(int, lines[11:13])
         self.dsAll = ds
 
-        zlevels = np.arange(self.lo_level, self.hi_level)
+        zlevels = np.arange(self.lo_level, self.hi_level + 1)
         mdu = [np.fromfile(path + prefix + '%04dUL.dat' % j, np.dtype('<f'), -1)
                for j in zlevels]
 
