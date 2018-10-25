@@ -96,8 +96,8 @@ def main():
         import matplotlib.pyplot as plt
         x_j = np.linspace(-1500, 1500, 500)
         y_j = np.linspace(-1500, 1500, 300)
-
-        path = r'C:\mmpe\programming\python\Topfarm\TopFarm2\topfarm\cost_models\fuga\Colonel\LUTs-T\Vestas_V80_(2_MW_offshore)[h=70.00]\Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
+        from py_wake.tests.test_files import tfp
+        path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
         wake_model = FugaWakeModel(path, windTurbines)
         aep = AEP(site, windTurbines, wake_model)
         X, Y, Z = aep.wake_map(x_j, y_j, 110, x, y, wd=[0], ws=[9])
