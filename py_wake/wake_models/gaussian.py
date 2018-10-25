@@ -4,12 +4,13 @@ from numpy import newaxis as na
 
 
 class IEA37SimpleBastankhahGaussian(WakeModel, SquaredSum):
+    args4deficit = ['WS_lk', 'D_src_l', 'dw_jl', 'cw_jl', 'ct_lk']
 
     def __init__(self, windTurbines):
         WakeModel.__init__(self, windTurbines)
         self.k = 0.0324555
 
-    def calc_deficit(self, WS_lk, D_src_l, D_dst_j, dw_jl, cw_jl, ct_lk):
+    def calc_deficit(self, WS_lk, D_src_l, dw_jl, cw_jl, ct_lk):
 
         # Calculate the wake loss using
         # simplified Bastankhah Gaussian wake model

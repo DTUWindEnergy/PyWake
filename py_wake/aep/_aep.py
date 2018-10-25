@@ -51,6 +51,6 @@ class AEP():
         h_j = np.zeros_like(x_j) + h
         _, WS_jlk, _, P_lk = self.site.local_wind(x_j, y_j, wd, ws)
         dw_ijl, cw_ijl, _ = self.site.distances(x_i, y_i, h_i, x_j, y_j, h_j, self.WD_ilk.mean(2))
-        WS_eff_jlk = self.wake_model.wake_map(self.WS_ilk, dw_ijl, cw_ijl, self.ct_ilk, type_i, WS_jlk)
+        WS_eff_jlk = self.wake_model.wake_map(self.WS_ilk, self.WS_eff_ilk, dw_ijl, cw_ijl, self.ct_ilk, type_i, WS_jlk)
 
         return X_j, Y_j, (WS_eff_jlk * P_lk[na, :, :]).sum((1, 2)).reshape(X_j.shape)

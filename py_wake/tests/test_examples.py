@@ -4,14 +4,14 @@ import pkgutil
 import warnings
 
 import pytest
-
 import sys
-import py_wake
+
 from unittest import mock
+from py_wake import examples
 
 
 def get_main_modules():
-    package = py_wake
+    package = examples
     modules = []
     for _, modname, _ in pkgutil.walk_packages(package.__path__, package.__name__ + '.'):
         with warnings.catch_warnings():
@@ -32,7 +32,6 @@ def test_main(module):
     # check that all main module examples run without errors
     if os.name == 'posix' and "DISPLAY" not in os.environ:
         pytest.xfail("No display")
-
     import matplotlib.pyplot as plt
 
     def no_show(*args, **kwargs):
