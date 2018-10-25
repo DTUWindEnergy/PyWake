@@ -4,6 +4,8 @@ from numpy import newaxis as na
 
 
 class WakeModel(ABC):
+    # args4deficit = ['WS_lk', 'WS_eff_lk', 'D_src_l', 'D_dst_jl', 'dw_jl', 'cw_jl', 'ct_lk']
+
     def __init__(self, windTurbines):
         self.windTurbines = windTurbines
 
@@ -41,15 +43,24 @@ class WakeModel(ABC):
             power_ilk[i_wt_l, i_wd_l] = power_lk
             ct_ilk[i_wt_l, i_wd_l, :] = ct_lk
             if j < I - 1:
-                deficit_nk[n_dw] = self.calc_deficit(WS_mk[m], D_i[i_wt_l],
-                                                     D_i[dw_order_indices_l[:, j + 1:]].T,
-                                                     dw_n[n_dw],
-                                                     cw_n[n_dw],
-                                                     ct_lk)
+                arg_funcs = {'WS_lk': lambda: WS_mk[m],
+                             'WS_eff_lk': lambda: WS_eff_mk[m],
+                             'D_src_l': lambda: D_i[i_wt_l],
+                             'D_dst_jl': lambda: D_i[dw_order_indices_l[:, j + 1:]].T,
+                             'dw_jl': lambda: dw_n[n_dw],
+                             'cw_jl': lambda: cw_n[n_dw],
+                             'ct_lk': lambda: ct_lk}
+                args = {k: arg_funcs[k]() for k in self.args4deficit}
+                deficit_nk[n_dw] = self.calc_deficit(**args)
+#                                                      WS_mk[m], D_i[i_wt_l],
+#                                                      D_i[dw_order_indices_l[:, j + 1:]].T,
+#                                                      dw_n[n_dw],
+#                                                      cw_n[n_dw],
+#                                                      ct_lk)
         WS_eff_ilk = WS_eff_mk.reshape((I, L, K))
         return WS_eff_ilk, TI_ilk, power_ilk, ct_ilk
 
-    def wake_map(self, WS_ilk, dw_ijl, cw_ijl, ct_ilk, types_i, WS_jlk):
+    def wake_map(self, WS_ilk, WS_eff_ilk, dw_ijl, cw_ijl, ct_ilk, types_i, WS_jlk):
         D_i = self.windTurbines.diameter(types_i)
         I, J, L = dw_ijl.shape
         K = WS_ilk.shape[2]
@@ -60,8 +71,19 @@ class WakeModel(ABC):
 
             for l in range(L):
                 m = dw_ijl[i, :, l] > 0
-                deficit_jlk[:, l][m] = self.calc_deficit(
-                    WS_ilk[i, l][na], D_i[i][na], None, dw_ijl[i, :, l][m][:, na], cw_ijl[i, :, l][m][:, na], ct_ilk[i, l][na])[:, 0]
+
+                arg_funcs = {'WS_lk': lambda: WS_ilk[i, l][na],
+                             'WS_eff_lk': lambda: WS_eff_ilk[i, l][na],
+                             'D_src_l': lambda: D_i[i][na],
+                             'D_dst_jl': lambda: None,
+                             'dw_jl': lambda: dw_ijl[i, :, l][m][:, na],
+                             'cw_jl': lambda: cw_ijl[i, :, l][m][:, na],
+                             'ct_lk': lambda: ct_ilk[i, l][na]}
+
+                args = {k: arg_funcs[k]() for k in self.args4deficit}
+
+                deficit_jlk[:, l][m] = self.calc_deficit(**args)[:, 0]
+
             deficit_ijlk.append(deficit_jlk)
 
         return self.calc_effective_WS(WS_jlk, np.array(deficit_ijlk))
@@ -94,7 +116,9 @@ def main():
         from py_wake.aep._aep import AEP
 
         class MyWakeModel(WakeModel, SquaredSum):
-            def calc_deficit(self, WS_lk, D_src_l, D_dst_jl, dw_jl, cw_jl, ct_lk):
+            args4deficit = ['WS_lk', 'dw_jl']
+
+            def calc_deficit(self, WS_lk, dw_jl):
                 # 10% deficit downstream
                 return (WS_lk * .1)[na] * (dw_jl > 0)[:, :, na]
 
