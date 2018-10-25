@@ -24,12 +24,12 @@ class FugaWakeModel(WakeModel, LinearSum):
             case_name = struct.unpack('127s', fid.read(127))[0]
             r = struct.unpack('d', fid.read(8))[0]
             zhub = struct.unpack('d', fid.read(8))[0]
-            lo_level = struct.unpack('L', fid.read(4))[0]
-            hi_level = struct.unpack('L', fid.read(4))[0]
+            lo_level = struct.unpack('I', fid.read(4))[0]
+            hi_level = struct.unpack('I', fid.read(4))[0]
             z0 = struct.unpack('d', fid.read(8))[0]
             zi = struct.unpack('d', fid.read(8))[0]
             ds = struct.unpack('d', fid.read(8))[0]
-            closure = struct.unpack('L', fid.read(4))[0]
+            closure = struct.unpack('I', fid.read(4))[0]
             zeta0 = struct.unpack('d', fid.read(8))[0]
 
         def psim(zeta):
