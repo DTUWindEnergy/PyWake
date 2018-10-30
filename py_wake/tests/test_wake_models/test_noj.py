@@ -3,13 +3,13 @@ import pytest
 import numpy as np
 from py_wake.aep._aep import AEP
 from py_wake.examples.data.iea37 import iea37_path
+from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose,\
     read_iea37_windfarm
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
 from py_wake.wake_models.noj import NOJ
 from py_wake.wind_turbines._wind_turbines import WindTurbines
-from py_wake.wind_turbines.iea37_wind_turbine import IEA37_WindTurbines
 
 
 # Two turbines, 1: Nibe-A, 2:Ct=0

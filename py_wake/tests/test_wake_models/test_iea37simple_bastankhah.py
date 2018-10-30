@@ -6,7 +6,6 @@ from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose,\
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
 from py_wake.wake_models.gaussian import IEA37SimpleBastankhahGaussian
-from py_wake.wind_turbines.iea37_wind_turbine import IEA37_WindTurbines
 
 
 def test_IEA37SimpleBastankhahGaussian_ex16():
