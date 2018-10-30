@@ -1,11 +1,11 @@
-from py_wake.examples.data.hornsrev_setup import HornsrevV80
+
 import numpy as np
-from py_wake.tests.test_files import tfp
-from py_wake.wake_models.fuga import FugaWakeModel
 from py_wake.aep._aep import AEP
+from py_wake.examples.data.hornsrev1 import HornsrevV80
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
-import os
+from py_wake.tests.test_files import tfp
+from py_wake.wake_models.fuga import FugaWakeModel
 
 
 def test_fuga():
