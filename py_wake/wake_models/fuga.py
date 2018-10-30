@@ -6,7 +6,6 @@ from scipy.interpolate.interpolate import RegularGridInterpolator
 import numpy as np
 from py_wake.wake_model import LinearSum, WakeModel
 from numpy import newaxis as na
-import re
 
 
 class FugaWakeModel(WakeModel, LinearSum):
@@ -85,7 +84,7 @@ def main():
         from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose,\
             read_iea37_windfarm
         from py_wake.site._site import UniformSite
-        from py_wake.wind_turbines.iea37_wind_turbine import IEA37_WindTurbines
+        from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
 
         _, _, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
         n_wt = 16

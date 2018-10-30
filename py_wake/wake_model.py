@@ -1,6 +1,8 @@
-import numpy as np
 from abc import abstractmethod, ABC
+
 from numpy import newaxis as na
+
+import numpy as np
 
 
 class WakeModel(ABC):
@@ -111,8 +113,8 @@ def main():
         from py_wake.examples.data.iea37 import iea37_path
         from py_wake.examples.data.iea37.iea37_reader import read_iea37_windfarm,\
             read_iea37_windrose
+        from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
         from py_wake.site._site import UniformSite
-        from py_wake.wind_turbines.iea37_wind_turbine import IEA37_WindTurbines
         from py_wake.aep._aep import AEP
 
         class MyWakeModel(WakeModel, SquaredSum):
