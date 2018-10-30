@@ -1,6 +1,7 @@
 import numpy as np
 from py_wake.aep._aep import AEP
 from py_wake.examples.data.iea37 import iea37_path
+from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose,\
     read_iea37_windfarm
 from py_wake.site._site import UniformSite
