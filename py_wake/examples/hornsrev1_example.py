@@ -1,6 +1,6 @@
 import numpy as np
 from py_wake.aep._aep import AEP
-from py_wake.examples.data.hornsrev_setup import wt_x, wt_y, HornsrevV80,\
+from py_wake.examples.data.hornsrev1 import wt_x, wt_y, HornsrevV80,\
     HornsrevSite
 from py_wake.wake_models.noj import NOJ
 

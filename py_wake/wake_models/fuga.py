@@ -55,7 +55,7 @@ class FugaWakeModel(WakeModel, LinearSum):
         mdu = [np.fromfile(path + prefix + '%04dUL.dat' % j, np.dtype('<f'), -1)
                for j in zlevels]
 
-        self.du = np.array(mdu, dtype=np.float32).reshape((len(mdu), nyW // 2, nxW)) * factor
+        self.du = -np.array(mdu, dtype=np.float32).reshape((len(mdu), nyW // 2, nxW)) * factor
         self.z0 = z0
         self.x0 = nxW // 4
         self.dx = dx
@@ -73,8 +73,9 @@ class FugaWakeModel(WakeModel, LinearSum):
 
     def calc_deficit(self, WS_lk, WS_eff_lk, dw_jl, cw_jl, ct_lk):
         mdu_jl = self.interpolate(dw_jl, cw_jl, 70)
-        deficit_jlk = mdu_jl[:, :, na] * ct_lk[na] * WS_eff_lk**2 / WS_lk
-        return -deficit_jlk
+        deficit_jlk = mdu_jl[:, :, na] * ct_lk[na] * (WS_eff_lk**2 / WS_lk)
+
+        return deficit_jlk
 
 
 def main():
