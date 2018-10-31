@@ -42,15 +42,33 @@ class AEP():
         AEP_GWh_ilk = self.power_ilk * self.P_lk[na, :, :] * 24 * 365 * 1e-9
         return AEP_GWh_ilk
 
-    def wake_map(self, x_j, y_j, h, x_i, y_i, type_i=None, h_i=None, wd=None, ws=None):
+    def WS_eff_map(self, x_j, y_j, h, x_i, y_i, type_i=None, h_i=None, wd=None, ws=None):
+        X_j, Y_j = np.meshgrid(x_j, y_j)
+        x_j, y_j = X_j.flatten(), Y_j.flatten()
+        if len(x_i) == 0:
+            _, WS_jlk, _, P_lk = self.site.local_wind(x_j, y_j, wd, ws)
+            return X_j, Y_j, WS_jlk, P_lk
+
         h_i, type_i, wd, ws = self._get_defaults(x_i, h_i, type_i, wd, ws)
         self._run_wake_model(x_i, y_i, h_i, type_i, wd, ws)
 
-        X_j, Y_j = np.meshgrid(x_j, y_j)
-        x_j, y_j = X_j.flatten(), Y_j.flatten()
         h_j = np.zeros_like(x_j) + h
         _, WS_jlk, _, P_lk = self.site.local_wind(x_j, y_j, wd, ws)
         dw_ijl, cw_ijl, _ = self.site.distances(x_i, y_i, h_i, x_j, y_j, h_j, self.WD_ilk.mean(2))
         WS_eff_jlk = self.wake_model.wake_map(self.WS_ilk, self.WS_eff_ilk, dw_ijl, cw_ijl, self.ct_ilk, type_i, WS_jlk)
 
+        return X_j, Y_j, WS_eff_jlk, P_lk
+
+    def wake_map(self, x_j, y_j, h, x_i, y_i, type_i=None, h_i=None, wd=None, ws=None):
+        X_j, Y_j, WS_eff_jlk, P_lk = self.WS_eff_map(x_j, y_j, h, x_i, y_i, type_i, h_i, wd, ws)
         return X_j, Y_j, (WS_eff_jlk * P_lk[na, :, :]).sum((1, 2)).reshape(X_j.shape)
+
+    def aep_map(self, x_j, y_j, type_j, x_i, y_i, type_i=None, h_i=None, wd=None, ws=None):
+        h = self.windTurbines.hub_height(type_j)
+        X_j, Y_j, WS_eff_jlk, P_lk = self.WS_eff_map(x_j, y_j, h, x_i, y_i, type_i, h_i, wd, ws)
+        # power_jlk = self.windTurbines.power_func(type_j, WS_eff_jlk)
+        # aep_jlk = power_jlk * P_lk[na, :, :] * 24 * 365 * 1e-9
+        # return X_j, Y_j, aep_jlk.sum((1, 2)).reshape(X_j.shape)
+
+        # same as above but requires less memory
+        return X_j, Y_j, ((self.windTurbines.power_func(type_j, WS_eff_jlk) * P_lk[na, :, :]).sum((1, 2)) * 24 * 365 * 1e-9).reshape(X_j.shape)

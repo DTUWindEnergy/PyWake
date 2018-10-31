@@ -13,6 +13,12 @@ class WakeModel(ABC):
 
     def calc_wake(self, WS_ilk, TI_ilk, dw_iil, cw_iil, dw_order_indices_l, types_i):
         I, L = dw_iil.shape[1:]
+        i1, i2, _ = np.where((np.abs(dw_iil) + np.abs(cw_iil) + np.eye(I)[:, :, na]) == 0)
+        if len(i1):
+            msg = "\n".join(["Turbines %d and %d are at the same position" %
+                             (i1[i], i2[i]) for i in np.unique([i1, i2], 0)])
+            raise Exception(msg)
+
         K = WS_ilk.shape[2]
         deficit_nk = np.zeros((I * I * L, K))
         # deficit_ijlk = deficit_nk.reshape((I, I, L, K))  # from i to j
@@ -87,8 +93,8 @@ class WakeModel(ABC):
                 deficit_jlk[:, l][m] = self.calc_deficit(**args)[:, 0]
 
             deficit_ijlk.append(deficit_jlk)
-
-        return self.calc_effective_WS(WS_jlk, np.array(deficit_ijlk))
+        deficit_ijlk = np.array(deficit_ijlk)
+        return self.calc_effective_WS(WS_jlk, deficit_ijlk)
 
     @abstractmethod
     def calc_deficit(self, WS_lk, D_src_l, D_dst_jl, dw_jl, cw_jl, ct_lk):
