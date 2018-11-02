@@ -1,5 +1,3 @@
-from h5py.h5t import np
-
 from py_wake.aep import AEP
 from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
@@ -10,6 +8,7 @@ from py_wake.tests import npt
 from py_wake.wake_models.noj import NOJ
 from py_wake.examples.data import hornsrev1
 from py_wake.wake_models.gaussian import IEA37SimpleBastankhahGaussian
+import numpy as np
 
 
 def test_wake_map():
