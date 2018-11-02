@@ -42,6 +42,17 @@ class AEP():
         AEP_GWh_ilk = self.power_ilk * self.P_lk[na, :, :] * 24 * 365 * 1e-9
         return AEP_GWh_ilk
 
+    def calculate_AEP_no_wake_loss(self, x_i, y_i, h_i=None, type_i=None):
+        h_i, type_i, wd, ws = self._get_defaults(x_i, h_i, type_i, wd=None, ws=None)
+
+        # Find local wind speed, wind direction, turbulence intensity and probability
+        self.WD_ilk, self.WS_ilk, self.TI_ilk, self.P_lk = self.site.local_wind(x_i, y_i, wd, ws)
+
+        type_ilk = np.zeros(self.WS_ilk.shape, dtype=np.int) + type_i[:, np.newaxis, np.newaxis]
+        _ct_ilk, self.power_ilk = self.windTurbines.ct_power(self.WS_ilk, type_ilk)
+        AEP_GWh_ilk = self.power_ilk * self.P_lk[na, :, :] * 24 * 365 * 1e-9
+        return AEP_GWh_ilk
+
     def WS_eff_map(self, x_j, y_j, h, x_i, y_i, type_i=None, h_i=None, wd=None, ws=None):
         X_j, Y_j = np.meshgrid(x_j, y_j)
         x_j, y_j = X_j.flatten(), Y_j.flatten()
