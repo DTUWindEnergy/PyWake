@@ -14,4 +14,28 @@ The idea is that it should:
 - Support complex terrain
 - Support gradient based optimization
 
+## Installation
+
+Get the code from git:
+
+    $ git clone https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake.git
+
+Make sure that you are using Python 3.4 or higher. The script can be 
+installed using:
+
+    $ cd PyWake
+    $ python setup.py develop
+
+## Run Horns Rev 1 example
+
+To calculate the annual energy production of Horns Rev 1, go to:
+
+    $ cd py_wake/examples
+
+and run:
+
+    $ python hornsrev1_example.py
+
+
+
 
