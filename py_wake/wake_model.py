@@ -6,12 +6,34 @@ import numpy as np
 
 
 class WakeModel(ABC):
-    # args4deficit = ['WS_lk', 'WS_eff_lk', 'D_src_l', 'D_dst_jl', 'dw_jl', 'cw_jl', 'ct_lk']
+    """
+    Base class for wake models
+    Make a subclass and implement calc_deficit and calc_effective_WS
+    Implementations of linear and squared sum available through inherritance
+
+    Prefixs:
+    i: turbine
+    j: downstream points/turbines
+    k: wind speed
+    l: wind direction
+    m: turbine and wind direction (il.flatten())
+    n: from_turbine, to_turbine and wind direction (iil.flatten())
+
+    Arguments available for calc_deficit (specifiy in args4deficit):
+    - WS_lk: Local wind speed without wake effects
+    - WS_eff_lk: Local wind speed with wake effects
+    - D_src_l: Diameter of source turbine
+    - D_dst_jl: Diameter of destination turbine
+    - dw_jl: Downwind distance from turbine i to point/turbine j
+    - hcw_jl: Horizontal cross wind distance from turbine i to point/turbine j
+    - cw_jl: Cross wind(horizontal and vertical) distance from turbine i to point/turbine j
+    - ct_lk: Thrust coefficient
+    """
 
     def __init__(self, windTurbines):
         self.windTurbines = windTurbines
 
-    def calc_wake(self, WS_ilk, TI_ilk, dw_iil, cw_iil, dw_order_indices_l, types_i):
+    def calc_wake(self, WS_ilk, TI_ilk, dw_iil, cw_iil, dh_iil, dw_order_indices_l, types_i):
         I, L = dw_iil.shape[1:]
         i1, i2, _ = np.where((np.abs(dw_iil) + np.abs(cw_iil) + np.eye(I)[:, :, na]) == 0)
         if len(i1):
@@ -28,10 +50,12 @@ class WakeModel(ABC):
         WS_eff_mk = WS_mk.copy()
         dw_n = dw_iil.flatten()
         cw_n = cw_iil.flatten()
+        dh_n = dh_iil.flatten()
         power_ilk = np.zeros((I, L, K))
         ct_ilk = np.zeros((I, L, K))
         types_i = np.asarray(types_i)
         D_i = self.windTurbines.diameter(types_i)
+        H_i = self.windTurbines.hub_height(types_i)
         i_wd_l = np.arange(L)
 
         for j in range(I):
@@ -56,7 +80,10 @@ class WakeModel(ABC):
                              'D_src_l': lambda: D_i[i_wt_l],
                              'D_dst_jl': lambda: D_i[dw_order_indices_l[:, j + 1:]].T,
                              'dw_jl': lambda: dw_n[n_dw],
-                             'cw_jl': lambda: cw_n[n_dw],
+                             'cw_jl': lambda: np.sqrt(cw_n[n_dw]**2 + dh_n[n_dw]**2),
+                             'hcw_jl': lambda: cw_n[n_dw],
+                             'dh_jl': lambda: dh_n[n_dw],
+                             'h_l': lambda: H_i[i_wt_l],
                              'ct_lk': lambda: ct_lk}
                 args = {k: arg_funcs[k]() for k in self.args4deficit}
                 deficit_nk[n_dw] = self.calc_deficit(**args)
@@ -68,8 +95,9 @@ class WakeModel(ABC):
         WS_eff_ilk = WS_eff_mk.reshape((I, L, K))
         return WS_eff_ilk, TI_ilk, power_ilk, ct_ilk
 
-    def wake_map(self, WS_ilk, WS_eff_ilk, dw_ijl, cw_ijl, ct_ilk, types_i, WS_jlk):
+    def wake_map(self, WS_ilk, WS_eff_ilk, dw_ijl, cw_ijl, dh_ijl, ct_ilk, types_i, WS_jlk):
         D_i = self.windTurbines.diameter(types_i)
+        H_i = self.windTurbines.hub_height(types_i)
         I, J, L = dw_ijl.shape
         K = WS_ilk.shape[2]
 
@@ -85,7 +113,10 @@ class WakeModel(ABC):
                              'D_src_l': lambda: D_i[i][na],
                              'D_dst_jl': lambda: None,
                              'dw_jl': lambda: dw_ijl[i, :, l][m][:, na],
-                             'cw_jl': lambda: cw_ijl[i, :, l][m][:, na],
+                             'cw_jl': lambda: np.sqrt(cw_ijl[i, :, l][m]**2 + dh_ijl[i, :, l][m]**2)[:, na],
+                             'hcw_jl': lambda: cw_ijl[i, :, l][m][:, na],
+                             'dh_jl': lambda: dh_ijl[i, :, l][m][:, na],
+                             'h_l': lambda: H_i[i][na],
                              'ct_lk': lambda: ct_ilk[i, l][na]}
 
                 args = {k: arg_funcs[k]() for k in self.args4deficit}

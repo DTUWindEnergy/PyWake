@@ -131,7 +131,7 @@ class UniformSite(Site):
 
     def distances(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
         wd_l = np.mean(wd_il, 0)
-        dx_ij, dy_ij, dh_ij = [np.subtract(*np.meshgrid(src_i, dst_j, indexing='ij'))
+        dx_ij, dy_ij, dh_ij = [np.subtract(*np.meshgrid(dst_j, src_i, indexing='ij')).T
                                for src_i, dst_j in [(src_x_i, dst_x_j),
                                                     (src_y_i, dst_y_j),
                                                     (src_h_i, dst_h_j)]]
@@ -141,12 +141,15 @@ class UniformSite(Site):
         cos_l = np.cos(theta_l)
         sin_l = np.sin(theta_l)
         dw_il = (cos_l[na, :] * src_x_i[:, na] + sin_l[na] * src_y_i[:, na])
-        dw_ijl = (cos_l[na, na, :] * dx_ij[:, :, na] + sin_l[na, na, :] * dy_ij[:, :, na])
-        cw_ijl = np.sqrt((-sin_l[na, na, :] * dx_ij[:, :, na] +
-                          cos_l[na, na, :] * dy_ij[:, :, na])**2 +
-                         dh_ij[:, :, na]**2)
+        dw_ijl = (-cos_l[na, na, :] * dx_ij[:, :, na] - sin_l[na, na, :] * dy_ij[:, :, na])
+        cw_ijl = np.abs(sin_l[na, na, :] * dx_ij[:, :, na] +
+                        -cos_l[na, na, :] * dy_ij[:, :, na])
+        dh_ijl = np.zeros_like(dw_ijl)
+        dh_ijl[:, :, :] = dh_ij[:, :, na]
+
         dw_order_indices_l = np.argsort(-dw_il, 0).astype(np.int).T
-        return dw_ijl, cw_ijl, dw_order_indices_l
+
+        return dw_ijl, cw_ijl, dh_ijl, dw_order_indices_l
 
     def elevation(self, x_i, y_i):
         return np.zeros_like(x_i)

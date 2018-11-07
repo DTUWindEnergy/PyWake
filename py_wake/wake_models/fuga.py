@@ -8,7 +8,7 @@ from numpy import newaxis as na
 class FugaWakeModel(WakeModel, LinearSum):
     ams = 5
     invL = 0
-    args4deficit = ['WS_lk', 'WS_eff_lk', 'dw_jl', 'cw_jl', 'ct_lk']
+    args4deficit = ['WS_lk', 'WS_eff_lk', 'dw_jl', 'hcw_jl', 'dh_jl', 'h_l', 'ct_lk']
 
     def __init__(self, LUT_path, windTurbines):
         WakeModel.__init__(self, windTurbines)
@@ -68,8 +68,8 @@ class FugaWakeModel(WakeModel, LinearSum):
         z = np.maximum(np.minimum(z, self.z[-1]), self.z[0])
         return self.lut_interpolator((x, y, z))
 
-    def calc_deficit(self, WS_lk, WS_eff_lk, dw_jl, cw_jl, ct_lk):
-        mdu_jl = self.interpolate(dw_jl, cw_jl, 70)
+    def calc_deficit(self, WS_lk, WS_eff_lk, dw_jl, hcw_jl, dh_jl, h_l, ct_lk):
+        mdu_jl = self.interpolate(dw_jl, hcw_jl, h_l + dh_jl)
         deficit_jlk = mdu_jl[:, :, na] * (ct_lk * WS_eff_lk**2 / WS_lk)
 
         return deficit_jlk
