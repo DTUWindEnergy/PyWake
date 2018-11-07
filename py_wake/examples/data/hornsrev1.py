@@ -71,7 +71,7 @@ ct_curve = np.array([[3.0, 0.0],
                      [25.0, 0.053]])
 
 
-class HornsrevV80(OneTypeWindTurbines):
+class V80(OneTypeWindTurbines):
     def __init__(self):
         OneTypeWindTurbines.__init__(self, 'V80', diameter=80, hub_height=70,
                                      ct_func=self.ct, power_func=self.power)
@@ -81,6 +81,9 @@ class HornsrevV80(OneTypeWindTurbines):
 
     def power(self, u):
         return np.interp(u, power_curve[:, 0], power_curve[:, 1])
+
+
+HornsrevV80 = V80
 
 
 class HornsrevSite(UniformWeibullSite):
