@@ -1,8 +1,5 @@
 import os
 import struct
-
-from scipy.interpolate.interpolate import RegularGridInterpolator
-
 import numpy as np
 from py_wake.wake_model import LinearSum, WakeModel
 from numpy import newaxis as na
@@ -62,19 +59,93 @@ class FugaWakeModel(WakeModel, LinearSum):
         self.y = np.arange(nyW // 2) * dy
         self.dy = dy
         self.z = z0 * np.exp(zlevels * self.dsAll)
-        self.regularGridInterpolator = RegularGridInterpolator((self.z, self.y, self.x), self.du)
+
+        self.lut_interpolator = LUTInterpolator(self.x, self.y, self.z, self.du)
 
     def interpolate(self, x, y, z):
         x = np.maximum(np.minimum(x, self.x[-1]), self.x[0])
         y = np.maximum(np.minimum(y, self.y[-1]), self.y[0])
         z = np.maximum(np.minimum(z, self.z[-1]), self.z[0])
-        return self.regularGridInterpolator((z, y, x))
+        return self.lut_interpolator((x, y, z))
 
     def calc_deficit(self, WS_lk, WS_eff_lk, dw_jl, cw_jl, ct_lk):
         mdu_jl = self.interpolate(dw_jl, cw_jl, 70)
-        deficit_jlk = mdu_jl[:, :, na] * ct_lk[na] * (WS_eff_lk**2 / WS_lk)
+        deficit_jlk = mdu_jl[:, :, na] * (ct_lk * WS_eff_lk**2 / WS_lk)
 
         return deficit_jlk
+
+
+class LUTInterpolator(object):
+    # Faster than scipy.interpolate.interpolate.RegularGridInterpolator
+    def __init__(self, x, y, z, V):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.V = V
+        self.nx = nx = len(x)
+        self.ny = ny = len(y)
+        self.nz = nz = len(z)
+        assert V.shape == (nz, ny, nx)
+        self.dx, self.dy = [xy[1] - xy[0] for xy in [x, y]]
+
+        self.x0 = x[0]
+        self.y0 = y[0]
+
+        Ve = np.concatenate((V, V[-1:]), 0)
+        Ve = np.concatenate((Ve, Ve[:, -1:]), 1)
+        Ve = np.concatenate((Ve, Ve[:, :, -1:]), 2)
+
+        self.V000 = np.array([V,
+                              Ve[:-1, :-1, 1:],
+                              Ve[:-1, 1:, :-1],
+                              Ve[:-1, 1:, 1:],
+                              Ve[1:, :-1, :-1],
+                              Ve[1:, :-1, 1:],
+                              Ve[1:, 1:, :-1],
+                              Ve[1:, 1:, 1:]]).reshape((8, nz * ny * nx))
+
+    def __call__(self, xyz):
+        xp, yp, zp = xyz
+
+        def i0f2(_i):
+            _if, _i0 = np.modf(_i)
+            _i0 = _i0.astype(np.int)
+            return _i0, _if
+
+        def i0f(_i):
+            _i0 = np.asarray(_i).astype(np.int)
+            _if = _i - _i0
+            return _i0, _if
+
+        xi0, xif = i0f((xp - self.x0) / self.dx)
+        yi0, yif = i0f((yp - self.y0) / self.dy)
+
+        zi0, zif = i0f(np.interp(zp, self.z, np.arange(self.nz)))
+
+        nx, ny = self.nx, self.ny
+
+        v000, v001, v010, v011, v100, v101, v110, v111 = self.V000[:, zi0 * nx * ny + yi0 * nx + xi0]
+
+        v_00 = v000 + (v100 - v000) * zif
+        v_01 = v001 + (v101 - v001) * zif
+        v_10 = v010 + (v110 - v010) * zif
+        v_11 = v011 + (v111 - v011) * zif
+        v__0 = v_00 + (v_10 - v_00) * yif
+        v__1 = v_01 + (v_11 - v_01) * yif
+
+        return (v__0 + (v__1 - v__0) * xif)
+#         # Slightly slower
+#         xif1, yif1, zif1 = 1 - xif, 1 - yif, 1 - zif
+#         w = np.array([xif1 * yif1 * zif1,
+#                       xif * yif1 * zif1,
+#                       xif1 * yif * zif1,
+#                       xif * yif * zif1,
+#                       xif1 * yif1 * zif,
+#                       xif * yif1 * zif,
+#                       xif1 * yif * zif,
+#                       xif * yif * zif])
+#
+#         return np.sum(w * self.V01[:, zi0, yi0, xi0], 0)
 
 
 def main():
