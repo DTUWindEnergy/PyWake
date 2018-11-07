@@ -32,10 +32,10 @@ class AEP():
         self.WD_ilk, self.WS_ilk, self.TI_ilk, self.P_lk = self.site.local_wind(x_i, y_i, wd, ws)
 
         # Calculate down-wind and cross-wind distances
-        dw_iil, cw_iil, dw_order_l = self.site.wt2wt_distances(x_i, y_i, h_i, self.WD_ilk.mean(2))
+        dw_iil, cw_iil, dh_iil, dw_order_l = self.site.wt2wt_distances(x_i, y_i, h_i, self.WD_ilk.mean(2))
 
         self.WS_eff_ilk, self.TI_eff_ilk, self.power_ilk, self.ct_ilk =\
-            self.wake_model.calc_wake(self.WS_ilk, self.TI_ilk, dw_iil, cw_iil, dw_order_l, type_i)
+            self.wake_model.calc_wake(self.WS_ilk, self.TI_ilk, dw_iil, cw_iil, dh_iil, dw_order_l, type_i)
 
     def calculate_AEP(self, x_i, y_i, h_i=None, type_i=None):
         self._run_wake_model(x_i, y_i, h_i, type_i)
@@ -65,8 +65,9 @@ class AEP():
 
         h_j = np.zeros_like(x_j) + h
         _, WS_jlk, _, P_lk = self.site.local_wind(x_j, y_j, wd, ws)
-        dw_ijl, cw_ijl, _ = self.site.distances(x_i, y_i, h_i, x_j, y_j, h_j, self.WD_ilk.mean(2))
-        WS_eff_jlk = self.wake_model.wake_map(self.WS_ilk, self.WS_eff_ilk, dw_ijl, cw_ijl, self.ct_ilk, type_i, WS_jlk)
+        dw_ijl, cw_ijl, dh_ijl, _ = self.site.distances(x_i, y_i, h_i, x_j, y_j, h_j, self.WD_ilk.mean(2))
+        WS_eff_jlk = self.wake_model.wake_map(self.WS_ilk, self.WS_eff_ilk, dw_ijl,
+                                              cw_ijl, dh_ijl, self.ct_ilk, type_i, WS_jlk)
 
         return X_j, Y_j, WS_eff_jlk, P_lk
 
