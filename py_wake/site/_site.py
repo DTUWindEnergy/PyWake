@@ -161,6 +161,7 @@ class UniformWeibullSite(UniformSite):
         wdir = np.linspace(0, 360, len(p_wd), endpoint=False)
         indexes = np.argmin((np.arange(360)[:, np.newaxis] - wdir + 360 / len(p_wd) / 2) % 360, 1)
         self.p_wd = np.array(p_wd)[indexes] / (360 / len(p_wd))
+        self.p_wd /= self.p_wd.sum()
         self.a = np.array(a)[indexes]
         self.k = np.array(k)[indexes]
 
