@@ -1,6 +1,7 @@
 from py_wake.site._site import UniformWeibullSite
 import numpy as np
 from py_wake.tests import npt
+import pytest
 
 
 def test_local_wind():
@@ -11,18 +12,36 @@ def test_local_wind():
     k = [2.392578, 2.447266, 2.412109, 2.591797, 2.755859, 2.595703,
          2.583984, 2.548828, 2.470703, 2.607422, 2.626953, 2.326172]
     ti = .1
-    site = UniformWeibullSite(f, A, k, ti)
+    site = UniformWeibullSite(f, A, k, ti, h_ref=50, alpha=.3)
 
     x_i = y_i = np.arange(5)
     wdir_lst = np.arange(0, 360, 90)
     wsp_lst = np.arange(3, 6)
-    WD_ilk, WS_ilk, TI_ilk, P_lk = site.local_wind(x_i, y_i, wdir_lst, wsp_lst)
+    WD_ilk, WS_ilk, TI_ilk, P_lk = site.local_wind(x_i=x_i, y_i=y_i, wd=wdir_lst, ws=wsp_lst)
     npt.assert_array_equal(WS_ilk.shape, (5, 4, 3))
-    WD_ilk, WS_ilk, TI_ilk, P_lk = site.local_wind(x_i, y_i)
+    WD_ilk, WS_ilk, TI_ilk, P_lk = site.local_wind(x_i=x_i, y_i=y_i)
     npt.assert_array_equal(WS_ilk.shape, (5, 360, 23))
-    npt.assert_array_equal(site.elevation(x_i, y_i), np.zeros_like(x_i))
+    npt.assert_array_equal(site.elevation(x_i=x_i, y_i=y_i), np.zeros_like(x_i))
 
-    npt.assert_equal(site.local_wind(x_i, y_i, [0], [10])[-1] * 2,
-                     site.local_wind(x_i, y_i, [0], [10], wd_bin_size=2)[-1])
-    npt.assert_equal(site.local_wind(x_i, y_i, [0], [9, 10, 11])[-1].sum(),
-                     site.local_wind(x_i, y_i, [0], [10], ws_bin_size=3)[-1])
+    npt.assert_equal(site.local_wind(x_i=x_i, y_i=y_i, wd=[0], ws=[10])[-1] * 2,
+                     site.local_wind(x_i=x_i, y_i=y_i, wd=[0], ws=[10], wd_bin_size=2)[-1])
+    npt.assert_equal(site.local_wind(x_i=x_i, y_i=y_i, wd=[0], ws=[9, 10, 11])[-1].sum(),
+                     site.local_wind(x_i=x_i, y_i=y_i, wd=[0], ws=[10], ws_bin_size=3)[-1])
+
+    z = np.arange(1, 100)
+    zero = [0] * len(z)
+
+    ws = site.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10])[1][:, 0, 0]
+    ws70 = site.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10], h_ref=70)[1][:, 0, 0]
+    if 0:
+        import matplotlib.pyplot as plt
+        plt.plot(ws, z)
+        plt.plot(ws70, z)
+        plt.show()
+    npt.assert_array_equal(10 * (z / 50)**.3, ws)
+    npt.assert_array_equal(10 * (z / 70)**.3, ws70)
+
+
+def test_site():
+    with pytest.raises(NotImplementedError, match="interp_method=missing_method not implemeted yet."):
+        site = UniformWeibullSite([1], [10], [2], .75, interp_method='missing_method')

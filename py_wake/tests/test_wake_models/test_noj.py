@@ -71,7 +71,7 @@ def test_NOJ_6_turbines_in_row():
 
     wake_model = NOJ(NibeA0)
     site = UniformSite([1], .1)
-    WD_ilk, WS_ilk, _, _ = site.local_wind(x, y, [0], [11])
+    WD_ilk, WS_ilk, _, _ = site.local_wind(x_i=x, y_i=y, wd=[0], ws=[11])
     TI_ilk = np.zeros_like(WS_ilk)
     site = UniformSite([1], 0.1)
     dw_iil, cw_iil, dh_iil, dw_order_indices_l = site.wt2wt_distances(

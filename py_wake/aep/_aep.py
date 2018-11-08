@@ -29,7 +29,7 @@ class AEP():
     def _run_wake_model(self, x_i, y_i, h_i=None, type_i=None, wd=None, ws=None):
         h_i, type_i, wd, ws = self._get_defaults(x_i, h_i, type_i, wd, ws)
         # Find local wind speed, wind direction, turbulence intensity and probability
-        self.WD_ilk, self.WS_ilk, self.TI_ilk, self.P_lk = self.site.local_wind(x_i, y_i, wd, ws)
+        self.WD_ilk, self.WS_ilk, self.TI_ilk, self.P_lk = self.site.local_wind(x_i=x_i, y_i=y_i, wd=wd, ws=ws)
 
         # Calculate down-wind and cross-wind distances
         dw_iil, cw_iil, dh_iil, dw_order_l = self.site.wt2wt_distances(x_i, y_i, h_i, self.WD_ilk.mean(2))
@@ -46,7 +46,7 @@ class AEP():
         h_i, type_i, wd, ws = self._get_defaults(x_i, h_i, type_i, wd=None, ws=None)
 
         # Find local wind speed, wind direction, turbulence intensity and probability
-        self.WD_ilk, self.WS_ilk, self.TI_ilk, self.P_lk = self.site.local_wind(x_i, y_i, wd, ws)
+        self.WD_ilk, self.WS_ilk, self.TI_ilk, self.P_lk = self.site.local_wind(x_i=x_i, y_i=y_i, wd=wd, ws=ws)
 
         type_ilk = np.zeros(self.WS_ilk.shape, dtype=np.int) + type_i[:, np.newaxis, np.newaxis]
         _ct_ilk, self.power_ilk = self.windTurbines.ct_power(self.WS_ilk, type_ilk)
@@ -57,14 +57,14 @@ class AEP():
         X_j, Y_j = np.meshgrid(x_j, y_j)
         x_j, y_j = X_j.flatten(), Y_j.flatten()
         if len(x_i) == 0:
-            _, WS_jlk, _, P_lk = self.site.local_wind(x_j, y_j, wd, ws)
+            _, WS_jlk, _, P_lk = self.site.local_wind(x_i=x_j, y_i=y_j, wd=wd, ws=ws)
             return X_j, Y_j, WS_jlk, P_lk
 
         h_i, type_i, wd, ws = self._get_defaults(x_i, h_i, type_i, wd, ws)
         self._run_wake_model(x_i, y_i, h_i, type_i, wd, ws)
 
         h_j = np.zeros_like(x_j) + h
-        _, WS_jlk, _, P_lk = self.site.local_wind(x_j, y_j, wd, ws)
+        _, WS_jlk, _, P_lk = self.site.local_wind(x_i=x_j, y_i=y_j, wd=wd, ws=ws)
         dw_ijl, cw_ijl, dh_ijl, _ = self.site.distances(x_i, y_i, h_i, x_j, y_j, h_j, self.WD_ilk.mean(2))
         WS_eff_jlk = self.wake_model.wake_map(self.WS_ilk, self.WS_eff_ilk, dw_ijl,
                                               cw_ijl, dh_ijl, self.ct_ilk, type_i, WS_jlk)
