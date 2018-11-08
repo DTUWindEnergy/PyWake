@@ -107,11 +107,6 @@ class LUTInterpolator(object):
     def __call__(self, xyz):
         xp, yp, zp = xyz
 
-        def i0f2(_i):
-            _if, _i0 = np.modf(_i)
-            _i0 = _i0.astype(np.int)
-            return _i0, _if
-
         def i0f(_i):
             _i0 = np.asarray(_i).astype(np.int)
             _if = _i - _i0

@@ -39,7 +39,7 @@ class WakeModel(ABC):
         if len(i1):
             msg = "\n".join(["Turbines %d and %d are at the same position" %
                              (i1[i], i2[i]) for i in np.unique([i1, i2], 0)])
-            raise Exception(msg)
+            raise ValueError(msg)
 
         K = WS_ilk.shape[2]
         deficit_nk = np.zeros((I * I * L, K))

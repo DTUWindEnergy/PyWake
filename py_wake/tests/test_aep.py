@@ -80,6 +80,24 @@ def test_aep_map():
     npt.assert_array_almost_equal(Z[17], ref, 2)
 
 
+def test_aep_map_no_turbines():
+
+    _, _, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
+    # n_wt = 16
+    # x, y, _ = read_iea37_windfarm(iea37_path + 'iea37-ex%d.yaml' % n_wt)
+
+    site = UniformSite(freq, ti=0.75)
+    windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
+    wake_model = IEA37SimpleBastankhahGaussian(windTurbines)
+    aep = AEP(site, windTurbines, wake_model)
+    # print(aep.calculate_AEP([0], [0]).sum())
+    x_j = np.arange(-150, 150, 20)
+    y_j = np.arange(-250, 250, 20)
+    X, Y, Z = aep.aep_map(x_j, y_j, 0, [], [], wd=[0])
+
+    npt.assert_array_almost_equal(Z, 21.89, 2)
+
+
 def test_aep_no_wake_loss_hornsrev():
     wt = hornsrev1.V80()
     x, y = hornsrev1.wt_x, hornsrev1.wt_y
