@@ -37,8 +37,8 @@ class AEP():
         self.WS_eff_ilk, self.TI_eff_ilk, self.power_ilk, self.ct_ilk =\
             self.wake_model.calc_wake(self.WS_ilk, self.TI_ilk, dw_iil, cw_iil, dh_iil, dw_order_l, type_i)
 
-    def calculate_AEP(self, x_i, y_i, h_i=None, type_i=None):
-        self._run_wake_model(x_i, y_i, h_i, type_i)
+    def calculate_AEP(self, x_i, y_i, h_i=None, type_i=None, wd=None, ws=None):
+        self._run_wake_model(x_i=x_i, y_i=y_i, h_i=h_i, type_i=type_i, wd=wd, ws=ws)
         AEP_GWh_ilk = self.power_ilk * self.P_lk[na, :, :] * 24 * 365 * 1e-9
         return AEP_GWh_ilk
 
