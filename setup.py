@@ -2,12 +2,12 @@
 """
 Setup file for PyWake
 """
-
+from py_wake import __version__
 
 from setuptools import setup
 
 setup(name='py_wake',
-      version='2.0',
+      version=__version__,
       description='PyWake a collection of wake models',
       url='https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake',
       author='DTU Wind Energy',

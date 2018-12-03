@@ -32,3 +32,19 @@ test_PyWake_windows:  # name the job what we like
   - c:/Anaconda3/envs/pyTopfarm/python.exe -m pytest --cov-report term-missing:skip-covered --cov=py_wake --cov-config .coveragerc
   tags:  # tag for shared runner on windows machine
   - CPAV_old_PC
+
+# ===== build documentation =====
+pages:  # "pages" is a job specifically for GitLab pages [1]
+  stage:  # build, test, deploy defined by default [2]
+    deploy
+  script:  # use sphinx to build docs, move to public page
+  - cd docs; make html
+  - cd ../; mv docs/build/html public/
+  artifacts:  # required for GitLab pages [1]
+    paths:
+    - public
+  only:  # only run for these branches
+  - master
+  - test_docs
+  tags:  # only runners with this tag can do the job [3]
+  - python

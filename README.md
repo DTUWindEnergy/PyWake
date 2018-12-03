@@ -16,15 +16,7 @@ The idea is that it should:
 
 ## Installation
 
-Get the code from git:
-
-    $ git clone https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake.git
-
-Make sure that you are using Python 3.4 or higher. The script can be 
-installed using:
-
-    $ cd PyWake
-    $ python setup.py develop
+Check the documentation webiste: `link <https://topfarm.pages.windenergy.dtu.dk/PyWake>`_.
 
 ## Run Horns Rev 1 example
 
