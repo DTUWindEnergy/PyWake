@@ -20,6 +20,7 @@ setup(name='py_wake',
           'numpy',  # for numerical calculations
           'pytest',  # for testing
           'pytest-cov',  # for calculating coverage
+          'pyyaml',  # for reading yaml files
           'scipy',  # constraints
           'sphinx',  # generating documentation
           'sphinx_rtd_theme'  # docs theme
