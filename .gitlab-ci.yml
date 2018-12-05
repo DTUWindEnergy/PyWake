@@ -37,6 +37,8 @@ test_PyWake_windows:  # name the job what we like
 pages:  # "pages" is a job specifically for GitLab pages [1]
   stage:  # build, test, deploy defined by default [2]
     deploy
+  image: 
+    dtuwindenergy/topfarm2:latest
   script:  # use sphinx to build docs, move to public page
   - cd docs; make html
   - cd ../; mv docs/build/html public/
