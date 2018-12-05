@@ -73,7 +73,7 @@ class AEP():
 
     def wake_map(self, x_j, y_j, h, x_i, y_i, type_i=None, h_i=None, wd=None, ws=None):
         X_j, Y_j, WS_eff_jlk, P_lk = self.WS_eff_map(x_j, y_j, h, x_i, y_i, type_i, h_i, wd, ws)
-        return X_j, Y_j, (WS_eff_jlk * P_lk[na, :, :]).sum((1, 2)).reshape(X_j.shape)
+        return X_j, Y_j, (WS_eff_jlk * P_lk[na, :, :] / P_lk.sum()).sum((1, 2)).reshape(X_j.shape)
 
     def aep_map(self, x_j, y_j, type_j, x_i, y_i, type_i=None, h_i=None, wd=None, ws=None):
         h = self.windTurbines.hub_height(type_j)
