@@ -4,12 +4,17 @@ from py_wake.examples.data.iea37.iea37_reader import read_iea37_windturbine
 
 class WindTurbines():
 
-    def __init__(self, names, diameters, hub_heights, ct_func, power_func):
+    def __init__(self, names, diameters, hub_heights, ct_func, power_func, power_unit):
         self._names = names
         self._diameters = np.array(diameters)
         self._hub_heights = np.array(hub_heights)
         self.ct_func = ct_func
-        self.power_func = power_func
+
+        power_scale = {'w': 1, 'kw': 1e3, 'mw': 1e6, 'gw': 1e9}[power_unit.lower()]
+        if power_scale != 1:
+            self.power_func = lambda type_i, ws_i: power_func(type_i, ws_i) * power_scale
+        else:
+            self.power_func = power_func
 
     def info(self, var, types):
         return var[np.asarray(types, np.int)]
@@ -44,15 +49,17 @@ class WindTurbines():
 
 class OneTypeWindTurbines(WindTurbines):
 
-    def __init__(self, name, diameter, hub_height, ct_func, power_func):
+    def __init__(self, name, diameter, hub_height, ct_func, power_func, power_unit):
         WindTurbines.__init__(self, [name], [diameter], [hub_height],
                               lambda _, ws: ct_func(ws),
-                              lambda _, ws: power_func(ws))
+                              lambda _, ws: power_func(ws),
+                              power_unit)
 
 
 def main():
     if __name__ == '__main__':
         def power(types, ws):
+            """Calculate power in kW"""
             rated = 2000 + (1000 * types)
             return np.minimum(np.maximum((ws - 4)**3, 0), rated)
 
@@ -63,7 +70,8 @@ def main():
                            diameters=[80, 120],
                            hub_heights=[70, 110],
                            ct_func=ct,
-                           power_func=power)
+                           power_func=power,
+                           power_unit='kW')
 
         ws = np.arange(25)
         import matplotlib.pyplot as plt

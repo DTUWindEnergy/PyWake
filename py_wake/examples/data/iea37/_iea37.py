@@ -8,7 +8,7 @@ import numpy as np
 class IEA37_WindTurbines(OneTypeWindTurbines):
     def __init__(self, yaml_filename=iea37_path + 'iea37-335mw.yaml'):
         name, hub_height, diameter, ct_func, power_func = read_iea37_windturbine(yaml_filename)
-        super().__init__(name, diameter, hub_height, ct_func, power_func)
+        super().__init__(name, diameter, hub_height, ct_func, power_func, power_unit='W')
 
 
 class IEA37_Site(UniformSite):
