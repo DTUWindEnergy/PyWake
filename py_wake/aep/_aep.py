@@ -42,8 +42,8 @@ class AEP():
         AEP_GWh_ilk = self.power_ilk * self.P_lk[na, :, :] * 24 * 365 * 1e-9
         return AEP_GWh_ilk
 
-    def calculate_AEP_no_wake_loss(self, x_i, y_i, h_i=None, type_i=None):
-        h_i, type_i, wd, ws = self._get_defaults(x_i, h_i, type_i, wd=None, ws=None)
+    def calculate_AEP_no_wake_loss(self, x_i, y_i, h_i=None, type_i=None, wd=None, ws=None):
+        h_i, type_i, wd, ws = self._get_defaults(x_i, h_i, type_i, wd=wd, ws=ws)
 
         # Find local wind speed, wind direction, turbulence intensity and probability
         self.WD_ilk, self.WS_ilk, self.TI_ilk, self.P_lk = self.site.local_wind(x_i=x_i, y_i=y_i, wd=wd, ws=ws)
