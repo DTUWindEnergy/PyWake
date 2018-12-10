@@ -16,7 +16,8 @@ The idea is that it should:
 
 ## Installation
 
-Check the documentation webiste: `link <https://topfarm.pages.windenergy.dtu.dk/PyWake>`_.
+Please see the installation instructions on
+[the documentation website](https://topfarm.pages.windenergy.dtu.dk/PyWake).
 
 ## Run Horns Rev 1 example
 
