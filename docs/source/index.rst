@@ -11,3 +11,5 @@ Welcome to PyWake
     :maxdepth: 2
 
     installation
+
+    tutorials
