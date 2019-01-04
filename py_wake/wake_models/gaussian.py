@@ -46,3 +46,32 @@ class IEA37SimpleBastankhahGaussian(WakeModel, SquaredSum):
         deficit_jlk = (WS_lk[na, :, :] * (1. - np.sqrt(radical_jlk)) * np.exp(exponent_jl[:, :, na]))
 
         return deficit_jlk
+
+
+def main():
+    if __name__ == '__main__':
+        from py_wake.aep_calculator import AEPCalculator
+        from py_wake.examples.data.iea37 import iea37_path
+        from py_wake.examples.data.iea37._iea37 import IEA37_Site
+        from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
+
+        # setup site, turbines and wakemodel
+        site = IEA37_Site(16)
+        x, y = site.initial_position.T
+        windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
+
+        wake_model = IEA37SimpleBastankhahGaussian(windTurbines)
+
+        # calculate AEP
+        aep_calculator = AEPCalculator(site, windTurbines, wake_model)
+        aep = aep_calculator.calculate_AEP(x, y)[0].sum()
+
+        # plot wake mape
+        import matplotlib.pyplot as plt
+        aep_calculator.plot_wake_map(wt_x=x, wt_y=y, wd=[0], ws=[9])
+        plt.title('AEP: %.2f GWh' % aep)
+        windTurbines.plot(x, y)
+        plt.show()
+
+
+main()

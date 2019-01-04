@@ -1,5 +1,4 @@
 import numpy as np
-from py_wake.examples.data.iea37.iea37_reader import read_iea37_windturbine
 
 
 class WindTurbines():
@@ -37,14 +36,19 @@ class WindTurbines():
             types = np.zeros_like(x)
         if ax is None:
             ax = plt.gca()
-        markers = np.array(list("123v^<>.o48spP*hH+xXDd|_"))
+        markers = np.array(list("213v^<>o48spP*hH+xXDd|_"))
+
+        from matplotlib.patches import Circle
+        for i, (x_, y_, d) in enumerate(zip(x, y, self.diameter(types))):
+            circle = Circle((x_, y_), d / 2, color='w', alpha=.5)
+            ax.add_artist(circle)
         for t, m in zip(np.unique(types), markers):
             ax.plot(np.asarray(x)[types == t], np.asarray(y)[types == t], '%sk' % m, label=self._names[int(t)])
 
-        for i, (x_, y_) in enumerate(zip(x, y)):
-            ax.annotate(i, (x_ + 1, y_ + 1))
-        plt.legend()
-        plt.axis('equal')
+        for i, (x_, y_, d) in enumerate(zip(x, y, self.diameter(types))):
+            ax.annotate(i, (x_ + d / 2, y_ + d / 2), fontsize=7)
+        ax.legend(loc=1)
+        ax.axis('equal')
 
 
 class OneTypeWindTurbines(WindTurbines):

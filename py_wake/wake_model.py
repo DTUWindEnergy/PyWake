@@ -152,7 +152,7 @@ def main():
             read_iea37_windrose
         from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
         from py_wake.site._site import UniformSite
-        from py_wake.aep._aep import AEP
+        from py_wake.aep_calculator import AEPCalculator
 
         class MyWakeModel(WakeModel, SquaredSum):
             args4deficit = ['WS_lk', 'dw_jl']
@@ -168,21 +168,12 @@ def main():
         site = UniformSite(freq, ti=0.75)
         windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
 
-        import matplotlib.pyplot as plt
-        x_j = np.linspace(-1500, 1500, 500)
-        y_j = np.linspace(-1500, 1500, 300)
-
         wake_model = MyWakeModel(windTurbines)
-        aep = AEP(site, windTurbines, wake_model)
-        X, Y, Z = aep.wake_map(x_j, y_j, 110, x, y, wd=[0, 30], ws=[8, 9, 10])
-        plt.figure()
-        c = plt.contourf(X, Y, Z, np.arange(2, 9.1, .01))
-        plt.colorbar(c)
+        aep_calculator = AEPCalculator(site, windTurbines, wake_model)
 
-        plt.plot(x, y, '2k')
-        for i, (x_, y_) in enumerate(zip(x, y)):
-            plt.annotate(i, (x_, y_))
-        plt.axis('equal')
+        import matplotlib.pyplot as plt
+        aep_calculator.plot_wake_map(wt_x=x, wt_y=y, wd=[0, 30], ws=[9], levels=np.linspace(5, 9, 100))
+        windTurbines.plot(x, y)
 
         plt.show()
 

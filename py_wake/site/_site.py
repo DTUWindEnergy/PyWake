@@ -11,53 +11,7 @@ suffixs:
 """
 from numpy import newaxis as na
 from scipy import interpolate
-
-
-def Sector2Subsector(para, axis=-1, wd_binned=None, interp_method='piecewise'):
-    """ Expand para on the wind direction dimension, i.e., increase the nubmer
-    of sectors (sectors to subsectors), by interpolating between sectors, using
-    specified method.
-
-    Parameters
-    ----------
-    para : array_like
-        Parameter to be expand, it can be sector-wise Weibull A, k, frequency.
-    axis : integer
-        Denotes which dimension of para corresponds to wind direction.
-    wd_binned : array_like
-        Wind direction of subsectors to be expanded to.
-    inter_method : string
-        'piecewise'/'linear'/'spline', based on interp1d in scipy.interpolate,
-        'spline' means cubic spline.
-
-    --------------------------------------
-    Note: the interpolating method for sector-wise Weibull distributions and
-    joint distribution of wind speed and wind direction is referred to the
-    following paper:
-        Feng, J. and Shen, W.Z., 2015. Modelling wind for wind farm layout
-        optimization using joint distribution of wind speed and wind direction.
-        Energies, 8(4), pp.3075-3092. [https://doi.org/10.3390/en8043075]
-    """
-    if wd_binned is None:
-        wd_binned = np.linspace(0, 360, 360, endpoint=False)
-    para = np.array(para)
-    num_sector = para.shape[axis]
-    wd_sector = np.linspace(0, 360, num_sector, endpoint=False)
-
-    try:
-        interp_index = ['piecewise', 'linear', 'spline'].index(interp_method)
-        interp_kind = ['nearest', 'linear', 'cubic'][interp_index]
-    except ValueError:
-        raise NotImplementedError(
-            'interp_method={0} not implemeted yet.'.format(interp_method))
-    wd_sector_extended = np.hstack((wd_sector, 360.0))
-    para_sector_extended = np.concatenate((para, para.take([0], axis=axis)),
-                                          axis=axis)
-    f_interp = interpolate.interp1d(wd_sector_extended, para_sector_extended,
-                                    kind=interp_kind, axis=axis)
-    para_expanded = f_interp(wd_binned % 360)
-
-    return para_expanded
+import matplotlib
 
 
 class Site(ABC):
@@ -77,9 +31,9 @@ class Site(ABC):
             Local y coordinate
         h_i : array_like, optional
             Local h coordinate, i.e., heights above ground
-        default_wd : float, int or array_like, optional
+        wd : float, int or array_like, optional
             Global wind direction(s). Override self.default_wd
-        default_ws : float, int or array_like, optional
+        ws : float, int or array_like, optional
             Global wind speed(s). Override self.default_ws
         wd_bin_size : int or float, optional
             Size of wind direction bins. default is size between first and
@@ -144,19 +98,96 @@ class Site(ABC):
         """
         pass
 
+    def wd_bin_size(self, wd, wd_bin_size=None):
+        if wd_bin_size is not None:
+            return wd_bin_size
+        else:
+            return 360 / len(np.atleast_1d(wd))
+
+    def ws_bin_size(self, ws, ws_bin_size=None):
+        if ws_bin_size is None:
+            if hasattr(ws, '__len__') and len(ws) > 1:
+                return ws[1] - ws[0]
+            else:
+                return 1
+        else:
+            return ws_bin_size
+
+    def plot_ws_distribution(self, wd, include_wd_distribution=False, ax=None):
+        if ax is None:
+            import matplotlib.pyplot as plt
+            ax = plt
+        ws = np.arange(0.05, 30.05, .1)
+        wd = np.atleast_1d(wd)
+        for wd_ in wd:
+            wd_bin_size = 360 / len(wd)
+
+            if include_wd_distribution:
+                v = wd_bin_size / 2
+                WD_lk = np.arange(wd_ - v, wd_ + v)[:, na]
+                WS_lk = ws
+                p = self.probability(WD_lk, WS_lk,
+                                     wd_bin_size=1, ws_bin_size=.1).sum(0)
+                lbl = r"Wind direction: %d$\pm$%s deg" % (wd_, (int(v), v)[(wd_bin_size % 2) != 0])
+            else:
+                p = self.probability(wd_, ws, wd_bin_size=wd_bin_size, ws_bin_size=.1)
+                p /= p.sum()
+                lbl = "Wind direction: %d deg" % (wd_)
+
+            ax.plot(ws, p * 10, label=lbl)
+        ax.legend(loc=1)
+
+    def plot_wd_distribution(self, n_wd, ws_bins=None, ax=None):
+        if ax is None:
+            import matplotlib.pyplot as plt
+            ax = plt
+        wd = np.linspace(0, 360, n_wd, endpoint=False)
+        theta = wd / 180 * np.pi
+        if not ax.__class__.__name__ == 'PolarAxesSubplot':
+            if hasattr(ax, 'subplot'):
+                ax = ax.subplot(111, projection='polar')
+            else:
+                ax = ax.figure.add_subplot(111, projection='polar')
+        ax.set_theta_direction(-1)
+        ax.set_theta_offset(np.pi / 2.0)
+
+        s = 360 / n_wd
+        if ws_bins is None:
+            p = [self.probability(np.arange(wd_ - s / 2, wd_ + s / 2), ws=100,
+                                  wd_bin_size=1, ws_bin_size=200).sum(0) for wd_ in wd]
+            ax.bar(theta, p, width=s / 180 * np.pi, bottom=0.0)
+        else:
+            if not hasattr(ws_bins, '__len__'):
+                ws_bins = np.linspace(0, 30, ws_bins)
+            else:
+                ws_bins = np.asarray(ws_bins)
+            ws = ((ws_bins[1:] + ws_bins[:-1]) / 2)
+            ws_bin_size = ws[1] - ws[0]
+
+            p = [self.probability(np.arange(wd_ - s / 2, wd_ + s / 2)[:, na], ws=ws[na],
+                                  wd_bin_size=1, ws_bin_size=ws_bin_size).sum(0) for wd_ in wd]
+            cum_p = np.cumsum(p, 1).T
+            start_p = np.vstack([np.zeros_like(cum_p[:1]), cum_p[:-1]])
+
+            for ws1, ws2, p_ws1, p_ws2 in zip(ws_bins[:-1], ws_bins[1:], start_p, cum_p):
+                ax.bar(theta, p_ws2, width=s / 180 * np.pi, bottom=p_ws1, label="%s-%s m/s" % (ws1, ws2))
+            ax.legend(bbox_to_anchor=(1.15, 1.1))
+
+        ax.set_rlabel_position(-22.5)  # Move radial labels away from plotted line
+        ax.grid(True)
+
 
 class UniformSite(Site):
-    def __init__(self, p_wd, ti, interp_method='piecewise', alpha=0.143, h_ref=None):
+    def __init__(self, p_wd, ti, interp_method='piecewise', alpha=None, h_ref=None):
         self.ti = ti
         self.alpha = alpha
         self.h_ref = h_ref
         super().__init__()
-        p_wd = Sector2Subsector(p_wd, interp_method=interp_method)
-        self.p_wd = p_wd / p_wd.sum()
+        self.p_wd = Sector2Subsector(p_wd, interp_method=interp_method) / (360 / len(p_wd))
 
     def probability(self, wd, ws, wd_bin_size, ws_bin_size):
         P = self.p_wd[np.round(wd).astype(np.int) % 360] * wd_bin_size
-        return P / P.sum()
+        return P
 
     def local_wind(self, x_i, y_i, h_i=None, wd=None, ws=None, h_ref=None, wd_bin_size=None, ws_bin_size=None):
         if wd is None:
@@ -164,22 +195,13 @@ class UniformSite(Site):
         if ws is None:
             ws = self.default_ws
 
-        def get_default(w_bin_size, w):
-            if w_bin_size is None:
-                if hasattr(w, '__len__') and len(w) > 1:
-                    return w[1] - w[0]
-                else:
-                    return 1
-            else:
-                return w_bin_size
-
-        ws_bin_size = get_default(ws_bin_size, ws)
-        wd_bin_size = get_default(wd_bin_size, wd)
+        ws_bin_size = self.ws_bin_size(ws, ws_bin_size)
+        wd_bin_size = self.wd_bin_size(wd, wd_bin_size)
         WD_ilk, WS_ilk = [np.tile(W, (len(x_i), 1, 1)).astype(np.float)
                           for W in np.meshgrid(wd, ws, indexing='ij')]
         # accouting wind shear when required
         h_ref = h_ref or self.h_ref
-        if h_i is not None and h_ref is not None:
+        if h_i is not None and h_ref is not None and self.alpha is not None:
             h_i = np.array(h_i)
             if not np.all(h_i == h_ref):
                 wind_shear_ratio = (h_i / h_ref) ** self.alpha
@@ -216,7 +238,7 @@ class UniformSite(Site):
 
 
 class UniformWeibullSite(UniformSite):
-    def __init__(self, p_wd, a, k, ti, interp_method='piecewise', alpha=0.143, h_ref=None):
+    def __init__(self, p_wd, a, k, ti, interp_method='piecewise', alpha=None, h_ref=None):
         super().__init__(p_wd, ti, interp_method=interp_method, alpha=alpha, h_ref=h_ref)
         self.a = Sector2Subsector(a, interp_method=interp_method)
         self.k = Sector2Subsector(k, interp_method=interp_method)
@@ -228,8 +250,55 @@ class UniformWeibullSite(UniformSite):
         return cdf(WS + dWS) - cdf(WS - dWS)
 
     def probability(self, wd, ws, wd_bin_size, ws_bin_size):
-        wd = np.round(wd).astype(np.int)
+        wd = np.round(wd).astype(np.int) % 360
         return self.weibull_weight(ws, self.a[wd], self.k[wd], ws_bin_size) * self.p_wd[wd] * wd_bin_size
+
+
+def Sector2Subsector(para, axis=-1, wd_binned=None, interp_method='piecewise'):
+    """ Expand para on the wind direction dimension, i.e., increase the nubmer
+    of sectors (sectors to subsectors), by interpolating between sectors, using
+    specified method.
+
+    Parameters
+    ----------
+    para : array_like
+        Parameter to be expand, it can be sector-wise Weibull A, k, frequency.
+    axis : integer
+        Denotes which dimension of para corresponds to wind direction.
+    wd_binned : array_like
+        Wind direction of subsectors to be expanded to.
+    inter_method : string
+        'piecewise'/'linear'/'spline', based on interp1d in scipy.interpolate,
+        'spline' means cubic spline.
+
+    --------------------------------------
+    Note: the interpolating method for sector-wise Weibull distributions and
+    joint distribution of wind speed and wind direction is referred to the
+    following paper:
+        Feng, J. and Shen, W.Z., 2015. Modelling wind for wind farm layout
+        optimization using joint distribution of wind speed and wind direction.
+        Energies, 8(4), pp.3075-3092. [https://doi.org/10.3390/en8043075]
+    """
+    if wd_binned is None:
+        wd_binned = np.linspace(0, 360, 360, endpoint=False)
+    para = np.array(para)
+    num_sector = para.shape[axis]
+    wd_sector = np.linspace(0, 360, num_sector, endpoint=False)
+
+    try:
+        interp_index = ['piecewise', 'linear', 'spline'].index(interp_method)
+        interp_kind = ['nearest', 'linear', 'cubic'][interp_index]
+    except ValueError:
+        raise NotImplementedError(
+            'interp_method={0} not implemeted yet.'.format(interp_method))
+    wd_sector_extended = np.hstack((wd_sector, 360.0))
+    para_sector_extended = np.concatenate((para, para.take([0], axis=axis)),
+                                          axis=axis)
+    f_interp = interpolate.interp1d(wd_sector_extended, para_sector_extended,
+                                    kind=interp_kind, axis=axis)
+    para_expanded = f_interp(wd_binned % 360)
+
+    return para_expanded
 
 
 def main():

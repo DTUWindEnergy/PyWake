@@ -1,5 +1,4 @@
 import numpy as np
-from py_wake.aep._aep import AEP
 from py_wake.site._site import UniformWeibullSite
 from py_wake.wake_models.noj import NOJ
 from py_wake.wind_turbines._wind_turbines import OneTypeWindTurbines
@@ -22,6 +21,9 @@ wt_y = [6151447, 6150891, 6150335, 6149779, 6149224, 6148668, 6148112, 6147556,
         6151447, 6150891, 6150335, 6149779, 6149224, 6148668, 6148112, 6147556,
         6151447, 6150891, 6150335, 6149779, 6149224, 6148668, 6148112, 6147556,
         6151447, 6150891, 6150335, 6149779, 6149224, 6148668, 6148112, 6147556]
+wt9_x = np.array(wt_x)[[0, 1, 2, 8, 9, 10, 16, 17, 18]]
+wt9_y = np.array(wt_y)[[0, 1, 2, 8, 9, 10, 16, 17, 18]]
+
 
 power_curve = np.array([[3.0, 0.0],
                         [4.0, 66.6],
