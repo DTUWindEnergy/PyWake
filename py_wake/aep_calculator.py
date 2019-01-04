@@ -98,9 +98,9 @@ class AEPCalculator():
         X_j, Y_j, WS_eff_jlk, P_lk = self.WS_eff_map(x_j, y_j, h, x_i, y_i, type_i, h_i, wd, ws)
         P_lk /= P_lk.sum()  # AEP if wind only comes from specified wd and ws
 
-        # power_jlk = self.windTurbines.power_func(type_j, WS_eff_jlk)
+        # power_jlk = self.windTurbines.power_func(WS_eff_jlk, type_j)
         # aep_jlk = power_jlk * P_lk[na, :, :] * 24 * 365 * 1e-9
         # return X_j, Y_j, aep_jlk.sum((1, 2)).reshape(X_j.shape)
 
         # same as above but requires less memory
-        return X_j, Y_j, ((self.windTurbines.power_func(type_j, WS_eff_jlk) * P_lk[na, :, :]).sum((1, 2)) * 24 * 365 * 1e-9).reshape(X_j.shape)
+        return X_j, Y_j, ((self.windTurbines.power_func(WS_eff_jlk, type_j) * P_lk[na, :, :]).sum((1, 2)) * 24 * 365 * 1e-9).reshape(X_j.shape)
