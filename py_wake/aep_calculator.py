@@ -2,9 +2,9 @@ import numpy as np
 from numpy import newaxis as na
 
 
-class AEP():
+class AEPCalculator():
 
-    def __init__(self, site, windTurbines, wake_model, wd=np.arange(360), ws=np.arange(3, 25)):
+    def __init__(self, site, windTurbines, wake_model):
         """
         site: f(turbine_positions, wd, ws) -> WD[nWT,nWdir,nWsp], WS[nWT,nWdir,nWsp], TI[nWT,nWdir,nWsp), Weight[nWdir,nWsp]
         wake_model: f(turbine_positions, WD[nWT,nWdir,nWsp], WS[nWT,nWdir,nWsp], TI[nWT,nWdir,nWsp) -> power[nWdir,nWsp] (W)
@@ -12,8 +12,6 @@ class AEP():
         self.site = site
         self.wake_model = wake_model
         self.windTurbines = windTurbines
-        self.wd = np.asarray(wd)
-        self.ws = np.asarray(ws)
 
     def _get_defaults(self, x_i, h_i, type_i, wd, ws):
         if type_i is None:
@@ -21,9 +19,9 @@ class AEP():
         if h_i is None:
             h_i = self.windTurbines.hub_height(type_i)
         if wd is None:
-            wd = self.wd
+            wd = self.site.default_wd
         if ws is None:
-            ws = self.ws
+            ws = self.site.default_ws
         return h_i, type_i, wd, ws
 
     def _run_wake_model(self, x_i, y_i, h_i=None, type_i=None, wd=None, ws=None):
@@ -53,14 +51,26 @@ class AEP():
         AEP_GWh_ilk = self.power_ilk * self.P_lk[na, :, :] * 24 * 365 * 1e-9
         return AEP_GWh_ilk
 
-    def WS_eff_map(self, x_j, y_j, h, x_i, y_i, type_i=None, h_i=None, wd=None, ws=None):
+    def WS_eff_map(self, x_j, y_j, h, x_i, y_i, type_i, h_i, wd=None, ws=None):
+        h_i, type_i, wd, ws = self._get_defaults(x_i, h_i, type_i, wd, ws)
+
+        def f(x, N=500, ext=.2):
+            ext *= (max(x) - min(x))
+            return np.linspace(min(x) - ext, max(x) + ext, N)
+
+        if x_j is None:
+            x_j = f(x_i)
+        if y_j is None:
+            y_j = f(y_i)
+        if h is None:
+            h = np.mean(h_i)
+
         X_j, Y_j = np.meshgrid(x_j, y_j)
         x_j, y_j = X_j.flatten(), Y_j.flatten()
         if len(x_i) == 0:
-            _, WS_jlk, _, P_lk = self.site.local_wind(x_i=x_j, y_i=y_j, wd=wd, ws=ws)
+            _, WS_jlk, _, P_lk = self.site.local_wind(x_i=x_j, y_i=y_j, wd=wd, ws=ws, wd_bin_size=1)
             return X_j, Y_j, WS_jlk, P_lk
 
-        h_i, type_i, wd, ws = self._get_defaults(x_i, h_i, type_i, wd, ws)
         self._run_wake_model(x_i, y_i, h_i, type_i, wd, ws)
 
         h_j = np.zeros_like(x_j) + h
@@ -71,13 +81,23 @@ class AEP():
 
         return X_j, Y_j, WS_eff_jlk, P_lk
 
-    def wake_map(self, x_j, y_j, h, x_i, y_i, type_i=None, h_i=None, wd=None, ws=None):
-        X_j, Y_j, WS_eff_jlk, P_lk = self.WS_eff_map(x_j, y_j, h, x_i, y_i, type_i, h_i, wd, ws)
+    def wake_map(self, x_j=None, y_j=None, h=None, wt_x=[], wt_y=[], wt_type=None, wt_height=None, wd=None, ws=None):
+        X_j, Y_j, WS_eff_jlk, P_lk = self.WS_eff_map(x_j, y_j, h, wt_x, wt_y, wt_type, wt_height, wd, ws)
         return X_j, Y_j, (WS_eff_jlk * P_lk[na, :, :] / P_lk.sum()).sum((1, 2)).reshape(X_j.shape)
+
+    def plot_wake_map(self, x_j=None, y_j=None, h=None, wt_x=[], wt_y=[], wt_type=None, wt_height=None, wd=None, ws=None, ax=None, levels=100):
+        import matplotlib.pyplot as plt
+        if ax is None:
+            ax = plt.gca()
+        X, Y, Z = self.wake_map(x_j, y_j, h, wt_x, wt_y, wt_type, wt_height, wd, ws)
+        c = ax.contourf(X, Y, Z, levels, cmap='Blues_r')
+        plt.colorbar(c, label='wind speed [m/s]')
 
     def aep_map(self, x_j, y_j, type_j, x_i, y_i, type_i=None, h_i=None, wd=None, ws=None):
         h = self.windTurbines.hub_height(type_j)
         X_j, Y_j, WS_eff_jlk, P_lk = self.WS_eff_map(x_j, y_j, h, x_i, y_i, type_i, h_i, wd, ws)
+        P_lk /= P_lk.sum()  # AEP if wind only comes from specified wd and ws
+
         # power_jlk = self.windTurbines.power_func(type_j, WS_eff_jlk)
         # aep_jlk = power_jlk * P_lk[na, :, :] * 24 * 365 * 1e-9
         # return X_j, Y_j, aep_jlk.sum((1, 2)).reshape(X_j.shape)

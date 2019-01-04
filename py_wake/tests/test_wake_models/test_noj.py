@@ -1,7 +1,6 @@
 import pytest
-
 import numpy as np
-from py_wake.aep._aep import AEP
+
 from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose,\
@@ -10,6 +9,7 @@ from py_wake.site._site import UniformSite
 from py_wake.tests import npt
 from py_wake.wake_models.noj import NOJ
 from py_wake.wind_turbines._wind_turbines import WindTurbines
+from py_wake.aep_calculator import AEPCalculator
 
 
 # Two turbines, 1: Nibe-A, 2:Ct=0
@@ -40,8 +40,8 @@ def test_NOJ_Nibe_result_wake_map():
     windTurbines = NibeA0
     wake_model = NOJ(windTurbines)
     site = UniformSite([1], 0.1)
-    aep = AEP(site, windTurbines, wake_model, [0], [8.1])
-    _, _, WS_eff_yx = aep.wake_map(x_j=[0], y_j=[0, -40, -100], h=50, x_i=[0], y_i=[0])
+    aep = AEPCalculator(site, windTurbines, wake_model)
+    _, _, WS_eff_yx = aep.wake_map(x_j=[0], y_j=[0, -40, -100], h=50, wt_x=[0], wt_y=[0], wd=[0], ws=[8.1])
     npt.assert_array_almost_equal(WS_eff_yx[:, 0], [8.1, 4.35, 5.7])
 
 
@@ -90,7 +90,7 @@ def test_wake_map():
     site = UniformSite(freq, ti=0.75)
     windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
     wake_model = NOJ(windTurbines)
-    aep = AEP(site, windTurbines, wake_model, np.arange(0, 360, 22.5), [9.8])
+    aep = AEPCalculator(site, windTurbines, wake_model)
     x_j = np.linspace(-1500, 1500, 200)
     y_j = np.linspace(-1500, 1500, 100)
     X, Y, Z = aep.wake_map(x_j, y_j, 110, x, y, wd=[0], ws=[9])
@@ -99,11 +99,7 @@ def test_wake_map():
         import matplotlib.pyplot as plt
         c = plt.contourf(X, Y, Z)  # , np.arange(2, 10, .01))
         plt.colorbar(c)
-
-        plt.plot(x, y, '2k')
-        for i, (x_, y_) in enumerate(zip(x, y)):
-            plt.annotate(i, (x_, y_))
-        plt.axis('equal')
+        site.plot_windturbines(x, y)
 
         plt.show()
 

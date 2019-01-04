@@ -13,7 +13,7 @@ def test_read_iea37_windrose():
 
 def test_read_iea_windturbine():
     wt_id, hubheight, diameter, ct, power = read_iea37_windturbine(iea37_path + 'iea37-335mw.yaml')
-    assert wt_id == "335MW"
+    assert wt_id == "3.35MW"
     assert hubheight == 110
     assert diameter == 130
 

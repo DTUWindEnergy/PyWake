@@ -47,7 +47,7 @@ definitions:
 
     id:
       type: string
-      description: 335MW
+      description: 3.35MW
 
     turbine_type: 
       type: string

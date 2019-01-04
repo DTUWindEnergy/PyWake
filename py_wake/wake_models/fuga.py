@@ -3,9 +3,10 @@ import struct
 import numpy as np
 from py_wake.wake_model import LinearSum, WakeModel
 from numpy import newaxis as na
+from py_wake.examples.data.hornsrev1 import wt_x, wt_y
 
 
-class FugaWakeModel(WakeModel, LinearSum):
+class Fuga(WakeModel, LinearSum):
     ams = 5
     invL = 0
     args4deficit = ['WS_lk', 'WS_eff_lk', 'dw_jl', 'hcw_jl', 'dh_jl', 'h_l', 'ct_lk']
@@ -145,37 +146,29 @@ class LUTInterpolator(object):
 
 def main():
     if __name__ == '__main__':
-        from py_wake.aep._aep import AEP
+        from py_wake.aep_calculator import AEPCalculator
         from py_wake.examples.data.iea37 import iea37_path
-        from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose,\
-            read_iea37_windfarm
-        from py_wake.site._site import UniformSite
+        from py_wake.examples.data.iea37._iea37 import IEA37_Site
         from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
 
-        _, _, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
-        n_wt = 16
-        x, y, _ = read_iea37_windfarm(iea37_path + 'iea37-ex%d.yaml' % n_wt)
-
-        site = UniformSite(freq, ti=0.75)
+        # setup site, turbines and wakemodel
+        site = IEA37_Site(16)
+        x, y = site.initial_position.T
         windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
 
-        import matplotlib.pyplot as plt
-        x_j = np.linspace(-1500, 1500, 500)
-        y_j = np.linspace(-1500, 1500, 300)
         from py_wake.tests.test_files import tfp
         path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
-        wake_model = FugaWakeModel(path, windTurbines)
-        aep = AEP(site, windTurbines, wake_model)
-        X, Y, Z = aep.wake_map(x_j, y_j, 110, x, y, wd=[0], ws=[9])
-        plt.figure()
-        c = plt.contourf(X, Y, Z, 100)
-        plt.colorbar(c)
+        wake_model = Fuga(path, windTurbines)
 
-        plt.plot(x, y, '2k')
-        for i, (x_, y_) in enumerate(zip(x, y)):
-            plt.annotate(i, (x_, y_))
-        plt.axis('equal')
+        # calculate AEP
+        aep_calculator = AEPCalculator(site, windTurbines, wake_model)
+        aep = aep_calculator.calculate_AEP(x, y)[0].sum()
 
+        # plot wake map
+        import matplotlib.pyplot as plt
+        aep_calculator.plot_wake_map(wt_x=x, wt_y=y, wd=[0], ws=[9])
+        plt.title('AEP: %.2f GWh' % aep)
+        windTurbines.plot(x, y)
         plt.show()
 
 
