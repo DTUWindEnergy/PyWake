@@ -97,3 +97,16 @@ class HornsrevSite(UniformWeibullSite):
         k = [2.392578, 2.447266, 2.412109, 2.591797, 2.755859, 2.595703,
              2.583984, 2.548828, 2.470703, 2.607422, 2.626953, 2.326172]
         UniformWeibullSite.__init__(self, f, a, k, .1)
+
+
+def main():
+    if __name__ == '__main__':
+        wt = V80()
+        print('Diameter', wt.diameter())
+        print('Hub height', wt.hub_height())
+        ws = np.arange(3, 25)
+        import matplotlib.pyplot as plt
+        plt.plot(ws, wt.power_func(ws), '.-')
+
+
+main()

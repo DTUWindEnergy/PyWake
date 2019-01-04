@@ -1,6 +1,6 @@
 import numpy as np
 from py_wake.examples.data.iea37 import iea37_path
-from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
+from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37_Site
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose,\
     read_iea37_windfarm
 from py_wake.site._site import UniformSite
@@ -11,19 +11,14 @@ from py_wake.aep_calculator import AEPCalculator
 
 
 def test_BastankhahGaussian_ex16():
-    _, _, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
-    n_wt = 16
-    x, y, aep_ref = read_iea37_windfarm(iea37_path + 'iea37-ex%d.yaml' % n_wt)
-    if 0:
-        import matplotlib.pyplot as plt
-        plt.plot(x, y, '2k')
-        for i, (x_, y_) in enumerate(zip(x, y)):
-            plt.annotate(i, (x_, y_))
-        plt.axis('equal')
-        plt.show()
-    site = UniformSite(freq, ti=0.75)
+    site = IEA37_Site(16)
+    x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
     wake_model = BastankhahGaussian(windTurbines)
+    if 0:
+        import matplotlib.pyplot as plt
+        windTurbines.plot(x, y)
+        plt.show()
 
     aep = AEPCalculator(site, windTurbines, wake_model)
     aep_ilk = aep.calculate_AEP(x, y, wd=np.arange(0, 360, 22.5), ws=[9.8])
@@ -40,10 +35,8 @@ def test_BastankhahGaussian_ex16():
 
 
 def test_BastankhahGaussian_wake_map():
-    _, _, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
-    n_wt = 16
-    x, y, _ = read_iea37_windfarm(iea37_path + 'iea37-ex%d.yaml' % n_wt)
-    site = UniformSite(freq, ti=0.75)
+    site = IEA37_Site(16)
+    x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
 
     wake_model = BastankhahGaussian(windTurbines)
@@ -58,11 +51,7 @@ def test_BastankhahGaussian_wake_map():
         import matplotlib.pyplot as plt
         c = plt.contourf(X, Y, Z, np.arange(-.25, 9.1, .01))
         plt.colorbar(c)
-        plt.plot(x, y, '2k')
-        for i, (x_, y_) in enumerate(zip(x, y)):
-            plt.annotate(i, (x_, y_))
-        plt.plot(X[49, 100:133:2], Y[49, 100:133:2], '-.')
-        plt.axis('equal')
+        windTurbines.plot(x, y)
         plt.show()
     npt.assert_array_almost_equal(Z[49, 100:133:2], ref, 2)
 
@@ -91,10 +80,8 @@ def test_IEA37SimpleBastankhahGaussian_ex16():
 
 
 def test_IEA37SimpleBastankhahGaussian_wake_map():
-    _, _, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
-    n_wt = 16
-    x, y, _ = read_iea37_windfarm(iea37_path + 'iea37-ex%d.yaml' % n_wt)
-    site = UniformSite(freq, ti=0.75)
+    site = IEA37_Site(16)
+    x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
     wake_model = IEA37SimpleBastankhahGaussian(windTurbines)
     aep = AEPCalculator(site, windTurbines, wake_model)
