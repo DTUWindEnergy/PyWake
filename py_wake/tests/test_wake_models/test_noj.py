@@ -8,7 +8,7 @@ from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose,\
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
 from py_wake.wake_models.noj import NOJ
-from py_wake.wind_turbines._wind_turbines import WindTurbines
+from py_wake.wind_turbines import WindTurbines
 from py_wake.aep_calculator import AEPCalculator
 
 
