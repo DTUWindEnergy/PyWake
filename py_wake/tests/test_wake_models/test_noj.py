@@ -12,11 +12,11 @@ from py_wake.wind_turbines._wind_turbines import WindTurbines
 from py_wake.aep_calculator import AEPCalculator
 
 
-# Two turbines, 1: Nibe-A, 2:Ct=0
+# Two turbines, 0: Nibe-A, 1:Ct=0
 NibeA0 = WindTurbines(names=['Nibe-A'] * 2, diameters=[40] * 2,
                       hub_heights=[50] * 2,
-                      ct_func=lambda _, types: 8 / 9 * (types == 0),
-                      power_func=lambda *_: 0, power_unit='w')
+                      ct_funcs=[lambda _: 8 / 9, lambda _: 0],
+                      power_funcs=[lambda _: 0] * 2, power_unit='w')
 
 
 def test_NOJ_Nibe_result():

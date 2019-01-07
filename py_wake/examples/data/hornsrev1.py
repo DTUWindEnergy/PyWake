@@ -106,7 +106,8 @@ def main():
         print('Hub height', wt.hub_height())
         ws = np.arange(3, 25)
         import matplotlib.pyplot as plt
-        plt.plot(ws, wt.power_func(ws), '.-')
+        plt.plot(ws, wt.power(ws), '.-')
+        plt.show()
 
 
 main()
