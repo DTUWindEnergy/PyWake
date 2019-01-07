@@ -1,7 +1,7 @@
 import numpy as np
 from py_wake.site._site import UniformWeibullSite
 from py_wake.wake_models.noj import NOJ
-from py_wake.wind_turbines._wind_turbines import OneTypeWindTurbines
+from py_wake.wind_turbines import OneTypeWindTurbines
 wt_x = [423974, 424042, 424111, 424179, 424247, 424315, 424384, 424452, 424534,
         424602, 424671, 424739, 424807, 424875, 424944, 425012, 425094, 425162,
         425231, 425299, 425367, 425435, 425504, 425572, 425654, 425722, 425791,

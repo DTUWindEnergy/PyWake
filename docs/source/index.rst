@@ -13,3 +13,9 @@ Welcome to PyWake
     installation
 
     tutorials
+    
+    
+**AUTOMODULE EXAMPLE:**
+
+  .. automodule:: py_wake
+    :noindex:
