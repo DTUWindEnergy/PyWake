@@ -103,4 +103,4 @@ class AEPCalculator():
         # return X_j, Y_j, aep_jlk.sum((1, 2)).reshape(X_j.shape)
 
         # same as above but requires less memory
-        return X_j, Y_j, ((self.windTurbines.power_func(WS_eff_jlk, type_j) * P_lk[na, :, :]).sum((1, 2)) * 24 * 365 * 1e-9).reshape(X_j.shape)
+        return X_j, Y_j, ((self.windTurbines.power(WS_eff_jlk, type_j) * P_lk[na, :, :]).sum((1, 2)) * 24 * 365 * 1e-9).reshape(X_j.shape)
