@@ -59,7 +59,7 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
   except:
   - test_pypi
   
- pypi_linux:
+pypi_linux:
   stage:  
     deploy
   only:
