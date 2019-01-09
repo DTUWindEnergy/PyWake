@@ -12,6 +12,8 @@ test_PyWake:  # name the job what we like
   - py.test
   tags:  # only runners with this tag can do the job [3]
   - python
+  except:
+  - test_pypi
 
   
 # ===== Check code style =====
@@ -23,6 +25,8 @@ check_code_style:  # name the job what we like
   - pycodestyle --ignore=E501,W504 py_wake
   tags:  # only runners with this tag can do the job [3]
   - python
+  except:
+  - test_pypi
 
 # ===== TEST PyWake on Windows =====
 test_PyWake_windows:  # name the job what we like
@@ -32,13 +36,15 @@ test_PyWake_windows:  # name the job what we like
   - c:/Anaconda3/envs/pyTopfarm/python.exe -m pytest --cov-report term-missing:skip-covered --cov=py_wake --cov-config .coveragerc
   tags:  # tag for shared runner on windows machine
   - CPAV_old_PC
+  except:
+  - test_pypi
+
+image: dtuwindenergy/topfarm2:latest
 
 # ===== build documentation =====
 pages:  # "pages" is a job specifically for GitLab pages [1]
   stage:  # build, test, deploy defined by default [2]
     deploy
-  image: 
-    dtuwindenergy/topfarm2:latest
   script:  # use sphinx to build docs, move to public page
   - cd docs; make html
   - cd ../; mv docs/build/html public/
@@ -50,3 +56,39 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
   - test_docs
   tags:  # only runners with this tag can do the job [3]
   - python
+  except:
+  - test_pypi
+  
+ pypi_linux:
+  stage:  
+    deploy
+  only:
+    - tags
+    - test_pypi
+  script:
+    - apt-get update
+    - pip install -e . --upgrade
+    #- python3 -c 'from git_utils import write_vers; write_vers("py_wake/__init__.py")'
+    - python3 -m pip install -U setuptools wheel
+    - python3 setup.py sdist bdist_wheel
+    - python3 -m pip install -U twine
+    - python3 -c 'from git_utils import rename_dist_file; rename_dist_file()'
+    #- twine upload dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD
+    - twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD # for testing purposes
+  tags:  
+    - python
+
+pypi_windows:
+  stage:  
+    deploy
+  only:
+    - tags
+    - test_pypi
+  script:
+    #- c:/Anaconda3/envs/pyTopfarm/python.exe -c "from git_utils import write_vers; write_vers("py_wake/__init__.py")"
+    - c:/Anaconda3/envs/pyTopfarm/python.exe setup.py bdist_wheel
+    #- twine upload dist/* -u %TWINE_USERNAME% -p %TWINE_PASSWORD%
+    - twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u %TWINE_USERNAME% -p %TWINE_PASSWORD% # for testing purposes
+  tags:  
+    - CPAV_old_PC
+
