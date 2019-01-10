@@ -60,8 +60,8 @@ pypi_linux:
     - test_pypi
   script:
     - apt-get update
-    - python3 -c 'from git_utils import get_tag; get_tag(verbose=True)'
     - pip install -e . --upgrade
+    - python3 -c 'from git_utils import get_tag; get_tag(verbose=True)'
     - python3 -m pip install -U setuptools wheel
     - python3 setup.py sdist bdist_wheel
     - python3 -m pip install -U twine
