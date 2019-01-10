@@ -65,8 +65,8 @@ pypi_linux:
     - python3 setup.py sdist bdist_wheel
     - python3 -m pip install -U twine
     - python3 -c 'from git_utils import rename_dist_file; rename_dist_file()'
-    #- twine upload dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD
-    - twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD # for testing purposes
+    - twine upload dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD
+    #- twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD # for testing purposes
   tags:  
     - python
 
@@ -78,8 +78,8 @@ pypi_windows:
     - test_pypi
   script:
     - c:/Anaconda3/envs/pyTopfarm/python.exe setup.py bdist_wheel
-    #- twine upload dist/* -u %TWINE_USERNAME% -p %TWINE_PASSWORD%
-    - twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u %TWINE_USERNAME% -p %TWINE_PASSWORD% # for testing purposes
+    - twine upload dist/* -u %TWINE_USERNAME% -p %TWINE_PASSWORD%
+    #- twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u %TWINE_USERNAME% -p %TWINE_PASSWORD% # for testing purposes
   tags:  
     - CPAV_old_PC
 
