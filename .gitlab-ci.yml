@@ -71,16 +71,17 @@ pypi_linux:
   tags:  
     - python
 
-pypi_windows:
-  stage:  
-    deploy
-  only:
-    - tags
-    - test_pypi
-  script:
-    - c:/Anaconda3/envs/pyTopfarm/python.exe setup.py bdist_wheel
-    - twine upload dist/* -u %TWINE_USERNAME% -p %TWINE_PASSWORD%
-    #- twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u %TWINE_USERNAME% -p %TWINE_PASSWORD% # for testing purposes
-  tags:  
-    - CPAV_old_PC
+# current
+# pypi_windows:
+#   stage:  
+#     deploy
+#   only:
+#     - tags
+#     - test_pypi
+#   script:
+#     - c:/Anaconda3/envs/pyTopfarm/python.exe setup.py bdist_wheel
+#     - twine upload dist/* -u %TWINE_USERNAME% -p %TWINE_PASSWORD%
+#     #- twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u %TWINE_USERNAME% -p %TWINE_PASSWORD% # for testing purposes
+#   tags:  
+#     - CPAV_old_PC
 
