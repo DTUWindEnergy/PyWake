@@ -31,8 +31,11 @@ def get_git_version(git_repo_path=None):
     return _run_git_cmd(cmd, git_repo_path)
 
 
-def get_tag(git_repo_path=None):
-    return _run_git_cmd(['git', 'describe', '--tags', '--abbrev=0'], git_repo_path)
+def get_tag(git_repo_path=None, verbose=False):
+    tag = _run_git_cmd(['git', 'describe', '--tags', '--abbrev=0'], git_repo_path)
+    if verbose:
+        print(tag)
+    return tag
 
 
 def set_tag(tag, push, git_repo_path=None):
