@@ -1,8 +1,3 @@
-import os
-from py_wake.git_utils import get_tag
-
-repo = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
-version = get_tag(repo)[1:]
-
-__version__ = version
-__release__ = version
+# 'filled_by_setup.py'
+__version__ = '0.0.1'
+__release__ = '0.0.1'

@@ -55,6 +55,7 @@ def update_git_version(version_module, git_repo_path=None):
         fid.read()
     return version_str
 
+
 def write_vers(vers_file='wetb/__init__.py', repo=None, skip_chars=1):
     if not repo:
         repo = os.getcwd()
@@ -62,41 +63,31 @@ def write_vers(vers_file='wetb/__init__.py', repo=None, skip_chars=1):
     print('Writing version: {} in {}'.format(version, vers_file))
     with open(vers_file, 'r') as f:
         lines = f.readlines()
-    for n,l in enumerate(lines):
+    for n, l in enumerate(lines):
         if l.startswith('__version__'):
             lines[n] = "__version__ = '{}'\n".format(version)
-    for n,l in enumerate(lines):
+    for n, l in enumerate(lines):
         if l.startswith('__release__'):
             lines[n] = "__release__ = '{}'\n".format(version)
     with open(vers_file, 'w') as f:
         f.write(''.join(lines))
     return version
-		
+
+
 def rename_dist_file():
     for f in os.listdir('dist'):
         if f.endswith('whl'):
             split = f.split('linux')
             new_name = 'manylinux1'.join(split)
-            old_path = os.path.join('dist',f)
-            new_path = os.path.join('dist',new_name)
+            old_path = os.path.join('dist', f)
+            new_path = os.path.join('dist', new_name)
             os.rename(old_path, new_path)
-    
+
 
 def main():
     """Example of how to run (pytest-friendly)"""
     if __name__ == '__main__':
-#        pass
-#        import version
-#        import app_utils
-#        git_path = os.path.dirname(app_utils.__file__) + "/../"
-#        update_git_version(version, git_path)
-#        tag = get_tag(os.getcwd())
-#        print(tag)
-#        version = get_git_version(os.getcwd())
-#        print(version)
-#        rename_dist_file()
-        vers_file = 'py_wake/__init__.py'
-        write_vers(vers_file)
+        pass
 
 
 main()

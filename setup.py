@@ -2,9 +2,12 @@
 """
 Setup file for PyWake
 """
-from py_wake import __version__
-
+import os
+from git_utils import write_vers
 from setuptools import setup, find_packages
+
+repo = os.path.dirname(__file__)
+version = write_vers(vers_file='py_wake/__init__.py', repo=repo, skip_chars=1)
 
 try:
     from pypandoc import convert_file
@@ -15,7 +18,7 @@ except ImportError:
 
 
 setup(name='py_wake',
-      version=__version__,
+      version=version,
       description='PyWake a collection of wake models',
       long_description=read_md('README.md'),
       url='https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake',
