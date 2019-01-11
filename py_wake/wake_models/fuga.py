@@ -6,7 +6,7 @@ from numpy import newaxis as na
 from py_wake.examples.data.hornsrev1 import wt_x, wt_y
 
 
-class Fuga(WakeModel, LinearSum):
+class Fuga(LinearSum, WakeModel):
     ams = 5
     invL = 0
     args4deficit = ['WS_lk', 'WS_eff_lk', 'dw_jl', 'hcw_jl', 'dh_jl', 'h_l', 'ct_lk']

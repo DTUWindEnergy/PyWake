@@ -3,7 +3,7 @@ import numpy as np
 from numpy import newaxis as na
 
 
-class BastankhahGaussian(WakeModel, SquaredSum):
+class BastankhahGaussian(SquaredSum, WakeModel):
     """Implemented according to
     Bastankhah M and Porté-Agel F.
     A new analytical model for wind-turbine wakes.
@@ -26,7 +26,7 @@ class BastankhahGaussian(WakeModel, SquaredSum):
         return deficit_jlk
 
 
-class IEA37SimpleBastankhahGaussian(WakeModel, SquaredSum):
+class IEA37SimpleBastankhahGaussian(SquaredSum, WakeModel):
     """Implemented according to
     https://github.com/byuflowlab/iea37-wflo-casestudies/blob/master/iea37-wakemodel.pdf
 

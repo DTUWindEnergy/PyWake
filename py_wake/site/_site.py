@@ -11,7 +11,6 @@ suffixs:
 """
 from numpy import newaxis as na
 from scipy import interpolate
-import matplotlib
 
 
 class Site(ABC):
@@ -25,7 +24,7 @@ class Site(ABC):
 
         Parameters
         ----------
-        x_i : array_like
+        x_i  :  array_like
             Local x coordinate
         y_i : array_like
             Local y coordinate
@@ -41,6 +40,7 @@ class Site(ABC):
         ws_bin_size : int or float, optional
             Size of wind speed bins. default is size between first and
             second element in default_ws
+
         Returns
         -------
         WD_ilk : array_like
@@ -56,16 +56,48 @@ class Site(ABC):
 
     @abstractmethod
     def probability(self, wd, ws, wd_bin_size, ws_bin_size):
+        """Probability of wind situation (wind speed and direction)
+
+        Parameters
+        ----------
+        wd : int, float or array_like
+            Wind direction
+        ws : int, float or array_like
+            Wind speed
+        wd_bin_size : int or float
+            size of wind direction sectors
+        ws_bin_size : int or float
+            size of wind speed bins
+
+        Returns
+        -------
+        P : float or array_like
+            Probability of wind speed and direction
+        """
         pass
 
     @abstractmethod
     def distances(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
-        """calculate down/crosswind distance between source and destination points
+        """Calculate down/crosswind distance between source and destination points
 
         Parameters
         ----------
+        src_x_i : array_like
+            Source x position
+        src_y_i : array_like
+            Source y position
         src_h_i : array_like
-            height above ground level
+            Source height above ground level
+        dst_x_j : array_like
+            Destination x position
+        dst_y_j : array_like
+            Destination y position
+        dst_h_j : array_like
+            Destination height above ground level
+        wd_il : array_like, shape (#src, #wd)
+            Local wind direction at the source points for all global wind directions
+
+
         Returns
         -------
         dw_ijl : array_like
@@ -73,6 +105,8 @@ class Site(ABC):
             negative is upstream
         cw_ijl : array_like
             cross wind distances
+        dh_ijl : array_like
+            vertical distances
         dw_order_indices_l : array_like
             indices that gives the downwind order of source points
         """
@@ -114,6 +148,19 @@ class Site(ABC):
             return ws_bin_size
 
     def plot_ws_distribution(self, wd, include_wd_distribution=False, ax=None):
+        """Plot wind speed distribution
+
+        Parameters
+        ----------
+        wd : int or array_like
+            Wind direction(s) (one curve pr wind direction)
+        include_wwd_distributeion : bool, default is False
+            If true, the wind speed probability distributions are multiplied by
+            the wind direction probability. The sector size is set to 360 / len(wd).
+            This only makes sense if the wd array is evenly distributed
+        ax : pyplot or matplotlib axes object, default None
+
+        """
         if ax is None:
             import matplotlib.pyplot as plt
             ax = plt
@@ -138,6 +185,20 @@ class Site(ABC):
         ax.legend(loc=1)
 
     def plot_wd_distribution(self, n_wd, ws_bins=None, ax=None):
+        """Plot wind direction (and speed) distribution
+
+        Parameters
+        ----------
+        n_wd : int
+            Number of wind direction sectors
+        ws_bins : None, int or array_like, default is None
+            Splits the wind direction sector pies into different colors to show
+            the probability of different wind speeds\n
+            If int, number of wind speed bins in the range 0-30\n
+            If array_like, limits of the wind speed bins limited by ws_bins,
+            e.g. [0,10,20], will show 0-10 m/s and 10-20 m/s
+        ax : pyplot or matplotlib axes object, default None
+        """
         if ax is None:
             import matplotlib.pyplot as plt
             ax = plt
@@ -170,7 +231,7 @@ class Site(ABC):
             start_p = np.vstack([np.zeros_like(cum_p[:1]), cum_p[:-1]])
 
             for ws1, ws2, p_ws1, p_ws2 in zip(ws_bins[:-1], ws_bins[1:], start_p, cum_p):
-                ax.bar(theta, p_ws2, width=s / 180 * np.pi, bottom=p_ws1, label="%s-%s m/s" % (ws1, ws2))
+                ax.bar(theta, p_ws2 - p_ws1, width=s / 180 * np.pi, bottom=p_ws1, label="%s-%s m/s" % (ws1, ws2))
             ax.legend(bbox_to_anchor=(1.15, 1.1))
 
         ax.set_rlabel_position(-22.5)  # Move radial labels away from plotted line
@@ -178,18 +239,22 @@ class Site(ABC):
 
 
 class UniformSite(Site):
+    """Site with uniform (same wind over all, i.e. flat unuform terrain) and
+    constant wind speed probability of 1. Only for one fixed wind speed
+    """
+
     def __init__(self, p_wd, ti, interp_method='piecewise', alpha=None, h_ref=None):
-        self.ti = ti
-        self.alpha = alpha
+        self.ti = Sector2Subsector(np.atleast_1d(ti), interp_method=interp_method)
+        self.alpha = Sector2Subsector(np.atleast_1d(alpha), interp_method=interp_method)
         self.h_ref = h_ref
         super().__init__()
-        self.p_wd = Sector2Subsector(p_wd, interp_method=interp_method) / (360 / len(p_wd))
+        self.p_wd = Sector2Subsector(p_wd / np.sum(p_wd), interp_method=interp_method) / (360 / len(p_wd))
 
     def probability(self, wd, ws, wd_bin_size, ws_bin_size):
-        P = self.p_wd[np.round(wd).astype(np.int) % 360] * wd_bin_size
+        P = np.ones_like(ws, dtype=np.float) * self.p_wd[np.round(wd).astype(np.int) % 360] * wd_bin_size
         return P
 
-    def local_wind(self, x_i, y_i, h_i=None, wd=None, ws=None, h_ref=None, wd_bin_size=None, ws_bin_size=None):
+    def local_wind(self, x_i, y_i, h_i=None, wd=None, ws=None, wd_bin_size=None, ws_bin_size=None):
         if wd is None:
             wd = self.default_wd
         if ws is None:
@@ -199,15 +264,15 @@ class UniformSite(Site):
         wd_bin_size = self.wd_bin_size(wd, wd_bin_size)
         WD_ilk, WS_ilk = [np.tile(W, (len(x_i), 1, 1)).astype(np.float)
                           for W in np.meshgrid(wd, ws, indexing='ij')]
+        WD_index_ilk = np.round(WD_ilk).astype(np.int)
         # accouting wind shear when required
-        h_ref = h_ref or self.h_ref
-        if h_i is not None and h_ref is not None and self.alpha is not None:
+        if h_i is not None and self.h_ref is not None and self.alpha is not None:
             h_i = np.array(h_i)
-            if not np.all(h_i == h_ref):
-                wind_shear_ratio = (h_i / h_ref) ** self.alpha
-                WS_ilk = WS_ilk * wind_shear_ratio[:, na, na]
+            if not np.all(h_i == self.h_ref):
+                wind_shear_ratio = (h_i / self.h_ref)[:, na, na] ** self.alpha[WD_index_ilk]
+                WS_ilk = WS_ilk * wind_shear_ratio
 
-        TI_ilk = np.zeros_like(WD_ilk) + self.ti
+        TI_ilk = self.ti[WD_index_ilk]
         P_lk = self.probability(WD_ilk[0], WS_ilk[0], wd_bin_size, ws_bin_size)
         return WD_ilk, WS_ilk, TI_ilk, P_lk
 
@@ -238,7 +303,37 @@ class UniformSite(Site):
 
 
 class UniformWeibullSite(UniformSite):
-    def __init__(self, p_wd, a, k, ti, interp_method='piecewise', alpha=None, h_ref=None):
+    """Site with uniform (same wind over all, i.e. flat unuform terrain) and
+    weibull distributed wind speed
+    """
+
+    def __init__(self, p_wd, a, k, ti, interp_method='nearest', alpha=None, h_ref=None):
+        """
+        Parameters
+        ----------
+        p_wd : array_like
+            Probability of wind direction sectors
+        a : array_like
+            Weilbull scaling parameter of wind direction sectors
+        k : array_like
+            Weibull shape parameter
+        ti : float or array_like
+            Turbulence intensity
+        interp_method : 'nearest', 'linear' or 'spline'
+            p_wd, a, k, ti and alpha are interpolated to 1 deg sectors using this
+            method
+        alpha : float or array_like
+            Power shear profile exponent of the wind direction sectors
+        h_ref : int or float
+            Reference height for the power shear profile
+
+
+        Notes
+        ------
+        The wind direction sectors will be: [0 +/- w/2, w +/- w/2, ...]
+        where w is 360 / len(p_wd)
+
+        """
         super().__init__(p_wd, ti, interp_method=interp_method, alpha=alpha, h_ref=h_ref)
         self.a = Sector2Subsector(a, interp_method=interp_method)
         self.k = Sector2Subsector(k, interp_method=interp_method)
@@ -280,20 +375,22 @@ def Sector2Subsector(para, axis=-1, wd_binned=None, interp_method='piecewise'):
         Energies, 8(4), pp.3075-3092. [https://doi.org/10.3390/en8043075]
     """
     if wd_binned is None:
-        wd_binned = np.linspace(0, 360, 360, endpoint=False)
+        wd_binned = np.arange(360)
     para = np.array(para)
     num_sector = para.shape[axis]
     wd_sector = np.linspace(0, 360, num_sector, endpoint=False)
 
     try:
-        interp_index = ['piecewise', 'linear', 'spline'].index(interp_method)
-        interp_kind = ['nearest', 'linear', 'cubic'][interp_index]
+        interp_index = ['nearest', 'piecewise', 'linear', 'spline'].index(interp_method)
+        interp_kind = ['nearest', 'nearest', 'linear', 'cubic'][interp_index]
     except ValueError:
         raise NotImplementedError(
             'interp_method={0} not implemeted yet.'.format(interp_method))
     wd_sector_extended = np.hstack((wd_sector, 360.0))
     para_sector_extended = np.concatenate((para, para.take([0], axis=axis)),
                                           axis=axis)
+    if interp_kind == 'cubic' and len(wd_sector_extended) < 4:
+        interp_kind = 'linear'
     f_interp = interpolate.interp1d(wd_sector_extended, para_sector_extended,
                                     kind=interp_kind, axis=axis)
     para_expanded = f_interp(wd_binned % 360)
@@ -310,7 +407,9 @@ def main():
         k = [2.392578, 2.447266, 2.412109, 2.591797, 2.755859, 2.595703,
              2.583984, 2.548828, 2.470703, 2.607422, 2.626953, 2.326172]
         ti = .1
-        site = UniformWeibullSite(f, A, k, ti)
+        h_ref = 100
+        alpha = .1
+        site = UniformWeibullSite(f, A, k, ti, alpha=alpha, h_ref=h_ref)
 
         x_i = y_i = np.arange(5)
         wdir_lst = np.arange(0, 360, 90)
@@ -322,11 +421,14 @@ def main():
         plt.xlabel('Wind speed [m/s]')
         plt.ylabel('Probability')
         plt.legend()
+
+        plt.figure()
+        z = np.arange(1, 100)
+        u = [site.local_wind(x_i=[0], y_i=[0], h_i=[z_], wd=0, ws=10)[1][0][0] for z_ in z]
+        plt.plot(u, z)
+        plt.xlabel('Wind speed [m/s]')
+        plt.ylabel('Height [m]')
         plt.show()
-        h_i = np.array([100, 110, 120, 130, 140])
-        h_ref = 100
-        WD_ilk1, WS_ilk1, TI_ilk1, P_lk1 = site.local_wind(
-            x_i=x_i, y_i=y_i, h_i=h_i, h_ref=h_ref, wd=wdir_lst, ws=wsp_lst)
 
 
 main()
