@@ -2,9 +2,10 @@ import numpy as np
 
 
 class WindTurbines():
+    """Set of wind turbines"""
 
     def __init__(self, names, diameters, hub_heights, ct_funcs, power_funcs, power_unit):
-        """Set of wind turbines
+        """Initialize WindTurbines
 
         Parameters
         ----------
@@ -14,10 +15,10 @@ class WindTurbines():
             Diameter of wind turbines
         hub_heights : array_like
             Hub height of wind turbines
-        ct_func : function
-            func(ws, wt_type) -> ct
-        power_func : function
-            func(ws, wt_type) -> power
+        ct_funcs : list of functions
+            Wind turbine ct functions; func(ws) -> ct
+        power_funcs : list of functions
+            Wind turbine power functions; func(ws) -> power
         power_unit : {'W', 'kW', 'MW', 'GW'}
             Unit of power_func output (case insensitive)
         """
@@ -27,29 +28,64 @@ class WindTurbines():
         self.ct_funcs = ct_funcs
         self.power_scale = {'w': 1, 'kw': 1e3, 'mw': 1e6, 'gw': 1e9}[power_unit.lower()]
         if self.power_scale != 1:
-            self.power_funcs = [lambda ws: f(ws) * self.power_scale for f in power_funcs]
+            self.power_funcs = list([lambda ws, f=f: f(ws) * self.power_scale for f in power_funcs])
         else:
             self.power_funcs = power_funcs
 
-    def info(self, var, types):
+    def _info(self, var, types):
         return var[np.asarray(types, np.int)]
 
     def hub_height(self, types=0):
-        return self.info(self._hub_heights, types)
+        """Hub height of the specified type(s) of wind turbines
+        """
+        return self._info(self._hub_heights, types)
 
     def diameter(self, types=0):
-        return self.info(self._diameters, types)
+        """Rotor diameter of the specified type(s) of wind turbines
+        """
+        return self._info(self._diameters, types)
 
     def name(self, types=0):
-        return self.info(self._names, types)
+        """Name of the specified type(s) of wind turbines
+        """
+        return self._info(self._names, types)
 
-    def power(self, ws_i, type_i):
-        return self.ct_power(ws_i, type_i)[1]
+    def power(self, ws_i, type_i=0):
+        """Power in watt
 
-    def ct(self, ws_i, type_i):
-        return self.ct_power(ws_i, type_i)[0]
+        Parameters
+        ----------
+        ws_i : array_like, shape (i,...)
+            Wind speed
+        type_i : int or array_like, shape (i,)
+            wind turbine type
 
-    def ct_power(self, ws_i, type_i=0):
+
+        Returns
+        -------
+        power : array_like
+            Power production for the specified wind turbine type(s) and wind speed
+        """
+        return self._ct_power(ws_i, type_i)[1]
+
+    def ct(self, ws_i, type_i=0):
+        """Trust coefficient
+
+        Parameters
+        ----------
+        ws_i : array_like, shape (i,...)
+            Wind speed
+        type_i : int or array_like, shape (i,)
+            wind turbine type
+
+        Returns
+        -------
+        ct : array_like
+            Trust coefficient for the specified wind turbine type(s) and wind speed
+        """
+        return self._ct_power(ws_i, type_i)[0]
+
+    def _ct_power(self, ws_i, type_i=0):
         if np.any(type_i != 0):
             CT = np.zeros_like(ws_i)
             P = np.zeros_like(ws_i)
@@ -62,6 +98,19 @@ class WindTurbines():
             return self.ct_funcs[0](ws_i), self.power_funcs[0](ws_i)
 
     def plot(self, x, y, types=None, ax=None):
+        """Plot wind farm layout including type name and diameter
+
+        Parameters
+        ----------
+        x : array_like
+            x position of wind turbines
+        y : array_like
+            y position of wind turbines
+        types : int or array_like
+            type of the wind turbines
+        ax : pyplot or matplotlib axes object, default None
+
+        """
         import matplotlib.pyplot as plt
         if types is None:
             types = np.zeros_like(x)
@@ -70,6 +119,8 @@ class WindTurbines():
         markers = np.array(list("213v^<>o48spP*hH+xXDd|_"))
 
         from matplotlib.patches import Circle
+        assert len(x) == len(y)
+        types = np.zeros_like(x) + types  # ensure same length as x
         for i, (x_, y_, d) in enumerate(zip(x, y, self.diameter(types))):
             circle = Circle((x_, y_), d / 2, color='gray', alpha=.5)
             ax.add_artist(circle)
@@ -86,15 +137,9 @@ class OneTypeWindTurbines(WindTurbines):
 
     def __init__(self, name, diameter, hub_height, ct_func, power_func, power_unit):
         WindTurbines.__init__(self, [name], [diameter], [hub_height],
-                              [lambda ws: ct_func(ws)],
-                              [lambda ws: power_func(ws)],
+                              [lambda ws, types=0: ct_func(ws)],
+                              [lambda ws, types=0: power_func(ws)],
                               power_unit)
-
-    def power(self, ws_i, type_i=0):
-        return self.ct_power(ws_i, type_i)[1]
-
-    def ct(self, ws_i, type_i=0):
-        return self.ct_power(ws_i, type_i)[0]
 
 
 def cube_power(ws_cut_in, ws_cut_out, ws_rated, power_rated):
@@ -114,15 +159,15 @@ def main():
         wts = WindTurbines(names=['tb1', 'tb2'],
                            diameters=[80, 120],
                            hub_heights=[70, 110],
-                           ct_funcs=[lambda ws: 8 / 9,
-                                     lambda ws: 8 / 9],
+                           ct_funcs=[lambda _: 8 / 9,
+                                     lambda _: 8 / 9],
                            power_funcs=[cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=2000),
                                         cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=3000)],
                            power_unit='kW')
 
         ws = np.arange(25)
         import matplotlib.pyplot as plt
-        ct, power = wts.ct_power(ws)
+        power = wts.power(ws)
         plt.plot(ws, power, label=wts.name(0))
         plt.legend()
         plt.show()

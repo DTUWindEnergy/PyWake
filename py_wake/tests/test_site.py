@@ -37,7 +37,8 @@ def test_local_wind(site):
     zero = [0] * len(z)
 
     ws = site.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10])[1][:, 0, 0]
-    ws70 = site.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10], h_ref=70)[1][:, 0, 0]
+    site.h_ref = 70
+    ws70 = site.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10])[1][:, 0, 0]
     if 0:
         import matplotlib.pyplot as plt
         plt.plot(ws, z)
@@ -60,7 +61,7 @@ def test_site():
 def test_plot_ws_distribution(site):
     site.plot_ws_distribution(wd=[0, 90, 180, 270])
     site.plot_ws_distribution(wd=[0, 90, 180, 270], include_wd_distribution=True)
-    if 1:
+    if 0:
         import matplotlib.pyplot as plt
         plt.show()
 
@@ -75,15 +76,34 @@ def test_plot_wd_distribution(site):
     UniformWeibullSite(f, A, k, ti, 'spline').plot_wd_distribution(360)
     UniformWeibullSite(f, A, k, ti, 'linear').plot_wd_distribution(360)
 
-    if 1:
+    if 0:
         import matplotlib.pyplot as plt
         plt.show()
 
 
 def test_plot_wd_distribution_with_ws_levels(site):
-    import matplotlib.pyplot as plt
-    site.plot_wd_distribution(12, [0, 5, 10, 15])
+    site.plot_wd_distribution(12, [0, 5, 10, 15, 20, 25])
 
-    if 1:
+    if 0:
+        import matplotlib.pyplot as plt
+        plt.show()
+
+
+def test_plot_wd_distribution_with_ws_levels2(site):
+    import matplotlib.pyplot as plt
+    site.plot_wd_distribution(12, 6)
+
+    if 0:
+        import matplotlib.pyplot as plt
+        plt.show()
+
+
+def test_plot_ws_distribution_iea37():
+    from py_wake.examples.data.iea37 import IEA37_Site
+
+    n_wt = 16  # must be 16, 32 or 64
+    site = IEA37_Site(n_wt)
+    site.plot_ws_distribution(wd=[0])
+    if 0:
         import matplotlib.pyplot as plt
         plt.show()

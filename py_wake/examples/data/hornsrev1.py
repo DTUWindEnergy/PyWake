@@ -76,12 +76,12 @@ ct_curve = np.array([[3.0, 0.0],
 class V80(OneTypeWindTurbines):
     def __init__(self):
         OneTypeWindTurbines.__init__(self, 'V80', diameter=80, hub_height=70,
-                                     ct_func=self.ct, power_func=self.power, power_unit='kW')
+                                     ct_func=self._ct, power_func=self._power, power_unit='kW')
 
-    def ct(self, u):
+    def _ct(self, u):
         return np.interp(u, ct_curve[:, 0], ct_curve[:, 1])
 
-    def power(self, u):
+    def _power(self, u):
         return np.interp(u, power_curve[:, 0], power_curve[:, 1])
 
 
