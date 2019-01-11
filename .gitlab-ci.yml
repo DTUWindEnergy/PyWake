@@ -40,6 +40,9 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
   stage:  # build, test, deploy defined by default [2]
     deploy
   script:  # use sphinx to build docs, move to public page
+  - pip install sphinx --upgrade
+  - pip install nbsphinx==0.3.5
+  - pip install git+https://github.com/vidartf/nbsphinx-link.git
   - cd docs; make html
   - cd ../; mv docs/build/html public/
   artifacts:  # required for GitLab pages [1]
@@ -47,7 +50,7 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
     - public
   only:  # only run for these branches
   - master
-  - test_docs
+  - /^test_doc.*/ 
   tags:  # only runners with this tag can do the job [3]
   - python
 
