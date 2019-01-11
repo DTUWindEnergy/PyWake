@@ -14,11 +14,12 @@ def _run_git_cmd(cmd, git_repo_path=None):
     try:
         process = subprocess.Popen(cmd,
                                    stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE,
                                    universal_newlines=True,
                                    cwd=os.path.abspath(git_repo_path))
-        stdout = process.communicate()[0]
+        stdout,stderr = process.communicate()
         if process.returncode != 0:
-            raise EnvironmentError()
+            raise EnvironmentError("%s\n%s"%(stdout, stderr))
         return stdout.strip()
 
     except EnvironmentError as e:
@@ -32,7 +33,7 @@ def get_git_version(git_repo_path=None):
 
 
 def get_tag(git_repo_path=None, verbose=False):
-    tag = _run_git_cmd(['git', 'describe', '--tags', '--abbrev=0'], git_repo_path)
+    tag = _run_git_cmd(['git', 'describe', '--tags', '--always', '--abbrev=0'], git_repo_path)
     if verbose:
         print(tag)
     return tag
