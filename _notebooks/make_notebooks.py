@@ -75,6 +75,12 @@ except ModuleNotFoundError:
 
 
 def check_notebooks():
+    import matplotlib.pyplot as plt
+
+    def no_show(*args, **kwargs):
+        pass
+    plt.show = no_show  # disable plt show that requires the user to close the plot
+
     path = os.path.dirname(__file__) + "/elements/"
     for f in [f for f in os.listdir(path) if f.endswith('.ipynb')]:
         nb = Notebook(path + f)

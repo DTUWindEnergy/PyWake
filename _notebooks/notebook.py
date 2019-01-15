@@ -106,15 +106,12 @@ class Notebook():
 
     def check_links(self):
         txt = "\n".join(self.get_text())
-        for link in re.finditer("\[([^]]*)]\(([^)]*)\)", txt):
+        for link in re.finditer(r"\[([^]]*)]\(([^)]*)\)", txt):
             label, url = link.groups()
             # print(label)
             # print(url)
             try:
                 import urllib.request
-
-                # gcontext = ssl.SSLContext(ssl.PROTOCOL_TLSv1)  # Only for gangstars
-                #print(urllib.request.urlopen(url, context=gcontext).getcode())
                 context = ssl._create_unverified_context()
                 assert urllib.request.urlopen(url, context=context).getcode() == 200
             except Exception as e:

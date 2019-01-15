@@ -9,3 +9,4 @@ Reference guide
     wind_turbines/wind_turbines
     site/site
     wake_models/wake_models
+    aep_calculator/aep_calculator
