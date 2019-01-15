@@ -85,5 +85,7 @@ def check_notebooks():
 if __name__ == '__main__':
     check_notebooks()
     make_tutorials()
-    make_doc_notebooks(['V80', 'IEA37Turbine', 'IEA37Site', 'Hornsrev1Site', 'noj', 'fuga'])
+    make_doc_notebooks(['V80', 'IEA37Turbine',
+                        'IEA37Site', 'Hornsrev1Site',
+                        'noj', 'fuga', 'IEA37SimpleBastankhahGaussian', 'BastankhahGaussian'])
     print('Done')
