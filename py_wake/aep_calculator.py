@@ -70,6 +70,35 @@ class AEPCalculator():
         return AEP_GWh_ilk
 
     def calculate_AEP_no_wake_loss(self, x_i, y_i, h_i=None, type_i=None, wd=None, ws=None):
+        """Calculate AEP without wake loss
+
+        In addition local wind speed, turbulence intensity, and the
+        power, ct and probability is calculated
+
+        Parameters
+        ----------
+        x_i : array_like
+            X position of wind turbines
+        y_i : array_like
+            Y position of wind turbines
+        h_i : array_like or None, optional
+            Hub height of wind turbines\n
+            If None, default, the standard hub height is used
+        type_i array_like or None, optional
+            Wind turbine types\n
+            If None, default, the first type is used (type=0)
+        wd : int, float, array_like or None
+            Wind directions(s)\n
+            If None, default, the wake is calculated for site.default_wd
+        ws : int, float, array_like or None
+            Wind speed(s)\n
+            If None, default, the wake is calculated for site.default_ws
+
+        Returns
+        -------
+        AEP_GWh_ilk : array_like
+            AEP (without wake loss) in GWh
+        """
         h_i, type_i, wd, ws = self._get_defaults(x_i, h_i, type_i, wd=wd, ws=ws)
 
         # Find local wind speed, wind direction, turbulence intensity and probability
@@ -80,7 +109,7 @@ class AEPCalculator():
         AEP_GWh_ilk = self.power_ilk * self.P_lk[na, :, :] * 24 * 365 * 1e-9
         return AEP_GWh_ilk
 
-    def WS_eff_map(self, x_j, y_j, h, x_i, y_i, type_i, h_i, wd=None, ws=None):
+    def _WS_eff_map(self, x_j, y_j, h, x_i, y_i, type_i, h_i, wd=None, ws=None):
         h_i, type_i, wd, ws = self._get_defaults(x_i, h_i, type_i, wd, ws)
 
         def f(x, N=500, ext=.2):
@@ -111,7 +140,36 @@ class AEPCalculator():
         return X_j, Y_j, WS_eff_jlk, P_lk
 
     def wake_map(self, x_j=None, y_j=None, h=None, wt_x=[], wt_y=[], wt_type=None, wt_height=None, wd=None, ws=None):
-        X_j, Y_j, WS_eff_jlk, P_lk = self.WS_eff_map(x_j, y_j, h, wt_x, wt_y, wt_type, wt_height, wd, ws)
+        """Calculate wake(effective wind speed) map
+
+        In addition local wind speed, turbulence intensity, and the
+        power, ct and probability is calculated
+
+        Parameters
+        ----------
+        x_j : array_like or None, optional
+            X position map points
+        y_j : array_like
+            Y position of map points
+        h : r None, optional
+            Hub height of wind turbines\n
+            If None, default, the standard hub height is used
+        type_i array_like or None, optional
+            Wind turbine types\n
+            If None, default, the first type is used (type=0)
+        wd : int, float, array_like or None
+            Wind directions(s)\n
+            If None, default, the wake is calculated for site.default_wd
+        ws : int, float, array_like or None
+            Wind speed(s)\n
+            If None, default, the wake is calculated for site.default_ws
+
+        Returns
+        -------
+        AEP_GWh_ilk : array_like
+            AEP (without wake loss) in GWh
+        """
+        X_j, Y_j, WS_eff_jlk, P_lk = self._WS_eff_map(x_j, y_j, h, wt_x, wt_y, wt_type, wt_height, wd, ws)
         return X_j, Y_j, (WS_eff_jlk * P_lk[na, :, :] / P_lk.sum()).sum((1, 2)).reshape(X_j.shape)
 
     def plot_wake_map(self, x_j=None, y_j=None, h=None, wt_x=[], wt_y=[], wt_type=None, wt_height=None, wd=None, ws=None, ax=None, levels=100):
@@ -124,7 +182,7 @@ class AEPCalculator():
 
     def aep_map(self, x_j, y_j, type_j, x_i, y_i, type_i=None, h_i=None, wd=None, ws=None):
         h = self.windTurbines.hub_height(type_j)
-        X_j, Y_j, WS_eff_jlk, P_lk = self.WS_eff_map(x_j, y_j, h, x_i, y_i, type_i, h_i, wd, ws)
+        X_j, Y_j, WS_eff_jlk, P_lk = self._WS_eff_map(x_j, y_j, h, x_i, y_i, type_i, h_i, wd, ws)
         P_lk /= P_lk.sum()  # AEP if wind only comes from specified wd and ws
 
         # power_jlk = self.windTurbines.power_func(WS_eff_jlk, type_j)
