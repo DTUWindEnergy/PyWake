@@ -20,4 +20,6 @@ Wake models
 
     noj.nblink
     fuga.nblink
+    gaus.nblink
+    iea37gaus.nblink
     

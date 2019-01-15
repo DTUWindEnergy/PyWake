@@ -8,6 +8,8 @@ Custom site classes
 .. toctree::
     :maxdepth: 2
 
+    Site(base)
+    UniformSite
     UniformWeibullSite
     
 
@@ -18,7 +20,7 @@ Predefined example sites
 .. toctree::
     :maxdepth: 2
 
-    hornsrev
+    hornsrev1
     iea37
     
     

@@ -1,12 +1,12 @@
 from py_wake.wake_models.noj import NOJ
-from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37_Site
+from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 import time
 from py_wake.aep_calculator import AEPCalculator
 
 
 def run_NOJ():
     windTurbines = IEA37_WindTurbines()
-    site = IEA37_Site(64)
+    site = IEA37Site(64)
     wake_model = NOJ(windTurbines)
     aep_calculator = AEPCalculator(site, windTurbines, wake_model)
 

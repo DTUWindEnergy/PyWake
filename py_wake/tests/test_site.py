@@ -99,10 +99,10 @@ def test_plot_wd_distribution_with_ws_levels2(site):
 
 
 def test_plot_ws_distribution_iea37():
-    from py_wake.examples.data.iea37 import IEA37_Site
+    from py_wake.examples.data.iea37 import IEA37Site
 
     n_wt = 16  # must be 16, 32 or 64
-    site = IEA37_Site(n_wt)
+    site = IEA37Site(n_wt)
     site.plot_ws_distribution(wd=[0])
     if 0:
         import matplotlib.pyplot as plt

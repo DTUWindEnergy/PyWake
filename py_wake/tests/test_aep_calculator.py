@@ -1,5 +1,5 @@
 from py_wake.examples.data.iea37 import iea37_path
-from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37_Site
+from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose,\
     read_iea37_windfarm
 from py_wake.site._site import UniformSite, UniformWeibullSite
@@ -19,7 +19,7 @@ def test_aep_no_wake():
 
 
 def test_wake_map():
-    site = IEA37_Site(16)
+    site = IEA37Site(16)
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
     wake_model = NOJ(windTurbines)
@@ -40,7 +40,7 @@ def test_wake_map():
 
 
 def test_aep_map():
-    site = IEA37_Site(16)
+    site = IEA37Site(16)
     x = [0, 0]
     y = [0, 200]
     windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')

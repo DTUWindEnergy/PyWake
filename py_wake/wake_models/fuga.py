@@ -3,7 +3,6 @@ import struct
 import numpy as np
 from py_wake.wake_model import LinearSum, WakeModel
 from numpy import newaxis as na
-from py_wake.examples.data.hornsrev1 import wt_x, wt_y
 
 
 class Fuga(LinearSum, WakeModel):
@@ -148,11 +147,11 @@ def main():
     if __name__ == '__main__':
         from py_wake.aep_calculator import AEPCalculator
         from py_wake.examples.data.iea37 import iea37_path
-        from py_wake.examples.data.iea37._iea37 import IEA37_Site
+        from py_wake.examples.data.iea37._iea37 import IEA37Site
         from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
 
         # setup site, turbines and wakemodel
-        site = IEA37_Site(16)
+        site = IEA37Site(16)
         x, y = site.initial_position.T
         windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
 

@@ -11,7 +11,7 @@ class IEA37_WindTurbines(OneTypeWindTurbines):
         super().__init__(name, diameter, hub_height, ct_func, power_func, power_unit='W')
 
 
-class IEA37_Site(UniformSite):
+class IEA37Site(UniformSite):
     def __init__(self, n_wt, ti=.75):
         assert n_wt in [16, 36, 64]
 
@@ -30,7 +30,7 @@ def main():
         print(wt.diameter(0))
         print(wt.hub_height(0))
 
-        site = IEA37_Site(16)
+        site = IEA37Site(16)
         x, y = site.initial_position.T
         dw, cw, dh, dw_order = site.wt2wt_distances(x, y, 70, np.array([[0]]))
         print(dw.shape)

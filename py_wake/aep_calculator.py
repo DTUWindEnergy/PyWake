@@ -6,7 +6,7 @@ class AEPCalculator():
 
     def __init__(self, site, windTurbines, wake_model):
         """
-        site: f(turbine_positions, wd, ws) -> WD[nWT,nWdir,nWsp], WS[nWT,nWdir,nWsp], TI[nWT,nWdir,nWsp), Weight[nWdir,nWsp]
+        site: f(turbine_positions, wd, ws) -> WD[nWT,nWdir,nWsp], WS[nWT,nWdir,nWsp], TI[nWT,nWdir,nWsp), Weight[nWdir, nWsp]
         wake_model: f(turbine_positions, WD[nWT,nWdir,nWsp], WS[nWT,nWdir,nWsp], TI[nWT,nWdir,nWsp) -> power[nWdir,nWsp] (W)
         """
         self.site = site
@@ -36,6 +36,35 @@ class AEPCalculator():
             self.wake_model.calc_wake(self.WS_ilk, self.TI_ilk, dw_iil, cw_iil, dh_iil, dw_order_l, type_i)
 
     def calculate_AEP(self, x_i, y_i, h_i=None, type_i=None, wd=None, ws=None):
+        """Calculate AEP
+
+        In addition effective wind speed, turbulence intensity, and the
+        power, ct and probability is calculated
+
+        Parameters
+        ----------
+        x_i : array_like
+            X position of wind turbines
+        y_i : array_like
+            Y position of wind turbines
+        h_i : array_like or None, optional
+            Hub height of wind turbines\n
+            If None, default, the standard hub height is used
+        type_i array_like or None, optional
+            Wind turbine types\n
+            If None, default, the first type is used (type=0)
+        wd : int, float, array_like or None
+            Wind directions(s)\n
+            If None, default, the wake is calculated for site.default_wd
+        ws : int, float, array_like or None
+            Wind speed(s)\n
+            If None, default, the wake is calculated for site.default_ws
+
+        Returns
+        -------
+        AEP_GWh_ilk : array_like
+            AEP in GWh
+        """
         self._run_wake_model(x_i=x_i, y_i=y_i, h_i=h_i, type_i=type_i, wd=wd, ws=ws)
         AEP_GWh_ilk = self.power_ilk * self.P_lk[na, :, :] * 24 * 365 * 1e-9
         return AEP_GWh_ilk
