@@ -103,8 +103,8 @@ class Site(ABC):
         dw_ijl : array_like
             down wind distances
             negative is upstream
-        cw_ijl : array_like
-            cross wind distances
+        hcw_ijl : array_like
+            horizontal cross wind distances
         dh_ijl : array_like
             vertical distances
         dw_order_indices_l : array_like
@@ -182,6 +182,8 @@ class Site(ABC):
                 lbl = "Wind direction: %d deg" % (wd_)
 
             ax.plot(ws, p * 10, label=lbl)
+            ax.xlabel('Wind speed [m/s]')
+            ax.ylabel('Probability')
         ax.legend(loc=1)
 
     def plot_wd_distribution(self, n_wd, ws_bins=None, ax=None):
@@ -289,14 +291,14 @@ class UniformSite(Site):
         sin_l = np.sin(theta_l)
         dw_il = (cos_l[na, :] * src_x_i[:, na] + sin_l[na] * src_y_i[:, na])
         dw_ijl = (-cos_l[na, na, :] * dx_ij[:, :, na] - sin_l[na, na, :] * dy_ij[:, :, na])
-        cw_ijl = np.abs(sin_l[na, na, :] * dx_ij[:, :, na] +
-                        -cos_l[na, na, :] * dy_ij[:, :, na])
+        hcw_ijl = np.abs(sin_l[na, na, :] * dx_ij[:, :, na] +
+                         -cos_l[na, na, :] * dy_ij[:, :, na])
         dh_ijl = np.zeros_like(dw_ijl)
         dh_ijl[:, :, :] = dh_ij[:, :, na]
 
         dw_order_indices_l = np.argsort(-dw_il, 0).astype(np.int).T
 
-        return dw_ijl, cw_ijl, dh_ijl, dw_order_indices_l
+        return dw_ijl, hcw_ijl, dh_ijl, dw_order_indices_l
 
     def elevation(self, x_i, y_i):
         return np.zeros_like(x_i)
@@ -308,7 +310,8 @@ class UniformWeibullSite(UniformSite):
     """
 
     def __init__(self, p_wd, a, k, ti, interp_method='nearest', alpha=None, h_ref=None):
-        """
+        """Initialize UniformWeibullSite
+
         Parameters
         ----------
         p_wd : array_like

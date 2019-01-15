@@ -1,7 +1,7 @@
 import numpy as np
 from py_wake.site._site import UniformWeibullSite
-from py_wake.wake_models.noj import NOJ
 from py_wake.wind_turbines import OneTypeWindTurbines
+
 wt_x = [423974, 424042, 424111, 424179, 424247, 424315, 424384, 424452, 424534,
         424602, 424671, 424739, 424807, 424875, 424944, 425012, 425094, 425162,
         425231, 425299, 425367, 425435, 425504, 425572, 425654, 425722, 425791,
@@ -88,7 +88,7 @@ class V80(OneTypeWindTurbines):
 HornsrevV80 = V80
 
 
-class HornsrevSite(UniformWeibullSite):
+class Hornsrev1Site(UniformWeibullSite):
     def __init__(self):
         f = [3.597152, 3.948682, 5.167395, 7.000154, 8.364547, 6.43485,
              8.643194, 11.77051, 15.15757, 14.73792, 10.01205, 5.165975]
@@ -97,6 +97,7 @@ class HornsrevSite(UniformWeibullSite):
         k = [2.392578, 2.447266, 2.412109, 2.591797, 2.755859, 2.595703,
              2.583984, 2.548828, 2.470703, 2.607422, 2.626953, 2.326172]
         UniformWeibullSite.__init__(self, f, a, k, .1)
+        self.initial_position = np.array([wt_x, wt_y]).T
 
 
 def main():

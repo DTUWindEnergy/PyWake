@@ -1,5 +1,5 @@
 from py_wake.examples.data.hornsrev1 import wt_x, wt_y, HornsrevV80,\
-    HornsrevSite
+    Hornsrev1Site
 from py_wake.wake_models.noj import NOJ
 from py_wake.aep_calculator import AEPCalculator
 
@@ -9,7 +9,7 @@ def main():
         import matplotlib.pyplot as plt
         wt = HornsrevV80()
         wt.plot(wt_x, wt_y)
-        aep_calculator = AEPCalculator(HornsrevSite(), wt, NOJ(wt))
+        aep_calculator = AEPCalculator(Hornsrev1Site(), wt, NOJ(wt))
         print('AEP', aep_calculator.calculate_AEP(wt_x, wt_y)[0].sum())
         plt.show()
 

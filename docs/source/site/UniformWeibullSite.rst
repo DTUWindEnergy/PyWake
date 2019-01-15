@@ -1,7 +1,7 @@
 
 
-UniformWeibullSite
-====================
+UniformWeibullSite (non-complex, flat, weibull distributed wind speed)
+======================================================================
 
 .. autoclass:: py_wake.site.UniformWeibullSite
     :members:
