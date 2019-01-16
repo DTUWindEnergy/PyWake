@@ -1,31 +1,32 @@
-.. _installation:
 
-===========================
+
+
 Installation
 ===========================
 
-You must first have a working and properly configured Python 3.4+ distribution
-on your computer. We often use and highly recommend
-`Anaconda <https://www.anaconda.com/download/>`_.
+.. toctree::
+    :maxdepth: 2
 
-Simple user
-------------
+    install_python
+    
 
-If you have other Python programs besides PyWake, it is a good idea to install
-each program in its own environment to ensure that the dependencies for the
-different packages do not conflict with one another. The commands to create and
-then activate an environment in an Anaconda prompt are::
+    
 
-   conda create --name pywake python=3.6
-   activate pywake
+Install PyWake (Simple user)
+----------------------------
 
-You can install PyWake into the current active environment directly from git::
+* Install from PyPi.org (official releases)::
+  
+    pip install py_wake
 
-   pip install git+https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake.git
+* Install from gitlab  (includes any recent updates)::
+  
+    pip install git+https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake.git
+        
 
 
-Developer
-----------
+Install PyWake (Developer)
+--------------------------
 
 We highly recommend developers install PyWake into its own environment. (See
 instructions above.) The commands to clone and install PyWake with developer
