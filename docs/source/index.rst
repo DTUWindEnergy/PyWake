@@ -7,10 +7,12 @@
 .. image:: _static/logo.png
     :align: center
 
+Welcome to PyWake
+===========================================
 
-PyWake is an AEP calculator for wind farms implemented in Python including a collection of wake models
+*- an AEP calculator for wind farms implemented in Python including a collection of wake models*
 
-Quick Start::
+**Quick Start**::
 
     pip install py_wake
 
@@ -30,3 +32,4 @@ Contents:
         installation
         introduction
         reference_guide
+        exercises

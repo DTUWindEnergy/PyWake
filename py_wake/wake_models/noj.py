@@ -13,6 +13,7 @@ class NOJ(SquaredSum, WakeModel):
     def calc_deficit(self, WS_lk, D_src_l, D_dst_jl, dw_jl, cw_jl, ct_lk):
 
         # Calculate the wake loss using NOJ
+        # Jensen, Niels Otto. "A note on wind generator interaction." (1983)
 
         # In NOJensen wake model:
         #      V_def = v*(1-sqrt(1-Ct))/(1+k*dist_down/R)**2
