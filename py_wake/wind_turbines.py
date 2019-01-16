@@ -136,9 +136,26 @@ class WindTurbines():
 class OneTypeWindTurbines(WindTurbines):
 
     def __init__(self, name, diameter, hub_height, ct_func, power_func, power_unit):
+        """Initialize OneTypeWindTurbine
+
+        Parameters
+        ----------
+        name : str
+            Wind turbine name
+        diameter : int or float
+            Diameter of wind turbine
+        hub_height : int or float
+            Hub height of wind turbine
+        ct_func : function
+            Wind turbine ct function; func(ws) -> ct
+        power_func : function
+            Wind turbine power function; func(ws) -> power
+        power_unit : {'W', 'kW', 'MW', 'GW'}
+            Unit of power_func output (case insensitive)
+        """
         WindTurbines.__init__(self, [name], [diameter], [hub_height],
-                              [lambda ws, types=0: ct_func(ws)],
-                              [lambda ws, types=0: power_func(ws)],
+                              [lambda ws: ct_func(ws)],
+                              [lambda ws: power_func(ws)],
                               power_unit)
 
 

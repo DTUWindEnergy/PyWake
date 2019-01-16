@@ -94,5 +94,6 @@ if __name__ == '__main__':
     make_doc_notebooks(['V80', 'IEA37Turbine',
                         'IEA37Site', 'Hornsrev1Site',
                         'noj', 'fuga', 'IEA37SimpleBastankhahGaussian', 'BastankhahGaussian',
-                        'cmp_wakemodels'])
+                        'cmp_wakemodels',
+                        'noj_validation_exercise_solution', 'noj_validation_exercise', 'hornsrev_layout_optimization_exercise'])
     print('Done')
