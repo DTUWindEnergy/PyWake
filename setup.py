@@ -26,6 +26,10 @@ setup(name='py_wake',
       author_email='mmpe@dtu.dk',
       license='MIT',
       packages=find_packages(),
+	  package_data={
+        'py_wake': ['examples/data/iea37/*.yaml',
+				   'tests/test_files/fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/*.*'],
+	  },
       install_requires=[
           'matplotlib',  # for plotting
           'numpy',  # for numerical calculations
