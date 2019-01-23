@@ -59,7 +59,8 @@ def make_doc_notebooks(notebooks):
         nb = Notebook(src_path + name + ".ipynb")
         t = '[Try this yourself](https://colab.research.google.com/github/DTUWindEnergy/PyWake/blob/master/docs/notebooks/%s.ipynb) (requires google account)'
         nb.insert_markdown_cell(1, t % name)
-        code = """# Install PyWake if needed
+        code = """%%capture
+# Install PyWake if needed
 try:
     import py_wake
 except ModuleNotFoundError:
