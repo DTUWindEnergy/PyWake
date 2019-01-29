@@ -4,6 +4,7 @@ Overview
 ============
 
 .. image:: _static/Overview.png
+    :width: 100 %
 
 
 AEPCalculator
@@ -19,21 +20,23 @@ AEPCalculator
 WindTurbines
 ------------
 
-    The `WindTurbines` provides the power, `Power`, and thrust coefficient, `CT` 
-    for the specified wind turbines, `type`, effective wind speed, `ws_eff` as 
-    well as the wind turbine hubheight(s),`h` and diameter(s), `D`.
+    The `WindTurbines` provides the power, `Power`, and thrust coefficient, `CT`, 
+    for the specified wind turbines, `type`, and effective wind speed, `ws_eff`, as 
+    well as the wind turbine hub height(s),`h` and diameter(s), `D`.
     
         
 WakeModel
 ---------
 
-    The `WakeModel` iterates over all turbines in down-wind order. For the n'th 
-    most upstream turbine, the effective wind speed is calculated by subtracting
-    the wake deficit from upstream turbines from the local (no-wake) wind speed 
-    (provided by `Site`). 
-    Note, that the way the deficits are summed up is wake-model specific.
+    The `WakeModel` iterates over all turbines in down-wind order. For each, the
+    effective wind speed is calculated by subtracting the wake deficits from 
+    upstream turbines from the local (no-wake) wind speed (provided by `Site`).
+    Note, that the way the deficits are summed up is wake-model specific. 
     
-    The deficit from the current turbine can now be calculated at the position of
+    .. image :: _static/wake_model_principle.png
+
+
+    The deficit caused by the current turbine is then calculated at the position of
     all down stream turbines based on the down-stream, cross-wind and vertical 
     distance (calculated by `Site`), the thrust coefficient (calculated by 
     `WindTurbines`), etc. Note, that the deficit calculation is also wake-model 
