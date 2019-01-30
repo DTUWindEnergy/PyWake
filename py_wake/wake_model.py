@@ -136,9 +136,6 @@ class WakeModel(ABC):
         for j in range(I):
             i_wt_l = dw_order_indices_dl[:, j]
             m = i_wt_l * L + i_wd_l  # current wt (j'th most upstream wts for all wdirs)
-#             n_uw = np.array([indices[dw_order_indices_l[l, :j], i, l] for i, l in zip(i_wt_l, i_wd_l)]).T
-#
-#             n_dw = np.array([indices[i, dw_order_indices_l[l, j + 1:], l] for i, l in zip(i_wt_l, i_wd_l)]).T
 
             n_uw = np.array([indices[uwi, i, l] for uwi, i, l in zip(dw_order_indices_dl[:, :j], i_wt_l, i_wd_l)]).T
             n_dw = np.array([indices[i, dwi, l] for dwi, i, l in zip(dw_order_indices_dl[:, j + 1:], i_wt_l, i_wd_l)]).T
