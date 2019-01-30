@@ -88,7 +88,7 @@ class AEPCalculator():
         h_i : array_like or None, optional
             Hub height of wind turbines\n
             If None, default, the standard hub height is used
-        type_i array_like or None, optional
+        type_i : array_like or None, optional
             Wind turbine types\n
             If None, default, the first type is used (type=0)
         wd : int, float, array_like or None
