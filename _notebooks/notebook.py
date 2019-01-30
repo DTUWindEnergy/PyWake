@@ -110,6 +110,8 @@ class Notebook():
             label, url = link.groups()
             # print(label)
             # print(url)
+            if url.startswith('attachment'):
+                continue
             try:
                 import urllib.request
                 context = ssl._create_unverified_context()
