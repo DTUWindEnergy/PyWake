@@ -118,7 +118,6 @@ class WakeModel(ABC):
 
         K = WS_ilk.shape[2]
         deficit_nk = np.zeros((I * I * L, K))
-        # deficit_ijlk = deficit_nk.reshape((I, I, L, K))  # from i to j
 
         indices = np.arange(I * I * L).reshape((I, I, L))
         WS_mk = WS_ilk.astype(np.float).reshape((I * L, K))
@@ -164,6 +163,40 @@ class WakeModel(ABC):
         return WS_eff_ilk, TI_ilk, power_ilk, ct_ilk
 
     def wake_map(self, WS_ilk, WS_eff_ilk, dw_ijl, hcw_ijl, dh_ijl, ct_ilk, types_i, WS_jlk):
+        """Calculate a wake (effecitve wind speed) map
+
+        Parameters
+        ----------
+        WS_ilk : array_like
+            Local wind speed [m/s] for each turbine(i), wind direction(l) and
+            wind speed(k)
+        WS_eff_ilk : array_like
+            Local effective wind speed [m/s] for each turbine(i), wind
+            direction(l) and wind speed(k)
+        dw_ijl : array_like
+            Down wind distance matrix between turbines(i) and map points (j) for
+            all wind directions(l) [m]
+        hcw_ijl : array_like
+            Horizontal cross wind distance matrix between turbines(i) and map
+            points(j) for all wind directions(l) [m]
+        dh_ijl : array_like
+            Vertical hub height distance matrix between turbines(i,i) for all
+            wind directions(l) [m]
+        ct_ilk : array_like
+            Thrust coefficient for all turbine(i), wind direction(l) and
+            wind speed(k)
+        types_i : array_like
+            Wind turbine type indexes
+        WS_jlk : array_like
+            Local wind speed [m/s] for map point(j), wind direction(l) and
+            wind speed(k)
+
+        Returns
+        -------
+        WS_eff_jlk : array_like
+            Local effective wind speed [m/s] for all map points(j),
+            wind direction(l) and wind speed(k)
+        """
         D_i = self.windTurbines.diameter(types_i)
         H_i = self.windTurbines.hub_height(types_i)
         I, J, L = dw_ijl.shape

@@ -12,7 +12,7 @@ WakeModel
         calc_wake
         wake_map
         calc_deficit
-        calc_wake
+        calc_effective_WS
         
     .. automethod:: __init__
     
