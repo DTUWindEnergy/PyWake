@@ -106,7 +106,7 @@ class WakeModel(ABC):
         power_ilk : array_like
             Power productions [w]
         ct_ilk : array_like
-            Trust coefficients
+            Thrust coefficients
 
         """
         I, L = dw_iil.shape[1:]
