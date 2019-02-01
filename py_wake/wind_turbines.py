@@ -69,7 +69,7 @@ class WindTurbines():
         return self._ct_power(ws_i, type_i)[1]
 
     def ct(self, ws_i, type_i=0):
-        """Trust coefficient
+        """Thrust coefficient
 
         Parameters
         ----------
@@ -81,7 +81,7 @@ class WindTurbines():
         Returns
         -------
         ct : array_like
-            Trust coefficient for the specified wind turbine type(s) and wind speed
+            Thrust coefficient for the specified wind turbine type(s) and wind speed
         """
         return self._ct_power(ws_i, type_i)[0]
 
@@ -154,8 +154,8 @@ class OneTypeWindTurbines(WindTurbines):
             Unit of power_func output (case insensitive)
         """
         WindTurbines.__init__(self, [name], [diameter], [hub_height],
-                              [lambda ws: ct_func(ws)],
-                              [lambda ws: power_func(ws)],
+                              [ct_func],
+                              [power_func],
                               power_unit)
 
 
