@@ -3,6 +3,9 @@
 
 ![PyWake](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/raw/master/docs/logo.png)
 
+## Welcome to PyWake
+- an AEP calculator for wind farms implemented in Python including a collection of wake models
+
 
 This is a work-in-progress attempt to make something like FUSEDWAKE 2.0. Its relation to FUSEDWAKE is, however, not determined yet.
 The idea is that it should:
@@ -15,21 +18,19 @@ The idea is that it should:
 - Support complex terrain
 - Support gradient based optimization
 
-## Installation
 
-Please see the installation instructions on
-[the documentation website](https://topfarm.pages.windenergy.dtu.dk/PyWake).
+## Quick Start:
 
-## Run Horns Rev 1 example
+`pip install py_wake`
 
-To calculate the annual energy production of Horns Rev 1, go to:
+## Source code repository (and issue tracker):
 
-    $ cd py_wake/examples
+[https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake)
 
-and run:
+## License:
+[MIT](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/blob/master/LICENSE)
 
-    $ python hornsrev1_example.py
+## Documentation, installation, etc:
 
-
-
+[https://topfarm.pages.windenergy.dtu.dk/PyWake](https://topfarm.pages.windenergy.dtu.dk/PyWake).
 
