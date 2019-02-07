@@ -11,9 +11,9 @@ class BastankhahGaussian(SquaredSum, WakeModel):
     """
     args4deficit = ['WS_lk', 'D_src_l', 'dw_jl', 'cw_jl', 'ct_lk']
 
-    def __init__(self, windTurbines):
+    def __init__(self, windTurbines, k=0.0324555):
         WakeModel.__init__(self, windTurbines)
-        self.k = 0.0324555
+        self.k = k
 
     def calc_deficit(self, WS_lk, D_src_l, dw_jl, cw_jl, ct_lk):
         sqrt1ct = np.sqrt(1 - ct_lk)
