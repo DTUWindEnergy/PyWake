@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 
 from py_wake.examples.data.iea37 import iea37_path
-from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
+from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose,\
     read_iea37_windfarm
 from py_wake.site._site import UniformSite
@@ -85,11 +85,10 @@ def test_NOJ_6_turbines_in_row():
 
 
 def test_wake_map():
-    _, _, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
-    n_wt = 16
-    x, y, _ = read_iea37_windfarm(iea37_path + 'iea37-ex%d.yaml' % n_wt)
+    site = IEA37Site(16)
 
-    site = UniformSite(freq, ti=0.75)
+    x, y = site.initial_position.T
+
     windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
     wake_model = NOJ(windTurbines)
     aep = AEPCalculator(site, windTurbines, wake_model)
@@ -101,7 +100,7 @@ def test_wake_map():
         import matplotlib.pyplot as plt
         c = plt.contourf(X, Y, Z)  # , np.arange(2, 10, .01))
         plt.colorbar(c)
-        site.plot_windturbines(x, y)
+        windTurbines.plot(x, y)
 
         plt.show()
 
