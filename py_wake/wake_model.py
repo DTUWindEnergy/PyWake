@@ -67,6 +67,10 @@ class WakeModel(ABC):
 
         """
         self.windTurbines = windTurbines
+        self.wec = 1  # wake expansion continuation see
+        # Thomas, J. J. and Ning, A., “A Method for Reducing Multi-Modality in the Wind Farm Layout Optimization Problem,”
+        # Journal of Physics: Conference Series, Vol. 1037, The Science of Making
+        # Torque from Wind, Milano, Italy, jun 2018, p. 10.
 
     def calc_wake(self, WS_ilk, TI_ilk, dw_iil, hcw_iil, dh_iil, dw_order_indices_dl, types_i):
         """Calculate wake effects
@@ -124,6 +128,8 @@ class WakeModel(ABC):
         WS_eff_mk = WS_mk.copy()
         dw_n = dw_iil.flatten()
         hcw_n = hcw_iil.flatten()
+        if self.wec != 1:
+            hcw_n = hcw_n / self.wec
         dh_n = dh_iil.flatten()
         power_ilk = np.zeros((I, L, K))
         ct_ilk = np.zeros((I, L, K))
@@ -199,6 +205,8 @@ class WakeModel(ABC):
         """
         D_i = self.windTurbines.diameter(types_i)
         H_i = self.windTurbines.hub_height(types_i)
+        if self.wec != 1:
+            hcw_ijl = hcw_ijl / self.wec
         I, J, L = dw_ijl.shape
         K = WS_ilk.shape[2]
 

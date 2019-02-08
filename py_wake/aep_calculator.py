@@ -189,7 +189,9 @@ class AEPCalculator():
         plot_wake_map
         """
         X_j, Y_j, WS_eff_jlk, P_lk = self._WS_eff_map(x_j, y_j, h, wt_x, wt_y, wt_type, wt_height, wd, ws)
-        return X_j, Y_j, (WS_eff_jlk * P_lk[na, :, :] / P_lk.sum()).sum((1, 2)).reshape(X_j.shape)
+        if P_lk.sum() > 0:
+            WS_eff_jlk = WS_eff_jlk * P_lk[na, :, :] / P_lk.sum()
+        return X_j, Y_j, WS_eff_jlk.sum((1, 2)).reshape(X_j.shape)
 
     def plot_wake_map(self, x_j=None, y_j=None, h=None, wt_x=[], wt_y=[], wt_type=None, wt_height=None, wd=None, ws=None, ax=None, levels=100):
         """Plot wake(effective wind speed) map
