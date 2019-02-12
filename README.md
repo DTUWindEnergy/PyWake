@@ -1,5 +1,6 @@
 [![pipeline status](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/badges/master/pipeline.svg)](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/commits/master)
 [![coverage report](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/badges/master/coverage.svg)](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/commits/master)
+[![DOI](https://zenodo.org/badge/164115313.svg)](https://zenodo.org/badge/latestdoi/164115313)
 
 ![PyWake](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/raw/master/docs/logo.png)
 
