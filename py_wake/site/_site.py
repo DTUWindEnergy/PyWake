@@ -49,20 +49,24 @@ class Site(ABC):
             local free flow wind speeds
         TI_ilk : array_like
             local free flow turbulence intensity
-        P_lk : array_like
+        P_ilk : array_like
             Probability/weight
         """
         pass
 
     @abstractmethod
-    def probability(self, wd, ws, wd_bin_size, ws_bin_size):
+    def probability(self, x_i, y_i, WD_lk, WS_lk, wd_bin_size, ws_bin_size):
         """Probability of wind situation (wind speed and direction)
 
         Parameters
         ----------
-        wd : int, float or array_like
+        x_i : array_like
+            Local x coordinate
+        y_i : array_like
+            Local y coordinate
+        WD_lk : array_like
             Wind direction
-        ws : int, float or array_like
+        WS_lk : array_like
             Wind speed
         wd_bin_size : int or float
             size of wind direction sectors
@@ -71,8 +75,8 @@ class Site(ABC):
 
         Returns
         -------
-        P : float or array_like
-            Probability of wind speed and direction
+        P_ilk : float or array_like
+            Probability of wind speed and direction at loca positions
         """
         pass
 
@@ -147,11 +151,15 @@ class Site(ABC):
         else:
             return ws_bin_size
 
-    def plot_ws_distribution(self, wd, include_wd_distribution=False, ax=None):
+    def plot_ws_distribution(self, x=[0], y=[0], wd=[0], include_wd_distribution=False, ax=None):
         """Plot wind speed distribution
 
         Parameters
         ----------
+        x : int or float
+            Local x coordinate
+        y : int or float
+            Local y coordinate
         wd : int or array_like
             Wind direction(s) (one curve pr wind direction)
         include_wwd_distributeion : bool, default is False
@@ -165,6 +173,9 @@ class Site(ABC):
             import matplotlib.pyplot as plt
             ax = plt
         ws = np.arange(0.05, 30.05, .1)
+        x = np.atleast_1d(x)
+        y = np.atleast_1d(y)
+
         wd = np.atleast_1d(wd)
         for wd_ in wd:
             wd_bin_size = 360 / len(wd)
@@ -173,11 +184,14 @@ class Site(ABC):
                 v = wd_bin_size / 2
                 WD_lk = np.arange(wd_ - v, wd_ + v)[:, na]
                 WS_lk = ws
-                p = self.probability(WD_lk, WS_lk,
-                                     wd_bin_size=1, ws_bin_size=.1).sum(0)
+                p = self.probability(x, y, WD_lk, WS_lk,
+                                     wd_bin_size=1, ws_bin_size=.1).sum((0, 1))
                 lbl = r"Wind direction: %d$\pm$%s deg" % (wd_, (int(v), v)[(wd_bin_size % 2) != 0])
             else:
-                p = self.probability(wd_, ws, wd_bin_size=wd_bin_size, ws_bin_size=.1)
+                WD_lk = np.array([wd_])[:, na]
+                WS_lk = ws
+
+                p = self.probability(x, y, WD_lk, WS_lk, wd_bin_size=wd_bin_size, ws_bin_size=.1)[0, 0]
                 p /= p.sum()
                 lbl = "Wind direction: %d deg" % (wd_)
 
@@ -186,11 +200,15 @@ class Site(ABC):
             ax.ylabel('Probability')
         ax.legend(loc=1)
 
-    def plot_wd_distribution(self, n_wd, ws_bins=None, ax=None):
+    def plot_wd_distribution(self, x=0, y=0, n_wd=12, ws_bins=None, ax=None):
         """Plot wind direction (and speed) distribution
 
         Parameters
         ----------
+        x : int or float
+            Local x coordinate
+        y : int or float
+            Local y coordinate
         n_wd : int
             Number of wind direction sectors
         ws_bins : None, int or array_like, default is None
@@ -216,8 +234,10 @@ class Site(ABC):
 
         s = 360 / n_wd
         if ws_bins is None:
-            p = [self.probability(np.arange(wd_ - s / 2, wd_ + s / 2), ws=100,
-                                  wd_bin_size=1, ws_bin_size=200).sum(0) for wd_ in wd]
+
+            p = [self.probability(x_i=x, y_i=y, WD_lk=np.arange(wd_ - s / 2, wd_ + s / 2),
+                                  WS_lk=np.array([100])[na],
+                                  wd_bin_size=1, ws_bin_size=200).sum() for wd_ in wd]
             ax.bar(theta, p, width=s / 180 * np.pi, bottom=0.0)
         else:
             if not hasattr(ws_bins, '__len__'):
@@ -227,8 +247,8 @@ class Site(ABC):
             ws = ((ws_bins[1:] + ws_bins[:-1]) / 2)
             ws_bin_size = ws[1] - ws[0]
 
-            p = [self.probability(np.arange(wd_ - s / 2, wd_ + s / 2)[:, na], ws=ws[na],
-                                  wd_bin_size=1, ws_bin_size=ws_bin_size).sum(0) for wd_ in wd]
+            p = [self.probability(x_i=x, y_i=y, WD_lk=np.arange(wd_ - s / 2, wd_ + s / 2)[:, na], WS_lk=ws[na],
+                                  wd_bin_size=1, ws_bin_size=ws_bin_size).sum((0, 1)) for wd_ in wd]
             cum_p = np.cumsum(p, 1).T
             start_p = np.vstack([np.zeros_like(cum_p[:1]), cum_p[:-1]])
 
@@ -252,9 +272,9 @@ class UniformSite(Site):
         super().__init__()
         self.p_wd = Sector2Subsector(p_wd / np.sum(p_wd), interp_method=interp_method) / (360 / len(p_wd))
 
-    def probability(self, wd, ws, wd_bin_size, ws_bin_size):
-        P = np.ones_like(ws, dtype=np.float) * self.p_wd[np.round(wd).astype(np.int) % 360] * wd_bin_size
-        return P
+    def probability(self, x_i, y_i, WD_lk, WS_lk, wd_bin_size, ws_bin_size):
+        P_lk = np.ones_like(WS_lk, dtype=np.float) * self.p_wd[np.round(WD_lk).astype(np.int) % 360] * wd_bin_size
+        return P_lk[na]
 
     def local_wind(self, x_i, y_i, h_i=None, wd=None, ws=None, wd_bin_size=None, ws_bin_size=None):
         if wd is None:
@@ -275,8 +295,8 @@ class UniformSite(Site):
                 WS_ilk = WS_ilk * wind_shear_ratio
 
         TI_ilk = self.ti[WD_index_ilk]
-        P_lk = self.probability(WD_ilk[0], WS_ilk[0], wd_bin_size, ws_bin_size)
-        return WD_ilk, WS_ilk, TI_ilk, P_lk
+        P_ilk = self.probability(x_i, y_i, WD_ilk[0], WS_ilk[0], wd_bin_size, ws_bin_size)
+        return WD_ilk, WS_ilk, TI_ilk, P_ilk
 
     def distances(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
         wd_l = np.mean(wd_il, 0)
@@ -347,9 +367,10 @@ class UniformWeibullSite(UniformSite):
         dWS = wsp_bin_size / 2
         return cdf(WS + dWS) - cdf(WS - dWS)
 
-    def probability(self, wd, ws, wd_bin_size, ws_bin_size):
-        wd = np.round(wd).astype(np.int) % 360
-        return self.weibull_weight(ws, self.a[wd], self.k[wd], ws_bin_size) * self.p_wd[wd] * wd_bin_size
+    def probability(self, x_i, y_i, WD_lk, WS_lk, wd_bin_size, ws_bin_size):
+        i_lk = np.round(WD_lk).astype(np.int) % 360
+        P_lk = self.weibull_weight(WS_lk, self.a[i_lk], self.k[i_lk], ws_bin_size) * self.p_wd[i_lk] * wd_bin_size
+        return P_lk[na]
 
 
 def Sector2Subsector(para, axis=-1, wd_binned=None, interp_method='piecewise'):
@@ -417,13 +438,10 @@ def main():
         x_i = y_i = np.arange(5)
         wdir_lst = np.arange(0, 360, 90)
         wsp_lst = np.arange(1, 20)
-        WD_ilk, WS_ilk, TI_ilk, P_lk = site.local_wind(x_i=x_i, y_i=y_i, wd=wdir_lst, ws=wsp_lst)
+        WD_ilk, WS_ilk, TI_ilk, P_ilk = site.local_wind(x_i=x_i, y_i=y_i, wd=wdir_lst, ws=wsp_lst)
         import matplotlib.pyplot as plt
-        for wdir, P_k in zip(wdir_lst, P_lk):
-            plt.plot(wsp_lst, P_k, label='%s deg' % wdir)
-        plt.xlabel('Wind speed [m/s]')
-        plt.ylabel('Probability')
-        plt.legend()
+
+        site.plot_ws_distribution(0, 0, wdir_lst)
 
         plt.figure()
         z = np.arange(1, 100)

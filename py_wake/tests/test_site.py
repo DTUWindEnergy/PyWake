@@ -68,21 +68,20 @@ def test_plot_ws_distribution(site):
 
 def test_plot_wd_distribution(site):
     import matplotlib.pyplot as plt
-    site.plot_wd_distribution(12, ax=plt)
+    site.plot_wd_distribution(n_wd=12, ax=plt)
     plt.figure()
-    site.plot_wd_distribution(12, ax=plt.gca())
+    site.plot_wd_distribution(n_wd=12, ax=plt.gca())
     plt.figure()
-    site.plot_wd_distribution(360)
-    UniformWeibullSite(f, A, k, ti, 'spline').plot_wd_distribution(360)
-    UniformWeibullSite(f, A, k, ti, 'linear').plot_wd_distribution(360)
+    site.plot_wd_distribution(n_wd=360)
+    UniformWeibullSite(f, A, k, ti, 'spline').plot_wd_distribution(n_wd=360)
+    UniformWeibullSite(f, A, k, ti, 'linear').plot_wd_distribution(n_wd=360)
 
     if 0:
-        import matplotlib.pyplot as plt
         plt.show()
 
 
 def test_plot_wd_distribution_with_ws_levels(site):
-    site.plot_wd_distribution(12, [0, 5, 10, 15, 20, 25])
+    site.plot_wd_distribution(n_wd=12, ws_bins=[0, 5, 10, 15, 20, 25])
 
     if 0:
         import matplotlib.pyplot as plt
@@ -90,8 +89,7 @@ def test_plot_wd_distribution_with_ws_levels(site):
 
 
 def test_plot_wd_distribution_with_ws_levels2(site):
-    import matplotlib.pyplot as plt
-    site.plot_wd_distribution(12, 6)
+    site.plot_wd_distribution(n_wd=12, ws_bins=6)
 
     if 0:
         import matplotlib.pyplot as plt
