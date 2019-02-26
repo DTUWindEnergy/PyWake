@@ -11,10 +11,12 @@ version = write_vers(vers_file='py_wake/__init__.py', repo=repo, skip_chars=1)
 
 try:
     from pypandoc import convert_file
-    read_md = lambda f: convert_file(f, 'rst', format='md')
+
+    def read_md(f): return convert_file(f, 'rst', format='md')
 except ImportError:
     print("warning: pypandoc module not found, could not convert Markdown to RST")
-    read_md = lambda f: open(f, 'r').read()
+
+    def read_md(f): return open(f, 'r').read()
 
 
 setup(name='py_wake',
@@ -26,13 +28,14 @@ setup(name='py_wake',
       author_email='mmpe@dtu.dk',
       license='MIT',
       packages=find_packages(),
-	  package_data={
-        'py_wake': ['examples/data/iea37/*.yaml',
-				   'tests/test_files/fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/*.*'],
-	  },
+          package_data={
+          'py_wake': ['examples/data/iea37/*.yaml',
+                      'tests/test_files/fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/*.*'],
+      },
       install_requires=[
           'matplotlib',  # for plotting
           'numpy',  # for numerical calculations
+          'xarray',  # for WaspGridSite data storage
           'pytest',  # for testing
           'pytest-cov',  # for calculating coverage
           'pyyaml',  # for reading yaml files

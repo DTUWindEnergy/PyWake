@@ -110,3 +110,4 @@ venv.bak/
 .dmypy.json
 dmypy.json
 archieve
+/py_wake/examples/data/Lillgrund_LUT

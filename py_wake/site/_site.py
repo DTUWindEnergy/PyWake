@@ -78,7 +78,7 @@ class Site(ABC):
         Returns
         -------
         P_ilk : float or array_like
-            Probability of wind speed and direction at loca positions
+            Probability of wind speed and direction at local positions
         """
         pass
 
@@ -187,14 +187,15 @@ class Site(ABC):
 
             if include_wd_distribution:
                 v = wd_bin_size / 2
-                WD_lk = np.arange(wd_ - v, wd_ + v)[:, na]
-                WS_lk = ws
-                p = self.probability(x, y, h, WD_lk, WS_lk,
-                                     wd_bin_size=1, ws_bin_size=.1).sum((0, 1))
+                wd_l = np.arange(wd_ - v, wd_ + v) % 360
+                WD_lk, WS_lk = np.meshgrid(wd_l, ws, indexing='ij')
+
+                p = self.probability(x, y, h, WD_lk, WS_lk, wd_bin_size=1, ws_bin_size=.1).sum((0, 1))
                 lbl = r"Wind direction: %d$\pm$%s deg" % (wd_, (int(v), v)[(wd_bin_size % 2) != 0])
             else:
-                WD_lk = np.array([wd_])[:, na]
-                WS_lk = ws
+                #                 WD_lk = np.array([wd_])[:, na]
+                #                 WS_lk = ws
+                WD_lk, WS_lk = np.meshgrid([wd_], ws, indexing='ij')
 
                 p = self.probability(x, y, h, WD_lk, WS_lk, wd_bin_size=wd_bin_size, ws_bin_size=.1)[0, 0]
                 p /= p.sum()
@@ -204,6 +205,7 @@ class Site(ABC):
             ax.xlabel('Wind speed [m/s]')
             ax.ylabel('Probability')
         ax.legend(loc=1)
+        return p
 
     def plot_wd_distribution(self, x=0, y=0, h=70, n_wd=12, ws_bins=None, ax=None):
         """Plot wind direction (and speed) distribution
@@ -229,6 +231,9 @@ class Site(ABC):
         if ax is None:
             import matplotlib.pyplot as plt
             ax = plt
+        x = np.atleast_1d(x)
+        y = np.atleast_1d(y)
+        h = np.atleast_1d(h)
         wd = np.linspace(0, 360, n_wd, endpoint=False)
         theta = wd / 180 * np.pi
         if not ax.__class__.__name__ == 'PolarAxesSubplot':
@@ -242,8 +247,10 @@ class Site(ABC):
         s = 360 / n_wd
         if ws_bins is None:
 
-            p = [self.probability(x_i=x, y_i=y, h_i=h, WD_lk=np.arange(wd_ - s / 2, wd_ + s / 2),
-                                  WS_lk=np.array([100])[na],
+            WD_lk, WS_lk = np.meshgrid(np.arange(-s / 2, s / 2) + 1, [100], indexing='ij')
+
+            p = [self.probability(x_i=x, y_i=y, h_i=h, WD_lk=(WD_lk + wd_) % 360,
+                                  WS_lk=WS_lk,
                                   wd_bin_size=1, ws_bin_size=200).sum() for wd_ in wd]
             ax.bar(theta, p, width=s / 180 * np.pi, bottom=0.0)
         else:
@@ -254,7 +261,8 @@ class Site(ABC):
             ws = ((ws_bins[1:] + ws_bins[:-1]) / 2)
             ws_bin_size = ws[1] - ws[0]
 
-            p = [self.probability(x_i=x, y_i=y, h_i=h, WD_lk=np.arange(wd_ - s / 2, wd_ + s / 2)[:, na], WS_lk=ws[na],
+            WD_lk, WS_lk = np.meshgrid(np.arange(-s / 2, s / 2) + 1, ws, indexing='ij')
+            p = [self.probability(x_i=x, y_i=y, h_i=h, WD_lk=(WD_lk + wd_) % 360, WS_lk=WS_lk,
                                   wd_bin_size=1, ws_bin_size=ws_bin_size).sum((0, 1)) for wd_ in wd]
             cum_p = np.cumsum(p, 1).T
             start_p = np.vstack([np.zeros_like(cum_p[:1]), cum_p[:-1]])
@@ -265,6 +273,7 @@ class Site(ABC):
 
         ax.set_rlabel_position(-22.5)  # Move radial labels away from plotted line
         ax.grid(True)
+        return p
 
 
 class UniformSite(Site):
@@ -368,10 +377,10 @@ class UniformWeibullSite(UniformSite):
         self.a = Sector2Subsector(a, interp_method=interp_method)
         self.k = Sector2Subsector(k, interp_method=interp_method)
 
-    def weibull_weight(self, WS, A, k, wsp_bin_size):
+    def weibull_weight(self, WS, A, k, ws_bin_size):
         def cdf(ws, A=A, k=k):
             return 1 - np.exp(-(ws / A) ** k)
-        dWS = wsp_bin_size / 2
+        dWS = ws_bin_size / 2
         return cdf(WS + dWS) - cdf(WS - dWS)
 
     def probability(self, x_i, y_i, h_i, WD_lk, WS_lk, wd_bin_size, ws_bin_size):
