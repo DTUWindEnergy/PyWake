@@ -68,11 +68,13 @@ def test_plot_ws_distribution(site):
 
 def test_plot_wd_distribution(site):
     import matplotlib.pyplot as plt
-    site.plot_wd_distribution(n_wd=12, ax=plt)
+    p1 = site.plot_wd_distribution(n_wd=12, ax=plt)
+    npt.assert_array_almost_equal(p1, f, 4)
     plt.figure()
     site.plot_wd_distribution(n_wd=12, ax=plt.gca())
     plt.figure()
-    site.plot_wd_distribution(n_wd=360)
+    p2 = site.plot_wd_distribution(n_wd=360)
+    npt.assert_array_almost_equal(np.array(p2)[::30] * 30, f, 4)
     UniformWeibullSite(f, A, k, ti, 'spline').plot_wd_distribution(n_wd=360)
     UniformWeibullSite(f, A, k, ti, 'linear').plot_wd_distribution(n_wd=360)
 
@@ -81,7 +83,20 @@ def test_plot_wd_distribution(site):
 
 
 def test_plot_wd_distribution_with_ws_levels(site):
-    site.plot_wd_distribution(n_wd=12, ws_bins=[0, 5, 10, 15, 20, 25])
+    p = site.plot_wd_distribution(n_wd=12, ws_bins=[0, 5, 10, 15, 20, 25])
+    # print(np.round(p, 4).tolist())
+    npt.assert_array_almost_equal(p, [[0.0075, 0.0179, 0.0091, 0.0014, 0.0001],
+                                      [0.0069, 0.0188, 0.0115, 0.0022, 0.0001],
+                                      [0.0098, 0.025, 0.0142, 0.0025, 0.0001],
+                                      [0.0109, 0.0339, 0.0214, 0.0036, 0.0001],
+                                      [0.0114, 0.0411, 0.0271, 0.004, 0.0001],
+                                      [0.0108, 0.0324, 0.0185, 0.0026, 0.0001],
+                                      [0.0147, 0.0434, 0.0247, 0.0035, 0.0001],
+                                      [0.0164, 0.0524, 0.0389, 0.0092, 0.0007],
+                                      [0.0185, 0.0595, 0.0524, 0.0184, 0.0026],
+                                      [0.0153, 0.0564, 0.054, 0.0191, 0.0024],
+                                      [0.0103, 0.0386, 0.0369, 0.0127, 0.0015],
+                                      [0.0092, 0.0231, 0.0152, 0.0038, 0.0004]], 4)
 
     if 0:
         import matplotlib.pyplot as plt
@@ -89,8 +104,20 @@ def test_plot_wd_distribution_with_ws_levels(site):
 
 
 def test_plot_wd_distribution_with_ws_levels2(site):
-    site.plot_wd_distribution(n_wd=12, ws_bins=6)
-
+    p = site.plot_wd_distribution(n_wd=12, ws_bins=6)
+    # print(np.round(p, 3).tolist())
+    npt.assert_array_almost_equal(p, [[0.011, 0.02, 0.005, 0.0, 0.0],
+                                      [0.01, 0.022, 0.007, 0.0, 0.0],
+                                      [0.014, 0.028, 0.008, 0.0, 0.0],
+                                      [0.017, 0.039, 0.013, 0.001, 0.0],
+                                      [0.018, 0.049, 0.016, 0.001, 0.0],
+                                      [0.017, 0.038, 0.011, 0.0, 0.0],
+                                      [0.022, 0.049, 0.014, 0.001, 0.0],
+                                      [0.025, 0.063, 0.026, 0.002, 0.0],
+                                      [0.028, 0.074, 0.041, 0.006, 0.0],
+                                      [0.024, 0.073, 0.044, 0.007, 0.0],
+                                      [0.016, 0.051, 0.03, 0.004, 0.0],
+                                      [0.013, 0.028, 0.011, 0.001, 0.0]], 3)
     if 0:
         import matplotlib.pyplot as plt
         plt.show()
@@ -101,7 +128,9 @@ def test_plot_ws_distribution_iea37():
 
     n_wt = 16  # must be 16, 32 or 64
     site = IEA37Site(n_wt)
-    site.plot_ws_distribution(wd=[0])
+    p = site.plot_ws_distribution(wd=[0])
+    npt.assert_almost_equal(p, [1 / 300] * 300)
+
     if 0:
         import matplotlib.pyplot as plt
         plt.show()
