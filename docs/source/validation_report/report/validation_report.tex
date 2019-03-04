@@ -1,0 +1,405 @@
+\documentclass[a4paper,oneside]{article}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% General settings
+\newcommand{\RapportNumber}{E-XXXX}
+\newcommand{\ISBNNumber}{XXXX}
+\newcommand{\RapportTitle}{Automated validation report for PyWake}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage[a4paper, top=3cm, bottom=3cm, left=3.0cm, right=3.0cm]{geometry}
+\usepackage[english]{babel}
+\usepackage{verbatim,ifthen,xspace,datetime}
+% symbols and math
+\usepackage{amsmath}
+\usepackage{amssymb}% http://ctan.org/pkg/amssymb
+\usepackage{wasysym} % checked box
+\usepackage{pifont}% http://ctan.org/pkg/pifont
+% citations
+%\usepackage{natbib} % citations
+%\usepackage{citesort}
+\usepackage[round,sort,authoryear]{natbib}
+
+\usepackage[multidot]{grffile}   % Unusual file names support.
+\usepackage[titletoc,title]{appendix} % add appendix in front of A, in both the title and the TOC
+%\usepackage{pdfpages}
+\usepackage[hyphens]{url}
+\usepackage{printlen}
+\usepackage{pdflscape} % to put stuff into landscape mode
+\usepackage{ulem} % strike through text
+
+\usepackage{datetime}
+\usepackage{booktabs} % rulers for tables, as used by Pandas.DataFrame.to_latex
+% https://en.wikibooks.org/wiki/LaTeX/Floats,_Figures_and_Captions#Keeping_floats_in_their_place
+\usepackage[section]{placeins} % prevent floats from being placed in the next section
+
+\usepackage[export]{adjustbox} % The adjustbox package scales, resizes, trims, rotates, and also frames LaTeX content. Load the adjustbox package with the export option to make functions available to the \includegraphics command (graphicx package).
+
+% custimize the header and footer
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+% clear all headers and footers
+\fancyhf{}
+% define odd/even pages have the page number on left/right
+% note that this only works when twoside option is used in documentclass
+%lfoot[<even output>]{<odd output>}
+% an even page lays on the left, odd page on the right
+\rfoot[\thepage]{DTU Wind Energy \RapportNumber}
+\lfoot[DTU Wind Energy \RapportNumber]{\thepage}
+\renewcommand{\headrulewidth}{0.0pt}
+\renewcommand{\footrulewidth}{0.0pt}
+
+% control spacing for the itemize environments
+% http://www.ctan.org/tex-archive/macros/latex/contrib/enumitem
+% http://www.tkcs-collins.com/truman/latex/list_examp.shtml
+\usepackage{enumitem}
+\setlist{nolistsep}
+
+% Draft watermark
+% \usepackage{draftwatermark}
+% \SetWatermarkLightness{0.7}
+% \SetWatermarkScale{1.2}
+
+
+
+\usepackage{color}
+\definecolor{dark-red}{rgb}{0.4,0.15,0.15}
+\definecolor{dark-blue}{rgb}{0.15,0.15,0.4}
+\definecolor{medium-blue}{rgb}{0,0,0.5}
+%\definecolor{grey}{rgb}{128,128,128}
+% dvipdfm for latex, pdftex for pdflatex
+\usepackage[pdftex,bookmarks=true]{hyperref}
+\hypersetup{
+  pdfauthor={PyWake development team},
+  pdftitle={\RapportTitle},
+  pdfsubject={Total Control},
+  colorlinks, linkcolor={dark-red},
+  citecolor={dark-blue}, urlcolor={medium-blue}
+}
+% \dtucoverBackMatter
+% =======================================================================
+% =======================================================================
+% dtucover from the latex.dtu.dk:
+% http://www.latex.dtu.dk/downloads/templates/dtutemplates.zip
+
+%\RequirePackage{ifxetex}
+% \ifxetex
+%   \usepackage{fontspec}
+%   \setmainfont[Ligatures=TeX,Scale=MatchUppercase]{TimesNewRomanPSMT}
+%   \setsansfont[Ligatures=TeX,Scale=MatchUppercase]{Arial} 
+% \else
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+  \usepackage{mathptmx}
+%  \usepackage[scaled]{uarial}
+%   \usepackage{sans}
+  \usepackage{helvet}
+%  \usepackage[sfdefault]{roboto}
+% \fi
+
+\usepackage[%
+  department=vindenergi,    % select your department
+  bgcolor=dtulightred,     % the colour of the tiles
+  licolor=dtuorange         % the colour of the line
+  ]{dtucover}
+
+% We start by drawing the cover page and putting test onto it
+\AtBeginDocument{
+  \dtucoverThreeTiles % make the title page background
+  \dtucoverTitleText %
+%     [Commissioned by DONG Energy Wind Power A/S] % This is the subtitle
+    {\RapportTitle} % This is the title
+    {\Huge  DTU Wind Energy \\ \Huge E-report} % This is the report type
+    {PyWake development team \\
+       $ \, $\\
+%      Report number: \\
+     DTU Wind Energy \RapportNumber \\
+%      $ \, $\\
+%      Compiled on \today} %
+%      Compiled on \today \ at \currenttime} %
+    \monthname{} \the\year} % This is the author information
+  \clearpage
+}
+% ... and at the end, we need the back cover
+\AtEndDocument{
+  \clearpage
+  \dtucoverBackMatter%
+    [ Ris{\o} Campus Building 118 \\ Frederiksborgvej 399 \\ DK-4000 Roskilde \\ www.vindenergi.dtu.dk \\   $ \, $ \\ DTU Wind Energy \RapportNumber  \\ ISBN: \ISBNNumber]%
+}
+
+% =======================================================================
+% =======================================================================
+
+% no indentation at the beginning of paragraphs
+% 2 lines seprate every 
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2ex}
+
+% force to start on the left page, instead of right with \cleardoublepage
+\newcommand*\cleartoleftpage{%
+  \clearpage
+  \ifodd\value{page}\hbox{}\newpage\fi
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%55
+\providecommand{\e}[1]{\ensuremath{\times 10^{#1}}}
+\newcommand{\degree}{\ensuremath{^\circ}}
+% eps to pdf output dir
+% \usepackage[outdir=/media/paulvdlaan/Default/data/risoe/work/Ground_Shear_Dong/report/eps/]{epstopdf}
+
+\begin{document}
+
+\section{Introduction}
+This report is an automatically generated document used for validation of the wake models available in PyWake.
+
+\section{Model description}
+The following engineering wake models of PyWake are tested:
+\begin{itemize}
+    \item GAU - Gaussian wake model of \citet{Bastankhah2014} with:
+    \begin{itemize}
+        \item Quadratic wake summation.
+        \item Wake expansion parameter $k$ defined by the stream-wise ambient turbulence intensity at hub height $I_{u,H,\infty}$: $k=0.4 I_{u,H,\infty} + 0.004$  for $0.065 \leq I_{u,H,\infty} \leq 0.15$ following \citet{Niayifar2015}. Outside this range we set constant $k$ values: for $I_{u,H,\infty} < 0.065$, $k=0.03$ and for $I_{u,H,\infty} > 0.15$, $k=0.064$.
+    \end{itemize}
+    \item NOJ - Top hat wake model of \citet{Jensen83} with:
+    \begin{itemize}
+        \item Quadratic wake summation.
+        \item The wake expansion parameter $k$ is 0.04 and 0.1 for the offshore and onshore cases, respectively.
+    \end{itemize}
+\end{itemize}
+
+The following higher fidelity wake models are used as references:
+\begin{itemize}
+    \item LES - Large-eddy simulations from \citet{Laan13b}.
+    \item RANS - Reynolds-averaged Navier-Stokes simulations from \citet{Laan13b} and \citet{Laan14c}.
+\end{itemize}
+
+
+\section{Test cases}
+The test cases used to validate the wake models are listed in Table \ref{tab:cases}.
+The first six test case are based on field measurements of the velocity deficit of single wind turbine wakes.
+Cases 7-13 are based on Supervisory Control And Data Acquisition (SCADA) measurements of the power in wind turbines rows within wind farms.
+Details of the single wake and wind farm cases and be found in \citet{Laan13b} and \citet{Laan14c}, respectively.
+Note that Table \ref{tab:cases} lists the total ambient turbulence intensity $I_{H,\infty}$, which is about 80\% of the stream-wise turbulence intensity.
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{lllccccccc}
+\multicolumn{8}{c}{Single wake cases}\\
+\hline
+Case & Description & Measurement data & $I_{H,\infty}$ & $C_T$  &   $U_{H,\infty}$     & $D$  & $z_H$ \\
+     &	           &		      &	 [\%]	        & [-]      & [m/s] 		& [m]  & [m] \\
+\hline
+1 & Wieringermeer West 		& Met. mast, 4.5 years, $3.5D$ 		& 8.0  & 0.63  & 10.7 & 80 & 80\\
+2 & Wieringermeer East  	& Met. mast, 4.5 years, $2.5D$ 		& 6.0  & 0.63  & 10.9 & 80 & 80\\
+3 & Nibe B 			& Met. mast, 2 years, $2.5,4,7.5D$ 	& 8.0 & 0.89  &  8.5 & 40 & 45\\
+4 & Nordtank 500 		& Lidar, 102x10 minutes, $2, 5D^*$		& 11.2 & 0.70  & 7.45 & 41 & 36\\ 
+5 & NREL-5MW Low $I_{H,\infty}$ & -  					& 4.0 & 0.79 &8.0 & 126 & 90\\ 
+6 & NREL-5MW High $I_{H,\infty}$& -  					& 12.8 & 0.79 &8.0 & 126 & 90\\
+\hline
+\multicolumn{8}{c}{Wind farm cases}\\
+\hline
+Case & Description & Measurement data (SCADA) & $I_{H,\infty}$ & $s$  &   $U_{H,\infty}$     & $D$  & $z_H$ & \\
+     &	           &		      &	 [\%]	      &  [$D$]      & [m/s] 		& [m]  & [m] \\
+\hline
+7 & Wieringermeer 		& wd=275\degree$\pm$2.5\degree  & 9.6 & 3.8 & 8.35			& 80	& 80 	 	\\
+8 & Lillgrund south-west aligned  &wd=222\degree$\pm$2.5\degree, rows B and D  & 4.8 & 4.3	& 9			& 92.6	& 65 	\\
+9 & Lillgrund south-west staggered &wd=207\degree$\pm$2.5\degree, rows B and D & 4.8 &  & 9			& 92.6	& 65    \\
+10 & Lillgrund south-east aligned  &wd=120\degree$\pm$2.5\degree, rows 4 and 6 & 4.8 	& 3.2 & 9			& 92.6	& 65 	\\
+11 & Lillgrund south-east staggered &wd=105\degree$\pm$2.5\degree, rows 4 and 6 & 4.8 &   	& 9			& 92.6	& 65 	 \\
+12 & Lillgrund efficiency           & all wd $\pm$1.5\degree & 4.8 &         & 9                     & 92.6  & 65     \\
+13 & Horns Rev I                    &wd=270\degree$\pm$2.5\degree, rows 2-7     & 5.6 	& 7.0 & 8			& 80.0	& 70 	\\
+\end{tabular}
+\caption{Summary of test cases. $I_{H,\infty}$ is the ambient total turbulence intensity at hub height based on the turbulent kinetic energy, $C_T$ is the thrust coefficient, $U_{H,\infty}$ is the free-stream velocity at hub height, $D$ is the rotor diameter, $z_H$ is the hub height, $s$ is the effective inter wind turbine spacing in a wind farm for a row-aligned wind direction (wd).}\label{tab:cases}
+\end{table}
+
+% \begin{table}[h!]
+% \centering
+% \small
+% \begin{tabular}{lllccccccc}
+% \multicolumn{8}{c}{Single wake cases}\\
+% \hline
+% Case & Description & Measurement data & $I_{H,\infty}$ ($I_{u,H,\infty}$) & $C_T$  &   $U_{H,\infty}$     & $D$  & $z_H$ \\
+%      &	           &		      &	 [\%]	        & [-]      & [m/s] 		& [m]  & [m] \\
+% \hline
+% 1 & Wieringermeer West 		& Met. mast, 4.5 years, $3.5D$ 		& 8.0 (10) & 0.63  & 10.7 & 80 & 80\\
+% 2 & Wieringermeer East  	& Met. mast, 4.5 years, $2.5D$ 		& 6.0 (7.5) & 0.63  & 10.9 & 80 & 80\\
+% 3 & Nibe B 			& Met. mast, 2 years, $2.5,4,7.5D$ 	& 8.0 (10) & 0.89  &  8.5 & 40 & 45\\
+% 4 & Nordtank 500 		& Lidar, 102x10 minutes, $2, 5D^*$		& 11.2 (14)& 0.70  & 7.45 & 41 & 36\\ 
+% 5 & NREL-5MW Low $I_{H,\infty}$ & -  					& 4.0 (5) & 0.79 &8.0 & 126 & 90\\ 
+% 6 & NREL-5MW High $I_{H,\infty}$& -  					& 12.8 (16)  & 0.79 &8.0 & 126 & 90\\
+% \hline
+% \multicolumn{8}{c}{Wind farm cases}\\
+% \hline
+% Case & Description & Measurement data (SCADA) & $I_{H,\infty}$ ($I_{u,H,\infty}$) & spacing  &   $U_{H,\infty}$     & $D$  & $z_H$ & \\
+%      &	           &		      &	 [\%]	      &  [$D$]      & [m/s] 		& [m]  & [m] \\
+% \hline
+% 7 & Wieringermeer 		& wd=275\degree$\pm$2.5\degree  & 9.6 (12) & 3.8 & 8.35			& 80	& 80 	 	\\
+% 8 & Lillgrund south-west aligned  &wd=222\degree$\pm$2.5\degree, rows B and D  & 4.8 (6)& 4.3	& 9			& 92.6	& 65 	\\
+% 9 & Lillgrund south-west staggered &wd=207\degree$\pm$2.5\degree, rows B and D & 4.8 (6)	&  & 9			& 92.6	& 65    \\
+% 10 & Lillgrund south-east aligned  &wd=120\degree$\pm$2.5\degree, rows 4 and 6 & 4.8 (6)	& 3.2 & 9			& 92.6	& 65 	\\
+% 11 & Lillgrund south-east staggered &wd=105\degree$\pm$2.5\degree, rows 4 and 6 & 4.8 (6)&   	& 9			& 92.6	& 65 	 \\
+% 12 & Horns Rev I                    &wd=270\degree$\pm$2.5\degree, rows 2-7     & 5.6 (7)	& 7.0 & 8			& 80.0	& 70 	\\
+% \end{tabular}
+% \caption{Summary of test cases.}\label{tab:cases}
+% \end{table}
+\clearpage
+\subsection{Results}
+The results of the measurements include errors bars, representing the statistical uncertainty of the mean ($\sigma/\sqrt{n}$, where $\sigma$ is the standard deviation of the all 10 min. averaged values and  $\sqrt{n}$ is the number of 10 min. averaged values). 
+This procedure makes the errors quite small if the number of 10 min. is large.
+Note that the standard deviations of the Nibe single wake case are not available.
+
+\subsubsection{Single wake cases}
+The LES results in the single wake cases are shown as shaded areas, which represent the statistical uncertainty of the mean of six consecutive 10 min. bins (1 hour LES data).
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 0 0 0,clip=true]{figures/Wieringermeer-West.pdf}
+\caption{Case 1: Wieringermeer-West.}
+\label{fig:Case1}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 0 0 0,clip=true]{figures/Wieringermeer-East.pdf}
+\caption{Case 2: Wieringermeer-East.}
+\label{fig:Case2}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 0 0 0,clip=true]{figures/Nibe.pdf}
+\caption{Case 3: Nibe B.}
+\label{fig:Case3}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 0 0 0,clip=true]{figures/Nordtank-500.pdf}
+\caption{Case 4: Nordtank-500.}
+\label{fig:Case4}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 0 0 0,clip=true]{figures/NREL-5MW_TIlow.pdf}
+\caption{Case 5: NREL-5MW low $I_{H,\infty}$.}
+\label{fig:Case5}
+\end{figure}
+
+\clearpage
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 0 0 0,clip=true]{figures/NREL-5MW_TIhigh.pdf}
+\caption{Case 6: NREL-5MW high $I_{H,\infty}$.}
+\label{fig:Case6}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 0 0 0,clip=true]{figures/VelocityDeficit.pdf}
+\caption{Integrated velocity deficit ($1/\int{dy}\int{[1-U/U_0]dy}$) of single wake cases (Cases 1-6).}
+\label{fig:SingleWakeCasesVelDef}
+\end{figure}
+
+\subsubsection{Wind farm cases}
+The models results in the wind farm cases are post processed by a Gaussian filter, which represents the uncertainty of measured reference wind direction, as discussed by \citet{Gaumond13}.
+The chosen standard deviation for each case is based on \citet{Laan14c}, where the standard deviation in the Horns Rev I wind farm is a linearly increasing with the distance to the location of the measured reference wind direction.
+The Gaussian averaged (GA) post processed results are shown by dashed lines in Figures \ref{fig:Case7}-\ref{fig:Case13}.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 0 0 0,clip=true]{figures/Wieringermeer_wd275_Row.pdf}
+\caption{Case 7: Wieringmeer row.}
+\label{fig:Case7}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 10 0 0,clip=true]{figures/Lillgrund_wd222_RowB.pdf}
+\caption{Case 8: Lillgrund Row B, for a wind direction of $222\pm2.5\degree$.}
+\label{fig:Case8}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 10 0 0,clip=true]{figures/Lillgrund_wd222_RowD.pdf}
+\caption{Case 8: Lillgrund Row D, for a wind direction of $222\pm2.5\degree$.}
+\label{fig:Case8RowD}
+\end{figure}
+
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 10 0 0,clip=true]{figures/Lillgrund_wd207_RowB.pdf}
+\caption{Case 9: Lillgrund Row B, for a wind direction of $207\pm2.5\degree$.}
+\label{fig:Case9RowB}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 10 0 0,clip=true]{figures/Lillgrund_wd207_RowD.pdf}
+\caption{Case 9 Lillgrund Row D, for a wind direction of $207\pm2.5\degree$.}
+\label{fig:Case9RowD}
+\end{figure}
+
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 10 0 0,clip=true]{figures/Lillgrund_wd120_Row6.pdf}
+\caption{Case 10: Lillgrund Row 6, for a wind direction of $120\pm2.5\degree$.}
+\label{fig:Case10Row6}
+\end{figure}
+
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 10 0 0,clip=true]{figures/Lillgrund_wd120_Row4.pdf}
+\caption{Case 10: Lillgrund Row 4, for a wind direction of $120\pm2.5\degree$.}
+\label{fig:Case10Row4}
+\end{figure}
+
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 10 0 0,clip=true]{figures/Lillgrund_wd105_Row6.pdf}
+\caption{Case 11: Lillgrund Row 6, for a wind direction of $105\pm2.5\degree$.}
+\label{fig:Case11Row6}
+\end{figure}
+
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 10 0 0,clip=true]{figures/Lillgrund_wd105_Row4.pdf}
+\caption{Case 11: Lillgrund Row 4, for a wind direction of $105\pm2.5\degree$.}
+\label{fig:Case11Row4}
+\end{figure}
+
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 10 0 0,clip=true]{figures/Lillgrund_WFeff.pdf}
+\caption{Case 12: Lillgrund wind farm efficiency.}
+\label{fig:Case12}
+\end{figure}
+
+\clearpage
+\begin{table}[h!]
+\centering
+\small
+\input{Lillgrund_WFeff.tex}
+\caption{Case 12: Wind farm efficiency of the Lillgrund wind farm for uniformly distributed wind direction.}\label{tab:case12WFeff}
+\end{table}
+
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.7,trim=0 0 0 0,clip=true]{figures/Hornsrev1_wd270_InnerRowMean.pdf}
+\caption{Case 13: Horns Rev I, average of inner rows, for a wind direction of $270\pm2.5\degree$.}
+\label{fig:Case13}
+\end{figure}
+
+  
+\bibliographystyle{plainnat}
+\bibliography{bibliography}%\addcontentsline{toc}{section}{References}
+
+
+\end{document}
