@@ -1,0 +1,16 @@
+# EllipSys3D-RANS-AD, k-epsilon-fP
+# DOI: 10.1002/we.1804
+# GA with a variable standard deviation
+# that is a function of the distance
+# to the wd reference location
+# WT, Pi/P0,   Pi/P0+GA 
+ 1    1.0000   1.0000
+ 2    0.5376   0.6250
+ 3    0.5517   0.6433
+ 4    0.5161   0.6264
+ 5    0.4849   0.6158
+ 6    0.4621   0.5989
+ 7    0.4446   0.5917
+ 8    0.4321   0.5834
+ 9    0.4230   0.5752
+10    0.4176   0.5629

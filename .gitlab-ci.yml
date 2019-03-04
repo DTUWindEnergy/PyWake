@@ -43,13 +43,23 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
   - pip install sphinx --upgrade
   - pip install nbsphinx==0.3.5
   - pip install git+https://github.com/vidartf/nbsphinx-link.git
+  - pip install -e .
+  - cd docs/source/validation_report
+  - python tests.py
+  - cd report
+  - apt-get install -y texlive-latex-extra
+  - pdflatex validation_report.tex
+  - bibtex validation_report.aux
+  - pdflatex validation_report.tex
+  - pdflatex validation_report.tex
+  - cd ../../../../
   - cd docs; make html
   - cd ../; mv docs/build/html public/
   artifacts:  # required for GitLab pages [1]
     paths:
     - public
   only:  # only run for these branches
-  - master
+  - ValidationTestCases
   - /^test_doc.*/ 
   tags:  # only runners with this tag can do the job [3]
   - python

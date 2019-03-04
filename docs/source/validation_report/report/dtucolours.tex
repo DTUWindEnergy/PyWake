@@ -1,0 +1,83 @@
+% dtucolours.sty
+% This file has been a part of the DTU beamer package and is now
+% moved to the resources folder because there are other parts of the 
+% DTU package that need the colours as well.
+%
+% Changelog
+% 2011-06-23 jowr Replaced the old colour definitions with the new ones from the design guide
+% 2011-07-05 jowr Added alternative colours for the graphs
+% 2011-08-16 jowr Moved colour definitions to resources folder, also used in poster class
+% 2012-06-19 jowr Added colours for cooperation with IPU
+% 2014-09-27 jowr Replaced definecolor with providecolor, do not overwrite custom colour definitions
+%
+%
+\RequirePackage{xcolor}
+%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Define primary colours (designguide v2.3, page 13)
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\providecolor{dtured}       {rgb}{0.60, 0.00, 0.00} % Primærfarve 1 - CMYK:   0/ 91/ 72/ 23 - RGB: 153/  0/  0
+\providecolor{dtugrey}      {rgb}{0.60, 0.60, 0.60} % Primærfarve 2 - CMYK:   0/  0/  0/ 56 - RGB: 153/153/153
+% 
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Define secondary colours  (designguide v2.3, page 13)
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Please note that dtured and dtubrown have the same rgb and hex values and only differ in cmyk and pms notation.
+\providecolor{dtuyellow}    {rgb}{1.00, 0.80, 0.00} % Sekundærfarve 12 - CMYK:   0/ 25/100/  0 - RGB: 255/204/  0 - HEX: FFCC00
+\providecolor{dtuorange}    {rgb}{1.00, 0.60, 0.00} % Sekundærfarve 1  - CMYK:   0/ 50/100/  0 - RGB: 255/153/  0 - HEX: FF9900
+\providecolor{dtulightred}  {rgb}{1.00, 0.00, 0.00} % Sekundærfarve 3  - CMYK:   0/100/100/  0 - RGB: 255/  0/  0 - HEX: FF0000
+\providecolor{dtubrown}     {rgb}{0.60, 0.00, 0.00} % Sekundærfarve 4  - CMYK:   0/100/100/ 50 - RGB: 153/  0/  0 - HEX: 990000
+\providecolor{dtupurple}    {rgb}{0.80, 0.20, 0.60} % Sekundærfarve 6  - CMYK:  25/100/  0/  0 - RGB: 204/ 51/153 - HEX: CC3399
+\providecolor{dtuviolet}    {rgb}{0.40, 0.00, 0.60} % Sekundærfarve 9  - CMYK:  75/ 75/  0/  0 - RGB: 102/  0/153 - HEX: 660099
+\providecolor{dtudarkblue}  {rgb}{0.20, 0.40, 0.80} % Sekundærfarve 13 - CMYK:  75/ 50/  0/  0 - RGB:  51/102/204 - HEX: 3366CC
+\providecolor{dtulightblue} {rgb}{0.20, 0.80, 1.00} % Sekundærfarve 10 - CMYK:  50/  0/  0/  0 - RGB:  51/204/255 - HEX: 33CCFF
+\providecolor{dtulightgreen}{rgb}{0.60, 0.80, 0.20} % Sekundærfarve 11 - CMYK:  25/  0/100/  0 - RGB: 153/204/ 51 - HEX: 99CC33
+\providecolor{dtudarkgreen} {rgb}{0.40, 0.80, 0.00} % Sekundærfarve 14 - CMYK:  50/  0/100/  0 - RGB: 102/204/  0 - HEX: 66CC00
+\providecolor{dtucoolgrey}  {rgb}{0.59, 0.58, 0.57} % Farve til poster - CMYK:   0/  1/  5/ 39 - RGB: 150/148/145 - HEX: 969491
+% 
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Define colours for drawings and graphs (designguide v2.3, page 14)
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\providecolor{graph01}{named}{dtuorange}
+\providecolor{graph02}{named}{dtupurple}
+\providecolor{graph03}{named}{dtulightblue}
+\providecolor{graph04}{named}{dtubrown}
+%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Define alternate colours for drawings and graphs 
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Define alternate colours for graphs, which are compatible with black 
+% and white printers. The initial set of colours makes it hard to distinguish 
+% between the two lighter and the two darker colours.
+\providecolor{graph01alt}{named}{dtuviolet}
+\providecolor{graph02alt}{named}{dtuyellow}
+\providecolor{graph03alt}{named}{dtulightred}
+\providecolor{graph04alt}{named}{dtulightgreen}
+\providecolor{graph05alt}{named}{dtugrey}
+%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Define colours for IPU related documents, from IPU Designguide (16.09.2008)
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\providecolor{ipugreen}     {rgb}{0.00, 0.40, 0.20} % Dark green, 1st  standard colour  - CMYK: 088/000/095/026 - RGB: 000/102/051
+\providecolor{ipugrey}      {rgb}{0.45, 0.47, 0.49} % Dark grey, 2nd standard colour    - CMYK: 015/000/000/075 - RGB: 114/121/126
+\providecolor{ipulightgreen}{rgb}{0.36, 0.67, 0.15} % Light green, 1sr secondary colour - CMYK: 070/000/100/000 - RGB: 091/172/038
+\providecolor{ipulightgrey} {rgb}{0.85, 0.86, 0.87} % Light grey, 2nd secondary colour  - CMYK: 003/000/003/020 - RGB: 217/220/222
+%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Old definitions
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \providecolor{dtured}       {cmyk}{0.00, 0.95, 0.72, 0.27}
+% \providecolor{dtudarkgray}  {cmyk}{0.00, 0.00, 0.00, 0.56}
+% \providecolor{dtugray}      {cmyk}{0.00, 0.00, 0.00, 0.37}
+% \providecolor{dtulightgray} {cmyk}{0.00, 0.00, 0.00, 0.19}
+% \providecolor{dtudarkblue}  {cmyk}{1.00, 0.72, 0.00, 0.38}
+% \providecolor{dtublue}      {cmyk}{0.60, 0.44, 0.00, 0.24}
+% \providecolor{dtulightblue} {cmyk}{0.30, 0.22, 0.00, 0.12}
+% \providecolor{dtudarkgreen} {cmyk}{1.00, 0.00, 0.83, 0.47}
+% \providecolor{dtugreen}     {cmyk}{0.725,0.004,1.00, 0.004}
+% \providecolor{dtuyellow}    {cmyk}{0.00, 0.00, 1.00, 0.00}
+% \providecolor{dtuorange}    {cmyk}{0.00, 0.34, 0.91, 0.00}
+% \providecolor{dtudarkorange}{cmyk}{0.00, 0.51, 1.00, 0.00}
+% \providecolor{dtupurpur}    {cmyk}{0.00, 0.94, 0.00, 0.43}
+% \providecolor{dtupurple}    {cmyk}{0.83, 1.00, 0.00, 0.23}
+%

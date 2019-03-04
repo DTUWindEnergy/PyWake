@@ -33,3 +33,4 @@ Contents:
         introduction
         reference_guide
         exercises
+        validation

@@ -1,0 +1,11 @@
+# EllipSys3D-RANS-AD, k-epsilon-fP
+# DOI: 10.1002/we.1804
+# GA with sigma=3.3 deg
+# WT, Pi/P0,      Pi/P0+GA
+1     1.00000000    1.00
+2     0.21273908    0.25
+3     0.31832826    0.38
+4     nan           nan
+5     nan           nan
+6     0.57325611    0.68
+7     0.30050512    0.34
