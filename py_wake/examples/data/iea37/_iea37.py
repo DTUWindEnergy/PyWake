@@ -12,7 +12,7 @@ class IEA37_WindTurbines(OneTypeWindTurbines):
 
 
 class IEA37Site(UniformSite):
-    def __init__(self, n_wt, ti=.75):
+    def __init__(self, n_wt, ti=.075):
         assert n_wt in [16, 36, 64]
 
         from py_wake.examples.data.iea37.iea37_reader import read_iea37_windfarm,\
