@@ -277,7 +277,7 @@ class Site(ABC):
 
 
 class UniformSite(Site):
-    """Site with uniform (same wind over all, i.e. flat unuform terrain) and
+    """Site with uniform (same wind over all, i.e. flat uniform terrain) and
     constant wind speed probability of 1. Only for one fixed wind speed
     """
 
@@ -341,7 +341,7 @@ class UniformSite(Site):
 
 
 class UniformWeibullSite(UniformSite):
-    """Site with uniform (same wind over all, i.e. flat unuform terrain) and
+    """Site with uniform (same wind over all, i.e. flat uniform terrain) and
     weibull distributed wind speed
     """
 
