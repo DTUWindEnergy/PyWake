@@ -134,3 +134,12 @@ def test_plot_ws_distribution_iea37():
     if 0:
         import matplotlib.pyplot as plt
         plt.show()
+
+
+def test_uniform_site_probability():
+    """check that the uniform site recovers probability"""
+    p_wd = np.array([0.1, 0.2, 0.1, 0.2, 0.1, 0.2, 0.1])
+    wd = np.linspace(0, 360, p_wd.size, endpoint=False)
+    site = UniformSite(p_wd, ti=1)
+    actual = site.probability(0, 0, 0, wd, 12, 360 / p_wd.size, 1)
+    npt.assert_array_almost_equal(actual.squeeze(), p_wd)
