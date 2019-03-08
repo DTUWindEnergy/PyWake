@@ -57,26 +57,27 @@ def test_BastankhahGaussian_wake_map():
 
 
 def test_IEA37SimpleBastankhahGaussian_ex16():
+    """check SBG matches IEA37 value in file"""
     _, _, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
-    n_wt = 16
-    x, y, aep_ref = read_iea37_windfarm(iea37_path + 'iea37-ex%d.yaml' % n_wt)
-    if 0:
-        import matplotlib.pyplot as plt
-        plt.plot(x, y, '2k')
-        for i, (x_, y_) in enumerate(zip(x, y)):
-            plt.annotate(i, (x_, y_))
-        plt.axis('equal')
-        plt.show()
-    site = UniformSite(freq, ti=0.75)
-    windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
-    wake_model = IEA37SimpleBastankhahGaussian(windTurbines)
+    for n_wt in [9, 16, 36, 64]:
+        x, y, aep_ref = read_iea37_windfarm(iea37_path + 'iea37-ex%d.yaml' % n_wt)
+        if 0:
+            import matplotlib.pyplot as plt
+            plt.plot(x, y, '2k')
+            for i, (x_, y_) in enumerate(zip(x, y)):
+                plt.annotate(i, (x_, y_))
+            plt.axis('equal')
+            plt.show()
+        site = IEA37Site(n_wt)
+        windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
+        wake_model = IEA37SimpleBastankhahGaussian(windTurbines)
 
-    aep = AEPCalculator(site, windTurbines, wake_model)
-    aep_ilk = aep.calculate_AEP(x, y, wd=np.arange(0, 360, 22.5), ws=[9.8])
-    aep_MW_l = aep_ilk.sum((0, 2)) * 1000
-    # test that the result is equal to results provided for IEA task 37
-    npt.assert_almost_equal(aep_ref[0], aep_MW_l.sum(), 5)
-    npt.assert_array_almost_equal(aep_ref[1], aep_MW_l, 5)
+        aep = AEPCalculator(site, windTurbines, wake_model)
+        aep_ilk = aep.calculate_AEP(x, y, wd=np.arange(0, 360, 22.5), ws=[9.8])
+        aep_MW_l = aep_ilk.sum((0, 2)) * 1000
+        # test that the result is equal to results provided for IEA task 37
+        npt.assert_almost_equal(aep_ref[0], aep_MW_l.sum(), 5)
+        npt.assert_array_almost_equal(aep_ref[1], aep_MW_l, 5)
 
 
 def test_IEA37SimpleBastankhahGaussian_wake_map():

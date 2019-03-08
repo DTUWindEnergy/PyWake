@@ -75,8 +75,9 @@ def test_aep_map_no_turbines():
     x_j = np.arange(-150, 150, 20)
     y_j = np.arange(-250, 250, 20)
     X, Y, Z = aep.aep_map(x_j, y_j, 0, [], [], wd=[0])
+    expect = (3.35 * 1e6) * 24 * 365 * (1e-9)
 
-    npt.assert_array_almost_equal(Z, 21.89, 2)
+    npt.assert_array_almost_equal(Z, expect, 2)
 
 
 def test_aep_no_wake_loss_hornsrev():
