@@ -281,11 +281,12 @@ class UniformSite(Site):
     constant wind speed probability of 1. Only for one fixed wind speed
     """
 
-    def __init__(self, p_wd, ti, interp_method='piecewise', alpha=None, h_ref=None):
+    def __init__(self, p_wd, ti, ws=12, interp_method='piecewise', alpha=None, h_ref=None):
+        super().__init__()
+        self.h_ref = h_ref
+        self.default_ws = ws
         self.ti = Sector2Subsector(np.atleast_1d(ti), interp_method=interp_method)
         self.alpha = Sector2Subsector(np.atleast_1d(alpha), interp_method=interp_method)
-        self.h_ref = h_ref
-        super().__init__()
         self.p_wd = Sector2Subsector(p_wd / np.sum(p_wd), interp_method=interp_method) / (360 / len(p_wd))
 
     def probability(self, x_i, y_i, h_i, WD_lk, WS_lk, wd_bin_size, ws_bin_size):
@@ -374,6 +375,7 @@ class UniformWeibullSite(UniformSite):
 
         """
         super().__init__(p_wd, ti, interp_method=interp_method, alpha=alpha, h_ref=h_ref)
+        self.default_ws = np.arange(3, 26)
         self.a = Sector2Subsector(a, interp_method=interp_method)
         self.k = Sector2Subsector(k, interp_method=interp_method)
 
