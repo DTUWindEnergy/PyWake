@@ -59,7 +59,7 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
     paths:
     - public
   only:  # only run for these branches
-  - ValidationTestCases
+  - master
   - /^test_doc.*/ 
   tags:  # only runners with this tag can do the job [3]
   - python
