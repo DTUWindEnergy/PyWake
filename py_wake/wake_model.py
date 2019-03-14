@@ -72,47 +72,61 @@ class WakeModel(ABC):
         # Journal of Physics: Conference Series, Vol. 1037, The Science of Making
         # Torque from Wind, Milano, Italy, jun 2018, p. 10.
 
-    def calc_wake(self, WS_ilk, TI_ilk, dw_iil, hcw_iil, dh_iil, dw_order_indices_dl, types_i):
+    def calc_wake(self, x_i, y_i, h_i, types_i, wd, ws, site):
         """Calculate wake effects
 
         Calculate effective wind speed, turbulence intensity (not
-        implemented yet), power and thrust coefficient
+        implemented yet), power and thrust coefficient, and local
+        site parameters
 
         Parameters
         ----------
-        WS_ilk : array_like
-            Local wind speed [m/s] for each turbine(i), wind direction(l) and
-            wind speed(k)
-        TI_ilk : array_like
-            Local turbulence intensity for each turbine(i), wind direction(l) and
-            wind speed(k)
-        dw_iil : array_like
-            Down wind distance matrix between turbines(i,i) for all wind
-            directions(l) [m]
-        hcw_iil : array_like
-            Horizontal cross wind distance matrix between turbines(i,i) for all wind
-            directions(l) [m]
-        dh_iil : array_like
-            Vertical hub height distance matrix between turbines(i,i) for all
-            wind directions(l) [m]
-        dw_order_indices_l : array_like
-            Indices of turbines in down wind order(d) for all
-            wind directions(l)
-        types_i : array_like
-            Wind turbine type indexes
+        x_i : array_like
+            X position of wind turbines
+        y_i : array_like
+            Y position of wind turbines
+        h_i : array_like or None, optional
+            Hub height of wind turbines\n
+            If None, default, the standard hub height is used
+        type_i : array_like or None, optional
+            Wind turbine types\n
+            If None, default, the first type is used (type=0)
+        wd : int, float, array_like or None
+            Wind directions(s)\n
+            If None, default, the wake is calculated for site.default_wd
+        ws : int, float, array_like or None
+            Wind speed(s)\n
+            If None, default, the wake is calculated for site.default_ws
+        site : py_wake.site.Site
+
 
         Returns
         -------
         WS_eff_ilk : array_like
             Effective wind speeds [m/s]
-        TI_ilk : array_like
+        TI_eff_ilk : array_like
             Turbulence intensities. Should be effective, but not implemented yet
         power_ilk : array_like
             Power productions [w]
         ct_ilk : array_like
             Thrust coefficients
+        WD_ilk : array_like
+            Wind direction(s)
+        WS_ilk : array_like
+            Wind speed(s)
+        TI_ilk : array_like
+            Ambient turbulence intensitie(s)
+        P_ilk : array_like
+            Probability
+
 
         """
+        # Find local wind speed, wind direction, turbulence intensity and probability
+        WD_ilk, WS_ilk, TI_ilk, P_ilk = site.local_wind(x_i=x_i, y_i=y_i, wd=wd, ws=ws)
+
+        # Calculate down-wind and cross-wind distances
+        dw_iil, hcw_iil, dh_iil, dw_order_indices_dl = site.wt2wt_distances(x_i, y_i, h_i, WD_ilk.mean(2))
+
         I, L = dw_iil.shape[1:]
         i1, i2, _ = np.where((np.abs(dw_iil) + np.abs(hcw_iil) + np.eye(I)[:, :, na]) == 0)
         if len(i1):
@@ -166,7 +180,8 @@ class WakeModel(ABC):
                 deficit_nk[n_dw] = self.calc_deficit(**args)
 
         WS_eff_ilk = WS_eff_mk.reshape((I, L, K))
-        return WS_eff_ilk, TI_ilk, power_ilk, ct_ilk
+        TI_eff_ilk = TI_ilk  # Effective TI is not yet implemented
+        return WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, WD_ilk, WS_ilk, TI_ilk, P_ilk
 
     def wake_map(self, WS_ilk, WS_eff_ilk, dw_ijl, hcw_ijl, dh_ijl, ct_ilk, types_i, WS_jlk):
         """Calculate a wake (effecitve wind speed) map

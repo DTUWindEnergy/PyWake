@@ -23,12 +23,11 @@ def test_NOJ_Nibe_result():
     # Replicate result from: Jensen, Niels Otto. "A note on wind generator interaction." (1983).
 
     wake_model = NOJ(NibeA0)
-    WS_ilk = np.array([[[8.1]], [[8.1]], [[8.1]]])
-    TI_ilk = np.zeros_like(WS_ilk)
     site = UniformSite([1], 0.1)
-    dw_iil, cw_iil, dh_iil, dw_order_indices_l = site.wt2wt_distances(
-        x_i=[0, 0, 0], y_i=[0, -40, -100], h_i=[50, 50, 50], wd_il=[[0]])
-    WS_eff_ilk = wake_model.calc_wake(WS_ilk, TI_ilk, dw_iil, cw_iil, dh_iil, dw_order_indices_l, [0, 1, 1])[0]
+    x_i = [0, 0, 0]
+    y_i = [0, -40, -100]
+    h_i = [50, 50, 50]
+    WS_eff_ilk = wake_model.calc_wake(x_i, y_i, h_i, [0, 1, 1], 0.0, 8.1, site)[0]
     npt.assert_array_almost_equal(WS_eff_ilk[:, 0, 0], [8.1, 4.35, 5.7])
 
 
@@ -57,11 +56,9 @@ def test_NOJ_two_turbines_in_row(wdir, x, y):
 
     windTurbines = NibeA0
     wake_model = NOJ(windTurbines)
-    WS_ilk = np.array([[[8.1]], [[8.1]], [[8.1]]])
-    TI_ilk = np.zeros_like(WS_ilk)
     site = UniformSite([1], 0.1)
-    dw_iil, cw_iil, dh_iil, dw_order_indices_l = site.wt2wt_distances(x_i=x, y_i=y, h_i=[50, 50, 50], wd_il=[[wdir]])
-    WS_eff_ilk = wake_model.calc_wake(WS_ilk, TI_ilk, dw_iil, cw_iil, dh_iil, dw_order_indices_l, [0, 0, 0])[0]
+    h_i = [50, 50, 50]
+    WS_eff_ilk = wake_model.calc_wake(x, y, h_i, [0, 0, 0], wdir, 8.1, site)[0]
     ws_wt3 = 8.1 - np.sqrt((8.1 * 2 / 3 * (20 / 26)**2)**2 + (8.1 * 2 / 3 * (20 / 30)**2)**2)
     npt.assert_array_almost_equal(WS_eff_ilk[:, 0, 0], [8.1, 4.35, ws_wt3])
 
@@ -72,14 +69,8 @@ def test_NOJ_6_turbines_in_row():
     y = - np.arange(n_wt) * 40 * 2
 
     wake_model = NOJ(NibeA0)
-    site = UniformSite([1], .1)
-    WD_ilk, WS_ilk, _, _ = site.local_wind(x_i=x, y_i=y, wd=[0], ws=[11])
-    TI_ilk = np.zeros_like(WS_ilk)
     site = UniformSite([1], 0.1)
-    dw_iil, cw_iil, dh_iil, dw_order_indices_l = site.wt2wt_distances(
-        x_i=x, y_i=y, h_i=[50] * n_wt, wd_il=WD_ilk.mean(2))
-    WS_eff_ilk = wake_model.calc_wake(WS_ilk, TI_ilk, dw_iil, cw_iil, dh_iil, dw_order_indices_l, [0] * n_wt)[0]
-
+    WS_eff_ilk = wake_model.calc_wake(x, y, [50] * n_wt, [0.0] * n_wt, 0.0, 11.0, site)[0]
     np.testing.assert_array_almost_equal(
         WS_eff_ilk[1:, 0, 0], 11 - np.sqrt(np.cumsum(((11 * 2 / 3 * 20**2)**2) / (20 + 8 * np.arange(1, 6))**4)))
 

@@ -30,14 +30,9 @@ class AEPCalculator():
 
     def _run_wake_model(self, x_i, y_i, h_i=None, type_i=None, wd=None, ws=None):
         h_i, type_i, wd, ws = self._get_defaults(x_i, h_i, type_i, wd, ws)
-        # Find local wind speed, wind direction, turbulence intensity and probability
-        self.WD_ilk, self.WS_ilk, self.TI_ilk, self.P_ilk = self.site.local_wind(x_i=x_i, y_i=y_i, wd=wd, ws=ws)
 
-        # Calculate down-wind and cross-wind distances
-        dw_iil, cw_iil, dh_iil, dw_order_l = self.site.wt2wt_distances(x_i, y_i, h_i, self.WD_ilk.mean(2))
-
-        self.WS_eff_ilk, self.TI_eff_ilk, self.power_ilk, self.ct_ilk =\
-            self.wake_model.calc_wake(self.WS_ilk, self.TI_ilk, dw_iil, cw_iil, dh_iil, dw_order_l, type_i)
+        self.WS_eff_ilk, self.TI_eff_ilk, self.power_ilk, self.ct_ilk, self.WD_ilk, self.WS_ilk, self.TI_ilk, self.P_ilk =\
+            self.wake_model.calc_wake(x_i, y_i, h_i, type_i, wd, ws, self.site)
 
     def calculate_AEP(self, x_i, y_i, h_i=None, type_i=None, wd=None, ws=None):
         """Calculate AEP
