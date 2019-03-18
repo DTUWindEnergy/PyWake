@@ -64,6 +64,10 @@ class WakeModel(ABC):
         ----------
         windTurbines : WindTurbines
             WindTurbines object representing the wake generating wind turbines
+        wec : float, optional
+            Wake expansion continuation (default 1). For details, see Thomas and Ning
+        (2018), "A Method for Reducing Multi-Modality in the Wind Farm Layout Optimization
+        Problem".
 
         """
         self.windTurbines = windTurbines
