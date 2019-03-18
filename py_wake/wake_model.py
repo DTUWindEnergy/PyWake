@@ -57,7 +57,7 @@ class WakeModel(ABC):
 
     args4deficit = ['WS_lk']
 
-    def __init__(self, windTurbines):
+    def __init__(self, windTurbines, wec=1):
         """Initialize WakeModel
 
         Parameters
@@ -67,7 +67,7 @@ class WakeModel(ABC):
 
         """
         self.windTurbines = windTurbines
-        self.wec = 1  # wake expansion continuation see
+        self.wec = wec  # wake expansion continuation see
         # Thomas, J. J. and Ning, A., “A Method for Reducing Multi-Modality in the Wind Farm Layout Optimization Problem,”
         # Journal of Physics: Conference Series, Vol. 1037, The Science of Making
         # Torque from Wind, Milano, Italy, jun 2018, p. 10.
