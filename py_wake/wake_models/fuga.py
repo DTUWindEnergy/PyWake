@@ -10,8 +10,8 @@ class Fuga(LinearSum, WakeModel):
     invL = 0
     args4deficit = ['WS_lk', 'WS_eff_lk', 'dw_jl', 'hcw_jl', 'dh_jl', 'h_l', 'ct_lk']
 
-    def __init__(self, LUT_path, windTurbines):
-        WakeModel.__init__(self, windTurbines)
+    def __init__(self, LUT_path, windTurbines, **kwargs):
+        WakeModel.__init__(self, windTurbines, **kwargs)
         self.load(LUT_path)
 
     def load(self, path):

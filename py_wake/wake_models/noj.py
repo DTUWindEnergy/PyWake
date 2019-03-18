@@ -6,8 +6,8 @@ from numpy import newaxis as na
 class NOJ(SquaredSum, WakeModel):
     args4deficit = ['WS_lk', 'D_src_l', 'D_dst_jl', 'dw_jl', 'cw_jl', 'ct_lk']
 
-    def __init__(self, windTurbines, k=.1):
-        super().__init__(windTurbines)
+    def __init__(self, windTurbines, k=.1, **kwargs):
+        super().__init__(windTurbines, **kwargs)
         self.k = k
 
     def calc_deficit(self, WS_lk, D_src_l, D_dst_jl, dw_jl, cw_jl, ct_lk):
