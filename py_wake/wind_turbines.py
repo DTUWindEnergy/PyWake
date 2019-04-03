@@ -89,7 +89,7 @@ class WindTurbines():
         if np.any(type_i != 0):
             CT = np.zeros_like(ws_i)
             P = np.zeros_like(ws_i)
-            for t in np.unique(type_i):
+            for t in np.unique(type_i).astype(np.int):
                 m = type_i == t
                 CT[m] = self.ct_funcs[t](ws_i[m])
                 P[m] = self.power_funcs[t](ws_i[m])
@@ -159,15 +159,31 @@ class OneTypeWindTurbines(WindTurbines):
                               power_unit)
 
 
-def cube_power(ws_cut_in, ws_cut_out, ws_rated, power_rated):
+def cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=5000):
     def power_func(ws):
         ws = np.asarray(ws)
         power = np.zeros_like(ws, dtype=np.float)
-        m = (ws > ws_cut_in) & (ws < ws_rated)
+        m = (ws >= ws_cut_in) & (ws < ws_rated)
         power[m] = power_rated * ((ws[m] - ws_cut_in) / (ws_rated - ws_cut_in))**3
         power[(ws >= ws_rated) & (ws <= ws_cut_out)] = power_rated
         return power
     return power_func
+
+
+def dummy_thrust(ws_cut_in=3, ws_cut_out=25, ws_rated=12, ct_rated=0.88):
+    # temporary thrust curve fix
+    def ct_func(ws):
+        ws = np.asarray(ws)
+        ct = np.zeros_like(ws, dtype=np.float)
+        if ct_rated > 0:
+            # ct = np.ones_like(ct)*ct_rated
+            m = (ws >= ws_cut_in) & (ws < ws_rated)
+            ct[m] = ct_rated
+            idx = (ws >= ws_rated) & (ws <= ws_cut_out)
+            # second order polynomial fit for above rated
+            ct[idx] = np.polyval(np.polyfit([ws_rated, (ws_rated + ws_cut_out) / 2, ws_cut_out], [ct_rated, 0.4, 0.03], 2), ws[idx])
+        return ct
+    return ct_func
 
 
 def main():
