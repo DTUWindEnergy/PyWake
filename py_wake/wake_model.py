@@ -47,7 +47,7 @@ class WakeModel(ABC):
     - WS_lk: Local wind speed without wake effects
     - TI_lk: local turbulence intensity without wake effects
     - WS_eff_lk: Local wind speed with wake effects
-    - WS_eff_lk: local turbulence intensity with wake effects
+    - TI_eff_lk: local turbulence intensity with wake effects
     - D_src_l: Diameter of source turbine
     - D_dst_jl: Diameter of destination turbine
     - dw_jl: Downwind distance from turbine i to point/turbine j
