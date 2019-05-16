@@ -1,7 +1,6 @@
 from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
-from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose,\
-    read_iea37_windfarm
+from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose
 from py_wake.site._site import UniformSite, UniformWeibullSite
 from py_wake.tests import npt
 from py_wake.wake_models.noj import NOJ
@@ -9,7 +8,7 @@ from py_wake.examples.data import hornsrev1
 from py_wake.wake_models.gaussian import IEA37SimpleBastankhahGaussian
 import numpy as np
 from py_wake.aep_calculator import AEPCalculator
-from py_wake.turbulence_models.stf import NOJ_STF
+from py_wake.turbulence_models.stf import NOJ_STF2017
 
 
 def test_aep_no_wake():
@@ -70,7 +69,7 @@ def test_ti_map():
     site = IEA37Site(16)
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
-    wake_model = NOJ_STF(windTurbines)
+    wake_model = NOJ_STF2017(windTurbines)
     aep = AEPCalculator(site, windTurbines, wake_model)
     x_j = np.linspace(-1500, 1500, 200)
     y_j = np.linspace(-1500, 1500, 100)
@@ -86,7 +85,7 @@ def test_ti_map():
         plt.plot(X[m], Y[m], '.-r')
         plt.show()
 
-    ref = [0.43, 0.08, 0.08, 0.12, 0.15, 0.16, 0.18, 0.17, 0.16, 0.14, 0.12, 0.11, 0.12, 0.12, 0.12, 0.11, 0.11]
+    ref = [0.48, 0.07, 0.07, 0.13, 0.16, 0.18, 0.19, 0.19, 0.18, 0.15, 0.13, 0.12, 0.13, 0.13, 0.13, 0.12, 0.12]
     npt.assert_array_almost_equal(Z[m], ref, 2)
 
 
