@@ -16,7 +16,7 @@ from py_wake.tests.test_files.fuga import LUT_path_2MW_z0_0_03
 
 def test_wake_model():
     _, _, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
-    site = UniformSite(freq, ti=0.75)
+    site = UniformSite(freq, ti=0.075)
     windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
     wake_model = NOJ(windTurbines)
     aep = AEPCalculator(site, windTurbines, wake_model)
@@ -30,7 +30,7 @@ def test_wec():
     wt_y = [433, 300, 0, 0, 0, -433, -433]
     wts = HornsrevV80()
 
-    site = UniformSite([1, 0, 0, 0], ti=0.75)
+    site = UniformSite([1, 0, 0, 0], ti=0.075)
 
     wake_model = Fuga(LUT_path_2MW_z0_0_03, wts)
     aep = AEPCalculator(site, wts, wake_model)

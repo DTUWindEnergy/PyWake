@@ -14,7 +14,7 @@ def test_fuga():
     wts = HornsrevV80()
 
     path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
-    site = UniformSite([1, 0, 0, 0], ti=0.75)
+    site = UniformSite([1, 0, 0, 0], ti=0.075)
 
     wake_model = Fuga(path, wts)
     aep = AEPCalculator(site, wts, wake_model)
@@ -67,7 +67,7 @@ def cmp_fuga_with_colonel():
 
     path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
 
-    site = UniformSite([1, 0, 0, 0], ti=0.75)
+    site = UniformSite([1, 0, 0, 0], ti=0.075)
 
     wake_model = Fuga(path, wts)
     aep = AEPCalculator(site, wts, wake_model)

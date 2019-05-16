@@ -87,8 +87,9 @@ class WindTurbines():
 
     def _ct_power(self, ws_i, type_i=0):
         if np.any(type_i != 0):
-            CT = np.zeros_like(ws_i)
-            P = np.zeros_like(ws_i)
+            CT = np.zeros_like(ws_i, dtype=np.float)
+            P = np.zeros_like(ws_i, dtype=np.float)
+            type_i = np.zeros(np.asarray(ws_i).shape[0]) + type_i
             for t in np.unique(type_i).astype(np.int):
                 m = type_i == t
                 CT[m] = self.ct_funcs[t](ws_i[m])
@@ -170,7 +171,7 @@ def cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=5000):
     return power_func
 
 
-def dummy_thrust(ws_cut_in=3, ws_cut_out=25, ws_rated=12, ct_rated=0.88):
+def dummy_thrust(ws_cut_in=3, ws_cut_out=25, ws_rated=12, ct_rated=8 / 9):
     # temporary thrust curve fix
     def ct_func(ws):
         ws = np.asarray(ws)
@@ -181,7 +182,8 @@ def dummy_thrust(ws_cut_in=3, ws_cut_out=25, ws_rated=12, ct_rated=0.88):
             ct[m] = ct_rated
             idx = (ws >= ws_rated) & (ws <= ws_cut_out)
             # second order polynomial fit for above rated
-            ct[idx] = np.polyval(np.polyfit([ws_rated, (ws_rated + ws_cut_out) / 2, ws_cut_out], [ct_rated, 0.4, 0.03], 2), ws[idx])
+            ct[idx] = np.polyval(np.polyfit([ws_rated, (ws_rated + ws_cut_out) / 2,
+                                             ws_cut_out], [ct_rated, 0.4, 0.03], 2), ws[idx])
         return ct
     return ct_func
 
@@ -192,16 +194,20 @@ def main():
         wts = WindTurbines(names=['tb1', 'tb2'],
                            diameters=[80, 120],
                            hub_heights=[70, 110],
-                           ct_funcs=[lambda _: 8 / 9,
-                                     lambda _: 8 / 9],
+                           ct_funcs=[lambda ws: ws * 0 + 8 / 9,
+                                     dummy_thrust()],
                            power_funcs=[cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=2000),
                                         cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=3000)],
                            power_unit='kW')
 
         ws = np.arange(25)
         import matplotlib.pyplot as plt
-        power = wts.power(ws)
-        plt.plot(ws, power, label=wts.name(0))
+        plt.plot(ws, wts.power(ws, 0), label=wts.name(0))
+        plt.plot(ws, wts.power(ws, 1), label=wts.name(1))
+        plt.legend()
+        plt.show()
+        plt.plot(ws, wts.ct(ws, 0), label=wts.name(0))
+        plt.plot(ws, wts.ct(ws, 1), label=wts.name(1))
         plt.legend()
         plt.show()
 
