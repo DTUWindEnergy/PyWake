@@ -3,35 +3,36 @@ import numpy as np
 from numpy import newaxis as na
 
 
-class NOJ(SquaredSum, WakeModel):
-    args4deficit = ['WS_lk', 'D_src_l', 'D_dst_jl', 'dw_jl', 'cw_jl', 'ct_lk']
-
-    def __init__(self, windTurbines, k=.1, **kwargs):
-        super().__init__(windTurbines, **kwargs)
+class AreaOverlappingFactor():
+    def __init__(self, k=.1):
         self.k = k
 
-    def calc_deficit(self, WS_lk, D_src_l, D_dst_jl, dw_jl, cw_jl, ct_lk):
+    def overlapping_area_factor(self, dw_jl, cw_jl, D_src_l, D_dst_jl):
+        """Calculate overlapping factor
 
-        # Calculate the wake loss using NOJ
-        # Jensen, Niels Otto. "A note on wind generator interaction." (1983)
+        Parameters
+        ----------
+        dw_jl : array_like
+            down wind distance [m]
+        cw_jl : array_like
+            cross wind distance [m]
+        D_src_l : array_like
+            Diameter of source turbines [m]
+        D_dst_jl : array_like or None
+            Diameter of destination turbines [m]. If None destination is assumed to be a point
 
-        # In NOJensen wake model:
-        #      V_def = v*(1-sqrt(1-Ct))/(1+k*dist_down/R)**2
-        R_l = D_src_l / 2
-        term_denominator_jl = (1 + self.k * dw_jl / R_l[na, :])**2
-
-        wake_radius_jl = (self.k * dw_jl + R_l[na, :])
+        Returns
+        -------
+        A_ol_factor_jl : array_like
+            area overlaping factor
+        """
+        wake_radius_jl = (self.k * dw_jl + D_src_l[na, :] / 2)
         if D_dst_jl is None:
-            A_ol_factor_jl = wake_radius_jl > cw_jl
+            return wake_radius_jl > cw_jl
         else:
-            A_ol_factor_jl = self.cal_overlapping_area_factor(wake_radius_jl,
-                                                              (D_dst_jl / 2),
-                                                              cw_jl)
-        term_numerator_lk = WS_lk * (1 - np.sqrt(1 - ct_lk))
-        with np.warnings.catch_warnings():
-            np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
-            deficit_jlk = term_numerator_lk[na] * (A_ol_factor_jl / term_denominator_jl)[:, :, na]
-        return deficit_jlk
+            return self.cal_overlapping_area_factor(wake_radius_jl,
+                                                    (D_dst_jl / 2),
+                                                    cw_jl)
 
     def cal_overlapping_area_factor(self, R1, R2, d):
         """ Calculate the overlapping area of two circles with radius R1 and
@@ -89,6 +90,31 @@ class NOJ(SquaredSum, WakeModel):
                         2.0 * A_triangle) / (R2[mask]**2 * np.pi)
 
         return A_ol_f
+
+
+class NOJ(SquaredSum, WakeModel, AreaOverlappingFactor):
+    args4deficit = ['WS_lk', 'D_src_l', 'D_dst_jl', 'dw_jl', 'cw_jl', 'ct_lk']
+
+    def __init__(self, windTurbines, k=.1, **kwargs):
+        WakeModel.__init__(self, windTurbines, **kwargs)
+        AreaOverlappingFactor.__init__(self, k)
+
+    def calc_deficit(self, WS_lk, D_src_l, D_dst_jl, dw_jl, cw_jl, ct_lk):
+
+        # Calculate the wake loss using NOJ
+        # Jensen, Niels Otto. "A note on wind generator interaction." (1983)
+        # V_def = v*(1-sqrt(1-Ct))/(1+k*dist_down/R)**2
+
+        R_src_l = D_src_l / 2
+
+        term_denominator_jl = (1 + self.k * dw_jl / R_src_l[na, :])**2
+
+        A_ol_factor_jl = self.overlapping_area_factor(dw_jl, cw_jl, D_src_l, D_dst_jl)
+        term_numerator_lk = WS_lk * (1 - np.sqrt(1 - ct_lk))
+        with np.warnings.catch_warnings():
+            np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
+            deficit_jlk = term_numerator_lk[na] * (A_ol_factor_jl / term_denominator_jl)[:, :, na]
+        return deficit_jlk
 
 
 def main():

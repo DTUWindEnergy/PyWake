@@ -238,8 +238,10 @@ class Site(ABC):
         theta = wd / 180 * np.pi
         if not ax.__class__.__name__ == 'PolarAxesSubplot':
             if hasattr(ax, 'subplot'):
+                ax.clf()
                 ax = ax.subplot(111, projection='polar')
             else:
+                ax.figure.clf()
                 ax = ax.figure.add_subplot(111, projection='polar')
         ax.set_theta_direction(-1)
         ax.set_theta_offset(np.pi / 2.0)
@@ -333,7 +335,8 @@ class UniformSite(Site):
         dh_ijl = np.zeros_like(dw_ijl)
         dh_ijl[:, :, :] = dh_ij[:, :, na]
 
-        dw_order_indices_l = np.argsort(-dw_il, 0).astype(np.int).T
+        # dw_order_indices_l = np.argsort(-dw_il, 0).astype(np.int).T
+        dw_order_indices_l = np.argsort((dw_ijl > 0).sum(0), 0).T
 
         return dw_ijl, hcw_ijl, dh_ijl, dw_order_indices_l
 

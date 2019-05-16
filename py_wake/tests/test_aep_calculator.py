@@ -9,6 +9,7 @@ from py_wake.examples.data import hornsrev1
 from py_wake.wake_models.gaussian import IEA37SimpleBastankhahGaussian
 import numpy as np
 from py_wake.aep_calculator import AEPCalculator
+from py_wake.turbulence_models.stf import NOJ_STF
 
 
 def test_aep_no_wake():
@@ -27,16 +28,18 @@ def test_wake_map():
     x_j = np.linspace(-1500, 1500, 200)
     y_j = np.linspace(-1500, 1500, 100)
     X, Y, Z = aep.wake_map(x_j, y_j, 110, x, y, wd=[0], ws=[9])
-
+    m = 49, slice(100, 133, 2)
+    # print(np.round(Z[m], 2).tolist()) # ref
     if 0:
         import matplotlib.pyplot as plt
         c = plt.contourf(X, Y, Z)  # , np.arange(2, 10, .01))
         plt.colorbar(c)
         windTurbines.plot(x, y)
+        plt.plot(X[m], Y[m], '.-r')
         plt.show()
 
     ref = [3.27, 3.27, 9.0, 7.46, 7.46, 7.46, 7.46, 7.31, 7.31, 7.31, 7.31, 8.3, 8.3, 8.3, 8.3, 8.3, 8.3]
-    npt.assert_array_almost_equal(Z[49, 100:133:2], ref, 2)
+    npt.assert_array_almost_equal(Z[m], ref, 2)
 
 
 def test_aep_map():
@@ -50,16 +53,41 @@ def test_aep_map():
     x_j = np.arange(-150, 150, 20)
     y_j = np.arange(-250, 250, 20)
     X, Y, Z = aep.aep_map(x_j, y_j, 0, x, y, wd=[0], ws=np.arange(3, 25))
-    # print(y_j)
+    m = 17
     if 0:
         import matplotlib.pyplot as plt
         c = plt.contourf(X, Y, Z, 100)  # , np.arange(2, 10, .01))
         plt.colorbar(c)
         windTurbines.plot(x, y)
+        plt.plot(X[m], Y[m], '.-r')
         plt.show()
-    # print(np.round(Z[17], 2).tolist())
+    # print(np.round(Z[m], 2).tolist()) # ref
     ref = [21.5, 21.4, 21.02, 20.34, 18.95, 16.54, 13.17, 10.17, 10.17, 13.17, 16.54, 18.95, 20.34, 21.02, 21.4]
-    npt.assert_array_almost_equal(Z[17], ref, 2)
+    npt.assert_array_almost_equal(Z[m], ref, 2)
+
+
+def test_ti_map():
+    site = IEA37Site(16)
+    x, y = site.initial_position.T
+    windTurbines = IEA37_WindTurbines()
+    wake_model = NOJ_STF(windTurbines)
+    aep = AEPCalculator(site, windTurbines, wake_model)
+    x_j = np.linspace(-1500, 1500, 200)
+    y_j = np.linspace(-1500, 1500, 100)
+    X, Y, Z = aep.ti_map(x_j, y_j, 110, x, y, wd=[0], ws=[9])
+    m = 49, slice(100, 133, 2)
+
+    # print(np.round(Z[m], 2).tolist())  # ref
+    if 0:
+        import matplotlib.pyplot as plt
+        c = plt.contourf(X, Y, Z, np.arange(.075, .50, .001))
+        plt.colorbar(c)
+        windTurbines.plot(x, y)
+        plt.plot(X[m], Y[m], '.-r')
+        plt.show()
+
+    ref = [0.43, 0.08, 0.08, 0.12, 0.15, 0.16, 0.18, 0.17, 0.16, 0.14, 0.12, 0.11, 0.12, 0.12, 0.12, 0.11, 0.11]
+    npt.assert_array_almost_equal(Z[m], ref, 2)
 
 
 def test_aep_map_no_turbines():
@@ -68,7 +96,7 @@ def test_aep_map_no_turbines():
     # n_wt = 16
     # x, y, _ = read_iea37_windfarm(iea37_path + 'iea37-ex%d.yaml' % n_wt)
 
-    site = UniformSite(freq, ti=0.75)
+    site = UniformSite(freq, ti=0.075)
     windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
     wake_model = IEA37SimpleBastankhahGaussian(windTurbines)
     aep = AEPCalculator(site, windTurbines, wake_model)

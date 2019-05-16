@@ -15,7 +15,7 @@ class IEA37_WindTurbines(OneTypeWindTurbines):
 
 
 class IEA37Site(UniformSite):
-    def __init__(self, n_wt, ti=.75):
+    def __init__(self, n_wt, ti=.075):
         assert n_wt in [9, 16, 36, 64]
 
         from py_wake.examples.data.iea37.iea37_reader import \
@@ -31,6 +31,7 @@ class IEA37Site(UniformSite):
 
 class IEA37AEPCalc():
     """Run the AEP calculator provided by IEA Task 37"""
+
     def __init__(self, n_wt):
         assert n_wt in [9, 16, 36, 64]
         self.n_wt = n_wt
