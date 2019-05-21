@@ -335,13 +335,13 @@ class WakeModel(ABC):
 
 
 class SquaredSum():
-    def calc_effective_WS(self, WS_jlk, deficit_ijlk):
-        return WS_jlk - np.sqrt(np.sum(deficit_ijlk**2, 0))
+    def calc_effective_WS(self, WS_lk, deficit_ilk):
+        return WS_lk - np.sqrt(np.sum(deficit_ilk**2, 0))
 
 
 class LinearSum():
-    def calc_effective_WS(self, WS_jlk, deficit_ijlk):
-        return WS_jlk - np.sum(deficit_ijlk, 0)
+    def calc_effective_WS(self, WS_lk, deficit_ilk):
+        return WS_lk - np.sum(deficit_ilk, 0)
 
 
 def main():
