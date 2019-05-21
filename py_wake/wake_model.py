@@ -1,7 +1,5 @@
 from abc import abstractmethod, ABC
-
 from numpy import newaxis as na
-
 import numpy as np
 
 
@@ -142,7 +140,11 @@ class WakeModel(ABC):
 
         K = WS_ilk.shape[2]
         deficit_nk = np.zeros((I * I * L, K))
-        if hasattr(self, 'calc_added_turbulence'):
+
+        from py_wake.turbulence_model import TurbulenceModel
+        calc_ti = isinstance(self, TurbulenceModel)
+
+        if calc_ti:
             add_turb_nk = np.zeros((I * I * L, K))
 
         indices = np.arange(I * I * L).reshape((I, I, L))
@@ -169,8 +171,14 @@ class WakeModel(ABC):
             n_uw = np.array([indices[uwi, i, l] for uwi, i, l in zip(dw_order_indices_dl[:, :j], i_wt_l, i_wd_l)]).T
             n_dw = np.array([indices[i, dwi, l] for dwi, i, l in zip(dw_order_indices_dl[:, j + 1:], i_wt_l, i_wd_l)]).T
 
-            WS_eff_lk = self.calc_effective_WS(WS_mk[m], deficit_nk[n_uw])
-            WS_eff_mk[m] = WS_eff_lk
+            if j == 0:  # Most upstream turbines (no wake)
+                WS_eff_lk = WS_mk[m]
+            else:  # 2..n most upstream turbines (wake)
+                WS_eff_lk = self.calc_effective_WS(WS_mk[m], deficit_nk[n_uw])
+                WS_eff_mk[m] = WS_eff_lk
+                if calc_ti:
+                    TI_eff_mk[m] = self.calc_effective_TI(TI_mk[m], add_turb_nk[n_uw])
+
             ct_lk, power_lk = self.windTurbines._ct_power(WS_eff_lk, types_i[i_wt_l])
 
             power_ilk[i_wt_l, i_wd_l] = power_lk
@@ -190,12 +198,13 @@ class WakeModel(ABC):
                              'ct_lk': lambda: ct_lk}
                 args = {k: arg_funcs[k]() for k in self.args4deficit}
                 deficit_nk[n_dw] = self.calc_deficit(**args)
-                if hasattr(self, 'calc_added_turbulence'):
+                if calc_ti:
                     args = {k: arg_funcs[k]() for k in self.args4addturb}
                     add_turb_nk[n_dw] = self.calc_added_turbulence(**args)
 
         WS_eff_ilk = WS_eff_mk.reshape((I, L, K))
-        TI_eff_ilk = TI_ilk  # Effective TI is not yet implemented
+        TI_eff_ilk = TI_eff_mk.reshape((I, L, K))
+
         return WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, WD_ilk, WS_ilk, TI_ilk, P_ilk
 
     def _map(self, args4func, func, sum_func, WS_ilk, WS_eff_ilk, TI_ilk, TI_eff_ilk, dw_ijl, hcw_ijl, dh_ijl, ct_ilk, types_i, TI_jlk):

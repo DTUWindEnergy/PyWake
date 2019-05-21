@@ -2,14 +2,13 @@ import numpy as np
 import pytest
 
 from py_wake.examples.data.iea37 import iea37_path
-from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
+from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
 from py_wake.wake_models.noj import NOJ
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose
 from py_wake.site._site import UniformSite
 from py_wake.aep_calculator import AEPCalculator
 from py_wake.tests import npt
 from py_wake.examples.data.hornsrev1 import HornsrevV80
-from py_wake.tests.test_files import tfp
 from py_wake.wake_models.fuga import Fuga
 from py_wake.tests.test_files.fuga import LUT_path_2MW_z0_0_03
 
