@@ -1,8 +1,11 @@
 from py_wake.wake_model import WakeModel
 import numpy as np
+from abc import abstractmethod
 
 
 class TurbulenceModel(WakeModel):
+
+    @abstractmethod
     def calc_added_turbulence(self):
         """Calculate added turbulence intensity caused by the x'th most upstream wind turbines
         for all wind directions(l) and wind speeds(k) on a set of points(j)
@@ -20,6 +23,7 @@ class TurbulenceModel(WakeModel):
         """
         pass
 
+    @abstractmethod
     def calc_effective_TI(self, TI_lk, add_turb_jlk):
         """Calculate effective turbulence intensity
 

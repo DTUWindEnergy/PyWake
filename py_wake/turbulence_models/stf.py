@@ -98,17 +98,16 @@ def main():
         x, y = site.initial_position.T
         windTurbines = IEA37_WindTurbines()
 
-        class NOJ_STF(NOJ, STF2005TurbulenceModel):
-            pass
         import matplotlib.pyplot as plt
         fig, (ax1, ax2) = plt.subplots(1, 2)
         for ax, wake_model, lbl in [(ax1, NOJ_STF2005(windTurbines), 'STF2005'),
                                     (ax2, NOJ_STF2017(windTurbines), 'STF2017')]:
 
             aep_calculator = AEPCalculator(site, windTurbines, wake_model)
-
+            aep_calculator.calculate_AEP(x, y)
+            print(aep_calculator.TI_eff_ilk[:, 0])
             # plot wake map
-            X, Y, Z = aep_calculator.ti_map(wt_x=x, wt_y=y, wd=[0], ws=[9])
+            X, Y, Z = aep_calculator.ti_map(wt_x=x, wt_y=y, wd=[0], ws=[9.8])
             c = ax.contourf(X, Y, Z, levels=np.arange(0.075, .7, .01), cmap='Blues')
 
             ax.set_title('Turbulence intensity calculated by %s' % lbl)
