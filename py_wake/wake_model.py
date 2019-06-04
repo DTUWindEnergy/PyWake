@@ -344,6 +344,11 @@ class LinearSum():
         return WS_lk - np.sum(deficit_ilk, 0)
 
 
+class MaxSum():
+    def calc_effective_WS(self, WS_lk, deficit_ilk):
+        return WS_lk - np.max(deficit_ilk, 0)
+
+
 def main():
     if __name__ == '__main__':
         from py_wake.examples.data.iea37 import iea37_path
