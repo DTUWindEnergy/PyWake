@@ -5,13 +5,13 @@ from py_wake.aep_calculator import AEPCalculator
 
 
 def main():
-    if __name__ == '__main__':
-        import matplotlib.pyplot as plt
-        wt = HornsrevV80()
-        wt.plot(wt_x, wt_y)
-        aep_calculator = AEPCalculator(Hornsrev1Site(), wt, NOJ(wt))
-        print('AEP', aep_calculator.calculate_AEP(wt_x, wt_y)[0].sum())
-        plt.show()
+    import matplotlib.pyplot as plt
+    wt = HornsrevV80()
+    wt.plot(wt_x, wt_y)
+    aep_calculator = AEPCalculator(Hornsrev1Site(), wt, NOJ(wt))
+    print('AEP', aep_calculator.calculate_AEP(wt_x, wt_y)[0].sum())
+    plt.show()
 
 
-main()
+if __name__ == '__main__':
+    main()

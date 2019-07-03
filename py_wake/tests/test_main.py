@@ -24,7 +24,7 @@ def get_main_modules():
 
 
 def print_main_modules():
-    print("\n".join([m.__name__ for m in get_main_modules()]))
+    print("\n".join([m.__file__ for m in get_main_modules()]))
 
 
 @pytest.mark.parametrize("module", get_main_modules())
@@ -43,9 +43,8 @@ def test_main(module):
         pass
 
     try:
-        with mock.patch.object(module, "__name__", "__main__"):
-            with mock.patch.object(module, "print", no_print):
-                getattr(module, 'main')()
+        with mock.patch.object(module, "print", no_print):
+            getattr(module, 'main')()
     except Exception as e:
         raise type(e)(str(e) +
                       ' in %s.main' % module.__name__).with_traceback(sys.exc_info()[2])
