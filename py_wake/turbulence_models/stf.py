@@ -44,7 +44,7 @@ class STF2017TurbulenceModel(MaxSum, TurbulenceModel):
         weights_jl = self.weight(dw_jl, cw_jl, D_src_l)
         # the way effective added TI is calculated is derived from Eqs. (3.16-18)
         # in ST Frandsen's thesis
-        TI_add_jlk = weights_jl[:, :, na] * (np.sqrt(TI_add_jlk**2 + TI_lk[na]**2) - TI_lk[na])
+        TI_add_jlk = weights_jl[:, :, na] * (np.hypot(TI_add_jlk, TI_lk[na]) - TI_lk[na])
         return TI_add_jlk
 
 
@@ -73,7 +73,7 @@ class STF2005TurbulenceModel(STF2017TurbulenceModel):
 
         # the way effective added TI is calculated is derived from Eqs. (3.16-18)
         # in ST Frandsen's thesis
-        TI_add_jlk = weights_jl[:, :, na] * (np.sqrt(TI_add_jlk**2 + TI_lk[na]**2) - TI_lk[na])
+        TI_add_jlk = weights_jl[:, :, na] * (np.hypot(TI_add_jlk, TI_lk[na]) - TI_lk[na])
         return TI_add_jlk
 
 

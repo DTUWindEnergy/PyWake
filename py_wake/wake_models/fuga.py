@@ -69,7 +69,7 @@ class Fuga(LinearSum, WakeModel):
         return self.lut_interpolator((x, y, z))
 
     def calc_deficit(self, WS_lk, WS_eff_lk, dw_jl, hcw_jl, dh_jl, h_l, ct_lk):
-        mdu_jl = self.interpolate(dw_jl, hcw_jl, h_l + dh_jl)
+        mdu_jl = self.interpolate(dw_jl, np.abs(hcw_jl), h_l + dh_jl)
         deficit_jlk = mdu_jl[:, :, na] * (ct_lk * WS_eff_lk**2 / WS_lk)
 
         return deficit_jlk

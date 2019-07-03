@@ -32,7 +32,7 @@ class AreaOverlappingFactor():
         else:
             return self.cal_overlapping_area_factor(wake_radius_jl,
                                                     (D_dst_jl / 2),
-                                                    cw_jl)
+                                                    np.abs(cw_jl))
 
     def cal_overlapping_area_factor(self, R1, R2, d):
         """ Calculate the overlapping area of two circles with radius R1 and

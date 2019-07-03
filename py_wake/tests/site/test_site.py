@@ -136,6 +136,34 @@ def test_plot_ws_distribution_iea37():
         plt.show()
 
 
+def test_iea37_distances():
+    from py_wake.examples.data.iea37 import IEA37Site
+
+    n_wt = 16  # must be 9, 16, 36, 64
+    site = IEA37Site(n_wt)
+    x, y = site.initial_position.T
+    WD_ilk, _, _, _ = site.local_wind(x_i=x, y_i=y,
+                                      wd=site.default_wd,
+                                      ws=site.default_ws)
+    dw_iil, hcw_iil, _, _ = site.wt2wt_distances(
+        x_i=x, y_i=y,
+        h_i=np.zeros_like(x),
+        wd_il=WD_ilk.mean(2))
+    # Wind direction.
+    wdir = np.rad2deg(np.arctan2(hcw_iil, dw_iil))
+    npt.assert_allclose(
+        wdir[:, 0, 0],
+        [180, -90, -18, 54, 126, -162, -90, -54, -18, 18, 54, 90, 126, 162, -162, -126],
+        atol=1e-4)
+
+    if 0:
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+        ax.scatter(x, y)
+        for i, txt in enumerate(np.arange(len(x))):
+            ax.annotate(txt, (x[i], y[i]), fontsize='large')
+
+
 def test_uniform_site_probability():
     """check that the uniform site recovers probability"""
     p_wd = np.array([0.1, 0.2, 0.1, 0.2, 0.1, 0.2, 0.1])

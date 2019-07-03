@@ -59,7 +59,7 @@ def test_NOJ_two_turbines_in_row(wdir, x, y):
     site = UniformSite([1], 0.1)
     h_i = [50, 50, 50]
     WS_eff_ilk = wake_model.calc_wake(x, y, h_i, [0, 0, 0], wdir, 8.1, site)[0]
-    ws_wt3 = 8.1 - np.sqrt((8.1 * 2 / 3 * (20 / 26)**2)**2 + (8.1 * 2 / 3 * (20 / 30)**2)**2)
+    ws_wt3 = 8.1 - np.hypot(8.1 * 2 / 3 * (20 / 26)**2, 8.1 * 2 / 3 * (20 / 30)**2)
     npt.assert_array_almost_equal(WS_eff_ilk[:, 0, 0], [8.1, 4.35, ws_wt3])
 
 
