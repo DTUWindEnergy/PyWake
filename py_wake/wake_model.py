@@ -135,7 +135,7 @@ class WakeModel(ABC):
         i1, i2, _ = np.where((np.abs(dw_iil) + np.abs(hcw_iil) + np.eye(I)[:, :, na]) == 0)
         if len(i1):
             msg = "\n".join(["Turbines %d and %d are at the same position" %
-                             (i1[i], i2[i]) for i in np.unique([i1, i2], 0)])
+                             (i1[i], i2[i]) for i in range(len(i1))])
             raise ValueError(msg)
 
         K = WS_ilk.shape[2]
@@ -350,36 +350,36 @@ class MaxSum():
 
 
 def main():
-    if __name__ == '__main__':
-        from py_wake.examples.data.iea37 import iea37_path
-        from py_wake.examples.data.iea37.iea37_reader import read_iea37_windfarm,\
-            read_iea37_windrose
-        from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
-        from py_wake.site._site import UniformSite
-        from py_wake.aep_calculator import AEPCalculator
+    from py_wake.examples.data.iea37 import iea37_path
+    from py_wake.examples.data.iea37.iea37_reader import read_iea37_windfarm,\
+        read_iea37_windrose
+    from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
+    from py_wake.site._site import UniformSite
+    from py_wake.aep_calculator import AEPCalculator
 
-        class MyWakeModel(SquaredSum, WakeModel):
-            args4deficit = ['WS_lk', 'dw_jl']
+    class MyWakeModel(SquaredSum, WakeModel):
+        args4deficit = ['WS_lk', 'dw_jl']
 
-            def calc_deficit(self, WS_lk, dw_jl):
-                # 10% deficit downstream
-                return (WS_lk * .1)[na] * (dw_jl > 0)[:, :, na]
+        def calc_deficit(self, WS_lk, dw_jl):
+            # 10% deficit downstream
+            return (WS_lk * .1)[na] * (dw_jl > 0)[:, :, na]
 
-        _, _, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
-        n_wt = 16
-        x, y, _ = read_iea37_windfarm(iea37_path + 'iea37-ex%d.yaml' % n_wt)
+    _, _, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
+    n_wt = 16
+    x, y, _ = read_iea37_windfarm(iea37_path + 'iea37-ex%d.yaml' % n_wt)
 
-        site = UniformSite(freq, ti=0.075)
-        windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
+    site = UniformSite(freq, ti=0.075)
+    windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
 
-        wake_model = MyWakeModel(windTurbines)
-        aep_calculator = AEPCalculator(site, windTurbines, wake_model)
+    wake_model = MyWakeModel(windTurbines)
+    aep_calculator = AEPCalculator(site, windTurbines, wake_model)
 
-        import matplotlib.pyplot as plt
-        aep_calculator.plot_wake_map(wt_x=x, wt_y=y, wd=[0, 30], ws=[9], levels=np.linspace(5, 9, 100))
-        windTurbines.plot(x, y)
+    import matplotlib.pyplot as plt
+    aep_calculator.plot_wake_map(wt_x=x, wt_y=y, wd=[0, 30], ws=[9], levels=np.linspace(5, 9, 100))
+    windTurbines.plot(x, y)
 
-        plt.show()
+    plt.show()
 
 
-main()
+if __name__ == '__main__':
+    main()

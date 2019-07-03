@@ -19,7 +19,7 @@ class AEPCalculator():
 
     def _get_defaults(self, x_i, h_i, type_i, wd, ws):
         if type_i is None:
-            type_i = np.zeros_like(x_i)
+            type_i = np.zeros_like(x_i, dtype=np.int)
         if h_i is None:
             h_i = self.windTurbines.hub_height(type_i)
         if wd is None:
@@ -335,31 +335,31 @@ class AEPCalculator():
 
 
 def main():
-    if __name__ == '__main__':
-        from py_wake.examples.data.iea37 import iea37_path
-        from py_wake.examples.data.iea37._iea37 import IEA37Site
-        from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
-        from py_wake.wake_models import NOJ
+    from py_wake.examples.data.iea37 import iea37_path
+    from py_wake.examples.data.iea37._iea37 import IEA37Site
+    from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
+    from py_wake.wake_models import NOJ
 
-        # setup site, turbines and wakemodel
-        site = IEA37Site(16)
-        x, y = site.initial_position.T
-        windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
+    # setup site, turbines and wakemodel
+    site = IEA37Site(16)
+    x, y = site.initial_position.T
+    windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
 
-        wake_model = NOJ(windTurbines)
+    wake_model = NOJ(windTurbines)
 
-        # calculate AEP
-        aep_calculator = AEPCalculator(site, windTurbines, wake_model)
-        aep = aep_calculator.calculate_AEP(x, y)[0].sum()
+    # calculate AEP
+    aep_calculator = AEPCalculator(site, windTurbines, wake_model)
+    aep = aep_calculator.calculate_AEP(x, y)[0].sum()
 
-        print(aep_calculator.WS_eff_ilk.shape)
+    print(aep_calculator.WS_eff_ilk.shape)
 
-        # plot wake map
-        import matplotlib.pyplot as plt
-        aep_calculator.plot_wake_map(wt_x=x, wt_y=y, wd=[0], ws=[9])
-        plt.title('AEP: %.2f GWh' % aep)
-        windTurbines.plot(x, y)
-        plt.show()
+    # plot wake map
+    import matplotlib.pyplot as plt
+    aep_calculator.plot_wake_map(wt_x=x, wt_y=y, wd=[0], ws=[9])
+    plt.title('AEP: %.2f GWh' % aep)
+    windTurbines.plot(x, y)
+    plt.show()
 
 
-main()
+if __name__ == '__main__':
+    main()

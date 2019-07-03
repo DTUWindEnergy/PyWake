@@ -189,32 +189,31 @@ def dummy_thrust(ws_cut_in=3, ws_cut_out=25, ws_rated=12, ct_rated=8 / 9):
 
 
 def main():
-    if __name__ == '__main__':
+    wts = WindTurbines(names=['tb1', 'tb2'],
+                       diameters=[80, 120],
+                       hub_heights=[70, 110],
+                       ct_funcs=[lambda ws: ws * 0 + 8 / 9,
+                                 dummy_thrust()],
+                       power_funcs=[cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=2000),
+                                    cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=3000)],
+                       power_unit='kW')
 
-        wts = WindTurbines(names=['tb1', 'tb2'],
-                           diameters=[80, 120],
-                           hub_heights=[70, 110],
-                           ct_funcs=[lambda ws: ws * 0 + 8 / 9,
-                                     dummy_thrust()],
-                           power_funcs=[cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=2000),
-                                        cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=3000)],
-                           power_unit='kW')
+    ws = np.arange(25)
+    import matplotlib.pyplot as plt
+    plt.plot(ws, wts.power(ws, 0), label=wts.name(0))
+    plt.plot(ws, wts.power(ws, 1), label=wts.name(1))
+    plt.legend()
+    plt.show()
+    plt.plot(ws, wts.ct(ws, 0), label=wts.name(0))
+    plt.plot(ws, wts.ct(ws, 1), label=wts.name(1))
+    plt.legend()
+    plt.show()
 
-        ws = np.arange(25)
-        import matplotlib.pyplot as plt
-        plt.plot(ws, wts.power(ws, 0), label=wts.name(0))
-        plt.plot(ws, wts.power(ws, 1), label=wts.name(1))
-        plt.legend()
-        plt.show()
-        plt.plot(ws, wts.ct(ws, 0), label=wts.name(0))
-        plt.plot(ws, wts.ct(ws, 1), label=wts.name(1))
-        plt.legend()
-        plt.show()
-
-        wts.plot([0, 100], [0, 100], [0, 1])
-        plt.xlim([-50, 150])
-        plt.ylim([-50, 150])
-        plt.show()
+    wts.plot([0, 100], [0, 100], [0, 1])
+    plt.xlim([-50, 150])
+    plt.ylim([-50, 150])
+    plt.show()
 
 
-main()
+if __name__ == '__main__':
+    main()

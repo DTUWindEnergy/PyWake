@@ -49,17 +49,17 @@ class IEA37AEPCalc():
 
 
 def main():
-    if __name__ == '__main__':
-        wt = IEA37_WindTurbines()
-        print(wt.diameter(0))
-        print(wt.hub_height(0))
+    wt = IEA37_WindTurbines()
+    print(wt.diameter(0))
+    print(wt.hub_height(0))
 
-        site = IEA37Site(16)
-        x, y = site.initial_position.T
-        dw, cw, dh, dw_order = site.wt2wt_distances(x, y, 70, np.array([[0]]))
-        print(dw.shape)
-        WD_ilk, WS_ilk, TI_ilk, P_lk = site.local_wind(x, y)
-        print(WS_ilk.shape)
+    site = IEA37Site(16)
+    x, y = site.initial_position.T
+    dw, cw, dh, dw_order = site.wt2wt_distances(x, y, 70, np.array([[0]]))
+    print(dw.shape)
+    WD_ilk, WS_ilk, TI_ilk, P_lk = site.local_wind(x, y)
+    print(WS_ilk.shape)
 
 
-main()
+if __name__ == '__main__':
+    main()
