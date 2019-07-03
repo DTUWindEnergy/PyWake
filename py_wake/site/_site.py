@@ -107,10 +107,10 @@ class Site(ABC):
         Returns
         -------
         dw_ijl : array_like
-            down wind distances
-            negative is upstream
+            down wind distances. Positive downstream
         hcw_ijl : array_like
-            horizontal cross wind distances
+            horizontal cross wind distances. Positive when the wind is in your
+            back and  the turbine lies on the left.
         dh_ijl : array_like
             vertical distances
         dw_order_indices_l : array_like
@@ -328,10 +328,9 @@ class UniformSite(Site):
         theta_l = np.deg2rad(90 - wd_l)
         cos_l = np.cos(theta_l)
         sin_l = np.sin(theta_l)
-        dw_il = (cos_l[na, :] * src_x_i[:, na] + sin_l[na] * src_y_i[:, na])
-        dw_ijl = (-cos_l[na, na, :] * dx_ij[:, :, na] - sin_l[na, na, :] * dy_ij[:, :, na])
-        hcw_ijl = np.abs(sin_l[na, na, :] * dx_ij[:, :, na] +
-                         -cos_l[na, na, :] * dy_ij[:, :, na])
+        dw_il = cos_l[na, :] * src_x_i[:, na] + sin_l[na] * src_y_i[:, na]
+        dw_ijl = -cos_l[na, na, :] * dx_ij[:, :, na] - sin_l[na, na, :] * dy_ij[:, :, na]
+        hcw_ijl = sin_l[na, na, :] * dx_ij[:, :, na] - cos_l[na, na, :] * dy_ij[:, :, na]
         dh_ijl = np.zeros_like(dw_ijl)
         dh_ijl[:, :, :] = dh_ij[:, :, na]
 

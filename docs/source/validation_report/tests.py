@@ -68,8 +68,8 @@ def gauss(mu, sigma, x):
 
 
 def sigmaVarDist(x, y, xref, yref):
-    dist = np.sqrt((x - xref) ** 2 + (y - yref)**2)
-    sigma = np.sqrt((0.00035 * dist + 2.1) ** 2 + 2.5 ** 2)
+    dist = np.hypot(x - xref, y - yref)
+    sigma = np.hypot(0.00035 * dist + 2.1, 2.5)
     return sigma
 
 
