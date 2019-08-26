@@ -8,7 +8,6 @@ from _collections import defaultdict
 import re
 from scipy.interpolate.interpolate import RegularGridInterpolator
 import copy
-from py_wake.examples.data.ParqueFicticio import ParqueFicticio_path
 from numpy import newaxis as na
 
 
@@ -487,6 +486,7 @@ class EqDistRegGrid2DInterpolator():
 
 
 def main():
+    from py_wake.examples.data.ParqueFicticio import ParqueFicticio_path
     site = WaspGridSite.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=False)
     x, y = site._ds.coords['x'].data, site._ds.coords['y'].data,
     # print(x)
