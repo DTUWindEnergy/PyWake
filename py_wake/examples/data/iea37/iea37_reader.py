@@ -4,7 +4,7 @@ import numpy as np
 
 def read_iea37_windrose(filename):
     with open(filename, 'r') as f:
-        data = yaml.load(f)
+        data = yaml.load(f, Loader=yaml.SafeLoader)
     prop = data['definitions']['wind_inflow']['properties']
     wdir = prop['direction']['bins']
     wsp = prop['speed']['default']
@@ -14,7 +14,7 @@ def read_iea37_windrose(filename):
 
 def read_iea37_windturbine(filename):
     with open(filename, 'r') as f:
-        data = yaml.load(f)
+        data = yaml.load(f, Loader=yaml.SafeLoader)
 
     definition = data['definitions']
     wt = definition['wind_turbine']
@@ -48,7 +48,7 @@ def read_iea37_windturbine(filename):
 
 def read_iea37_windfarm(filename):
     with open(filename, 'r') as f:
-        data = yaml.load(f)
+        data = yaml.load(f, Loader=yaml.SafeLoader)
     pos = data['definitions']['position']['items']
     x = pos['xc']
     y = pos['yc']
