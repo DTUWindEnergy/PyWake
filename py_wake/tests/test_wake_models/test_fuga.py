@@ -16,8 +16,8 @@ def test_fuga():
     path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
     site = UniformSite([1, 0, 0, 0], ti=0.075)
 
-    wake_model = Fuga(path, wts)
-    aep = AEPCalculator(site, wts, wake_model)
+    wake_model = Fuga(path, site, wts)
+    aep = AEPCalculator(wake_model)
     x_j = np.linspace(-1500, 1500, 500)
     y_j = np.linspace(-1500, 1500, 300)
 
@@ -69,8 +69,8 @@ def cmp_fuga_with_colonel():
 
     site = UniformSite([1, 0, 0, 0], ti=0.075)
 
-    wake_model = Fuga(path, wts)
-    aep = AEPCalculator(site, wts, wake_model)
+    wake_model = Fuga(path, site, wts)
+    aep = AEPCalculator(wake_model)
     X, Y, Z2 = aep.wake_map(x_j, y_j, 70, wt_x, wt_y, h_i=70, wd=[30], ws=[10])
 
     print(x_j)

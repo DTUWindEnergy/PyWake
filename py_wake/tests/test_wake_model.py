@@ -11,14 +11,15 @@ from py_wake.tests import npt
 from py_wake.examples.data.hornsrev1 import HornsrevV80
 from py_wake.wake_models.fuga import Fuga
 from py_wake.tests.test_files.fuga import LUT_path_2MW_z0_0_03
+from py_wake.wake_model import MaxSum
 
 
 def test_wake_model():
     _, _, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
     site = UniformSite(freq, ti=0.075)
     windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
-    wake_model = NOJ(windTurbines)
-    aep = AEPCalculator(site, windTurbines, wake_model)
+    wake_model = NOJ(site, windTurbines)
+    aep = AEPCalculator(wake_model)
     with pytest.raises(ValueError, match="Turbines 0 and 1 are at the same position"):
         aep.calculate_AEP([0, 0], [0, 0], wd=np.arange(0, 360, 22.5), ws=[9.8])
 
@@ -31,8 +32,8 @@ def test_wec():
 
     site = UniformSite([1, 0, 0, 0], ti=0.075)
 
-    wake_model = Fuga(LUT_path_2MW_z0_0_03, wts)
-    aep = AEPCalculator(site, wts, wake_model)
+    wake_model = Fuga(LUT_path_2MW_z0_0_03, site, wts)
+    aep = AEPCalculator(wake_model)
     x_j = np.linspace(-1500, 1500, 500)
     y_j = np.linspace(-1500, 1500, 300)
 
@@ -73,3 +74,8 @@ def test_wec():
          9.6877, 9.9068, 9.7497, 9.1127, 7.9505, 7.26, 7.9551, 9.2104, 9.7458,
          9.6637, 9.1425, 8.2403, 7.1034, 6.5109, 7.2764, 8.7653, 9.7139, 9.9718,
          10.01, 10.0252, 10.0357], 4)
+
+
+def test_max_sum():
+    ms = MaxSum()
+    npt.assert_array_equal(ms.calc_effective_WS(WS_lk=[[10]], deficit_ilk=[[[1]], [[2]]]), 8)

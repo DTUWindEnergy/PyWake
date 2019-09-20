@@ -85,6 +85,31 @@ class WindTurbines():
         """
         return self._ct_power(ws_i, type_i)[0]
 
+    def get_defaults(self, N, type_i=None, h_i=None, d_i=None):
+        """
+        Parameters
+        ----------
+        N : int
+            number of turbines
+        type_i : array_like or None, optional
+            Turbine type. If None, all turbines is type 0
+        h_i : array_like or None, optional
+            hub heights. If None: default hub heights (set in WindTurbines)
+        d_i : array_lie or None, optional
+            Rotor diameter. If None: default diameter (set in WindTurbines)
+        """
+        if type_i is None:
+            type_i = np.zeros(N, dtype=np.int)
+        if h_i is None:
+            h_i = self.hub_height(type_i)
+        elif isinstance(h_i, (int, float)):
+            h_i = np.zeros(N) + h_i
+        if d_i is None:
+            d_i = self.diameter(type_i)
+        elif isinstance(d_i, (int, float)):
+            d_i = np.zeros(N) + d_i
+        return np.asarray(type_i), np.asarray(h_i), np.asarray(d_i)
+
     def _ct_power(self, ws_i, type_i=0):
         if np.any(type_i != 0):
             CT = np.zeros_like(ws_i, dtype=np.float)
@@ -189,31 +214,31 @@ def dummy_thrust(ws_cut_in=3, ws_cut_out=25, ws_rated=12, ct_rated=8 / 9):
 
 
 def main():
-    wts = WindTurbines(names=['tb1', 'tb2'],
-                       diameters=[80, 120],
-                       hub_heights=[70, 110],
-                       ct_funcs=[lambda ws: ws * 0 + 8 / 9,
-                                 dummy_thrust()],
-                       power_funcs=[cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=2000),
-                                    cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=3000)],
-                       power_unit='kW')
+    if __name__ == '__main__':
+        wts = WindTurbines(names=['tb1', 'tb2'],
+                           diameters=[80, 120],
+                           hub_heights=[70, 110],
+                           ct_funcs=[lambda ws: ws * 0 + 8 / 9,
+                                     dummy_thrust()],
+                           power_funcs=[cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=2000),
+                                        cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=3000)],
+                           power_unit='kW')
 
-    ws = np.arange(25)
-    import matplotlib.pyplot as plt
-    plt.plot(ws, wts.power(ws, 0), label=wts.name(0))
-    plt.plot(ws, wts.power(ws, 1), label=wts.name(1))
-    plt.legend()
-    plt.show()
-    plt.plot(ws, wts.ct(ws, 0), label=wts.name(0))
-    plt.plot(ws, wts.ct(ws, 1), label=wts.name(1))
-    plt.legend()
-    plt.show()
+        ws = np.arange(25)
+        import matplotlib.pyplot as plt
+        plt.plot(ws, wts.power(ws, 0), label=wts.name(0))
+        plt.plot(ws, wts.power(ws, 1), label=wts.name(1))
+        plt.legend()
+        plt.show()
+        plt.plot(ws, wts.ct(ws, 0), label=wts.name(0))
+        plt.plot(ws, wts.ct(ws, 1), label=wts.name(1))
+        plt.legend()
+        plt.show()
 
-    wts.plot([0, 100], [0, 100], [0, 1])
-    plt.xlim([-50, 150])
-    plt.ylim([-50, 150])
-    plt.show()
+        wts.plot([0, 100], [0, 100], [0, 1])
+        plt.xlim([-50, 150])
+        plt.ylim([-50, 150])
+        plt.show()
 
 
-if __name__ == '__main__':
-    main()
+main()

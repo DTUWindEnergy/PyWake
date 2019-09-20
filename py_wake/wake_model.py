@@ -1,6 +1,8 @@
 from abc import abstractmethod, ABC
 from numpy import newaxis as na
 import numpy as np
+from py_wake.site._site import Site
+from py_wake.wind_turbines import WindTurbines
 
 
 class WakeModel(ABC):
@@ -57,7 +59,7 @@ class WakeModel(ABC):
 
     args4deficit = ['WS_lk']
 
-    def __init__(self, windTurbines, wec=1):
+    def __init__(self, site, windTurbines, wec=1):
         """Initialize WakeModel
 
         Parameters
@@ -70,13 +72,16 @@ class WakeModel(ABC):
         Problem".
 
         """
+        assert isinstance(site, Site)
+        assert isinstance(windTurbines, WindTurbines)
+        self.site = site
         self.windTurbines = windTurbines
         self.wec = wec  # wake expansion continuation see
         # Thomas, J. J. and Ning, A., “A Method for Reducing Multi-Modality in the Wind Farm Layout Optimization Problem,”
         # Journal of Physics: Conference Series, Vol. 1037, The Science of Making
         # Torque from Wind, Milano, Italy, jun 2018, p. 10.
 
-    def calc_wake(self, x_i, y_i, h_i, types_i, wd, ws, site):
+    def calc_wake(self, x_i, y_i, h_i=None, type_i=None, wd=None, ws=None):
         """Calculate wake effects
 
         Calculate effective wind speed, turbulence intensity (not
@@ -101,7 +106,6 @@ class WakeModel(ABC):
         ws : int, float, array_like or None
             Wind speed(s)\n
             If None, default, the wake is calculated for site.default_ws
-        site : py_wake.site.Site
 
 
         Returns
@@ -122,14 +126,16 @@ class WakeModel(ABC):
             Ambient turbulence intensitie(s)
         P_ilk : array_like
             Probability
-
-
         """
+
+        type_i, h_i, D_i = self.windTurbines.get_defaults(len(x_i), type_i, h_i)
+        wd, ws = self.site.get_defaults(wd, ws)
+
         # Find local wind speed, wind direction, turbulence intensity and probability
-        WD_ilk, WS_ilk, TI_ilk, P_ilk = site.local_wind(x_i=x_i, y_i=y_i, wd=wd, ws=ws)
+        WD_ilk, WS_ilk, TI_ilk, P_ilk = self.site.local_wind(x_i=x_i, y_i=y_i, wd=wd, ws=ws)
 
         # Calculate down-wind and cross-wind distances
-        dw_iil, hcw_iil, dh_iil, dw_order_indices_dl = site.wt2wt_distances(x_i, y_i, h_i, WD_ilk.mean(2))
+        dw_iil, hcw_iil, dh_iil, dw_order_indices_dl = self.site.wt2wt_distances(x_i, y_i, h_i, WD_ilk.mean(2))
 
         I, L = dw_iil.shape[1:]
         i1, i2, _ = np.where((np.abs(dw_iil) + np.abs(hcw_iil) + np.eye(I)[:, :, na]) == 0)
@@ -159,18 +165,19 @@ class WakeModel(ABC):
         dh_n = dh_iil.flatten()
         power_ilk = np.zeros((I, L, K))
         ct_ilk = np.zeros((I, L, K))
-        types_i = np.asarray(types_i)
-        D_i = self.windTurbines.diameter(types_i)
-        H_i = self.windTurbines.hub_height(types_i)
         i_wd_l = np.arange(L)
 
+        # Iterate over turbines in down wind order
         for j in range(I):
             i_wt_l = dw_order_indices_dl[:, j]
             m = i_wt_l * L + i_wd_l  # current wt (j'th most upstream wts for all wdirs)
 
+            # generate indexes of up wind(n_uw) and down wind(n_dw) turbines
             n_uw = np.array([indices[uwi, i, l] for uwi, i, l in zip(dw_order_indices_dl[:, :j], i_wt_l, i_wd_l)]).T
             n_dw = np.array([indices[i, dwi, l] for dwi, i, l in zip(dw_order_indices_dl[:, j + 1:], i_wt_l, i_wd_l)]).T
 
+            # Calculate effectiv wind speed at current turbines(all wind directions and wind speeds) and
+            # look up power and thrust coefficient
             if j == 0:  # Most upstream turbines (no wake)
                 WS_eff_lk = WS_mk[m]
             else:  # 2..n most upstream turbines (wake)
@@ -179,11 +186,13 @@ class WakeModel(ABC):
                 if calc_ti:
                     TI_eff_mk[m] = self.calc_effective_TI(TI_mk[m], add_turb_nk[n_uw])
 
-            ct_lk, power_lk = self.windTurbines._ct_power(WS_eff_lk, types_i[i_wt_l])
+            ct_lk, power_lk = self.windTurbines._ct_power(WS_eff_lk, type_i[i_wt_l])
 
             power_ilk[i_wt_l, i_wd_l] = power_lk
             ct_ilk[i_wt_l, i_wd_l, :] = ct_lk
+
             if j < I - 1:
+                # Calculate required args4deficit parameters
                 arg_funcs = {'WS_lk': lambda: WS_mk[m],
                              'WS_eff_lk': lambda: WS_eff_mk[m],
                              'TI_lk': lambda: TI_mk[m],
@@ -194,11 +203,14 @@ class WakeModel(ABC):
                              'cw_jl': lambda: np.hypot(hcw_n[n_dw], dh_n[n_dw]),
                              'hcw_jl': lambda: hcw_n[n_dw],
                              'dh_jl': lambda: dh_n[n_dw],
-                             'h_l': lambda: H_i[i_wt_l],
+                             'h_l': lambda: h_i[i_wt_l],
                              'ct_lk': lambda: ct_lk}
                 args = {k: arg_funcs[k]() for k in self.args4deficit}
+
+                # Calcualte deficit
                 deficit_nk[n_dw] = self.calc_deficit(**args)
                 if calc_ti:
+                    # Calculate required args4deficit parameters and calculate added turbulence
                     args = {k: arg_funcs[k]() for k in self.args4addturb}
                     add_turb_nk[n_dw] = self.calc_added_turbulence(**args)
 
@@ -207,9 +219,42 @@ class WakeModel(ABC):
 
         return WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, WD_ilk, WS_ilk, TI_ilk, P_ilk
 
-    def _map(self, args4func, func, sum_func, WS_ilk, WS_eff_ilk, TI_ilk, TI_eff_ilk, dw_ijl, hcw_ijl, dh_ijl, ct_ilk, types_i, TI_jlk):
-        D_i = self.windTurbines.diameter(types_i)
-        H_i = self.windTurbines.hub_height(types_i)
+    def _map(self, args4func, func,
+             x_j, y_j, h, wt_x_i, wt_y_i, wt_type_i, wt_h_i, wd=None, ws=None):
+        wt_type_i, wt_h_i, wt_d_i = self.windTurbines.get_defaults(len(wt_x_i), wt_type_i, wt_h_i)
+        wd, ws = self.site.get_defaults(wd, ws)
+
+        # setup X,Y grid
+        def f(x, N=500, ext=.2):
+            ext *= (max(x) - min(x))
+            return np.linspace(min(x) - ext, max(x) + ext, N)
+
+        if x_j is None:
+            x_j = f(wt_x_i)
+        if y_j is None:
+            y_j = f(wt_y_i)
+        if h is None:
+            h = np.mean(wt_h_i)
+
+        X_j, Y_j = np.meshgrid(x_j, y_j)
+        x_j, y_j = X_j.flatten(), Y_j.flatten()
+
+        # calculate local wind at map points x_j, y_j, h
+        h_j = np.zeros_like(x_j) + h
+        _, WS_jlk, TI_jlk, P_jlk = self.site.local_wind(x_i=x_j, y_i=y_j, wd=wd, ws=ws)
+
+        if len(wt_x_i) == 0:
+            # If not turbines just return local wind
+            _, WS_jlk, TI_jlk, P_ilk = self.site.local_wind(x_i=x_j, y_i=y_j, wd=wd, ws=ws, wd_bin_size=1)
+            return X_j, Y_j, np.zeros((0, 1, 1, 1)), WS_jlk, TI_jlk, P_jlk
+
+        # Calculate ct for all turbines
+        WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, WD_ilk, WS_ilk, TI_ilk, P_ilk = \
+            self.calc_wake(x_i=wt_x_i, y_i=wt_y_i, h_i=wt_h_i, type_i=wt_type_i, wd=wd, ws=ws)
+
+        # calculate distances
+        dw_ijl, hcw_ijl, dh_ijl, _ = self.site.distances(wt_x_i, wt_y_i, wt_h_i, x_j, y_j, h_j, WD_ilk.mean(2))
+
         if self.wec != 1:
             hcw_ijl = hcw_ijl / self.wec
         I, J, L = dw_ijl.shape
@@ -226,13 +271,13 @@ class WakeModel(ABC):
                              'WS_eff_lk': lambda: WS_eff_ilk[i, l][na],
                              'TI_lk': lambda: TI_ilk[i, l][na],
                              'TI_eff_lk': lambda: TI_eff_ilk[i, l][na],
-                             'D_src_l': lambda: D_i[i][na],
+                             'D_src_l': lambda: wt_d_i[i][na],
                              'D_dst_jl': lambda: None,
                              'dw_jl': lambda: dw_ijl[i, :, l][m][:, na],
                              'cw_jl': lambda: np.hypot(hcw_ijl[i, :, l][m], dh_ijl[i, :, l][m])[:, na],
                              'hcw_jl': lambda: hcw_ijl[i, :, l][m][:, na],
                              'dh_jl': lambda: dh_ijl[i, :, l][m][:, na],
-                             'h_l': lambda: H_i[i][na],
+                             'h_l': lambda: wt_h_i[i][na],
                              'ct_lk': lambda: ct_ilk[i, l][na]}
 
                 args = {k: arg_funcs[k]() for k in args4func}
@@ -240,51 +285,58 @@ class WakeModel(ABC):
 
             deficit_ijlk.append(deficit_jlk)
         deficit_ijlk = np.array(deficit_ijlk)
-        return sum_func(TI_jlk, deficit_ijlk)
+        return X_j, Y_j, deficit_ijlk, WS_jlk, TI_jlk, P_jlk
 
-    def ws_map(self, WS_ilk, WS_eff_ilk, TI_ilk, TI_eff_ilk, dw_ijl, hcw_ijl, dh_ijl, ct_ilk, types_i, WS_jlk):
+    def ws_map(self, x_j, y_j, h, wt_x_i, wt_y_i, wt_type_i, wt_h_i, wd, ws):
         """Calculate a wake (effecitve wind speed) map
 
         Parameters
         ----------
-        WS_ilk : array_like
-            Local wind speed [m/s] for each turbine(i), wind direction(l) and
-            wind speed(k)
-        WS_eff_ilk : array_like
-            Local effective wind speed [m/s] for each turbine(i), wind
-            direction(l) and wind speed(k)
-        TI_ilk : array_like
-            Local turbulence intensity for each turbine(i), wind direction(l) and
-            wind speed(k)
-        TI_eff_ilk : array_like
-            Local effective turbulence intensity for each turbine(i), wind
-            direction(l) and wind speed(k)
-        dw_ijl : array_like
-            Down wind distance matrix between turbines(i) and map points (j) for
-            all wind directions(l) [m]
-        hcw_ijl : array_like
-            Horizontal cross wind distance matrix between turbines(i) and map
-            points(j) for all wind directions(l) [m]
-        dh_ijl : array_like
-            Vertical hub height distance matrix between turbines(i,i) for all
-            wind directions(l) [m]
-        ct_ilk : array_like
-            Thrust coefficient for all turbine(i), wind direction(l) and
-            wind speed(k)
-        types_i : array_like
-            Wind turbine type indexes
-        WS_jlk : array_like
-            Local wind speed [m/s] for map point(j), wind direction(l) and
-            wind speed(k)
+        x_j : array_like or None, optional
+            X position map points
+        y_j : array_like
+            Y position of map points
+        h : int, float or None, optional
+            Height of wake map\n
+            If None, default, the mean hub height is used
+        wt_x_i : array_like, optional
+            X position of wind turbines
+        wt_y_i : array_like, optional
+            Y position of wind turbines
+        wt_type_i : array_like or None, optional
+            Type of the wind turbines
+        wt_h_i : array_like or None, optional
+            Hub height of the wind turbines\n
+            If None, default, the standard hub height is used
+        wd : int, float, array_like or None
+            Wind directions(s)\n
+            If None, default, the wake is calculated for site.default_wd
+        ws : int, float, array_like or None
+            Wind speed(s)\n
+            If None, default, the wake is calculated for site.default_ws
 
         Returns
         -------
+        X_j : array_like
+            2d array of map x positions
+        Y_j : array_like
+            2d array of map y positions
         WS_eff_jlk : array_like
             Local effective wind speed [m/s] for all map points(j),
             wind direction(l) and wind speed(k)
+        WS_jlk : array_like
+            Local wind speed without wake effects
+        P_ilk : array_like
+            Probability
+
         """
-        return self._map(self.args4deficit, self.calc_deficit, self.calc_effective_WS, WS_ilk, WS_eff_ilk, TI_ilk,
-                         TI_eff_ilk, dw_ijl, hcw_ijl, dh_ijl, ct_ilk, types_i, WS_jlk)
+        X_j, Y_j, deficit_ijlk, WS_jlk, Ti_jlk, P_ilk = \
+            self._map(args4func=self.args4deficit, func=self.calc_deficit,
+                      x_j=x_j, y_j=y_j, h=h,
+                      wt_x_i=wt_x_i, wt_y_i=wt_y_i, wt_type_i=wt_type_i, wt_h_i=wt_h_i,
+                      wd=wd, ws=ws)
+        WS_eff_jlk = self.calc_effective_WS(WS_jlk, deficit_ijlk)
+        return X_j, Y_j, WS_eff_jlk, WS_jlk, P_ilk
 
     @abstractmethod
     def calc_deficit(self):
@@ -305,7 +357,7 @@ class WakeModel(ABC):
         pass
 
     @abstractmethod
-    def calc_effective_WS(self, WS_jlk, deficit_ijlk):
+    def calc_effective_WS(self, WS_lk, deficit_ilk):
         """Calculate effective wind speed
 
         This method must be overridden by subclass or by adding SquaredSum or
@@ -313,10 +365,10 @@ class WakeModel(ABC):
 
         Parameters
         ----------
-        WS_jlk : array_like
+        WS_lk : array_like
             Local wind speed at turbine/site(j) for all wind
             directions(l) and wind speeds(k)
-        deficit_ijlk : array_like
+        deficit_ilk : array_like
             deficit caused by upstream turbines(i) on all downstream turbines/points (j) for all wind directions(l)
             and wind speeds(k)
 
@@ -350,36 +402,36 @@ class MaxSum():
 
 
 def main():
-    from py_wake.examples.data.iea37 import iea37_path
-    from py_wake.examples.data.iea37.iea37_reader import read_iea37_windfarm,\
-        read_iea37_windrose
-    from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
-    from py_wake.site._site import UniformSite
-    from py_wake.aep_calculator import AEPCalculator
+    if __name__ == '__main__':
+        from py_wake.examples.data.iea37 import iea37_path
+        from py_wake.examples.data.iea37.iea37_reader import read_iea37_windfarm,\
+            read_iea37_windrose
+        from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
+        from py_wake.site._site import UniformSite
+        from py_wake.aep_calculator import AEPCalculator
 
-    class MyWakeModel(SquaredSum, WakeModel):
-        args4deficit = ['WS_lk', 'dw_jl']
+        class MyWakeModel(SquaredSum, WakeModel):
+            args4deficit = ['WS_lk', 'dw_jl']
 
-        def calc_deficit(self, WS_lk, dw_jl):
-            # 10% deficit downstream
-            return (WS_lk * .1)[na] * (dw_jl > 0)[:, :, na]
+            def calc_deficit(self, WS_lk, dw_jl):
+                # 10% deficit downstream
+                return (WS_lk * .1)[na] * (dw_jl > 0)[:, :, na]
 
-    _, _, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
-    n_wt = 16
-    x, y, _ = read_iea37_windfarm(iea37_path + 'iea37-ex%d.yaml' % n_wt)
+        _, _, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
+        n_wt = 16
+        x, y, _ = read_iea37_windfarm(iea37_path + 'iea37-ex%d.yaml' % n_wt)
 
-    site = UniformSite(freq, ti=0.075)
-    windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
+        site = UniformSite(freq, ti=0.075)
+        windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
 
-    wake_model = MyWakeModel(windTurbines)
-    aep_calculator = AEPCalculator(site, windTurbines, wake_model)
+        wake_model = MyWakeModel(site, windTurbines)
+        aep_calculator = AEPCalculator(wake_model)
 
-    import matplotlib.pyplot as plt
-    aep_calculator.plot_wake_map(wt_x=x, wt_y=y, wd=[0, 30], ws=[9], levels=np.linspace(5, 9, 100))
-    windTurbines.plot(x, y)
+        import matplotlib.pyplot as plt
+        aep_calculator.plot_wake_map(wt_x=x, wt_y=y, wd=[0, 30], ws=[9], levels=np.linspace(5, 9, 100))
+        windTurbines.plot(x, y)
 
-    plt.show()
+        plt.show()
 
 
-if __name__ == '__main__':
-    main()
+main()

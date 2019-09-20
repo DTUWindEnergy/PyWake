@@ -7,16 +7,16 @@ from py_wake.aep_calculator import AEPCalculator
 def run_NOJ():
     windTurbines = IEA37_WindTurbines()
     site = IEA37Site(64)
-    wake_model = NOJ(windTurbines)
-    aep_calculator = AEPCalculator(site, windTurbines, wake_model)
+    wake_model = NOJ(site, windTurbines)
+    aep_calculator = AEPCalculator(wake_model)
 
     x, y = site.initial_position.T
     print(aep_calculator.calculate_AEP(x, y).sum())
 
 
 def main():
-    run_NOJ()
+    if __name__ == '__main__':
+        run_NOJ()
 
 
-if __name__ == '__main__':
-    main()
+main()

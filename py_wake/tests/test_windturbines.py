@@ -32,7 +32,7 @@ def test_twotype_windturbines():
     types2 = [1] * 9
     wts.plot(wt9_x, wt9_y, types1)
 
-    aep_calculator = AEPCalculator(Hornsrev1Site(), wts, NOJ(wts))
+    aep_calculator = AEPCalculator(NOJ(Hornsrev1Site(), wts))
     npt.assert_almost_equal(aep_calculator.calculate_AEP(wt9_x, wt9_y, type_i=types0).sum(), 81.2066072392765)
     npt.assert_almost_equal(aep_calculator.calculate_AEP(wt9_x, wt9_y, type_i=types1).sum(), 83.72420504573488)
     npt.assert_almost_equal(aep_calculator.calculate_AEP(wt9_x, wt9_y, type_i=types2).sum(), 88.87227386796884
@@ -40,3 +40,10 @@ def test_twotype_windturbines():
                             )
     if 0:
         plt.show()
+
+
+def test_get_defaults():
+    v80 = V80()
+    npt.assert_array_equal(np.array(v80.get_defaults(1))[:, 0], [0, 70, 80])
+    npt.assert_array_equal(np.array(v80.get_defaults(1, h_i=100))[:, 0], [0, 100, 80])
+    npt.assert_array_equal(np.array(v80.get_defaults(1, d_i=100))[:, 0], [0, 70, 100])
