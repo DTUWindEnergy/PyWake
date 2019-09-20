@@ -18,8 +18,8 @@ def test_stf(WakeModel, ref_ti):
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
 
-    wake_model = WakeModel(windTurbines)
-    aep_calculator = AEPCalculator(site, windTurbines, wake_model)
+    wake_model = WakeModel(site, windTurbines)
+    aep_calculator = AEPCalculator(wake_model)
     aep_calculator.calculate_AEP(x, y)
     # print(np.round(aep_calculator.TI_eff_ilk[:, 0, 0], 3).tolist())
     npt.assert_array_almost_equal(aep_calculator.TI_eff_ilk[:, 0, 0], ref_ti, 3)

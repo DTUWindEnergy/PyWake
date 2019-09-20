@@ -44,7 +44,8 @@ def test_main(module):
 
     try:
         with mock.patch.object(module, "print", no_print):
-            getattr(module, 'main')()
+            with mock.patch.object(module, "__name__", "__main__"):  # To count 'if __name__=="__main__": main()' in cov
+                getattr(module, 'main')()
     except Exception as e:
         raise type(e)(str(e) +
                       ' in %s.main' % module.__name__).with_traceback(sys.exc_info()[2])

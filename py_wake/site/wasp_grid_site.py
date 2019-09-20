@@ -486,43 +486,43 @@ class EqDistRegGrid2DInterpolator():
 
 
 def main():
-    from py_wake.examples.data.ParqueFicticio import ParqueFicticio_path
-    site = WaspGridSite.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=False)
-    x, y = site._ds.coords['x'].data, site._ds.coords['y'].data,
-    # print(x)
-    # print(y)
-    Y, X = np.meshgrid(y, x)
-    Z = site._ds['elev'].data
-    print(Z.shape)
-    print(X.shape)
+    if __name__ == '__main__':
+        from py_wake.examples.data.ParqueFicticio import ParqueFicticio_path
+        site = WaspGridSite.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=False)
+        x, y = site._ds.coords['x'].data, site._ds.coords['y'].data,
+        # print(x)
+        # print(y)
+        Y, X = np.meshgrid(y, x)
+        Z = site._ds['elev'].data
+        print(Z.shape)
+        print(X.shape)
 
-    import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt
 
-    if 1:
-        Z = site.elevation(X.flatten(), Y.flatten()).reshape(X.shape)
-        # plt.plot(X[m], Y[m], '.i')
-        c = plt.contourf(X, Y, Z, 100)
-        plt.colorbar(c)
-        i, j = 15, 15
-        plt.plot(X[i], Y[i], 'b')
+        if 1:
+            Z = site.elevation(X.flatten(), Y.flatten()).reshape(X.shape)
+            # plt.plot(X[m], Y[m], '.i')
+            c = plt.contourf(X, Y, Z, 100)
+            plt.colorbar(c)
+            i, j = 15, 15
+            plt.plot(X[i], Y[i], 'b')
 
-        plt.plot(X[:, j], Y[:, j], 'r')
-        plt.axis('equal')
+            plt.plot(X[:, j], Y[:, j], 'r')
+            plt.axis('equal')
+            plt.figure()
+            Z = site.elevation_interpolator(X[:, j], Y[:, j], mode='extrapolate')
+            plt.plot(X[:, j], Z, 'r')
+
+            plt.figure()
+            Z = site.elevation_interpolator(X[i], Y[i], mode='extrapolate')
+            plt.plot(Y[i], Z, 'b')
+
+        z = np.arange(35, 200, 1)
+        u_z = site.local_wind([x[i]] * len(z), y_i=[y[i]] * len(z),
+                              h_i=z, wd=[0], ws=[10])[1][:, 0, 0]
         plt.figure()
-        Z = site.elevation_interpolator(X[:, j], Y[:, j], mode='extrapolate')
-        plt.plot(X[:, j], Z, 'r')
-
-        plt.figure()
-        Z = site.elevation_interpolator(X[i], Y[i], mode='extrapolate')
-        plt.plot(Y[i], Z, 'b')
-
-    z = np.arange(35, 200, 1)
-    u_z = site.local_wind([x[i]] * len(z), y_i=[y[i]] * len(z),
-                          h_i=z, wd=[0], ws=[10])[1][:, 0, 0]
-    plt.figure()
-    plt.plot(u_z, z)
-    plt.show()
+        plt.plot(u_z, z)
+        plt.show()
 
 
-if __name__ == '__main__':
-    main()
+main()

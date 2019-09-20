@@ -45,7 +45,7 @@ class TurbulenceModel(WakeModel):
         """
         pass
 
-    def ti_map(self, WS_ilk, WS_eff_ilk, TI_ilk, TI_eff_ilk, dw_ijl, hcw_ijl, dh_ijl, ct_ilk, types_i, TI_jlk):
+    def ti_map(self, x_j, y_j, h, wt_x_i, wt_y_i, wt_type_i, wt_h_i, wd, ws):
         """Calculate a wake (effecitve wind speed) map
 
         Parameters
@@ -80,7 +80,13 @@ class TurbulenceModel(WakeModel):
             Local effective wind speed [m/s] for all map points(j),
             wind direction(l) and wind speed(k)
         """
-        return self._map(self.args4addturb, self.calc_added_turbulence, self.calc_effective_TI, WS_ilk, WS_eff_ilk, TI_ilk, TI_eff_ilk, dw_ijl, hcw_ijl, dh_ijl, ct_ilk, types_i, TI_jlk)
+
+        X_j, Y_j, deficit_ijlk, _, TI_jlk, P_ilk = self._map(args4func=self.args4addturb, func=self.calc_added_turbulence,
+                                                             x_j=x_j, y_j=y_j, h=h,
+                                                             wt_x_i=wt_x_i, wt_y_i=wt_y_i, wt_type_i=wt_type_i, wt_h_i=wt_h_i,
+                                                             wd=wd, ws=ws)
+        TI_eff_jlk = self.calc_effective_TI(TI_jlk, deficit_ijlk)
+        return X_j, Y_j, TI_eff_jlk, P_ilk
 
 
 class MaxSum():

@@ -11,8 +11,8 @@ class BastankhahGaussian(SquaredSum, WakeModel):
     """
     args4deficit = ['WS_lk', 'D_src_l', 'dw_jl', 'cw_jl', 'ct_lk']
 
-    def __init__(self, windTurbines, k=0.0324555, **kwargs):
-        WakeModel.__init__(self, windTurbines, **kwargs)
+    def __init__(self, site, windTurbines, k=0.0324555, **kwargs):
+        WakeModel.__init__(self, site, windTurbines, **kwargs)
         self.k = k
 
     def calc_deficit(self, WS_lk, D_src_l, dw_jl, cw_jl, ct_lk):
@@ -34,8 +34,8 @@ class IEA37SimpleBastankhahGaussian(SquaredSum, WakeModel):
     """
     args4deficit = ['WS_lk', 'D_src_l', 'dw_jl', 'cw_jl', 'ct_lk']
 
-    def __init__(self, windTurbines, **kwargs):
-        WakeModel.__init__(self, windTurbines, **kwargs)
+    def __init__(self, site, windTurbines, **kwargs):
+        WakeModel.__init__(self, site, windTurbines, **kwargs)
         self.k = 0.0324555
 
     def calc_deficit(self, WS_lk, D_src_l, dw_jl, cw_jl, ct_lk):
@@ -49,29 +49,29 @@ class IEA37SimpleBastankhahGaussian(SquaredSum, WakeModel):
 
 
 def main():
-    from py_wake.aep_calculator import AEPCalculator
-    from py_wake.examples.data.iea37 import iea37_path
-    from py_wake.examples.data.iea37._iea37 import IEA37Site
-    from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
+    if __name__ == '__main__':
+        from py_wake.aep_calculator import AEPCalculator
+        from py_wake.examples.data.iea37 import iea37_path
+        from py_wake.examples.data.iea37._iea37 import IEA37Site
+        from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
 
-    # setup site, turbines and wakemodel
-    site = IEA37Site(16)
-    x, y = site.initial_position.T
-    windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
+        # setup site, turbines and wakemodel
+        site = IEA37Site(16)
+        x, y = site.initial_position.T
+        windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
 
-    wake_model = IEA37SimpleBastankhahGaussian(windTurbines)
+        wake_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
 
-    # calculate AEP
-    aep_calculator = AEPCalculator(site, windTurbines, wake_model)
-    aep = aep_calculator.calculate_AEP(x, y)[0].sum()
+        # calculate AEP
+        aep_calculator = AEPCalculator(wake_model)
+        aep = aep_calculator.calculate_AEP(x, y)[0].sum()
 
-    # plot wake mape
-    import matplotlib.pyplot as plt
-    aep_calculator.plot_wake_map(wt_x=x, wt_y=y, wd=[0], ws=[9])
-    plt.title('AEP: %.2f GWh' % aep)
-    windTurbines.plot(x, y)
-    plt.show()
+        # plot wake mape
+        import matplotlib.pyplot as plt
+        aep_calculator.plot_wake_map(wt_x=x, wt_y=y, wd=[0], ws=[9])
+        plt.title('AEP: %.2f GWh' % aep)
+        windTurbines.plot(x, y)
+        plt.show()
 
 
-if __name__ == '__main__':
-    main()
+main()

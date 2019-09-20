@@ -18,6 +18,13 @@ class Site(ABC):
         self.default_ws = np.arange(3, 26)
         self.default_wd = np.arange(360)
 
+    def get_defaults(self, wd=None, ws=None):
+        if wd is None:
+            wd = self.default_wd
+        if ws is None:
+            ws = self.default_ws
+        return wd, ws
+
     @abstractmethod
     def local_wind(self, x_i, y_i, h_i=None, wd=None, ws=None, wd_bin_size=None, ws_bin_size=None):
         """Local free flow wind conditions
@@ -446,33 +453,33 @@ def Sector2Subsector(para, axis=-1, wd_binned=None, interp_method='piecewise'):
 
 
 def main():
-    f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,
-         0.086432, 0.117705, 0.151576, 0.147379, 0.10012, 0.05166]
-    A = [9.176929, 9.782334, 9.531809, 9.909545, 10.04269, 9.593921,
-         9.584007, 10.51499, 11.39895, 11.68746, 11.63732, 10.08803]
-    k = [2.392578, 2.447266, 2.412109, 2.591797, 2.755859, 2.595703,
-         2.583984, 2.548828, 2.470703, 2.607422, 2.626953, 2.326172]
-    ti = .1
-    h_ref = 100
-    alpha = .1
-    site = UniformWeibullSite(f, A, k, ti, alpha=alpha, h_ref=h_ref)
+    if __name__ == '__main__':
+        f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,
+             0.086432, 0.117705, 0.151576, 0.147379, 0.10012, 0.05166]
+        A = [9.176929, 9.782334, 9.531809, 9.909545, 10.04269, 9.593921,
+             9.584007, 10.51499, 11.39895, 11.68746, 11.63732, 10.08803]
+        k = [2.392578, 2.447266, 2.412109, 2.591797, 2.755859, 2.595703,
+             2.583984, 2.548828, 2.470703, 2.607422, 2.626953, 2.326172]
+        ti = .1
+        h_ref = 100
+        alpha = .1
+        site = UniformWeibullSite(f, A, k, ti, alpha=alpha, h_ref=h_ref)
 
-    x_i = y_i = np.arange(5)
-    wdir_lst = np.arange(0, 360, 90)
-    wsp_lst = np.arange(1, 20)
-    WD_ilk, WS_ilk, TI_ilk, P_ilk = site.local_wind(x_i=x_i, y_i=y_i, wd=wdir_lst, ws=wsp_lst)
-    import matplotlib.pyplot as plt
+        x_i = y_i = np.arange(5)
+        wdir_lst = np.arange(0, 360, 90)
+        wsp_lst = np.arange(1, 20)
+        WD_ilk, WS_ilk, TI_ilk, P_ilk = site.local_wind(x_i=x_i, y_i=y_i, wd=wdir_lst, ws=wsp_lst)
+        import matplotlib.pyplot as plt
 
-    site.plot_ws_distribution(0, 0, wdir_lst)
+        site.plot_ws_distribution(0, 0, wdir_lst)
 
-    plt.figure()
-    z = np.arange(1, 100)
-    u = [site.local_wind(x_i=[0], y_i=[0], h_i=[z_], wd=0, ws=10)[1][0][0] for z_ in z]
-    plt.plot(u, z)
-    plt.xlabel('Wind speed [m/s]')
-    plt.ylabel('Height [m]')
-    plt.show()
+        plt.figure()
+        z = np.arange(1, 100)
+        u = [site.local_wind(x_i=[0], y_i=[0], h_i=[z_], wd=0, ws=10)[1][0][0] for z_ in z]
+        plt.plot(u, z)
+        plt.xlabel('Wind speed [m/s]')
+        plt.ylabel('Height [m]')
+        plt.show()
 
 
-if __name__ == '__main__':
-    main()
+main()

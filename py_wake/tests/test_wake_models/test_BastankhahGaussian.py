@@ -14,13 +14,13 @@ def test_BastankhahGaussian_ex16():
     site = IEA37Site(16)
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
-    wake_model = BastankhahGaussian(windTurbines)
+    wake_model = BastankhahGaussian(site, windTurbines)
     if 0:
         import matplotlib.pyplot as plt
         windTurbines.plot(x, y)
         plt.show()
 
-    aep = AEPCalculator(site, windTurbines, wake_model)
+    aep = AEPCalculator(wake_model)
     aep_ilk = aep.calculate_AEP(x, y, wd=np.arange(0, 360, 22.5), ws=[9.8])
     aep_MW_l = aep_ilk.sum((0, 2)) * 1000
     # test that the result is equal to last run (no evidens that  these number are correct)
@@ -39,8 +39,8 @@ def test_BastankhahGaussian_wake_map():
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
 
-    wake_model = BastankhahGaussian(windTurbines)
-    aep = AEPCalculator(site, windTurbines, wake_model)
+    wake_model = BastankhahGaussian(site, windTurbines)
+    aep = AEPCalculator(wake_model)
     x_j = np.linspace(-1500, 1500, 200)
     y_j = np.linspace(-1500, 1500, 100)
     X, Y, Z = aep.wake_map(x_j, y_j, 110, x, y, wd=[0], ws=[9])
@@ -70,9 +70,9 @@ def test_IEA37SimpleBastankhahGaussian_ex16():
             plt.show()
         site = IEA37Site(n_wt)
         windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
-        wake_model = IEA37SimpleBastankhahGaussian(windTurbines)
+        wake_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
 
-        aep = AEPCalculator(site, windTurbines, wake_model)
+        aep = AEPCalculator(wake_model)
         aep_ilk = aep.calculate_AEP(x, y, wd=np.arange(0, 360, 22.5), ws=[9.8])
         aep_MW_l = aep_ilk.sum((0, 2)) * 1000
         # test that the result is equal to results provided for IEA task 37
@@ -84,8 +84,8 @@ def test_IEA37SimpleBastankhahGaussian_wake_map():
     site = IEA37Site(16)
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
-    wake_model = IEA37SimpleBastankhahGaussian(windTurbines)
-    aep = AEPCalculator(site, windTurbines, wake_model)
+    wake_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
+    aep = AEPCalculator(wake_model)
     x_j = np.linspace(-1500, 1500, 200)
     y_j = np.linspace(-1500, 1500, 100)
     X, Y, Z = aep.wake_map(x_j, y_j, 110, x, y, wd=[0], ws=[9])
