@@ -4,7 +4,7 @@
 
 # ===== TEST PyWake debian=====
 test_PyWake:  # name the job what we like
-  image: continuumio/anaconda3:latest
+  image: dtuwindenergy/topfarm2:latest
   stage:  # build, test, deploy defined by default [2]
     test
   script:
@@ -16,7 +16,7 @@ test_PyWake:  # name the job what we like
   
 # ===== Check code style =====
 check_code_style:  # name the job what we like
-  image: continuumio/anaconda3:latest
+  image: dtuwindenergy/topfarm2:latest
   stage:  # build, test, deploy defined by default [2]
     test
   script:
