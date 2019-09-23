@@ -11,9 +11,10 @@ suffixs:
 """
 from numpy import newaxis as na
 from scipy import interpolate
+from py_wake.site.distance import StraightDistance
 
 
-class Site(ABC):
+class Site():
     def __init__(self):
         self.default_ws = np.arange(3, 26)
         self.default_wd = np.arange(360)
@@ -59,7 +60,6 @@ class Site(ABC):
         P_ilk : array_like
             Probability/weight
         """
-        pass
 
     @abstractmethod
     def probability(self, x_i, y_i, h_i, WD_lk, WS_lk, wd_bin_size, ws_bin_size):
@@ -87,7 +87,6 @@ class Site(ABC):
         P_ilk : float or array_like
             Probability of wind speed and direction at local positions
         """
-        pass
 
     @abstractmethod
     def distances(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
@@ -123,7 +122,6 @@ class Site(ABC):
         dw_order_indices_l : array_like
             indices that gives the downwind order of source points
         """
-        pass
 
     def wt2wt_distances(self, x_i, y_i, h_i, wd_il):
         return self.distances(x_i, y_i, h_i, x_i, y_i, h_i, wd_il)
@@ -143,7 +141,6 @@ class Site(ABC):
         -------
         elevation : array_like
         """
-        pass
 
     def wd_bin_size(self, wd, wd_bin_size=None):
         if wd_bin_size is not None:
@@ -285,7 +282,7 @@ class Site(ABC):
         return p
 
 
-class UniformSite(Site):
+class UniformSite(StraightDistance, Site):
     """Site with uniform (same wind over all, i.e. flat uniform terrain) and
     constant wind speed probability of 1. Only for one fixed wind speed
     """
@@ -323,28 +320,6 @@ class UniformSite(Site):
         TI_ilk = self.ti[WD_index_ilk]
         P_ilk = self.probability(0, 0, 0, WD_ilk[0], WS_ilk[0], wd_bin_size, ws_bin_size)
         return WD_ilk, WS_ilk, TI_ilk, P_ilk
-
-    def distances(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
-        wd_l = np.mean(wd_il, 0)
-        dx_ij, dy_ij, dh_ij = [np.subtract(*np.meshgrid(dst_j, src_i, indexing='ij')).T
-                               for src_i, dst_j in [(src_x_i, dst_x_j),
-                                                    (src_y_i, dst_y_j),
-                                                    (src_h_i, dst_h_j)]]
-        src_x_i, src_y_i = map(np.asarray, [src_x_i, src_y_i])
-
-        theta_l = np.deg2rad(90 - wd_l)
-        cos_l = np.cos(theta_l)
-        sin_l = np.sin(theta_l)
-        dw_il = cos_l[na, :] * src_x_i[:, na] + sin_l[na] * src_y_i[:, na]
-        dw_ijl = -cos_l[na, na, :] * dx_ij[:, :, na] - sin_l[na, na, :] * dy_ij[:, :, na]
-        hcw_ijl = sin_l[na, na, :] * dx_ij[:, :, na] - cos_l[na, na, :] * dy_ij[:, :, na]
-        dh_ijl = np.zeros_like(dw_ijl)
-        dh_ijl[:, :, :] = dh_ij[:, :, na]
-
-        # dw_order_indices_l = np.argsort(-dw_il, 0).astype(np.int).T
-        dw_order_indices_l = np.argsort((dw_ijl > 0).sum(0), 0).T
-
-        return dw_ijl, hcw_ijl, dh_ijl, dw_order_indices_l
 
     def elevation(self, x_i, y_i):
         return np.zeros_like(x_i)

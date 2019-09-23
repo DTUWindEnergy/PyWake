@@ -2,5 +2,6 @@
 omit = 
 	py_wake/tests/*
 	py_wake/examples/data/*
+    tmp/*
 [report]
 fail_under = 98

@@ -4,15 +4,31 @@ from py_wake.tests import npt
 import pytest
 from py_wake.examples.data.ParqueFicticio import ParqueFicticio_path
 from py_wake.examples.data.ParqueFicticio.parque_ficticio import ParqueFicticioSite
-from py_wake.site.wasp_grid_site import WaspGridSite
+from py_wake.site.wasp_grid_site import WaspGridSite, WaspGridSiteBase
 import os
 import time
 from py_wake.tests.test_files.wasp_grid_site import one_layer
+from py_wake.site.distance import TerrainFollowingDistance, StraightDistance, TerrainFollowingDistance2
 
 
 @pytest.fixture
 def site():
     return ParqueFicticioSite()
+
+
+@pytest.fixture
+def site2():
+    site = ParqueFicticioSite(distance=TerrainFollowingDistance2())
+    x, y = site.initial_position.T
+    return site, x, y
+
+
+def test_WaspGridSiteDistanceClass(site):
+    wgs = WaspGridSite(site._ds, distance=TerrainFollowingDistance(distance_resolution=2000))
+    assert wgs.distance_resolution == 2000
+    assert wgs.distances.__func__ == TerrainFollowingDistance.distances
+    wgs = WaspGridSite(site._ds, distance=StraightDistance())
+    assert wgs.distances.__func__ == StraightDistance.distances
 
 
 def test_local_wind(site):
@@ -46,14 +62,42 @@ def test_local_wind(site):
     # npt.assert_array_equal(10 * (z / 50)**.3, ws)
 
 
-def test_distances(site):
+@pytest.mark.parametrize('site,dw_ref', [
+    (ParqueFicticioSite(distance=TerrainFollowingDistance2()),
+     [0., 207.7973259, 484.8129285, 727.1261764, 1039.5612311, 1263.5467003, 1490.7972623, 1841.0639107]),
+    (ParqueFicticioSite(distance=TerrainFollowingDistance()),
+     [0, 209.803579, 480.8335365, 715.6003233, 1026.9476322, 1249.5510034, 1475.1467251, 1824.1317343]),
+    (ParqueFicticioSite(distance=StraightDistance()),
+     [-0, 207, 477, 710, 1016, 1236, 1456, 1799])])
+def test_distances(site, dw_ref):
     x, y = site.initial_position.T
-    dw_ijl, cw_ijl, dh_ijl, dwo = site.distances(src_x_i=[x[0]], src_y_i=[y[0]], src_h_i=[70],
-                                                 dst_x_j=[x[1]], dst_y_j=[y[1]], dst_h_j=[80],
-                                                 wd_il=[[0]])
-    npt.assert_almost_equal(dw_ijl[0, 0, 0], -(y[1] - y[0]))
-    npt.assert_almost_equal(cw_ijl[0, 0, 0], x[1] - x[0])
-    npt.assert_almost_equal(dh_ijl[0, 0, 0], 10)
+    dw_ijl, cw_ijl, dh_ijl, dwo = site.distances(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
+                                                 dst_x_j=x, dst_y_j=y, dst_h_j=np.array([70]),
+                                                 wd_il=np.array([[0]]))
+    npt.assert_almost_equal(dw_ijl[0, :, 0], dw_ref)
+
+    cw_ref = [236.1, 0., -131.1, -167.8, -204.5, -131.1, -131.1, -45.4]
+    npt.assert_almost_equal(cw_ijl[:, 1, 0], cw_ref)
+    npt.assert_almost_equal(dh_ijl, np.zeros_like(dh_ijl))
+
+
+def test_distances_different_points(site2):
+    site, x, y = site2
+    with pytest.raises(NotImplementedError):
+        site.distances(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
+                       dst_x_j=x[1:], dst_y_j=y[1:], dst_h_j=np.array([70]),
+                       wd_il=np.array([[0]]))
+
+
+# def test_distances_wd_shape():
+#     site = ParqueFicticioSite(distance=TerrainFollowingDistance2())
+#     x, y = site.initial_position.T
+#     dw_ijl, cw_ijl, dh_ijl, dwo = site.distances(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
+#                                                  dst_x_j=x, dst_y_j=y, dst_h_j=np.array([70]),
+#                                                  wd_il=np.ones((len(x), 1)) * 180)
+#     npt.assert_almost_equal(dw_ijl[0, :, 0], np.array([0., -207., -477., -710., -1016., -1236., -1456., -1799.]))
+#     npt.assert_almost_equal(cw_ijl[:, 1, 0], np.array([-236.1, 0., 131.1, 167.8, 204.5, 131.1, 131.1, 45.4]))
+#     npt.assert_almost_equal(dh_ijl, np.zeros_like(dh_ijl))
 
 
 def test_speed_up_using_pickle():
@@ -61,30 +105,31 @@ def test_speed_up_using_pickle():
     if os.path.exists(pkl_fn):
         os.remove(pkl_fn)
     start = time.time()
-    site = WaspGridSite.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=False)
+    site = WaspGridSiteBase.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=False)
     time_wo_pkl = time.time() - start
-    site = WaspGridSite.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=True)
+    site = WaspGridSiteBase.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=True)
     assert os.path.exists(pkl_fn)
     start = time.time()
-    site = WaspGridSite.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=True)
+    site = WaspGridSiteBase.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=True)
     time_w_pkl = time.time() - start
     npt.assert_array_less(time_w_pkl * 10, time_wo_pkl)
 
 
 def test_interp_funcs_initialization_missing_key(site):
+    site = ParqueFicticioSite(distance=TerrainFollowingDistance2())
     site.interp_funcs_initialization(['missing'])
 
 
 def test_one_layer():
-    site = WaspGridSite.from_wasp_grd(os.path.dirname(one_layer.__file__) + "/", speedup_using_pickle=False)
+    site = WaspGridSiteBase.from_wasp_grd(os.path.dirname(one_layer.__file__) + "/", speedup_using_pickle=False)
 
 
 def test_missing_path():
     with pytest.raises(NotImplementedError):
-        WaspGridSite.from_wasp_grd("missing_path/", speedup_using_pickle=True)
+        WaspGridSiteBase.from_wasp_grd("missing_path/", speedup_using_pickle=True)
 
     with pytest.raises(Exception, match='Path was not a directory'):
-        WaspGridSite.from_wasp_grd("missing_path/", speedup_using_pickle=False)
+        WaspGridSiteBase.from_wasp_grd("missing_path/", speedup_using_pickle=False)
 
 
 def test_elevation(site):
@@ -92,6 +137,38 @@ def test_elevation(site):
     npt.assert_array_less(np.abs(site.elevation(x_i=x_i, y_i=y_i) -
                                  [519.4, 567.7, 583.6, 600, 574.8, 559.9, 517.7, 474.5]  # ref from wasp
                                  ), 5)
+
+
+def test_plot_map(site):
+    import matplotlib.pyplot as plt
+    with pytest.raises(AttributeError, match="missing not found in dataset. Available data variables are:\nws_mean,"):
+        site.plot_map('missing')
+
+    with pytest.raises(AttributeError, match=r"Sector None not found. Available sectors are: \[ 1"):
+        site.plot_map('ws_mean')
+    with pytest.raises(AttributeError, match="Height missing for 'ws_mean'"):
+        site.plot_map('ws_mean', sector=1)
+
+    site.plot_map('elev')
+    plt.figure()
+    site.plot_map('ws_mean', 80, sector=1)
+    if 0:
+        plt.show()
+
+
+def test_elevation_outside_map(site):
+    import matplotlib.pyplot as plt
+
+    site.plot_map('elev')
+    x = np.linspace(262500, 265500, 500)
+    y = x * 0 + 6505450
+    plt.plot(x, y, '--', label='Terrain line')
+    plt.plot(x, y + site.elevation(x, y), label='Elevation')
+    npt.assert_array_equal(np.round(site.elevation(x, y)[::50]),
+                           [np.nan, np.nan, 303, 390, 491, 566, 486, 524, np.nan, np.nan])
+    if 0:
+        plt.legend()
+        plt.show()
 
 
 def test_plot_ws_distribution(site):

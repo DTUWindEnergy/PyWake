@@ -9,12 +9,24 @@ import re
 from scipy.interpolate.interpolate import RegularGridInterpolator
 import copy
 from numpy import newaxis as na
+from py_wake.site.distance import StraightDistance, TerrainFollowingDistance
+from builtins import AttributeError
 
 
-class WaspGridSite(UniformWeibullSite):
-    def __init__(self, ds, z0=10, h_ref=70):
-        self.z0 = z0
-        self.h_ref = h_ref
+def WaspGridSite(ds, distance=TerrainFollowingDistance()):
+    if distance.__class__ == StraightDistance:
+        cls = type("WaspGridSiteStraightDistance", (WaspGridSiteBase,), {})
+        wgs = cls(ds=ds)
+    else:
+        cls = type("WaspGridSite" + type(distance).__name__, (type(distance), WaspGridSiteBase), {})
+        wgs = cls(ds=ds)
+        wgs.__dict__.update(distance.__dict__)
+
+    return wgs
+
+
+class WaspGridSiteBase(UniformWeibullSite):
+    def __init__(self, ds):
         self._ds = ds
         self.interp_funcs = None
         self.interp_funcs_initialization()
@@ -25,16 +37,15 @@ class WaspGridSite(UniformWeibullSite):
         super().__init__(p_wd=np.nanmean(self._ds['f'].data, (0, 1, 2)),
                          a=np.nanmean(self._ds['A'].data, (0, 1, 2)),
                          k=np.nanmean(self._ds['k'].data, (0, 1, 2)),
-                         ti=0,
-                         h_ref=h_ref)
+                         ti=0)
 
     def local_wind(self, x_i, y_i, h_i, wd=None, ws=None, wd_bin_size=None, ws_bin_size=None):
-
         if wd is None:
             wd = self.default_wd
         if ws is None:
             ws = self.default_ws
         wd, ws = np.asarray(wd), np.asarray(ws)
+        self.wd = wd
         h_i = np.asarray(h_i)
         x_il, y_il, h_il = [np.repeat([v], len(wd), 0).T for v in [x_i, y_i, h_i]]
 
@@ -42,15 +53,16 @@ class WaspGridSite(UniformWeibullSite):
         wd_bin_size = self.wd_bin_size(wd, wd_bin_size)
 
         wd_il = np.repeat([wd], len(x_i), 0)
-
         speed_up_il, turning_il, wind_shear_il = \
             [self.interp_funcs[n]((x_il, y_il, h_il, wd_il)) for n in
              ['spd', 'orog_trn', 'wind_shear']]
 
-        term_denominator = np.log(self.h_ref / self.z0)
+        # TODO: if speed_up_il does not vary with height the below version of WS_ilk should be used. Else remove z0 and h_ref from the input.
+#        term_denominator = np.log(self.h_ref / self.z0)
 
-        WS_ilk = (ws[na, na, :] * np.log(h_i / self.z0)[:, na, na] /
-                  term_denominator) * speed_up_il[:, :, na]
+#        WS_ilk = (ws[na, na, :] * np.log(h_i / self.z0)[:, na, na] /
+#                  term_denominator) * speed_up_il[:, :, na]
+        WS_ilk = ws[na, na, :] * speed_up_il[:, :, na]
 
         WD_ilk = (wd_il + turning_il)[..., na]
 
@@ -58,13 +70,12 @@ class WaspGridSite(UniformWeibullSite):
             TI_il = self.interp_funcs['tke']((x_il, y_il, h_il, wd_il))
             TI_ilk = (TI_il[:, :, na] * (0.75 + 3.8 / WS_ilk))
 
-        # P_wd_il = freq_il / (360 / len(self._ds.coords['sec'])) * wd_bin_size
-        # P_ilk = self.weibull_weight(WS_ilk, Weibull_A_il[:, :, na],
-        #                            Weibull_k_il[:, :, na], ws_bin_size) * P_wd_il[:, :, na]
         WD_lk, WS_lk = np.meshgrid(wd, ws, indexing='ij')
         P_ilk = self.probability(x_i, y_i, h_i, WD_lk, WS_lk, wd_bin_size, ws_bin_size)
+#        P_ilk = self.probability(x_i, y_i, h_i, WD_lk, WS_ilk, wd_bin_size, ws_bin_size)
         return WD_ilk, WS_ilk, TI_ilk, P_ilk
 
+#    def probability(self, x_i, y_i, h_i, WD_lk, WS_ilk, wd_bin_size, ws_bin_size):
     def probability(self, x_i, y_i, h_i, WD_lk, WS_lk, wd_bin_size, ws_bin_size):
         """See Site.probability
         """
@@ -74,21 +85,29 @@ class WaspGridSite(UniformWeibullSite):
             [self.interp_funcs[n]((x_il, y_il, h_il, wd_il)) for n in
              ['A', 'k', 'f']]
         P_wd_il = freq_il * wd_bin_size
-        P_ilk = self.weibull_weight(WS_lk[na], Weibull_A_il[:, :, na],
+        WS_ilk = WS_lk[na]
+        # TODO: The below probability does not sum to 1 due to the speed ups. New
+        # calculation of the weibull weights are needed.
+        P_ilk = self.weibull_weight(WS_ilk, Weibull_A_il[:, :, na],
                                     Weibull_k_il[:, :, na], ws_bin_size) * P_wd_il[:, :, na]
+#        P_ilk = self.weibull_weight(WS_ilk, Weibull_A_il[:, :, na],
+#                                    Weibull_k_il[:, :, na], ws_bin_size) * P_wd_il[:, :, na]
+        self.freq_il = freq_il
+        self.pdf_ilk = self.weibull_weight(WS_ilk, Weibull_A_il[:, :, na],
+                                           Weibull_k_il[:, :, na], ws_bin_size)
+        self.Weibull_k = Weibull_k_il[:, :, na]
+        self.Weibull_A = Weibull_A_il[:, :, na]
+        self.Weibull_ws = WS_ilk
         return P_ilk
-
-    def distances(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
-        return UniformWeibullSite.distances(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il)
 
     def elevation(self, x_i, y_i):
         return self.elevation_interpolator(x_i, y_i)
 
     @classmethod
-    def from_pickle(cls, file_name):
+    def from_pickle(cls, file_name, distance):
         with open(file_name, 'rb') as f:
             ds = pickle.load(f)
-        return cls(ds)
+        return WaspGridSite(ds, distance)
 
     def to_pickle(self, file_name):
         with open(file_name, 'wb') as f:
@@ -134,8 +153,28 @@ class WaspGridSite(UniformWeibullSite):
                 data, bounds_error=False)
         self.interp_funcs = interp_funcs
 
+    def plot_map(self, data_name, height=None, sector=None, xlim=[None, None], ylim=[None, None], ax=None):
+        if ax is None:
+            import matplotlib.pyplot as plt
+            ax = plt.gca()
+        if data_name not in self._ds:
+            raise AttributeError("%s not found in dataset. Available data variables are:\n%s" %
+                                 (data_name, ",".join(list(self._ds.data_vars.keys()))))
+        data = self._ds[data_name].sel(x=slice(*xlim), y=slice(*ylim))
+        if 'sec' in data.coords:
+            if sector not in data.coords['sec'].values:
+                raise AttributeError("Sector %s not found. Available sectors are: %s" %
+                                     (sector, data.coords['sec'].values))
+            data = data.sel(sec=sector)
+        if 'z' in data.coords:
+            if height is None:
+                raise AttributeError("Height missing for '%s'" % data_name)
+            data = data.interp(z=height)
+        data.plot(x='x', y='y', ax=ax)
+        ax.axis('equal')
+
     @classmethod
-    def from_wasp_grd(cls, path, globstr='*.grd', speedup_using_pickle=True):
+    def from_wasp_grd(cls, path, globstr='*.grd', distance=TerrainFollowingDistance(), speedup_using_pickle=True):
         '''
         Reader for WAsP .grd resource grid files.
 
@@ -208,32 +247,6 @@ class WaspGridSite(UniformWeibullSite):
             'Elevation': 'elev',
             'AEP': 'aep'}
 
-#         def _rename_var(var):
-#             '''
-#             Function to rename WAsP variable names to short hand name
-#             '''
-#             _rename = {
-#                 'Flow inclination': 'flow_inc',
-#                 'Mean speed': 'ws_mean',
-#                 'Meso roughness': 'meso_rgh',
-#                 'Obstacles speed': 'obst_spd',
-#                 'Orographic speed': 'orog_spd',
-#                 'Orographic turn': 'orog_trn',
-#                 'Power density': 'power_density',
-#                 'RIX': 'rix',
-#                 'Roughness changes': 'rgh_change',
-#                 'Roughness speed': 'rgh_spd',
-#                 'Sector frequency': 'f',
-#                 'Turbulence intensity': 'tke',
-#                 'Weibull-A': 'A',
-#                 'Weibull-k': 'k',
-#                 'Elevation': 'elev',
-#                 'AEP': 'aep'}
-#             try:
-#                 return _rename[var]
-#             except KeyError:
-#                 return var
-
         def _read_grd(filename):
 
             def _parse_line_floats(f):
@@ -248,7 +261,6 @@ class WaspGridSite(UniformWeibullSite):
                 xl, xu = _parse_line_floats(f)
                 yl, yu = _parse_line_floats(f)
                 zl, zu = _parse_line_floats(f)
-                # values = np.genfromtxt(f)
                 values = np.array([l.split() for l in f.readlines() if l.strip() != b""],
                                   dtype=np.float)  # around 8 times faster
 
@@ -266,23 +278,14 @@ class WaspGridSite(UniformWeibullSite):
 
             return xarr, yarr, values
 
-#         def _rsf_files_by_height(files):
-#
-#             file_dict = defaultdict(list)
-#
-#             for f in files:
-#                 height = re.search(r"Height (\d+)m", f).groups()[0]
-#                 file_dict[height].append(f)
-#
-#             return file_dict
-
         if speedup_using_pickle:
             if os.path.isdir(path):
                 pkl_fn = os.path.join(path, os.path.split(os.path.dirname(path))[1] + '.pkl')
                 if os.path.isfile(pkl_fn):
-                    return WaspGridSite.from_pickle(pkl_fn)
+                    return WaspGridSiteBase.from_pickle(pkl_fn, distance=distance)
                 else:
-                    site_conditions = WaspGridSite.from_wasp_grd(path, globstr, speedup_using_pickle=False)
+                    site_conditions = WaspGridSiteBase.from_wasp_grd(path, globstr,
+                                                                     distance=distance, speedup_using_pickle=False)
                     site_conditions.to_pickle(pkl_fn)
                     return site_conditions
             else:
@@ -308,17 +311,6 @@ class WaspGridSite(UniformWeibullSite):
 
             first_at_height = True
             for file, sector, var_name in files_subset:
-                #
-                #                 match = re.findall(pattern, os.path.basename(file))[0]
-                #
-                #                 if len(match) != 3:
-                #                     raise ValueError('Something is wrong with the name of' +
-                #                                      f' file: {os.path.basename(file)}')
-                #
-                #                 sector, _, var_name = match
-                #
-                #                 var_name = _rename_var(var_name)
-
                 xarr, yarr, values = _read_grd(file)
 
                 if sector == 'All':
@@ -376,10 +368,6 @@ class WaspGridSite(UniformWeibullSite):
             ds['elev'] = xr.DataArray(elev_vals,
                                       coords=elev_coords,
                                       dims=elev_dims)
-#             ds['elev'].plot()
-#             import matplotlib.pyplot as plt
-#             plt.show()
-#             print()
         ############
         # Calculate the compund speed-up factor based on orog_spd, rgh_spd
         # and obst_spd
@@ -437,7 +425,7 @@ class WaspGridSite(UniformWeibullSite):
 
         ds = _add_wind_shear(ds)
 
-        return cls(ds)
+        return WaspGridSite(ds, distance)
 
 
 class EqDistRegGrid2DInterpolator():
@@ -488,38 +476,34 @@ class EqDistRegGrid2DInterpolator():
 def main():
     if __name__ == '__main__':
         from py_wake.examples.data.ParqueFicticio import ParqueFicticio_path
-        site = WaspGridSite.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=False)
+        import matplotlib.pyplot as plt
+        site = WaspGridSiteBase.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=False)
         x, y = site._ds.coords['x'].data, site._ds.coords['y'].data,
-        # print(x)
-        # print(y)
         Y, X = np.meshgrid(y, x)
         Z = site._ds['elev'].data
-        print(Z.shape)
-        print(X.shape)
-
-        import matplotlib.pyplot as plt
-
         if 1:
             Z = site.elevation(X.flatten(), Y.flatten()).reshape(X.shape)
-            # plt.plot(X[m], Y[m], '.i')
             c = plt.contourf(X, Y, Z, 100)
             plt.colorbar(c)
             i, j = 15, 15
             plt.plot(X[i], Y[i], 'b')
 
-            plt.plot(X[:, j], Y[:, j], 'r')
-            plt.axis('equal')
-            plt.figure()
-            Z = site.elevation_interpolator(X[:, j], Y[:, j], mode='extrapolate')
-            plt.plot(X[:, j], Z, 'r')
+        plt.plot(X[:, j], Y[:, j], 'r')
+        plt.axis('equal')
+        plt.figure()
+        Z = site.elevation_interpolator(X[:, j], Y[:, j], mode='extrapolate')
+        plt.plot(X[:, j], Z, 'r')
 
-            plt.figure()
-            Z = site.elevation_interpolator(X[i], Y[i], mode='extrapolate')
-            plt.plot(Y[i], Z, 'b')
+        plt.figure()
+        Z = site.elevation_interpolator(X[i], Y[i], mode='extrapolate')
+        plt.plot(Y[i], Z, 'b')
 
         z = np.arange(35, 200, 1)
         u_z = site.local_wind([x[i]] * len(z), y_i=[y[i]] * len(z),
                               h_i=z, wd=[0], ws=[10])[1][:, 0, 0]
+        plt.figure()
+        Z = site.elevation_interpolator(X[i], Y[i], mode='extrapolate')
+        plt.plot(Y[i], Z, 'b')
         plt.figure()
         plt.plot(u_z, z)
         plt.show()
