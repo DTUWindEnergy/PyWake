@@ -21,7 +21,6 @@ class TurbulenceModel(WakeModel):
         -------
         add_turb_jlk : array_like
         """
-        pass
 
     @abstractmethod
     def calc_effective_TI(self, TI_lk, add_turb_jlk):
@@ -43,7 +42,6 @@ class TurbulenceModel(WakeModel):
             directions(l) and wind speeds(k)
 
         """
-        pass
 
     def ti_map(self, x_j, y_j, h, wt_x_i, wt_y_i, wt_type_i, wt_h_i, wd, ws):
         """Calculate a wake (effecitve wind speed) map

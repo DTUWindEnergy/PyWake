@@ -132,7 +132,7 @@ class WakeModel(ABC):
         wd, ws = self.site.get_defaults(wd, ws)
 
         # Find local wind speed, wind direction, turbulence intensity and probability
-        WD_ilk, WS_ilk, TI_ilk, P_ilk = self.site.local_wind(x_i=x_i, y_i=y_i, wd=wd, ws=ws)
+        WD_ilk, WS_ilk, TI_ilk, P_ilk = self.site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=wd, ws=ws)
 
         # Calculate down-wind and cross-wind distances
         dw_iil, hcw_iil, dh_iil, dw_order_indices_dl = self.site.wt2wt_distances(x_i, y_i, h_i, WD_ilk.mean(2))
@@ -241,11 +241,10 @@ class WakeModel(ABC):
 
         # calculate local wind at map points x_j, y_j, h
         h_j = np.zeros_like(x_j) + h
-        _, WS_jlk, TI_jlk, P_jlk = self.site.local_wind(x_i=x_j, y_i=y_j, wd=wd, ws=ws)
+        _, WS_jlk, TI_jlk, P_jlk = self.site.local_wind(x_i=x_j, y_i=y_j, h_i=h_j, wd=wd, ws=ws)
 
         if len(wt_x_i) == 0:
             # If not turbines just return local wind
-            _, WS_jlk, TI_jlk, P_ilk = self.site.local_wind(x_i=x_j, y_i=y_j, wd=wd, ws=ws, wd_bin_size=1)
             return X_j, Y_j, np.zeros((0, 1, 1, 1)), WS_jlk, TI_jlk, P_jlk
 
         # Calculate ct for all turbines
@@ -354,7 +353,6 @@ class WakeModel(ABC):
         -------
         deficit_jlk : array_like
         """
-        pass
 
     @abstractmethod
     def calc_effective_WS(self, WS_lk, deficit_ilk):
@@ -383,7 +381,6 @@ class WakeModel(ABC):
         WakeModel
 
         """
-        pass
 
 
 class SquaredSum():

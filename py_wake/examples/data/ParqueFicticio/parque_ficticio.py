@@ -1,10 +1,12 @@
-from py_wake.site.wasp_grid_site import WaspGridSite
+from py_wake.site.wasp_grid_site import WaspGridSite, WaspGridSiteBase
 from py_wake.examples.data.ParqueFicticio import ParqueFicticio_path
 import numpy as np
+from py_wake.site.distance import TerrainFollowingDistance
 
 
-def ParqueFicticioSite():
-    site = WaspGridSite.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=False)
+def ParqueFicticioSite(distance=TerrainFollowingDistance(distance_resolution=2000)):
+    site = WaspGridSiteBase.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=True, distance=distance)
+    site.distance_type = 'terrain_following'
     site.initial_position = np.array([
         [263655.0, 6506601.0],
         [263891.1, 6506394.0],
