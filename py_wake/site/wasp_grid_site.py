@@ -424,6 +424,8 @@ class WaspGridSiteBase(UniformWeibullSite):
             return ds
 
         ds = _add_wind_shear(ds)
+        if 'tke' in ds:
+            ds['tke'] *= 0.01
 
         return WaspGridSite(ds, distance)
 
