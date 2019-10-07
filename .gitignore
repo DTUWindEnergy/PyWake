@@ -111,3 +111,6 @@ venv.bak/
 dmypy.json
 archieve
 /py_wake/examples/data/Lillgrund_LUT
+/py_wake/examples/data/ParqueFicticio
+/zz_pywake_examples
+/zz_archieve

@@ -1,4 +1,4 @@
-from py_wake.site._site import Site, UniformWeibullSite
+from py_wake.site._site import UniformWeibullSite
 import numpy as np
 import xarray as xr
 import pickle
@@ -53,15 +53,10 @@ class WaspGridSiteBase(UniformWeibullSite):
         wd_bin_size = self.wd_bin_size(wd, wd_bin_size)
 
         wd_il = np.repeat([wd], len(x_i), 0)
-        speed_up_il, turning_il, wind_shear_il = \
+        speed_up_il, turning_il = \
             [self.interp_funcs[n]((x_il, y_il, h_il, wd_il)) for n in
-             ['spd', 'orog_trn', 'wind_shear']]
+             ['spd', 'orog_trn']]
 
-        # TODO: if speed_up_il does not vary with height the below version of WS_ilk should be used. Else remove z0 and h_ref from the input.
-#        term_denominator = np.log(self.h_ref / self.z0)
-
-#        WS_ilk = (ws[na, na, :] * np.log(h_i / self.z0)[:, na, na] /
-#                  term_denominator) * speed_up_il[:, :, na]
         WS_ilk = ws[na, na, :] * speed_up_il[:, :, na]
 
         WD_ilk = (wd_il + turning_il)[..., na]
@@ -72,7 +67,6 @@ class WaspGridSiteBase(UniformWeibullSite):
 
         WD_lk, WS_lk = np.meshgrid(wd, ws, indexing='ij')
         P_ilk = self.probability(x_i, y_i, h_i, WD_lk, WS_lk, wd_bin_size, ws_bin_size)
-#        P_ilk = self.probability(x_i, y_i, h_i, WD_lk, WS_ilk, wd_bin_size, ws_bin_size)
         return WD_ilk, WS_ilk, TI_ilk, P_ilk
 
 #    def probability(self, x_i, y_i, h_i, WD_lk, WS_ilk, wd_bin_size, ws_bin_size):
@@ -114,8 +108,7 @@ class WaspGridSiteBase(UniformWeibullSite):
             pickle.dump(self._ds, f, protocol=-1)
 
     def interp_funcs_initialization(self,
-                                    interp_keys=['A', 'k', 'f', 'tke', 'spd', 'orog_trn', 'elev',
-                                                 'wind_shear']):
+                                    interp_keys=['A', 'k', 'f', 'tke', 'spd', 'orog_trn', 'elev']):
         """ Initialize interpolating functions using RegularGridInterpolator
         for specified variables defined in interp_keys.
         """
@@ -394,39 +387,9 @@ class WaspGridSiteBase(UniformWeibullSite):
         ds = ds.loc[{'z': sorted(ds.coords['z'].values)}]
 
         ######################################################################
-        # Adding wind shear coefficient based on speed-up factor at different
-        # height and a reference far field wind shear coefficient (alpha_far)
-        def _add_wind_shear(ds, alpha_far=0.143):
-            ds['wind_shear'] = copy.deepcopy(ds['spd'])
 
-            heights = ds['wind_shear'].coords['z'].data
-
-            # if there is only one layer, assign default value
-            if len(heights) == 1:
-
-                ds['wind_shear'].data = (np.zeros_like(ds['wind_shear'].data) +
-                                         alpha_far)
-
-                print('Note there is only one layer of wind resource data, ' +
-                      'wind shear are assumed as uniform, i.e., {0}'.format(
-                          alpha_far))
-            else:
-                ds['wind_shear'].data[:, :, 0, :] = (alpha_far +
-                                                     np.log(ds['spd'].data[:, :, 0, :] / ds['spd'].data[:, :, 1, :]) /
-                                                     np.log(heights[0] / heights[1]))
-
-                for h in range(1, len(heights)):
-                    ds['wind_shear'].data[:, :, h, :] = (
-                        alpha_far +
-                        np.log(ds['spd'].data[:, :, h, :] / ds['spd'].data[:, :, h - 1, :]) /
-                        np.log(heights[h] / heights[h - 1]))
-
-            return ds
-
-        ds = _add_wind_shear(ds)
         if 'tke' in ds and np.mean(ds['tke']) > 1:
             ds['tke'] *= 0.01
-
         return WaspGridSite(ds, distance)
 
 

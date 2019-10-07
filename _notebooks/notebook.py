@@ -101,9 +101,6 @@ class Notebook():
                     exec("def test():\n    " + "\n    ".join(lines) + "\ntest()", {}, {})
         except Exception as e:
             raise type(e)("Code error in %s\n%s\n" % (self.filename, str(e))).with_traceback(sys.exc_info()[2])
-#             sys.stderr.write("Code error in %s\n%s\n" % (self.filename, str(e)))
-#             sys.stderr.flush()
-#             traceback.print_exc()
 
     def check_links(self):
         txt = "\n".join(self.get_text())

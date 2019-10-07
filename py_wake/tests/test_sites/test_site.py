@@ -2,6 +2,7 @@ from py_wake.site._site import UniformWeibullSite, UniformSite
 import numpy as np
 from py_wake.tests import npt
 import pytest
+from py_wake.site.shear import PowerShear
 
 f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,
      0.086432, 0.117705, 0.151576, 0.147379, 0.10012, 0.05166]
@@ -14,7 +15,7 @@ ti = .1
 
 @pytest.fixture
 def site():
-    return UniformWeibullSite(f, A, k, ti, h_ref=50, alpha=.3)
+    return UniformWeibullSite(f, A, k, ti, shear=PowerShear(50, alpha=np.zeros_like(f) + .3))
 
 
 def test_local_wind(site):
@@ -37,8 +38,8 @@ def test_local_wind(site):
     zero = [0] * len(z)
 
     ws = site.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10])[1][:, 0, 0]
-    site.h_ref = 70
-    ws70 = site.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10])[1][:, 0, 0]
+    site2 = UniformWeibullSite(f, A, k, ti, shear=PowerShear(70, alpha=np.zeros_like(f) + .3))
+    ws70 = site2.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10])[1][:, 0, 0]
     if 0:
         import matplotlib.pyplot as plt
         plt.plot(ws, z)
