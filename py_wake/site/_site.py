@@ -12,9 +12,10 @@ suffixs:
 from numpy import newaxis as na
 from scipy import interpolate
 from py_wake.site.distance import StraightDistance
+from py_wake.site.shear import NoShear, PowerShear
 
 
-class Site():
+class Site(ABC):
     def __init__(self):
         self.default_ws = np.arange(3, 26)
         self.default_wd = np.arange(360)
@@ -287,13 +288,12 @@ class UniformSite(StraightDistance, Site):
     constant wind speed probability of 1. Only for one fixed wind speed
     """
 
-    def __init__(self, p_wd, ti, ws=12, interp_method='piecewise', alpha=None, h_ref=None):
+    def __init__(self, p_wd, ti, ws=12, interp_method='piecewise', shear=NoShear()):
         super().__init__()
-        self.h_ref = h_ref
         self.default_ws = ws
         self.ti = Sector2Subsector(np.atleast_1d(ti), interp_method=interp_method)
-        self.alpha = Sector2Subsector(np.atleast_1d(alpha), interp_method=interp_method)
         self.p_wd = Sector2Subsector(p_wd / np.sum(p_wd), interp_method=interp_method) / (360 / len(p_wd))
+        self.shear = shear
 
     def probability(self, x_i, y_i, h_i, WD_lk, WS_lk, wd_bin_size, ws_bin_size):
         P_lk = np.ones_like(WS_lk, dtype=np.float) * self.p_wd[np.round(WD_lk).astype(np.int) % 360] * wd_bin_size
@@ -310,12 +310,8 @@ class UniformSite(StraightDistance, Site):
         WD_ilk, WS_ilk = [np.tile(W, (len(x_i), 1, 1)).astype(np.float)
                           for W in np.meshgrid(wd, ws, indexing='ij')]
         WD_index_ilk = np.round(WD_ilk).astype(np.int)
-        # accouting wind shear when required
-        if h_i is not None and self.h_ref is not None and self.alpha is not None:
-            h_i = np.array(h_i)
-            if not np.all(h_i == self.h_ref):
-                wind_shear_ratio = (h_i / self.h_ref)[:, na, na] ** self.alpha[WD_index_ilk]
-                WS_ilk = WS_ilk * wind_shear_ratio
+        if h_i is not None:
+            WS_ilk = self.shear(WS_ilk, WD_ilk, h_i)
 
         TI_ilk = self.ti[WD_index_ilk]
         P_ilk = self.probability(0, 0, 0, WD_ilk[0], WS_ilk[0], wd_bin_size, ws_bin_size)
@@ -330,7 +326,7 @@ class UniformWeibullSite(UniformSite):
     weibull distributed wind speed
     """
 
-    def __init__(self, p_wd, a, k, ti, interp_method='nearest', alpha=None, h_ref=None):
+    def __init__(self, p_wd, a, k, ti, interp_method='nearest', shear=NoShear()):
         """Initialize UniformWeibullSite
 
         Parameters
@@ -346,11 +342,8 @@ class UniformWeibullSite(UniformSite):
         interp_method : 'nearest', 'linear' or 'spline'
             p_wd, a, k, ti and alpha are interpolated to 1 deg sectors using this
             method
-        alpha : float or array_like
-            Power shear profile exponent of the wind direction sectors
-        h_ref : int or float
-            Reference height for the power shear profile
-
+        shear : Shear object
+            Shear object, e.g. NoShear(), PowerShear(h_ref, alpha)
 
         Notes
         ------
@@ -358,7 +351,7 @@ class UniformWeibullSite(UniformSite):
         where w is 360 / len(p_wd)
 
         """
-        super().__init__(p_wd, ti, interp_method=interp_method, alpha=alpha, h_ref=h_ref)
+        super().__init__(p_wd, ti, interp_method=interp_method, shear=shear)
         self.default_ws = np.arange(3, 26)
         self.a = Sector2Subsector(a, interp_method=interp_method)
         self.k = Sector2Subsector(k, interp_method=interp_method)
@@ -438,7 +431,7 @@ def main():
         ti = .1
         h_ref = 100
         alpha = .1
-        site = UniformWeibullSite(f, A, k, ti, alpha=alpha, h_ref=h_ref)
+        site = UniformWeibullSite(f, A, k, ti, shear=PowerShear(h_ref=h_ref, alpha=alpha))
 
         x_i = y_i = np.arange(5)
         wdir_lst = np.arange(0, 360, 90)
