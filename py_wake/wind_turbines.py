@@ -184,6 +184,13 @@ class OneTypeWindTurbines(WindTurbines):
                               [power_func],
                               power_unit)
 
+    @staticmethod
+    def from_tabular(name, diameter, hub_height, ws, power, ct, power_unit):
+        return OneTypeWindTurbines(name=name, diameter=diameter, hub_height=hub_height,
+                                   ct_func=lambda u, ws=ws, ct=ct: np.interp(u, ws, ct),
+                                   power_func=lambda u, ws=ws, power=power: np.interp(u, ws, power),
+                                   power_unit=power_unit)
+
 
 def cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=5000):
     def power_func(ws):

@@ -40,7 +40,7 @@ class WaspGridSiteBase(UniformWeibullSite):
                          k=np.nanmean(self._ds['k'].data, (0, 1, 2)),
                          ti=0)
 
-    def local_wind(self, x_i, y_i, h_i, wd=None, ws=None, wd_bin_size=None, ws_bin_size=None):
+    def local_wind(self, x_i, y_i, h_i, wd=None, ws=None, wd_bin_size=None, ws_bins=None):
         if wd is None:
             wd = self.default_wd
         if ws is None:
@@ -50,7 +50,6 @@ class WaspGridSiteBase(UniformWeibullSite):
         h_i = np.asarray(h_i)
         x_il, y_il, h_il = [np.repeat([v], len(wd), 0).T for v in [x_i, y_i, h_i]]
 
-        ws_bin_size = self.ws_bin_size(ws, ws_bin_size)
         wd_bin_size = self.wd_bin_size(wd, wd_bin_size)
 
         wd_il = np.repeat([wd], len(x_i), 0)
@@ -60,39 +59,27 @@ class WaspGridSiteBase(UniformWeibullSite):
 
         WS_ilk = ws[na, na, :] * speed_up_il[:, :, na]
 
-        WD_ilk = (wd_il + turning_il)[..., na]
+        WD_ilk = ((wd_il + turning_il) % 360)[:, :, na]
 
         if self.TI_data_exist:
             TI_il = self.interp_funcs['tke']((x_il, y_il, h_il, wd_il))
             TI_ilk = (TI_il[:, :, na] * (0.75 + 3.8 / WS_ilk))
-
-        WD_lk, WS_lk = np.meshgrid(wd, ws, indexing='ij')
-        P_ilk = self.probability(x_i, y_i, h_i, WD_lk, WS_lk, wd_bin_size, ws_bin_size)
+        P_ilk = self.probability(x_i, y_i, h_i, wd_il[:, :, na], WS_ilk,
+                                 wd_bin_size, ws_bins=self.ws_bins(WS_ilk, ws_bins))
         return WD_ilk, WS_ilk, TI_ilk, P_ilk
 
-#    def probability(self, x_i, y_i, h_i, WD_lk, WS_ilk, wd_bin_size, ws_bin_size):
-    def probability(self, x_i, y_i, h_i, WD_lk, WS_lk, wd_bin_size, ws_bin_size):
+    def probability(self, x_i, y_i, h_i, WD_ilk, WS_ilk, wd_bin_size, ws_bins):
         """See Site.probability
         """
-        x_il, y_il, h_il = [np.repeat([v], WD_lk.shape[0], 0).T for v in [x_i, y_i, h_i]]
-        wd_il = np.repeat([WD_lk.mean(1)], len(x_i), 0)
+        h_i = np.zeros_like(x_i) + h_i
+        x_i, y_i = [np.asarray(v) for v in [x_i, y_i]]
         Weibull_A_il, Weibull_k_il, freq_il = \
-            [self.interp_funcs[n]((x_il, y_il, h_il, wd_il)) for n in
+            [self.interp_funcs[n]((x_i[:, na], y_i[:, na], h_i[:, na], WD_ilk.mean(2))) for n in
              ['A', 'k', 'f']]
         P_wd_il = freq_il * wd_bin_size
-        WS_ilk = WS_lk[na]
-        # TODO: The below probability does not sum to 1 due to the speed ups. New
-        # calculation of the weibull weights are needed.
+
         P_ilk = self.weibull_weight(WS_ilk, Weibull_A_il[:, :, na],
-                                    Weibull_k_il[:, :, na], ws_bin_size) * P_wd_il[:, :, na]
-#        P_ilk = self.weibull_weight(WS_ilk, Weibull_A_il[:, :, na],
-#                                    Weibull_k_il[:, :, na], ws_bin_size) * P_wd_il[:, :, na]
-        self.freq_il = freq_il
-        self.pdf_ilk = self.weibull_weight(WS_ilk, Weibull_A_il[:, :, na],
-                                           Weibull_k_il[:, :, na], ws_bin_size)
-        self.Weibull_k = Weibull_k_il[:, :, na]
-        self.Weibull_A = Weibull_A_il[:, :, na]
-        self.Weibull_ws = WS_ilk
+                                    Weibull_k_il[:, :, na], ws_bins) * P_wd_il[:, :, na]
         return P_ilk
 
     def elevation(self, x_i, y_i):
@@ -109,7 +96,7 @@ class WaspGridSiteBase(UniformWeibullSite):
             pickle.dump(self._ds, f, protocol=-1)
 
     def interp_funcs_initialization(self,
-                                    interp_keys=['A', 'k', 'f', 'tke', 'spd', 'orog_trn', 'elev']):
+                                    interp_keys=['A', 'k', 'f', 'tke', 'spd', 'orog_trn', 'flow_inc', 'elev']):
         """ Initialize interpolating functions using RegularGridInterpolator
         for specified variables defined in interp_keys.
         """
@@ -145,6 +132,7 @@ class WaspGridSiteBase(UniformWeibullSite):
             interp_funcs[key] = RegularGridInterpolator(
                 coords,
                 data, bounds_error=False)
+
         self.interp_funcs = interp_funcs
 
     def plot_map(self, data_name, height=None, sector=None, xlim=[None, None], ylim=[None, None], ax=None):

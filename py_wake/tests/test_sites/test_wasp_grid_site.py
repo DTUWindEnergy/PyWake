@@ -1,5 +1,5 @@
-from py_wake.site._site import UniformWeibullSite, UniformSite
 import numpy as np
+from numpy import newaxis as na
 from py_wake.tests import npt
 import pytest
 from py_wake.examples.data.ParqueFicticio import ParqueFicticio_path
@@ -9,6 +9,10 @@ import os
 import time
 from py_wake.tests.test_files.wasp_grid_site import one_layer
 from py_wake.site.distance import TerrainFollowingDistance, StraightDistance, TerrainFollowingDistance2
+import math
+from py_wake.aep_calculator import AEPCalculator
+from py_wake.wake_models.noj import NOJ
+from py_wake.wind_turbines import OneTypeWindTurbines
 
 
 @pytest.fixture
@@ -61,6 +65,124 @@ def test_shear(site):
 
     # linear interpolation
     npt.assert_array_almost_equal(ws, [6.240589, np.mean([6.240589, 8.932919]), 8.932919])
+
+
+def test_wasp_resources_grid_point(site):
+    #     x = np.array([l.split() for l in """0.6010665    -10.02692    32.71442    -6.746912
+    # 0.5007213    -4.591617    37.10247    -11.0699
+    # 0.3104101    -1.821247    59.18301    -12.56743
+    # 0.4674515    16.14293    44.84665    -9.693183
+    # 0.8710347    5.291974    26.01634    -6.154611
+    # 0.9998786    -2.777032    15.72486    1.029988
+    # 0.9079611    -7.882853    16.33216    6.42329
+    # 0.759553    -5.082487    17.23354    10.18187
+    # 0.7221162    4.606324    17.96417    11.45838
+    # 0.8088576    8.196074    16.16308    9.277925
+    # 0.8800673    3.932325    14.82337    5.380589
+    # 0.8726974    -3.199536    19.99724    -1.433086""".split("\n")], dtype=np.float)
+    #     for x_ in x.T:
+    #         print(list(x_))
+    x = [262978]
+    y = [6504814]
+    npt.assert_almost_equal(site.elevation(x, y), 227.8, 1)
+
+    # Data from WAsP:
+    # - add turbine (262878,6504814,30)
+    # - Turbine (right click) - reports - Turbine Site Report full precision
+    wasp_A = [2.197305, 1.664085, 1.353185, 2.651781, 5.28438, 5.038289,
+              4.174325, 4.604496, 5.043066, 6.108261, 6.082033, 3.659798]
+    wasp_k = [1.771484, 2.103516, 2.642578, 2.400391, 2.357422, 2.306641,
+              2.232422, 2.357422, 2.400391, 2.177734, 1.845703, 1.513672]
+    wasp_f = [5.188083, 2.509297, 2.869334, 4.966141, 13.16969, 9.514355,
+              4.80275, 6.038354, 9.828702, 14.44174, 16.60567, 10.0659]
+    wasp_spd = [0.6010665, 0.5007213, 0.3104101, 0.4674515, 0.8710347, 0.9998786,
+                0.9079611, 0.759553, 0.7221162, 0.8088576, 0.8800673, 0.8726974]
+    wasp_trn = [-10.02692, -4.591617, -1.821247, 16.14293, 5.291974, -
+                2.777032, -7.882853, -5.082487, 4.606324, 8.196074, 3.932325, -3.199536]
+    wasp_inc = [-6.746912, -11.0699, -12.56743, -9.693183, -6.154611,
+                1.029988, 6.42329, 10.18187, 11.45838, 9.277925, 5.380589, -1.433086]
+    wasp_ti = [32.71442, 37.10247, 59.18301, 44.84665, 26.01634, 15.72486,
+               16.33216, 17.23354, 17.96417, 16.16308, 14.82337, 19.99724]
+    rho = 1.179558
+
+    wasp_u_mean = [1.955629, 1.473854, 1.202513, 2.350761, 4.683075,
+                   4.463644, 3.697135, 4.080554, 4.470596, 5.409509, 5.402648, 3.300305]
+    wasp_p_air = [9.615095, 3.434769, 1.556282, 12.45899, 99.90289,
+                  88.03519, 51.41135, 66.09097, 85.69466, 164.5592, 193.3779, 56.86945]
+    wasp_aep = np.array([3725293.0, 33722.71, 0.3093564, 3577990.0, 302099600.0, 188784100.0,
+                         48915640.0, 84636210.0, 189009800.0, 549195100.0, 691258600.0, 120013000.0]) / 1000
+    wasp_aep_no_density_correction = np.array([3937022.0, 36046.93, 0.33592, 3796496.0, 314595600.0,
+                                               196765700.0, 51195440.0, 88451200.0, 197132700.0, 568584400.0, 712938400.0, 124804600.0]) / 1000
+    wasp_aep_total = 2.181249024
+    wasp_aep_no_density_correction_total = 2.26224
+    wt_u = np.array([3.99, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25])
+    wt_p = np.array([0, 55., 185., 369., 619., 941., 1326., 1741., 2133., 2436., 2617., 2702., 2734.,
+                     2744., 2747., 2748., 2748., 2750., 2750., 2750., 2750., 2750., 2750.])
+    wt_ct = np.array([0, 0.871, 0.853, 0.841, 0.841, 0.833, 0.797, 0.743, 0.635, 0.543, 0.424,
+                      0.324, 0.258, 0.21, 0.175, 0.147, 0.126, 0.109, 0.095, 0.083, 0.074, 0.065, 0.059])
+    wt = OneTypeWindTurbines.from_tabular(name="NEG-Micon 2750/92 (2750 kW)", diameter=92, hub_height=70,
+                                          ws=wt_u, ct=wt_ct, power=wt_p, power_unit='kw')
+
+    A_lst, k_lst, f_lst, spd_lst, orog_trn_lst, flow_inc_lst, tke_lst = [site.interp_funcs[n](
+        (x, y, 30, range(0, 360, 30))) for n in ['A', 'k', 'f', 'spd', 'orog_trn', 'flow_inc', 'tke']]
+    f_lst = f_lst * 360 / 12
+    pdf_lst = [lambda x, A=A, k=k: k / A * (x / A)**(k - 1) * np.exp(-(x / A)**k) * (x[1] - x[0])
+               for A, k in zip(A_lst, k_lst)]
+    cdf_lst = [lambda x, A=A, k=k: 1 - np.exp(-(x / A) ** k) for A, k in zip(A_lst, k_lst)]
+    dx = .1
+    ws = np.arange(dx / 2, 35, dx)
+
+    # compare to wasp data
+    npt.assert_array_equal(A_lst, wasp_A)
+    npt.assert_array_equal(k_lst, wasp_k)
+    npt.assert_array_almost_equal(f_lst, np.array(wasp_f) / 100)
+    npt.assert_array_almost_equal(spd_lst, wasp_spd)
+    npt.assert_array_almost_equal(orog_trn_lst, wasp_trn)
+    npt.assert_array_almost_equal(flow_inc_lst, wasp_inc)
+    npt.assert_array_almost_equal(tke_lst, np.array(wasp_ti) / 100)
+
+    # compare pdf, u_mean and aep to wasp
+    WD, WS, TI, P = site.local_wind(x, np.array(y) + 1e-6, 30, wd=np.arange(0, 360, 30), ws=ws)
+    P = P / f_lst[na, :, na]  # only wind speed probablity (not wdir)
+
+    # pdf
+    for i in range(12):
+        npt.assert_array_almost_equal(np.interp(ws, WS[0, i], np.cumsum(P[0, i])),
+                                      np.cumsum(pdf_lst[i](ws)), 1)
+
+    # u_mean
+    npt.assert_almost_equal([A * math.gamma(1 + 1 / k) for A, k in zip(A_lst, k_lst)], wasp_u_mean, 5)
+    npt.assert_almost_equal([(pdf(ws) * ws).sum() for pdf in pdf_lst], wasp_u_mean, 5)
+    npt.assert_almost_equal((P * WS).sum((0, 2)), wasp_u_mean, 5)
+
+    # air power
+    p_air = [(pdf(ws) * 1 / 2 * rho * ws**3).sum() for pdf in pdf_lst]
+    npt.assert_array_almost_equal(p_air, wasp_p_air, 3)
+    npt.assert_array_almost_equal((P * 1 / 2 * rho * WS**3).sum((0, 2)), wasp_p_air, 2)
+
+    # AEP
+    AEP_ilk = AEPCalculator(wake_model=NOJ(site, wt)).calculate_AEP_no_wake_loss(
+        x_i=x, y_i=y, h_i=30, wd=np.arange(0, 360, 30), ws=ws)
+
+#     import matplotlib.pyplot as plt
+#     #plt.plot(wasp_aep_no_density_correction, '.-')
+#     #plt.plot(AEP_ilk.sum((0, 2)) * 1e6)
+#     plt.plot(wasp_aep_no_density_correction - AEP_ilk.sum((0, 2)) * 1e6)
+#     plt.plot(np.array(wasp_inc) * 100)
+#     plt.show()
+    npt.assert_array_less(np.abs(wasp_aep_no_density_correction - AEP_ilk.sum((0, 2)) * 1e6), 300)
+    npt.assert_almost_equal(AEP_ilk.sum(), wasp_aep_no_density_correction_total, 3)
+
+
+def test_probability(site):
+    x, y = site.initial_position[:1].T
+
+    ws = site.local_wind(x_i=x, y_i=y, h_i=[70], wd=[0], ws=[10])[1][:, 0, 0]
+
+    if 0:
+        import matplotlib.pyplot as plt
+        # plt.plot(ws, z, '.-')
+        # plt.show()
 
 
 @pytest.mark.parametrize('site,dw_ref', [
@@ -142,7 +264,7 @@ def test_elevation(site):
 
 def test_plot_map(site):
     import matplotlib.pyplot as plt
-    with pytest.raises(AttributeError, match="missing not found in dataset. Available data variables are:\nws_mean,"):
+    with pytest.raises(AttributeError, match="missing not found in dataset. Available data variables are:\nflow_inc,"):
         site.plot_map('missing')
 
     with pytest.raises(AttributeError, match=r"Sector None not found. Available sectors are: \[ 1"):
@@ -220,3 +342,7 @@ def test_plot_wd_distribution_with_ws_levels(site):
     if 0:
         import matplotlib.pyplot as plt
         plt.show()
+
+
+if __name__ == '__main__':
+    test_wasp_resources_grid_point(ParqueFicticioSite())
