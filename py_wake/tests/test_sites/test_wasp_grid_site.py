@@ -32,7 +32,6 @@ def test_WaspGridSiteDistanceClass(site):
 
 
 def test_local_wind(site):
-
     x_i, y_i = site.initial_position.T
     h_i = x_i * 0 + 70
     wdir_lst = np.arange(0, 360, 90)
@@ -47,24 +46,26 @@ def test_local_wind(site):
     npt.assert_almost_equal(site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=[0], ws=[10])[-1],
                             site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=[0], ws=[10], wd_bin_size=2)[-1] * 180, 6)
 
-    z = np.arange(30, 100)
-    zero = [0] * len(z)
 
-    ws = site.local_wind(x_i=x_i[:1], y_i=y_i[:1], h_i=z, wd=[0], ws=[10])[1][:, 0, 0]
-    ws35 = site.local_wind(x_i=x_i[:1], y_i=y_i[:1], h_i=[35], wd=[0], ws=[10])[1][:, 0, 0]
-    z0 = 10
+def test_shear(site):
+    x = [262878]
+    y = [6504714]
+    npt.assert_array_almost_equal(site._ds['spd'].sel(x=262878, y=6504714, sec=1), [.6240589, .8932919])
+    z = [30, 115, 200]
+    ws = site.local_wind(x_i=x, y_i=y, h_i=z, wd=[0], ws=[10])[1][:, 0, 0]
 
     if 0:
         import matplotlib.pyplot as plt
-        plt.plot(ws, z)
-        plt.plot(ws35 * np.log(z / z0) / np.log(35 / z0), z)
+        plt.plot(ws, z, '.-')
         plt.show()
-    # npt.assert_array_equal(10 * (z / 50)**.3, ws)
+
+    # linear interpolation
+    npt.assert_array_almost_equal(ws, [6.240589, np.mean([6.240589, 8.932919]), 8.932919])
 
 
 @pytest.mark.parametrize('site,dw_ref', [
     (ParqueFicticioSite(distance=TerrainFollowingDistance2()),
-     [0., 207.7973259, 484.8129285, 727.1261764, 1039.5612311, 1263.5467003, 1490.7972623, 1841.0639107]),
+     [0., 207.3842238, 484.3998264, 726.7130743, 1039.148129, 1263.1335982, 1490.3841602, 1840.6508086]),
     (ParqueFicticioSite(distance=TerrainFollowingDistance()),
      [0, 209.803579, 480.8335365, 715.6003233, 1026.9476322, 1249.5510034, 1475.1467251, 1824.1317343]),
     (ParqueFicticioSite(distance=StraightDistance()),
