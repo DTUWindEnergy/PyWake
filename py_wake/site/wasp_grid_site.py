@@ -13,21 +13,22 @@ from py_wake.site.distance import StraightDistance, TerrainFollowingDistance
 from builtins import AttributeError
 
 
-def WaspGridSite(ds, distance=TerrainFollowingDistance()):
+def WaspGridSite(ds, distance=TerrainFollowingDistance(), mode='valid'):
     if distance.__class__ == StraightDistance:
         cls = type("WaspGridSiteStraightDistance", (WaspGridSiteBase,), {})
-        wgs = cls(ds=ds)
+        wgs = cls(ds=ds, mode=mode)
     else:
         cls = type("WaspGridSite" + type(distance).__name__, (type(distance), WaspGridSiteBase), {})
-        wgs = cls(ds=ds)
+        wgs = cls(ds=ds, mode=mode)
         wgs.__dict__.update(distance.__dict__)
 
     return wgs
 
 
 class WaspGridSiteBase(UniformWeibullSite):
-    def __init__(self, ds):
+    def __init__(self, ds, mode='valid'):
         self._ds = ds
+        self.mode = mode
         self.interp_funcs = None
         self.interp_funcs_initialization()
         self.elevation_interpolator = EqDistRegGrid2DInterpolator(self._ds.coords['x'].data,
@@ -95,7 +96,7 @@ class WaspGridSiteBase(UniformWeibullSite):
         return P_ilk
 
     def elevation(self, x_i, y_i):
-        return self.elevation_interpolator(x_i, y_i)
+        return self.elevation_interpolator(x_i, y_i, self.mode)
 
     @classmethod
     def from_pickle(cls, file_name, distance):
@@ -167,7 +168,7 @@ class WaspGridSiteBase(UniformWeibullSite):
         ax.axis('equal')
 
     @classmethod
-    def from_wasp_grd(cls, path, globstr='*.grd', distance=TerrainFollowingDistance(), speedup_using_pickle=True):
+    def from_wasp_grd(cls, path, globstr='*.grd', distance=TerrainFollowingDistance(), speedup_using_pickle=True, mode='valid'):
         '''
         Reader for WAsP .grd resource grid files.
 
@@ -390,7 +391,8 @@ class WaspGridSiteBase(UniformWeibullSite):
 
         if 'tke' in ds and np.mean(ds['tke']) > 1:
             ds['tke'] *= 0.01
-        return WaspGridSite(ds, distance)
+
+        return WaspGridSite(ds, distance, mode)
 
 
 class EqDistRegGrid2DInterpolator():
@@ -401,20 +403,29 @@ class EqDistRegGrid2DInterpolator():
         self.dx, self.dy = [xy[1] - xy[0] for xy in [x, y]]
         self.x0 = x[0]
         self.y0 = y[0]
+        xi_valid = np.where(np.any(~np.isnan(self.Z), 1))[0]
+        yi_valid = np.where(np.any(~np.isnan(self.Z), 0))[0]
+        self.xi_valid_min, self.xi_valid_max = xi_valid[0], xi_valid[-1]
+        self.yi_valid_min, self.yi_valid_max = yi_valid[0], yi_valid[-1]
 
     def __call__(self, x, y, mode='valid'):
         xp, yp = x, y
-
         xi = (xp - self.x0) / self.dx
         xif, xi0 = np.modf(xi)
         xi0 = xi0.astype(np.int)
-        xi1 = xi0 + 1
 
         yi = (yp - self.y0) / self.dy
         yif, yi0 = np.modf(yi)
         yi0 = yi0.astype(np.int)
+        if mode == 'extrapolate':
+            xif[xi0 < self.xi_valid_min] = 0
+            xif[xi0 > self.xi_valid_max - 2] = 1
+            yif[yi0 < self.yi_valid_min] = 0
+            yif[yi0 > self.yi_valid_max - 2] = 1
+            xi0 = np.minimum(np.maximum(xi0, self.xi_valid_min), self.xi_valid_max - 2)
+            yi0 = np.minimum(np.maximum(yi0, self.yi_valid_min), self.yi_valid_max - 2)
+        xi1 = xi0 + 1
         yi1 = yi0 + 1
-
         valid = (xif >= 0) & (yif >= 0) & (xi1 < len(self.x)) & (yi1 < len(self.y))
         z = np.empty_like(xp) + np.nan
         xi0, xi1, xif, yi0, yi1, yif = [v[valid] for v in [xi0, xi1, xif, yi0, yi1, yif]]
@@ -425,16 +436,6 @@ class EqDistRegGrid2DInterpolator():
         z0 = z00 + (z10 - z00) * xif
         z1 = z01 + (z11 - z01) * xif
         z[valid] = z0 + (z1 - z0) * yif
-        if mode == 'extrapolate':
-            valid = valid & ~np.isnan(z)
-            if (valid[0] == False) | (valid[-1] == False):  # noqa
-                nonnan_index = np.where(~np.isnan(z))[0]
-                if valid[0] == False:  # noqa
-                    first_valid = nonnan_index[0]
-                    z[:first_valid] = z[first_valid]
-                if valid[-1] == False:  # noqa
-                    last_valid = nonnan_index[-1]
-                    z[last_valid + 1:] = z[last_valid]
         return z
 
 

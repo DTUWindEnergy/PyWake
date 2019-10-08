@@ -232,9 +232,8 @@ def test_distances_no_turning():
     dw_ijl, cw_ijl, dh_ijl, dwo = site.distances(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
                                                  dst_x_j=x, dst_y_j=y, dst_h_j=np.array([70]),
                                                  wd_il=np.array([[180]]))
-    npt.assert_almost_equal(dw_ijl[0, :, 0], np.array([-0., 207.7973259, 484.8129285,
-                                                       727.1261764, 1039.5612311, 1263.5467003, 1490.7972623, 1841.0639107]))
-    npt.assert_almost_equal(cw_ijl[:, 1, 0], np.array([236.1, 0., -131.1, -167.8, -204.5, -131.1, -131.1, -45.4]))
+    npt.assert_almost_equal(dw_ijl[0, :, 0], [-0., 207.4, 484.4, 726.7, 1039.1, 1263.1, 1490.4, 1840.7], 1)
+    npt.assert_almost_equal(cw_ijl[:, 1, 0], [236.1, 0., -131.1, -167.8, -204.5, -131.1, -131.1, -45.4])
     npt.assert_almost_equal(dh_ijl, np.zeros_like(dh_ijl))
 
 
@@ -250,7 +249,7 @@ def test_distances_ri():
     npt.assert_almost_equal(dh_ijl, np.zeros_like(dh_ijl))
 
 
-def test_distance2_outside_map():
+def test_distance2_outside_map_WestEast():
     site = ParqueFicticioSiteTerrainFollowingDistance2()[0]
 
     import matplotlib.pyplot as plt
@@ -263,10 +262,32 @@ def test_distance2_outside_map():
     dw = site.distances(src_x_i=x, src_y_i=y, src_h_i=h,
                         dst_x_j=x, dst_y_j=y, dst_h_j=h * 0, wd_il=[270])[0]
 
-    plt.plot(x, y, '.-', label='Terrain line')
-    plt.plot(x, y + site.elevation(x, y))
     if 0:
+        plt.plot(x, y, '.-', label='Terrain line')
+        plt.plot(x, y + site.elevation(x, y))
         plt.legend()
         plt.show()
     # distance between points should be >500 m due to terrain, except last point which is outside map
-    npt.assert_array_equal(np.round(np.diff(dw[0, :, 0])), [527, 520, 506, 500.])
+    npt.assert_array_equal(np.round(np.diff(dw[0, :, 0])), [527, 520, 505, 500.])
+
+
+def test_distance2_outside_map_NorthSouth():
+    site = ParqueFicticioSiteTerrainFollowingDistance2()[0]
+
+    import matplotlib.pyplot as plt
+
+    site.plot_map('elev')
+    y = np.arange(-1500, 1000, 500) + 6506613.0
+    h = y * 0
+    x = h + 264200
+
+    dw = site.distances(src_x_i=x, src_y_i=y, src_h_i=h,
+                        dst_x_j=x, dst_y_j=y, dst_h_j=h * 0, wd_il=[180])[0]
+
+    if 0:
+        plt.plot(x, y, '.-', label='Terrain line')
+        plt.plot(x + site.elevation(x, y), y)
+        plt.legend()
+        plt.show()
+    # distance between points should be >500 m due to terrain, except last point which is outside map
+    npt.assert_array_equal(np.round(np.diff(dw[0, :, 0])), [510, 505, 507, 500])
