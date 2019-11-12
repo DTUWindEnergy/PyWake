@@ -164,12 +164,14 @@ def test_wasp_resources_grid_point(site):
     AEP_ilk = AEPCalculator(wake_model=NOJ(site, wt)).calculate_AEP_no_wake_loss(
         x_i=x, y_i=y, h_i=30, wd=np.arange(0, 360, 30), ws=ws)
 
-#     import matplotlib.pyplot as plt
-#     #plt.plot(wasp_aep_no_density_correction, '.-')
-#     #plt.plot(AEP_ilk.sum((0, 2)) * 1e6)
-#     plt.plot(wasp_aep_no_density_correction - AEP_ilk.sum((0, 2)) * 1e6)
-#     plt.plot(np.array(wasp_inc) * 100)
-#     plt.show()
+    if 0:
+        import matplotlib.pyplot as plt
+        plt.plot(wasp_aep_no_density_correction / 1000, '.-', label='WAsP')
+        plt.plot(AEP_ilk.sum((0, 2)) * 1e3, label='PyWake')
+        plt.xlabel('Sector')
+        plt.ylabel('AEP [MWh]')
+        plt.legend()
+        plt.show()
     npt.assert_array_less(np.abs(wasp_aep_no_density_correction - AEP_ilk.sum((0, 2)) * 1e6), 300)
     npt.assert_almost_equal(AEP_ilk.sum(), wasp_aep_no_density_correction_total, 3)
 
