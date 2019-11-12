@@ -128,11 +128,10 @@ class TerrainFollowingDistance(StraightDistance):
 
 
 class TerrainFollowingDistance2():
-    def __init__(self, k_star=0.075, r_i=None, turning=False, calc_all=False, terrain_step=5, **kwargs):
+    def __init__(self, k_star=0.075, r_i=None, calc_all=False, terrain_step=5, **kwargs):
         super().__init__(**kwargs)
         self.k_star = k_star
         self.r_i = r_i
-        self.turning = turning
         self.calc_all = calc_all
         self.terrain_step = terrain_step
 
@@ -217,12 +216,8 @@ class TerrainFollowingDistance2():
         x_i = src_x_i
         y_i = src_y_i
         H_i = src_h_i
-        if not self.turning and hasattr(self, 'wd'):
-            wd = self.wd
-        else:
-            wd = wd_il
         dist_down_straight_iil, dist_cross_iil, downwind_order_il, x_rotated_il, y_rotated_il, cos_wd_il, sin_wd_il, hcw_iil, dh_iil = self._cal_dist(
-            x_i, y_i, H_i, dst_x_j, dst_y_j, dst_h_j, wd)
+            x_i, y_i, H_i, dst_x_j, dst_y_j, dst_h_j, wd_il)
 
         dist_down_isl = dist_down_straight_iil
         dist_cross_isl = dist_cross_iil

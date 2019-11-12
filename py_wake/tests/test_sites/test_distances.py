@@ -225,18 +225,6 @@ def test_distance_plot():
 # TerrainFollowingDistance2
 # ======================================================================================================================
 
-def test_distances_no_turning():
-    site, x, y = ParqueFicticioSiteTerrainFollowingDistance2()
-    site.turning = False
-    site.local_wind(x, y, np.array([70]))
-    dw_ijl, cw_ijl, dh_ijl, dwo = site.distances(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
-                                                 dst_x_j=x, dst_y_j=y, dst_h_j=np.array([70]),
-                                                 wd_il=np.array([[180]]))
-    npt.assert_almost_equal(dw_ijl[0, :, 0], [-0., 207.4, 484.4, 726.7, 1039.1, 1263.1, 1490.4, 1840.7], 1)
-    npt.assert_almost_equal(cw_ijl[:, 1, 0], [236.1, 0., -131.1, -167.8, -204.5, -131.1, -131.1, -45.4])
-    npt.assert_almost_equal(dh_ijl, np.zeros_like(dh_ijl))
-
-
 def test_distances_ri():
     site, x, y = ParqueFicticioSiteTerrainFollowingDistance2()
     site.calc_all = False
