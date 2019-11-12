@@ -52,9 +52,9 @@ def test_local_wind(site):
 
 
 def test_shear(site):
-    x = [262878]
-    y = [6504714]
     npt.assert_array_almost_equal(site._ds['spd'].sel(x=262878, y=6504714, sec=1), [.6240589, .8932919])
+    x = [262878.0001]
+    y = [6504714.0001]
     z = [30, 115, 200]
     ws = site.local_wind(x_i=x, y_i=y, h_i=z, wd=[0], ws=[10])[1][:, 0, 0]
 
@@ -279,6 +279,7 @@ def test_plot_map(site):
     site.plot_map('ws_mean', 80, sector=1)
     if 0:
         plt.show()
+    plt.close()
 
 
 def test_elevation_outside_map(site):
@@ -344,6 +345,26 @@ def test_plot_wd_distribution_with_ws_levels(site):
     if 0:
         import matplotlib.pyplot as plt
         plt.show()
+
+
+def test_additional_input():
+    site = ParqueFicticioSite()
+    wgs = WaspGridSite(site._ds, distance=TerrainFollowingDistance(distance_resolution=2000))
+    wgs.interp_funcs_initialization(['ws_mean'])
+    x, y = site.initial_position.T
+    h = 70 * np.ones_like(x)
+    ws_mean, = wgs.interpolate(['ws_mean'], x, y, h)
+    npt.assert_array_almost_equal(ws_mean[0, :50],
+                                  np.array([4.77080802, 4.77216214, 4.77351626, 4.77487037, 4.77622449,
+                                            4.77757861, 4.77893273, 4.78028685, 4.78164097, 4.78299508,
+                                            4.7843492, 4.78570332, 4.78705744, 4.78841156, 4.78976567,
+                                            4.79111979, 4.79247391, 4.79382803, 4.79518215, 4.79653626,
+                                            4.79789038, 4.7992445, 4.80059862, 4.80195274, 4.80330685,
+                                            4.80466097, 4.80601509, 4.80736921, 4.80872333, 4.81007744,
+                                            4.81143156, 4.87114138, 4.9308512, 4.99056102, 5.05027084,
+                                            5.10998066, 5.16969047, 5.22940029, 5.28911011, 5.34881993,
+                                            5.40852975, 5.46823957, 5.52794939, 5.5876592, 5.64736902,
+                                            5.70707884, 5.76678866, 5.82649848, 5.8862083, 5.94591812]))
 
 
 if __name__ == '__main__':

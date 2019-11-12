@@ -29,7 +29,7 @@ class WaspGridSiteBase(UniformWeibullSite):
     def __init__(self, ds, mode='valid'):
         self._ds = ds
         self.mode = mode
-        self.interp_funcs = None
+        self.interp_funcs = {}
         self.interp_funcs_initialization()
         self.elevation_interpolator = EqDistRegGrid2DInterpolator(self._ds.coords['x'].data,
                                                                   self._ds.coords['y'].data,
@@ -47,23 +47,20 @@ class WaspGridSiteBase(UniformWeibullSite):
             ws = self.default_ws
         wd, ws = np.asarray(wd), np.asarray(ws)
         self.wd = wd
-        h_i = np.asarray(h_i)
-        x_il, y_il, h_il = [np.repeat([v], len(wd), 0).T for v in [x_i, y_i, h_i]]
 
         wd_bin_size = self.wd_bin_size(wd, wd_bin_size)
-
         wd_il = np.repeat([wd], len(x_i), 0)
-        speed_up_il, turning_il = \
-            [self.interp_funcs[n]((x_il, y_il, h_il, wd_il)) for n in
-             ['spd', 'orog_trn']]
 
-        WS_ilk = ws[na, na, :] * speed_up_il[:, :, na]
+        if self.TI_data_exist:
+            speed_up_il, turning_il, TI_il = self.interpolate(['spd', 'orog_trn', 'tke'], x_i, y_i, h_i, wd, ws)
+            WS_ilk = ws[na, na, :] * speed_up_il[:, :, na]
+            TI_ilk = (TI_il[:, :, na] * (0.75 + 3.8 / WS_ilk))
+        else:
+            speed_up_il, turning_il = self.interpolate(['spd', 'orog_trn'], x_i, y_i, h_i, wd, ws)
+            WS_ilk = ws[na, na, :] * speed_up_il[:, :, na]
 
         WD_ilk = ((wd_il + turning_il) % 360)[:, :, na]
 
-        if self.TI_data_exist:
-            TI_il = self.interp_funcs['tke']((x_il, y_il, h_il, wd_il))
-            TI_ilk = (TI_il[:, :, na] * (0.75 + 3.8 / WS_ilk))
         P_ilk = self.probability(x_i, y_i, h_i, wd_il[:, :, na], WS_ilk,
                                  wd_bin_size, ws_bins=self.ws_bins(WS_ilk, ws_bins))
         return WD_ilk, WS_ilk, TI_ilk, P_ilk
@@ -133,7 +130,18 @@ class WaspGridSiteBase(UniformWeibullSite):
                 coords,
                 data, bounds_error=False)
 
-        self.interp_funcs = interp_funcs
+        self.interp_funcs.update(interp_funcs)
+
+    def interpolate(self, keys, x_i, y_i, h_i, wd=None, ws=None):
+        if wd is None:
+            wd = self.default_wd
+        if ws is None:
+            ws = self.default_ws
+        wd, ws = np.asarray(wd), np.asarray(ws)
+        h_i = np.asarray(h_i)
+        x_il, y_il, h_il = [np.repeat([v], len(wd), 0).T for v in [x_i, y_i, h_i]]
+        wd_il = np.repeat([wd], len(x_i), 0)
+        return [self.interp_funcs[n]((x_il, y_il, h_il, wd_il)) for n in np.asarray(keys)]
 
     def plot_map(self, data_name, height=None, sector=None, xlim=[None, None], ylim=[None, None], ax=None):
         if ax is None:
