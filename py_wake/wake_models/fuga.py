@@ -26,7 +26,10 @@ class Fuga(LinearSum, WakeModel):
             zi = struct.unpack('d', fid.read(8))[0]
             ds = struct.unpack('d', fid.read(8))[0]
             closure = struct.unpack('I', fid.read(4))[0]
-            zeta0 = struct.unpack('d', fid.read(8))[0]
+            if os.path.getsize(path + 'CaseData.bin') == 187:
+                zeta0 = struct.unpack('d', fid.read(8))[0]
+            else:
+                zeta0 = float(path[path.index('Zeta0'):].replace("Zeta0=", "").replace("/", ""))
 
         def psim(zeta):
             return self.ams * zeta
