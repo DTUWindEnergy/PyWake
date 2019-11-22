@@ -1,4 +1,5 @@
 import numpy as np
+import xml.etree.ElementTree as ET
 
 
 class WindTurbines():
@@ -158,6 +159,70 @@ class WindTurbines():
         ax.legend(loc=1)
         ax.axis('equal')
 
+    @classmethod
+    def from_WAsP_wtg(cls, wtg_file, power_unit='W'):
+        """ Parse the one/multiple .wtg file(s) (xml) to initilize an
+        WindTurbines object.
+
+        Parameters
+        ----------
+        wtg_file : string or a list of string
+            A string denoting the .wtg file, which is exported from WAsP.
+
+        Returns
+        -------
+        an object of WindTurbines.
+
+        Note: it is assumed that the power_unit inside multiple .wtg files
+        is the same, i.e., power_unit.
+        """
+        if type(wtg_file) is not list:
+            wtg_file_list = [wtg_file]
+        else:
+            wtg_file_list = wtg_file
+
+        names = []
+        diameters = []
+        hub_heights = []
+        ct_funcs = []
+        power_funcs = []
+
+        for wtg_file in wtg_file_list:
+            tree = ET.parse(wtg_file)
+            root = tree.getroot()
+            # Reading data from wtg_file
+            name = root.attrib['Description']
+            diameter = np.float(root.attrib['RotorDiameter'])
+            hub_height = np.float(root.find('SuggestedHeights').find('Height').text)
+            ws_cutin = np.float(root.find('PerformanceTable').find('StartStopStrategy').attrib['LowSpeedCutIn'])
+            ws_cutout = np.float(root.find('PerformanceTable').find('StartStopStrategy').attrib['HighSpeedCutOut'])
+
+            i_point = 0
+            for DataPoint in root.iter('DataPoint'):
+                i_point = i_point + 1
+                ws = np.float(DataPoint.attrib['WindSpeed'])
+                Ct = np.float(DataPoint.attrib['ThrustCoEfficient'])
+                power = np.float(DataPoint.attrib['PowerOutput'])
+                if i_point == 1:
+                    dt = np.array([[ws, Ct, power]])
+                else:
+                    dt = np.append(dt, np.array([[ws, Ct, power]]), axis=0)
+
+            rated_power = np.max(dt[:, 2])
+            ws = dt[:, 0]
+            ct = dt[:, 1]
+            power = dt[:, 2]
+
+            names.append(name)
+            diameters.append(diameter)
+            hub_heights.append(hub_height)
+            ct_funcs.append(lambda u, ws=ws, ct=ct: np.interp(u, ws, ct, left=0, right=0))
+            power_funcs.append(lambda u, ws=ws, power=power: np.interp(u, ws, power, left=0, right=0))
+
+        return cls(names=names, diameters=diameters,
+                   hub_heights=hub_heights, ct_funcs=ct_funcs,
+                   power_funcs=power_funcs, power_unit=power_unit)
+
 
 class OneTypeWindTurbines(WindTurbines):
 
@@ -222,6 +287,10 @@ def dummy_thrust(ws_cut_in=3, ws_cut_out=25, ws_rated=12, ct_rated=8 / 9):
 
 def main():
     if __name__ == '__main__':
+        import os.path
+        import matplotlib.pyplot as plt
+        from py_wake.examples.data import wtg_path
+
         wts = WindTurbines(names=['tb1', 'tb2'],
                            diameters=[80, 120],
                            hub_heights=[70, 110],
@@ -232,7 +301,7 @@ def main():
                            power_unit='kW')
 
         ws = np.arange(25)
-        import matplotlib.pyplot as plt
+
         plt.plot(ws, wts.power(ws, 0), label=wts.name(0))
         plt.plot(ws, wts.power(ws, 1), label=wts.name(1))
         plt.legend()
@@ -245,6 +314,28 @@ def main():
         wts.plot([0, 100], [0, 100], [0, 1])
         plt.xlim([-50, 150])
         plt.ylim([-50, 150])
+        plt.show()
+
+        # Exmaple using two wtg files to initialize a wind turbine
+#        vestas_v80_wtg = './examples/data/Vestas-V80.wtg'
+#        NEG_2750_wtg = './examples/data/NEG-Micon-2750.wtg'
+
+#        data_folder = Path('./examples/data/')
+#        vestas_v80_wtg = data_folder / 'Vestas-V80.wtg'
+#        NEG_2750_wtg = data_folder / 'NEG-Micon-2750.wtg'
+        vestas_v80_wtg = os.path.join(wtg_path, 'Vestas-V80.wtg')
+        NEG_2750_wtg = os.path.join(wtg_path, 'NEG-Micon-2750.wtg')
+        wts_wtg = WindTurbines.from_WAsP_wtg([vestas_v80_wtg, NEG_2750_wtg])
+
+        ws = np.arange(30)
+
+        plt.plot(ws, wts_wtg.power(ws, 0), label=wts_wtg.name(0))
+        plt.plot(ws, wts_wtg.power(ws, 1), label=wts_wtg.name(1))
+        plt.legend()
+        plt.show()
+        plt.plot(ws, wts_wtg.ct(ws, 0), label=wts_wtg.name(0))
+        plt.plot(ws, wts_wtg.ct(ws, 1), label=wts_wtg.name(1))
+        plt.legend()
         plt.show()
 
 
