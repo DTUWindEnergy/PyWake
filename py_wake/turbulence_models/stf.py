@@ -17,10 +17,10 @@ class STF2017TurbulenceModel(MaxSum, TurbulenceModel):
 
             # Theta_w is the characteristic view angle defined in Eq. (3.18) of
             # ST Frandsen's thesis
-            theta_w = (180.0 / np.pi * np.arctan(1 / s_jl) + 10) / 2
+            theta_w = (180.0 / np.pi * np.arctan2(1, s_jl) + 10) / 2
 
             # thetq denotes the acutally view angles
-            theta = np.arctan(cw_jl / dw_jl) * 180.0 / np.pi
+            theta = np.arctan2(cw_jl, dw_jl) * 180.0 / np.pi
 
         # weights_jl = np.where(theta < 3 * theta_w, np.exp(-(theta / theta_w)**2), 0)
         weights_jl = np.where(theta < theta_w, np.exp(-(theta / theta_w)**2), 0)
