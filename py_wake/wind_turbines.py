@@ -23,7 +23,7 @@ class WindTurbines():
         power_unit : {'W', 'kW', 'MW', 'GW'}
             Unit of power_func output (case insensitive)
         """
-        self._names = names
+        self._names = np.array(names)
         self._diameters = np.array(diameters)
         self._hub_heights = np.array(hub_heights)
         self.ct_funcs = ct_funcs
