@@ -77,11 +77,17 @@ class AreaOverlappingFactor():
         # partial wake cases
         mask = (d > (Rmax - Rmin)) & (d < (Rmin + Rmax))
 
-        alpha = np.arccos((Rmax[mask]**2.0 + d[mask]**2 - Rmin[mask]**2) /
-                          (2.0 * Rmax[mask] * d[mask]))
+        # in somecases cos_alpha or cos_beta can be larger than 1 or less than
+        # -1.0, cause problem to arccos(), resulting nan values, here fix this
+        # issue.
+        def arccos_lim(x):
+            return np.arccos(np.maximum(np.minimum(x, 1), -1))
 
-        beta = np.arccos((Rmin[mask]**2.0 + d[mask]**2 - Rmax[mask]**2) /
-                         (2.0 * Rmin[mask] * d[mask]))
+        alpha = arccos_lim((Rmax[mask]**2.0 + d[mask]**2 - Rmin[mask]**2) /
+                           (2.0 * Rmax[mask] * d[mask]))
+
+        beta = arccos_lim((Rmin[mask]**2.0 + d[mask]**2 - Rmax[mask]**2) /
+                          (2.0 * Rmin[mask] * d[mask]))
 
         A_triangle = np.sqrt(p[mask] * (p[mask] - Rmin[mask]) *
                              (p[mask] - Rmax[mask]) * (p[mask] - d[mask]))
@@ -110,6 +116,7 @@ class NOJ(SquaredSum, WakeModel, AreaOverlappingFactor):
         term_denominator_jl = (1 + self.k * dw_jl / R_src_l[na, :])**2
 
         A_ol_factor_jl = self.overlapping_area_factor(dw_jl, cw_jl, D_src_l, D_dst_jl)
+        ct_lk = np.minimum(ct_lk, 1)   # treat ct_lk for np.sqrt()
         term_numerator_lk = WS_lk * (1 - np.sqrt(1 - ct_lk))
         with np.warnings.catch_warnings():
             np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
