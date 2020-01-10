@@ -112,10 +112,11 @@ class WindTurbines():
         return np.asarray(type_i), np.asarray(h_i), np.asarray(d_i)
 
     def _ct_power(self, ws_i, type_i=0):
+        ws_i = np.asarray(ws_i)
         if np.any(type_i != 0):
             CT = np.zeros_like(ws_i, dtype=np.float)
             P = np.zeros_like(ws_i, dtype=np.float)
-            type_i = np.zeros(np.asarray(ws_i).shape[0]) + type_i
+            type_i = np.zeros(ws_i.shape[0]) + type_i
             for t in np.unique(type_i).astype(np.int):
                 m = type_i == t
                 CT[m] = self.ct_funcs[t](ws_i[m])
@@ -301,16 +302,19 @@ def main():
                            power_unit='kW')
 
         ws = np.arange(25)
-
+        plt.figure()
         plt.plot(ws, wts.power(ws, 0), label=wts.name(0))
         plt.plot(ws, wts.power(ws, 1), label=wts.name(1))
         plt.legend()
         plt.show()
+
+        plt.figure()
         plt.plot(ws, wts.ct(ws, 0), label=wts.name(0))
         plt.plot(ws, wts.ct(ws, 1), label=wts.name(1))
         plt.legend()
         plt.show()
 
+        plt.figure()
         wts.plot([0, 100], [0, 100], [0, 1])
         plt.xlim([-50, 150])
         plt.ylim([-50, 150])
@@ -329,10 +333,12 @@ def main():
 
         ws = np.arange(30)
 
+        plt.figure()
         plt.plot(ws, wts_wtg.power(ws, 0), label=wts_wtg.name(0))
         plt.plot(ws, wts_wtg.power(ws, 1), label=wts_wtg.name(1))
         plt.legend()
         plt.show()
+        plt.figure()
         plt.plot(ws, wts_wtg.ct(ws, 0), label=wts_wtg.name(0))
         plt.plot(ws, wts_wtg.ct(ws, 1), label=wts_wtg.name(1))
         plt.legend()
