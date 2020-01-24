@@ -82,6 +82,7 @@ def test_plot_wd_distribution(site):
 
     if 0:
         plt.show()
+    plt.close()
 
 
 def test_plot_wd_distribution_with_ws_levels(site):
