@@ -370,10 +370,10 @@ class UniformWeibullSite(UniformSite):
 
     def probability(self, x_i, y_i, h_i, WD_ilk, WS_ilk, wd_bin_size, ws_bins):
         i_ilk = np.round(WD_ilk).astype(np.int) % 360
-        p_wd = self.p_wd[i_ilk] * wd_bin_size
+        p_wd_ilk = self.p_wd[i_ilk] * wd_bin_size
         if wd_bin_size == 360:
-            p_wd /= p_wd.sum(0)
-        P_ilk = self.weibull_weight(WS_ilk, self.a[i_ilk], self.k[i_ilk], ws_bins) * p_wd
+            p_wd_ilk[:] = 1
+        P_ilk = self.weibull_weight(WS_ilk, self.a[i_ilk], self.k[i_ilk], ws_bins) * p_wd_ilk
         return P_ilk
 
 
