@@ -71,8 +71,7 @@ class AEPCalculator():
         self.WD_ilk, self.WS_ilk, self.TI_ilk, self.P_ilk = self.site.local_wind(
             x_i=x_i, y_i=y_i, h_i=h_i, wd=wd, ws=ws)
 
-        type_ilk = np.zeros(self.WS_ilk.shape, dtype=np.int) + type_i[:, np.newaxis, np.newaxis]
-        self.power_ilk = self.windTurbines.power(self.WS_ilk, type_ilk)
+        self.power_ilk = self.windTurbines.power(self.WS_ilk, type_i)
         AEP_GWh_ilk = self.power_ilk * self.P_ilk * 24 * 365 * 1e-9
         return AEP_GWh_ilk
 
