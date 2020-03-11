@@ -3,6 +3,7 @@ from numpy import newaxis as na
 import numpy as np
 from py_wake.site._site import Site
 from py_wake.wind_turbines import WindTurbines
+from py_wake.tests import npt
 
 
 class WakeModel(ABC):
@@ -44,16 +45,16 @@ class WakeModel(ABC):
 
     Arguments available for calc_deficit (specifiy in args4deficit):
 
-    - WS_lk: Local wind speed without wake effects
-    - TI_lk: local turbulence intensity without wake effects
-    - WS_eff_lk: Local wind speed with wake effects
-    - TI_eff_lk: local turbulence intensity with wake effects
-    - D_src_l: Diameter of source turbine
-    - D_dst_jl: Diameter of destination turbine
-    - dw_jl: Downwind distance from turbine i to point/turbine j
-    - hcw_jl: Horizontal cross wind distance from turbine i to point/turbine j
-    - cw_jl: Cross wind(horizontal and vertical) distance from turbine i to point/turbine j
-    - ct_lk: Thrust coefficient
+    - WS_ilk: Local wind speed without wake effects
+    - TI_ilk: local turbulence intensity without wake effects
+    - WS_eff_ilk: Local wind speed with wake effects
+    - TI_eff_ilk: local turbulence intensity with wake effects
+    - D_src_il: Diameter of source turbine
+    - D_dst_ijl: Diameter of destination turbine
+    - dw_ijl: Downwind distance from turbine i to point/turbine j
+    - hcw_ijl: Horizontal cross wind distance from turbine i to point/turbine j
+    - cw_ijl: Cross wind(horizontal and vertical) distance from turbine i to point/turbine j
+    - ct_ilk: Thrust coefficient
 
     """
 
@@ -80,6 +81,14 @@ class WakeModel(ABC):
         # Thomas, J. J. and Ning, A., “A Method for Reducing Multi-Modality in the Wind Farm Layout Optimization Problem,”
         # Journal of Physics: Conference Series, Vol. 1037, The Science of Making
         # Torque from Wind, Milano, Italy, jun 2018, p. 10.
+        self.deficit_initalized = False
+
+    def init_deficit(self, **kwargs):
+        self._calc_layout_terms(**kwargs)
+        self.deficit_initalized = True
+
+    def _calc_layout_terms(self, **_):
+        pass
 
     def calc_wake(self, x_i, y_i, h_i=None, type_i=None, wd=None, ws=None):
         """Calculate wake effects
@@ -136,15 +145,11 @@ class WakeModel(ABC):
 
         # Calculate down-wind and cross-wind distances
         dw_iil, hcw_iil, dh_iil, dw_order_indices_dl = self.site.wt2wt_distances(x_i, y_i, h_i, WD_ilk.mean(2))
+        self._validate_input(dw_iil, hcw_iil)
 
         I, L = dw_iil.shape[1:]
-        i1, i2, _ = np.where((np.abs(dw_iil) + np.abs(hcw_iil) + np.eye(I)[:, :, na]) == 0)
-        if len(i1):
-            msg = "\n".join(["Turbines %d and %d are at the same position" %
-                             (i1[i], i2[i]) for i in range(len(i1))])
-            raise ValueError(msg)
-
         K = WS_ilk.shape[2]
+
         deficit_nk = np.zeros((I * I * L, K))
 
         from py_wake.turbulence_model import TurbulenceModel
@@ -162,6 +167,8 @@ class WakeModel(ABC):
         hcw_n = hcw_iil.flatten()
         if self.wec != 1:
             hcw_n = hcw_n / self.wec
+        if 'cw_ijl' in self.args4deficit:
+            cw_n = np.hypot(hcw_iil, dh_iil).flatten()
         dh_n = dh_iil.flatten()
         power_ilk = np.zeros((I, L, K))
         ct_ilk = np.zeros((I, L, K))
@@ -173,8 +180,8 @@ class WakeModel(ABC):
             m = i_wt_l * L + i_wd_l  # current wt (j'th most upstream wts for all wdirs)
 
             # generate indexes of up wind(n_uw) and down wind(n_dw) turbines
-            n_uw = np.array([indices[uwi, i, l] for uwi, i, l in zip(dw_order_indices_dl[:, :j], i_wt_l, i_wd_l)]).T
-            n_dw = np.array([indices[i, dwi, l] for dwi, i, l in zip(dw_order_indices_dl[:, j + 1:], i_wt_l, i_wd_l)]).T
+            n_uw = indices[:, i_wt_l, i_wd_l][dw_order_indices_dl[:, :j].T, np.arange(L)]
+            n_dw = indices[i_wt_l, :, i_wd_l][np.arange(L), dw_order_indices_dl[:, j + 1:].T]
 
             # Calculate effectiv wind speed at current turbines(all wind directions and wind speeds) and
             # look up power and thrust coefficient
@@ -193,18 +200,18 @@ class WakeModel(ABC):
 
             if j < I - 1:
                 # Calculate required args4deficit parameters
-                arg_funcs = {'WS_lk': lambda: WS_mk[m],
-                             'WS_eff_lk': lambda: WS_eff_mk[m],
-                             'TI_lk': lambda: TI_mk[m],
-                             'TI_eff_lk': lambda: TI_eff_mk[m],
-                             'D_src_l': lambda: D_i[i_wt_l],
-                             'D_dst_jl': lambda: D_i[dw_order_indices_dl[:, j + 1:]].T,
-                             'dw_jl': lambda: dw_n[n_dw],
-                             'cw_jl': lambda: np.hypot(hcw_n[n_dw], dh_n[n_dw]),
-                             'hcw_jl': lambda: hcw_n[n_dw],
-                             'dh_jl': lambda: dh_n[n_dw],
-                             'h_l': lambda: h_i[i_wt_l],
-                             'ct_lk': lambda: ct_lk}
+                arg_funcs = {'WS_ilk': lambda: WS_mk[m][na],
+                             'WS_eff_ilk': lambda: WS_eff_mk[m][na],
+                             'TI_ilk': lambda: TI_mk[m][na],
+                             'TI_eff_ilk': lambda: TI_eff_mk[m][na],
+                             'D_src_il': lambda: D_i[i_wt_l][na],
+                             'D_dst_ijl': lambda: D_i[dw_order_indices_dl[:, j + 1:]].T[na],
+                             'dw_ijl': lambda: dw_n[n_dw][na],
+                             'cw_ijl': lambda: cw_n[n_dw][na],
+                             'hcw_ijl': lambda: hcw_n[n_dw][na],
+                             'dh_ijl': lambda: dh_n[n_dw][na],
+                             'h_il': lambda: h_i[i_wt_l][na],
+                             'ct_ilk': lambda: ct_ilk.reshape((I * L, K))[m][na]}
                 args = {k: arg_funcs[k]() for k in self.args4deficit}
 
                 # Calcualte deficit
@@ -253,6 +260,8 @@ class WakeModel(ABC):
 
         # calculate distances
         dw_ijl, hcw_ijl, dh_ijl, _ = self.site.distances(wt_x_i, wt_y_i, wt_h_i, x_j, y_j, h_j, WD_ilk.mean(2))
+        if 'cw_ijl' in self.args4deficit:
+            cw_ijl = np.hypot(hcw_ijl, dh_ijl)
 
         if self.wec != 1:
             hcw_ijl = hcw_ijl / self.wec
@@ -266,21 +275,21 @@ class WakeModel(ABC):
             for l in range(L):
                 m = dw_ijl[i, :, l] > 0
 
-                arg_funcs = {'WS_lk': lambda: WS_ilk[i, l][na],
-                             'WS_eff_lk': lambda: WS_eff_ilk[i, l][na],
-                             'TI_lk': lambda: TI_ilk[i, l][na],
-                             'TI_eff_lk': lambda: TI_eff_ilk[i, l][na],
-                             'D_src_l': lambda: wt_d_i[i][na],
-                             'D_dst_jl': lambda: None,
-                             'dw_jl': lambda: dw_ijl[i, :, l][m][:, na],
-                             'cw_jl': lambda: np.hypot(hcw_ijl[i, :, l][m], dh_ijl[i, :, l][m])[:, na],
-                             'hcw_jl': lambda: hcw_ijl[i, :, l][m][:, na],
-                             'dh_jl': lambda: dh_ijl[i, :, l][m][:, na],
-                             'h_l': lambda: wt_h_i[i][na],
-                             'ct_lk': lambda: ct_ilk[i, l][na]}
+                arg_funcs = {'WS_ilk': lambda: WS_ilk[i, l][na, na],
+                             'WS_eff_ilk': lambda: WS_eff_ilk[i, l][na, na],
+                             'TI_ilk': lambda: TI_ilk[i, l][na, na],
+                             'TI_eff_ilk': lambda: TI_eff_ilk[i, l][na, na],
+                             'D_src_il': lambda: wt_d_i[i][na, na],
+                             'D_dst_ijl': lambda: None,
+                             'dw_ijl': lambda: dw_ijl[i, :, l][m][na, :, na],
+                             'cw_ijl': lambda: cw_ijl[i, :, l][m][na, :, na],
+                             'hcw_ijl': lambda: hcw_ijl[i, :, l][m][na, :, na],
+                             'dh_ijl': lambda: dh_ijl[i, :, l][m][na, :, na],
+                             'h_il': lambda: wt_h_i[i][na, na],
+                             'ct_ilk': lambda: ct_ilk[i, l][na, na]}
 
                 args = {k: arg_funcs[k]() for k in args4func}
-                deficit_jlk[:, l][m] = func(**args)[:, 0]
+                deficit_jlk[:, l][m] = func(**args)[0, :, 0]
 
             deficit_ijlk.append(deficit_jlk)
         deficit_ijlk = np.array(deficit_ijlk)
@@ -382,6 +391,14 @@ class WakeModel(ABC):
 
         """
 
+    def _validate_input(self, dw_iil, hcw_iil):
+        I_ = dw_iil.shape[0]
+        i1, i2, _ = np.where((np.abs(dw_iil) + np.abs(hcw_iil) + np.eye(I_)[:, :, na]) == 0)
+        if len(i1):
+            msg = "\n".join(["Turbines %d and %d are at the same position" %
+                             (i1[i], i2[i]) for i in range(len(i1))])
+            raise ValueError(msg)
+
 
 class SquaredSum():
     def calc_effective_WS(self, WS_lk, deficit_ilk):
@@ -408,11 +425,11 @@ def main():
         from py_wake.aep_calculator import AEPCalculator
 
         class MyWakeModel(SquaredSum, WakeModel):
-            args4deficit = ['WS_lk', 'dw_jl']
+            args4deficit = ['WS_ilk', 'dw_ijl']
 
-            def calc_deficit(self, WS_lk, dw_jl):
+            def calc_deficit(self, WS_ilk, dw_ijl):
                 # 10% deficit downstream
-                return (WS_lk * .1)[na] * (dw_jl > 0)[:, :, na]
+                return (WS_ilk * .1)[:, na] * (dw_ijl > 0)[..., na]
 
         _, _, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
         n_wt = 16

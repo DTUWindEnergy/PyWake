@@ -8,7 +8,7 @@ from numpy import newaxis as na
 class Fuga(LinearSum, WakeModel):
     ams = 5
     invL = 0
-    args4deficit = ['WS_lk', 'WS_eff_lk', 'dw_jl', 'hcw_jl', 'dh_jl', 'h_l', 'ct_lk']
+    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijl', 'hcw_ijl', 'dh_ijl', 'h_il', 'ct_ilk']
 
     def __init__(self, LUT_path, site, windTurbines, **kwargs):
         WakeModel.__init__(self, site, windTurbines, **kwargs)
@@ -71,11 +71,13 @@ class Fuga(LinearSum, WakeModel):
         z = np.maximum(np.minimum(z, self.z[-1]), self.z[0])
         return self.lut_interpolator((x, y, z))
 
-    def calc_deficit(self, WS_lk, WS_eff_lk, dw_jl, hcw_jl, dh_jl, h_l, ct_lk):
-        mdu_jl = self.interpolate(dw_jl, np.abs(hcw_jl), h_l + dh_jl)
-        deficit_jlk = mdu_jl[:, :, na] * (ct_lk * WS_eff_lk**2 / WS_lk)
+    def _calc_layout_terms(self, dw_ijl, hcw_ijl, h_il, dh_ijl, **_):
+        self.mdu_ijl = self.interpolate(dw_ijl, np.abs(hcw_ijl), h_il[:, na] + dh_ijl)
 
-        return deficit_jlk
+    def calc_deficit(self, WS_ilk, WS_eff_ilk, dw_ijl, hcw_ijl, dh_ijl, h_il, ct_ilk, **_):
+        if not self.deficit_initalized:
+            self._calc_layout_terms(dw_ijl, hcw_ijl, h_il, dh_ijl)
+        return self.mdu_ijl[..., na] * (ct_ilk * WS_eff_ilk**2 / WS_ilk)[:, na]
 
 
 class LUTInterpolator(object):

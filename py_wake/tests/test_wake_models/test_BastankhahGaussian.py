@@ -92,11 +92,11 @@ def test_IEA37SimpleBastankhahGaussian_wake_map():
 
     # test that the result is equal to last run (no evidens that  these number are correct)
     ref = [3.32, 4.86, 7.0, 8.1, 7.8, 7.23, 6.86, 6.9, 7.3, 7.82, 8.11, 8.04, 7.87, 7.79, 7.85, 8.04, 8.28]
-    npt.assert_array_almost_equal(Z[49, 100:133:2], ref, 2)
     if 0:
         import matplotlib.pyplot as plt
         c = plt.contourf(X, Y, Z, np.arange(2, 9.1, .01))
         plt.colorbar(c)
-        site.plot_windturbines(x, y)
+        windTurbines.plot(x, y)
         plt.plot(X[49, 100:133:2], Y[49, 100:133:2], '-.')
         plt.show()
+    npt.assert_array_almost_equal(Z[49, 100:133:2], ref, 2)

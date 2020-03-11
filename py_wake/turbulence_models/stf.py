@@ -8,52 +8,52 @@ from matplotlib.font_manager import weight_dict
 class STF2017TurbulenceModel(MaxSum, TurbulenceModel):
     """Steen Frandsen model implemented according to IEC61400-1, 2017"""
 
-    args4addturb = ['dw_jl', 'cw_jl', 'D_src_l', 'ct_lk', 'TI_lk']
+    args4addturb = ['dw_ijl', 'cw_ijl', 'D_src_il', 'ct_ilk', 'TI_ilk']
 
-    def weight(self, dw_jl, cw_jl, D_src_l):
-        s_jl = dw_jl / D_src_l
+    def weight(self, dw_ijl, cw_ijl, D_src_il):
+        s_ijl = dw_ijl / D_src_il[:, na]
         with np.warnings.catch_warnings():
             np.warnings.filterwarnings('ignore', r'divide by zero encountered in true_divide')
 
             # Theta_w is the characteristic view angle defined in Eq. (3.18) of
             # ST Frandsen's thesis
-            theta_w = (180.0 / np.pi * np.arctan2(1, s_jl) + 10) / 2
+            theta_w = (180.0 / np.pi * np.arctan2(1, s_ijl) + 10) / 2
 
             # thetq denotes the acutally view angles
-            theta = np.arctan2(cw_jl, dw_jl) * 180.0 / np.pi
+            theta = np.arctan2(cw_ijl, dw_ijl) * 180.0 / np.pi
 
         # weights_jl = np.where(theta < 3 * theta_w, np.exp(-(theta / theta_w)**2), 0)
-        weights_jl = np.where(theta < theta_w, np.exp(-(theta / theta_w)**2), 0)
-        return weights_jl
+        weights_ijl = np.where(theta < theta_w, np.exp(-(theta / theta_w)**2), 0)
+        return weights_ijl
 
-    def calc_added_turbulence(self, dw_jl, cw_jl, D_src_l, ct_lk, TI_lk):
+    def calc_added_turbulence(self, dw_ijl, cw_ijl, D_src_il, ct_ilk, TI_ilk):
         """ Calculate the added turbulence intensity at locations specified by
         downstream distances (dw_jl) and crosswind distances (cw_jl)
         caused by the wake of a turbine (diameter: D_src_l, thrust coefficient: Ct_lk).
 
         Returns
         -------
-        TI_eff_jlk: array:float
+        TI_eff_ijlk: array:float
             Effective turbulence intensity [-]
         """
 
         # In the standard (see page 103), the maximal added TI is calculated as
         # TI_add = 1/(1.5 + 0.8*d/sqrt(Ct))
 
-        TI_add_jlk = 1 / (1.5 + 0.8 * (dw_jl / D_src_l[na])[:, :, na] / np.sqrt(ct_lk)[na])
-        weights_jl = self.weight(dw_jl, cw_jl, D_src_l)
+        TI_add_ijlk = 1 / (1.5 + 0.8 * (dw_ijl / D_src_il[:, na])[..., na] / np.sqrt(ct_ilk)[:, na])
+        weights_ijl = self.weight(dw_ijl, cw_ijl, D_src_il)
         # the way effective added TI is calculated is derived from Eqs. (3.16-18)
         # in ST Frandsen's thesis
-        TI_add_jlk = weights_jl[:, :, na] * (np.hypot(TI_add_jlk, TI_lk[na]) - TI_lk[na])
-        return TI_add_jlk
+        TI_add_ijlk = weights_ijl[..., na] * (np.hypot(TI_add_ijlk, TI_ilk[:, na]) - TI_ilk[:, na])
+        return TI_add_ijlk
 
 
 class STF2005TurbulenceModel(STF2017TurbulenceModel):
     """Steen Frandsen model implemented according to IEC61400-1, 2005"""
 
-    args4addturb = ['dw_jl', 'cw_jl', 'D_src_l', 'WS_lk', 'TI_lk']
+    args4addturb = ['dw_ijl', 'cw_ijl', 'D_src_il', 'WS_ilk', 'TI_ilk']
 
-    def calc_added_turbulence(self, dw_jl, cw_jl, D_src_l, WS_lk, TI_lk):
+    def calc_added_turbulence(self, dw_ijl, cw_ijl, D_src_il, WS_ilk, TI_ilk):
         """ Calculate the added turbulence intensity at locations specified by
         downstream distances (dw_jl) and crosswind distances (cw_jl)
         caused by the wake of a turbine (diameter: D_src_l, thrust coefficient: Ct_lk).
@@ -67,14 +67,14 @@ class STF2005TurbulenceModel(STF2017TurbulenceModel):
         # In the standard (see page 74), the maximal added TI is calculated as
         # TI_add = 0.9/(1.5 + 0.3*d*sqrt(V_hub/c))
 
-        TI_add_jlk = 0.9 / (1.5 + 0.3 * (dw_jl / D_src_l[na])[:, :, na] * np.sqrt(WS_lk)[na])
+        TI_add_ijlk = 0.9 / (1.5 + 0.3 * (dw_ijl / D_src_il[:, na])[..., na] * np.sqrt(WS_ilk)[:, na])
 
-        weights_jl = self.weight(dw_jl, cw_jl, D_src_l)
+        weights_ijl = self.weight(dw_ijl, cw_ijl, D_src_il)
 
         # the way effective added TI is calculated is derived from Eqs. (3.16-18)
         # in ST Frandsen's thesis
-        TI_add_jlk = weights_jl[:, :, na] * (np.hypot(TI_add_jlk, TI_lk[na]) - TI_lk[na])
-        return TI_add_jlk
+        TI_add_ijlk = weights_ijl[..., na] * (np.hypot(TI_add_ijlk, TI_ilk[:, na]) - TI_ilk[:, na])
+        return TI_add_ijlk
 
 
 class NOJ_STF2005(NOJ, STF2005TurbulenceModel):
@@ -99,8 +99,8 @@ def main():
 
         import matplotlib.pyplot as plt
         fig, (ax1, ax2) = plt.subplots(1, 2)
-        for ax, wake_model, lbl in [(ax1, NOJ_STF2005(site, windTurbines), 'STF2005'),
-                                    (ax2, NOJ_STF2017(site, windTurbines), 'STF2017')]:
+        for ax, wake_model, lbl in [  # (ax1, NOJ_STF2005(site, windTurbines), 'STF2005'),
+                (ax2, NOJ_STF2017(site, windTurbines), 'STF2017')]:
 
             aep_calculator = AEPCalculator(wake_model)
             aep_calculator.calculate_AEP(x, y)
