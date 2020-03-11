@@ -10,10 +10,11 @@ class StraightDistance():
         sin = np.sin(theta)
         return cos, sin
 
-    def plot(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
+    def plot(self, site, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
         import matplotlib.pyplot as plt
-        dw_ijl, hcw_ijl, dh_ijl, dw_order_indices_l = self.distances(
-            src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il)
+        dw_ijl, hcw_ijl, dh_ijl, dw_order_indices_l = self(site,
+                                                           src_x_i, src_y_i, src_h_i,
+                                                           dst_x_j, dst_y_j, dst_h_j, wd_il)
         wdirs = wd_il.mean(0)
         I, J, L = len(src_x_i), len(dst_x_j), len(wdirs)
         for l, wd in enumerate(wdirs):
@@ -38,6 +39,7 @@ class StraightDistance():
             plt.plot(src_x_i, src_y_i, 'k2')
             ax.axis('equal')
             ax.legend()
+        plt.close()
 
     def project_distance(self, dx_ij, dy_ij, wd_ijl):
         cos_ijl, sin_ijl = self._cos_sin(wd_ijl)
@@ -47,26 +49,24 @@ class StraightDistance():
 
     def dw_order_indices(self, src_x_i, src_y_i, wd_l):
         cos_l, sin_l = self._cos_sin(wd_l)
-        dx_ii, dy_ii = [np.subtract(*np.meshgrid(dst_j, src_i, indexing='ij')).T
-                        for src_i, dst_j in [(src_x_i, src_x_i),
-                                             (src_y_i, src_y_i)]]
+        dx_ii = src_x_i - np.asarray(src_x_i)[:, na]
+        dy_ii = src_y_i - np.asarray(src_y_i)[:, na]
         dw_iil = -cos_l[na, na, :] * dx_ii[:, :, na] - sin_l[na, na, :] * dy_ii[:, :, na]
         dw_order_indices_l = np.argsort((dw_iil > 0).sum(0), 0).T
         return dw_order_indices_l
 
-    def distances(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
+    def __call__(self, site, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
+        dx_ij = dst_x_j - np.asarray(src_x_i)[:, na]
+        dy_ij = dst_y_j - np.asarray(src_y_i)[:, na]
+        dh_ij = dst_h_j - np.asarray(src_h_i)[:, na]
 
-        dx_ij, dy_ij, dh_ij = [np.subtract(*np.meshgrid(dst_j, src_i, indexing='ij')).T
-                               for src_i, dst_j in [(src_x_i, dst_x_j),
-                                                    (src_y_i, dst_y_j),
-                                                    (src_h_i, dst_h_j)]]
         src_x_i, src_y_i = map(np.asarray, [src_x_i, src_y_i])
         # let the wind direction correspont to the mean wind directions of all source points
         wd_l = np.mean(wd_il, (0))
         wd_ijl = wd_l[na, na]
 
         dw_ijl, hcw_ijl = self.project_distance(dx_ij, dy_ij, wd_ijl)
-        dh_ijl = np.zeros_like(dw_ijl)
+        dh_ijl = np.zeros(dw_ijl.shape)
         dh_ijl[:, :, :] = dh_ij[:, :, na]
 
         dw_order_indices_l = self.dw_order_indices(src_x_i, src_y_i, wd_l)
@@ -79,15 +79,16 @@ class TerrainFollowingDistance(StraightDistance):
         super().__init__(**kwargs)
         self.distance_resolution = distance_resolution
 
-    def distances(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
-        _, hcw_ijl, dh_ijl, dw_order_indices_l = StraightDistance.distances(
-            self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il)
+    def __call__(self, site, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
+        _, hcw_ijl, dh_ijl, dw_order_indices_l = StraightDistance.__call__(
+            self, site, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il)
 
         # Calculate distance between src and dst and project to the down wind direction
         src_x_i, src_y_i, dst_x_j, dst_y_j = map(np.asarray, [src_x_i, src_y_i, dst_x_j, dst_y_j])
 
         # Generate interpolation lines
-        if len(src_x_i) == len(dst_x_j) and np.all(src_x_i == dst_x_j) and np.all(src_y_i == dst_y_j):
+        if len(src_x_i) == len(dst_x_j) and np.all(src_x_i == dst_x_j) and np.all(
+                src_y_i == dst_y_j) and len(src_x_i) > 1:
             # calculate upper triangle of d_ij(distance from i to j) only
             xy = np.array([(np.linspace(src_x, dst_x, self.distance_resolution),
                             np.linspace(src_y, dst_y, self.distance_resolution))
@@ -103,7 +104,7 @@ class TerrainFollowingDistance(StraightDistance):
         x, y = xy[:, 0], xy[:, 1]
 
         # find height and calculate surface distance
-        h = self.elevation(x.flatten(), y.flatten()).reshape(x.shape)
+        h = site.elevation(x.flatten(), y.flatten()).reshape(x.shape)
         dxy = np.sqrt((x[:, 1] - x[:, 0])**2 + (y[:, 1] - y[:, 0])**2)
         dh = np.diff(h, 1, 1)
         s = np.sum(np.sqrt(dxy[:, na]**2 + dh**2), 1)
@@ -119,7 +120,7 @@ class TerrainFollowingDistance(StraightDistance):
         # we offset the wind direction by the direction between source and destination
         theta_ij = np.arctan2(dst_y_j - src_y_i[:, na], dst_x_j - src_x_i[:, na])
         dir_ij = 90 - np.rad2deg(theta_ij)
-        wdir_offset_ijl = wd_il[:, na] - dir_ij[:, :, na]
+        wdir_offset_ijl = np.asarray(wd_il)[:, na] - dir_ij[:, :, na]
         theta_ijl = np.deg2rad(90 - wdir_offset_ijl)
         sin_ijl = np.sin(theta_ijl)
         dw_ijl = - sin_ijl * d_ij[:, :, na]
@@ -135,13 +136,16 @@ class TerrainFollowingDistance2():
         self.calc_all = calc_all
         self.terrain_step = terrain_step
 
-    def distances(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
+    def __call__(self, site, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
         if not src_x_i.shape == dst_x_j.shape or not np.allclose(src_x_i, dst_x_j):
             raise NotImplementedError(
                 'Different source and destination postions are not yet implemented for the terrain following distance calculation')
-        return self.cal_dist_terrain_following(src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il, self.terrain_step, self.calc_all)
+        return self.cal_dist_terrain_following(site, src_x_i, src_y_i, src_h_i,
+                                               dst_x_j, dst_y_j, dst_h_j, wd_il,
+                                               self.terrain_step, self.calc_all)
 
-    def cal_dist_terrain_following(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il, step, calc_all):
+    def cal_dist_terrain_following(self, site, src_x_i, src_y_i, src_h_i, dst_x_j,
+                                   dst_y_j, dst_h_j, wd_il, step, calc_all):
         """ Calculate downwind and crosswind distances between a set of turbine
         sites, for a range of inflow wind directions. This version assumes the
         flow follows terrain at the same height above ground, and calculate the
@@ -212,7 +216,7 @@ class TerrainFollowingDistance2():
         wd_il = np.asarray(wd_il)
         if wd_il.ndim == 2 and wd_il.shape[0] == 1:
             wd_il = wd_il[0]
-        elev_interp_func = self.elevation_interpolator
+        elev_interp_func = site.elevation_interpolator
         x_i = src_x_i
         y_i = src_y_i
         H_i = src_h_i
@@ -246,8 +250,6 @@ class TerrainFollowingDistance2():
         any_sites_in_wake = np.any(mask_isl, 1)
         for l in i_wd_l:
             for i in range(I):
-                if i == 18:
-                    print(i)
                 x_start = x_start_il[i, l]
                 y_start = y_start_il[i, l]
 

@@ -94,9 +94,3 @@ class PowerShear():
 #
 #     def __call__(self, WS_ilk, WD_ilk, h_i):
 #         ????? WS_ilk = (WS_ilk * (H_hub / self.height_ref) ** wind_shear_il[i_wt, l_wd])
-
-
-if __name__ == '__main__':
-    s = NoShear()
-    # print(s.get_ws_at())
-    print(s)

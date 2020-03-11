@@ -1,12 +1,13 @@
 
 import os
-from _notebooks.notebook import Notebook
+
 import py_wake
 import pytest
+from py_wake.tests.notebook import Notebook
 
 
 def get_notebooks():
-    path = os.path.dirname(py_wake.__file__) + "/../_notebooks/elements/"
+    path = os.path.dirname(py_wake.__file__) + "/../docs/notebooks/"
     return [Notebook(path + f) for f in [f for f in os.listdir(path) if f.endswith('.ipynb')]]
 
 
@@ -18,5 +19,9 @@ def test_notebooks(notebook):
         pass
     plt.show = no_show  # disable plt show that requires the user to close the plot
 
-    notebook.check_code()
-    notebook.check_links()
+    try:
+        notebook.check_code()
+        notebook.check_links()
+        pass
+    except Exception as e:
+        raise Exception(notebook.filename + " failed") from e

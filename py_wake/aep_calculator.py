@@ -1,5 +1,5 @@
-import numpy as np
-from numpy import newaxis as na
+import warnings
+from py_wake.flow_map import HorizontalGrid
 
 
 class AEPCalculator():
@@ -11,24 +11,21 @@ class AEPCalculator():
         ----------
         site : py_wake.site.Site
         windTurbines : WindTurbines
-        wake_model : WakeModel
+        flow_model : FlowModel
         """
+        warnings.warn("""AEPCalculator(wake_model) is deprecated;
+wake_model(x_i, y_i, ...) returns a flowModelResult with same functionality as AEPCalculator.""", DeprecationWarning)
         self.wake_model = wake_model
         self.site = wake_model.site
         self.windTurbines = wake_model.windTurbines
 
-    def _get_defaults(self, x_i, h_i, type_i, wd, ws):
-        type_i, h_i, _ = self.windTurbines.get_defaults(len(x_i), type_i, h_i)
-        wd, ws = self.site.get_defaults(wd, ws)
-        return h_i, type_i, wd, ws
+    def _set_flowModelResult(self, flowModelResult):
+        for n in ['WS_eff_ilk', 'TI_eff_ilk', 'power_ilk', 'ct_ilk']:
+            setattr(self, n, getattr(flowModelResult, n))
+        for n in ['WD_ilk', 'WS_ilk', 'TI_ilk', 'P_ilk']:
+            setattr(self, n, getattr(flowModelResult.localWind, n))
 
-    def _run_wake_model(self, x_i, y_i, h_i=None, type_i=None, wd=None, ws=None):
-        h_i, type_i, wd, ws = self._get_defaults(x_i, h_i, type_i, wd, ws)
-
-        self.WS_eff_ilk, self.TI_eff_ilk, self.power_ilk, self.ct_ilk, self.WD_ilk, self.WS_ilk, self.TI_ilk, self.P_ilk =\
-            self.wake_model.calc_wake(x_i, y_i, h_i, type_i, wd, ws)
-
-    def calculate_AEP(self, x_i, y_i, h_i=None, type_i=None, wd=None, ws=None):
+    def calculate_AEP(self, x_i, y_i, h_i=None, type_i=0, wd=None, ws=None):
         """Calculate AEP
 
         In addition effective wind speed, turbulence intensity, and the
@@ -58,24 +55,18 @@ class AEPCalculator():
         AEP_GWh_ilk : array_like
             AEP in GWh
         """
-        self._run_wake_model(x_i=x_i, y_i=y_i, h_i=h_i, type_i=type_i, wd=wd, ws=ws)
-        AEP_GWh_ilk = self.power_ilk * self.P_ilk * 24 * 365 * 1e-9
-        return AEP_GWh_ilk
+        flowModelResult = self.wake_model(x=x_i, y=y_i, h=h_i, type=type_i, wd=wd, ws=ws)
+        self._set_flowModelResult(flowModelResult)
+        return flowModelResult.aep_ilk()
 
-    def calculate_AEP_no_wake_loss(self, x_i, y_i, h_i=None, type_i=None, wd=None, ws=None):
+    def calculate_AEP_no_wake_loss(self, x_i, y_i, h_i=None, type_i=0, wd=None, ws=None):
         """Calculate AEP without wake loss(GWh). Same input as calculate_AEP"""
+        flowModelResult = self.wake_model(x=x_i, y=y_i, h=h_i, type=type_i, wd=wd, ws=ws)
+        self._set_flowModelResult(flowModelResult)
+        return flowModelResult.aep_ilk(with_wake_loss=False)
 
-        h_i, type_i, wd, ws = self._get_defaults(x_i, h_i, type_i, wd=wd, ws=ws)
-
-        # Find local wind speed, wind direction, turbulence intensity and probability
-        self.WD_ilk, self.WS_ilk, self.TI_ilk, self.P_ilk = self.site.local_wind(
-            x_i=x_i, y_i=y_i, h_i=h_i, wd=wd, ws=ws)
-
-        self.power_ilk = self.windTurbines.power(self.WS_ilk, type_i)
-        AEP_GWh_ilk = self.power_ilk * self.P_ilk * 24 * 365 * 1e-9
-        return AEP_GWh_ilk
-
-    def wake_map(self, x_j=None, y_j=None, height_level=None, wt_x=[], wt_y=[], wt_type=None, wt_height=None, wd=None, ws=None):
+    def wake_map(self, x_j=None, y_j=None, height_level=None, wt_x=[],
+                 wt_y=[], wt_type=0, wt_height=None, wd=None, ws=None):
         """Calculate wake(effective wind speed) map
 
         Parameters
@@ -117,17 +108,14 @@ class AEPCalculator():
         --------
         plot_wake_map
         """
-        # X_j, Y_j, WS_eff_jlk, P_ilk = self._eff_map(
-        #    'WS', x_j, y_j, h, wt_x, wt_y, wt_type, wt_height, wd, ws)
-        res = self.wake_model.ws_map(x_j=x_j, y_j=y_j, h=height_level,
-                                     wt_x_i=wt_x, wt_y_i=wt_y, wt_type_i=wt_type, wt_h_i=wt_height,
-                                     wd=wd, ws=ws)
-        X_j, Y_j, WS_eff_jlk, WS_jlk, P_ilk = res
-#         if P_ilk.sum() > 0:
-#             WS_eff_jlk = WS_eff_jlk * (P_ilk / P_ilk.sum((1, 2)))
-        return X_j, Y_j, WS_eff_jlk.sum((1, 2)).reshape(X_j.shape)
 
-    def ti_map(self, x_j=None, y_j=None, height_level=None, wt_x=[], wt_y=[], wt_type=None, wt_height=None, wd=None, ws=None):
+        sim_res = self.wake_model(x=wt_x, y=wt_y, type=wt_type, h=wt_height, wd=wd, ws=ws)
+        flow_map = sim_res.flow_map(HorizontalGrid(x=x_j, y=y_j, h=height_level))
+        X, Y = flow_map.XY
+        return X, Y, flow_map.WS_eff_xylk.mean((2, 3))
+
+    def ti_map(self, x_j=None, y_j=None, height_level=None, wt_x=[],
+               wt_y=[], wt_type=0, wt_height=None, wd=None, ws=None):
         """Calculate turbulence intensity map
 
         Parameters
@@ -169,14 +157,12 @@ class AEPCalculator():
         --------
         plot_wake_map
         """
-        X_j, Y_j, TI_eff_jlk, P_ilk = self.wake_model.ti_map(x_j=x_j, y_j=y_j, h=height_level,
-                                                             wt_x_i=wt_x, wt_y_i=wt_y, wt_type_i=wt_type, wt_h_i=wt_height,
-                                                             wd=wd, ws=ws)
-        if P_ilk.sum() > 0:
-            TI_eff_jlk = TI_eff_jlk * (P_ilk / P_ilk.sum((1, 2)))
-        return X_j, Y_j, TI_eff_jlk.sum((1, 2)).reshape(X_j.shape)
+        sim_res = self.wake_model(x=wt_x, y=wt_y, type=wt_type, h=wt_height, wd=wd, ws=ws)
+        flow_map = sim_res.flow_map(HorizontalGrid(x=x_j, y=y_j, h=height_level))
+        X, Y = flow_map.XY
+        return X, Y, flow_map.TI_eff_xylk.mean((2, 3))
 
-    def plot_wake_map(self, x_j=None, y_j=None, h=None, wt_x=[], wt_y=[], wt_type=None, wt_height=None,
+    def plot_wake_map(self, x_j=None, y_j=None, h=None, wt_x=[], wt_y=[], wt_type=0, wt_height=None,
                       wd=None, ws=None, ax=None, levels=100):
         """Plot wake(effective wind speed) map
 
@@ -216,7 +202,7 @@ class AEPCalculator():
         c = ax.contourf(X, Y, Z, levels, cmap='Blues_r')
         plt.colorbar(c, label='wind speed [m/s]')
 
-    def aep_map(self, x_j=None, y_j=None, type_j=None, wt_x=[], wt_y=[], wt_type=None, wt_height=None, wd=None, ws=None):
+    def aep_map(self, x_j=None, y_j=None, type_j=None, wt_x=[], wt_y=[], wt_type=0, wt_height=None, wd=None, ws=None):
         """Calculate AEP map
 
         The map represents the of AEP produced by a new turbine at the specified positions
@@ -256,21 +242,13 @@ class AEPCalculator():
             2d array of average effective local wind speed taking into account
             the probability of wind direction and speed
         """
+
         h_j = self.windTurbines.hub_height(type_j)
-        res = self.wake_model.ws_map(x_j=x_j, y_j=y_j, h=h_j,
-                                     wt_x_i=wt_x, wt_y_i=wt_y, wt_type_i=wt_type, wt_h_i=wt_height,
-                                     wd=wd, ws=ws)
-        X_j, Y_j, WS_eff_jlk, WS_jlk, P_jlk = res
-
-        # power_jlk = self.windTurbines.power_func(WS_eff_jlk, type_j)
-        # aep_jlk = power_jlk * P_jlk * 24 * 365 * 1e-9
-        # return X_j, Y_j, aep_jlk.sum((1, 2)).reshape(X_j.shape)
-
-        if P_jlk.sum() > 0:
-            P_jlk /= P_jlk.sum((1, 2))
-
-        # same as above but requires less memory
-        return X_j, Y_j, ((self.windTurbines.power(WS_eff_jlk, type_j) * P_jlk).sum((1, 2)) * 24 * 365 * 1e-9).reshape(X_j.shape)
+        sim_res = self.wake_model(x=wt_x, y=wt_y, type=wt_type, h=wt_height, wd=wd, ws=ws)
+        flow_map = sim_res.flow_map(HorizontalGrid(x=x_j, y=y_j, h=h_j))
+        X, Y = flow_map.XY
+        aep_xy = flow_map.aep_xy(normalize_probabilities=True)
+        return X, Y, aep_xy
 
 
 def main():
@@ -278,9 +256,9 @@ def main():
         from py_wake.examples.data.iea37 import iea37_path
         from py_wake.examples.data.iea37._iea37 import IEA37Site
         from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
-        from py_wake.wake_models import NOJ
+        from py_wake import NOJ
 
-        # setup site, turbines and wakemodel
+        # setup site, turbines and flow model
         site = IEA37Site(16)
         x, y = site.initial_position.T
         windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')

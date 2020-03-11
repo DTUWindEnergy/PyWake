@@ -7,7 +7,8 @@ REM Command file for Sphinx documentation
 if "%SPHINXBUILD%" == "" (
 	set SPHINXBUILD=sphinx-build
 )
-set SOURCEDIR=source
+
+set SOURCEDIR=.
 set BUILDDIR=build
 
 if "%1" == "" goto help
@@ -25,7 +26,7 @@ if errorlevel 9009 (
 	exit /b 1
 )
 
-%SPHINXBUILD% -M %1 %SOURCEDIR% %BUILDDIR% %SPHINXOPTS%
+%SPHINXBUILD% -M %1 %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% -D graphviz_dot="C:\Anaconda3\envs\py36\Library\bin\graphviz\dot.exe"
 goto end
 
 :help
