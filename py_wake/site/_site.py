@@ -15,9 +15,31 @@ from py_wake.site.distance import StraightDistance
 from py_wake.site.shear import NoShear, PowerShear
 
 
+class LocalWind():
+    def __init__(self, WD_ilk, WS_ilk, TI_ilk, P_ilk):
+        """
+
+        Parameters
+        ----------
+        WD_ilk : array_like
+            local free flow wind directions
+        WS_ilk : array_like
+            local free flow wind speeds
+        TI_ilk : array_like
+            local free flow turbulence intensity
+        P_ilk : array_like
+            Probability/weight
+        """
+        self.WD_ilk = WD_ilk
+        self.WS_ilk = WS_ilk
+        self.TI_ilk = TI_ilk
+        self.P_ilk = P_ilk
+
+
 class Site(ABC):
-    def __init__(self):
-        self.default_ws = np.arange(3, 26)
+    def __init__(self, distance):
+        self.distance = distance
+        self.default_ws = np.arange(3, 26.)
         self.default_wd = np.arange(360)
 
     def get_defaults(self, wd=None, ws=None):
@@ -51,14 +73,15 @@ class Site(ABC):
 
         Returns
         -------
-        WD_ilk : array_like
-            local free flow wind directions
-        WS_ilk : array_like
-            local free flow wind speeds
-        TI_ilk : array_like
-            local free flow turbulence intensity
-        P_ilk : array_like
-            Probability/weight
+        LocalWind object containing:
+            WD_ilk : array_like
+                local free flow wind directions
+            WS_ilk : array_like
+                local free flow wind speeds
+            TI_ilk : array_like
+                local free flow turbulence intensity
+            P_ilk : array_like
+                Probability/weight
         """
 
     @abstractmethod
@@ -88,7 +111,6 @@ class Site(ABC):
             Probability of wind speed and direction at local positions
         """
 
-    @abstractmethod
     def distances(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
         """Calculate down/crosswind distance between source and destination points
 
@@ -122,6 +144,7 @@ class Site(ABC):
         dw_order_indices_l : array_like
             indices that gives the downwind order of source points
         """
+        return self.distance(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il)
 
     def wt2wt_distances(self, x_i, y_i, h_i, wd_il):
         return self.distances(x_i, y_i, h_i, x_i, y_i, h_i, wd_il)
@@ -146,7 +169,7 @@ class Site(ABC):
         if wd_bin_size is not None:
             return wd_bin_size
         else:
-            return 360 / len(np.atleast_1d(wd))
+            return 1
 
     def ws_bins(self, ws, ws_bins=None):
         ws = np.asarray(ws)
@@ -154,7 +177,8 @@ class Site(ABC):
             return ws_bins
         if len(ws.shape) and ws.shape[-1] > 1:
             d = np.diff(ws) / 2
-            return np.maximum(np.concatenate([ws[..., :1] - d[..., :1], ws[..., :-1] + d, ws[..., -1:] + d[..., -1:]], -1), 0)
+            return np.maximum(np.concatenate(
+                [ws[..., :1] - d[..., :1], ws[..., :-1] + d, ws[..., -1:] + d[..., -1:]], -1), 0)
         else:
             # ws is single value
             if ws_bins is None:
@@ -288,13 +312,13 @@ class Site(ABC):
         return p
 
 
-class UniformSite(StraightDistance, Site):
+class UniformSite(Site):
     """Site with uniform (same wind over all, i.e. flat uniform terrain) and
     constant wind speed probability of 1. Only for one fixed wind speed
     """
 
     def __init__(self, p_wd, ti, ws=12, interp_method='piecewise', shear=NoShear()):
-        super().__init__()
+        super().__init__(StraightDistance())
         self.default_ws = ws
         self.ti = Sector2Subsector(np.atleast_1d(ti), interp_method=interp_method)
         self.p_wd = Sector2Subsector(p_wd / np.sum(p_wd), interp_method=interp_method) / (360 / len(p_wd))
@@ -320,8 +344,9 @@ class UniformSite(StraightDistance, Site):
             WS_ilk = self.shear(WS_ilk, WD_ilk, h_i)
 
         TI_ilk = self.ti[WD_index_ilk]
+
         P_ilk = self.probability(0, 0, 0, WD_ilk, WS_ilk, wd_bin_size, ws_bins)
-        return WD_ilk, WS_ilk, TI_ilk, P_ilk
+        return LocalWind(WD_ilk, WS_ilk, TI_ilk, P_ilk)
 
     def elevation(self, x_i, y_i):
         return np.zeros_like(x_i)
@@ -442,14 +467,15 @@ def main():
         x_i = y_i = np.arange(5)
         wdir_lst = np.arange(0, 360, 90)
         wsp_lst = np.arange(1, 20)
-        WD_ilk, WS_ilk, TI_ilk, P_ilk = site.local_wind(x_i=x_i, y_i=y_i, wd=wdir_lst, ws=wsp_lst)
+        local_wind = site.local_wind(x_i=x_i, y_i=y_i, wd=wdir_lst, ws=wsp_lst)
+        print(local_wind.WS_ilk.shape)
         import matplotlib.pyplot as plt
 
         site.plot_ws_distribution(0, 0, wdir_lst)
 
         plt.figure()
         z = np.arange(1, 100)
-        u = [site.local_wind(x_i=[0], y_i=[0], h_i=[z_], wd=0, ws=10)[1][0][0] for z_ in z]
+        u = [site.local_wind(x_i=[0], y_i=[0], h_i=[z_], wd=0, ws=10).WS_ilk[0][0] for z_ in z]
         plt.plot(u, z)
         plt.xlabel('Wind speed [m/s]')
         plt.ylabel('Height [m]')

@@ -37,10 +37,9 @@ def read_iea37_windturbine(filename):
 
     def power(wsp):
         wsp = np.asarray(wsp)
-        power = np.zeros_like(wsp, dtype=np.float)
-        m = (wsp > wsp_cut_in) & (wsp < wsp_rated)
-        power[m] = power_rated * ((wsp[m] - wsp_cut_in) / (wsp_rated - wsp_cut_in))**3
-        power[(wsp >= wsp_rated) & (wsp <= wsp_cut_out)] = power_rated
+        power = np.where((wsp > wsp_cut_in) & (wsp <= wsp_cut_out),
+                         np.minimum(power_rated * ((wsp - wsp_cut_in) / (wsp_rated - wsp_cut_in))**3, power_rated), 0)
+
         return power
 
     return wt_id, hubheight, diameter, ct, power

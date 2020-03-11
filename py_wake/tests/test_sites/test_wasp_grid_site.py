@@ -2,16 +2,14 @@ import numpy as np
 from numpy import newaxis as na
 from py_wake.tests import npt
 import pytest
-from py_wake.examples.data.ParqueFicticio import ParqueFicticio_path
-from py_wake.examples.data.ParqueFicticio.parque_ficticio import ParqueFicticioSite
-from py_wake.site.wasp_grid_site import WaspGridSite, WaspGridSiteBase
+from py_wake.examples.data.ParqueFicticio import ParqueFicticio_path, ParqueFicticioSite
+from py_wake.site.wasp_grid_site import WaspGridSite
 import os
 import time
 from py_wake.tests.test_files.wasp_grid_site import one_layer
 from py_wake.site.distance import TerrainFollowingDistance, StraightDistance, TerrainFollowingDistance2
 import math
-from py_wake.aep_calculator import AEPCalculator
-from py_wake.wake_models.noj import NOJ
+from py_wake import NOJ
 from py_wake.wind_turbines import OneTypeWindTurbines
 
 
@@ -29,10 +27,10 @@ def site2():
 
 def test_WaspGridSiteDistanceClass(site):
     wgs = WaspGridSite(site._ds, distance=TerrainFollowingDistance(distance_resolution=2000))
-    assert wgs.distance_resolution == 2000
-    assert wgs.distances.__func__ == TerrainFollowingDistance.distances
+    assert wgs.distance.distance_resolution == 2000
+    assert wgs.distance.__call__.__func__ == TerrainFollowingDistance().__call__.__func__
     wgs = WaspGridSite(site._ds, distance=StraightDistance())
-    assert wgs.distances.__func__ == StraightDistance.distances
+    assert wgs.distance.__call__.__func__ == StraightDistance().__call__.__func__
 
 
 def test_local_wind(site):
@@ -40,15 +38,15 @@ def test_local_wind(site):
     h_i = x_i * 0 + 70
     wdir_lst = np.arange(0, 360, 90)
     wsp_lst = np.arange(3, 6)
-    WD_ilk, WS_ilk, TI_ilk, P_ilk = site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=wdir_lst, ws=wsp_lst)
+    WS_ilk = site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=wdir_lst, ws=wsp_lst).WS_ilk
     npt.assert_array_equal(WS_ilk.shape, (8, 4, 3))
 
-    WD_ilk, WS_ilk, TI_ilk, P_ilk = site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i)
+    WS_ilk = site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i).WS_ilk
     npt.assert_array_equal(WS_ilk.shape, (8, 360, 23))
 
     # check probability local_wind()[-1]
-    npt.assert_almost_equal(site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=[0], ws=[10])[-1],
-                            site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=[0], ws=[10], wd_bin_size=2)[-1] * 180, 6)
+    npt.assert_almost_equal(site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=[0], ws=[10]).P_ilk,
+                            site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=[0], ws=[10], wd_bin_size=2).P_ilk / 2, 6)
 
 
 def test_shear(site):
@@ -56,7 +54,7 @@ def test_shear(site):
     x = [262878.0001]
     y = [6504714.0001]
     z = [30, 115, 200]
-    ws = site.local_wind(x_i=x, y_i=y, h_i=z, wd=[0], ws=[10])[1][:, 0, 0]
+    ws = site.local_wind(x_i=x, y_i=y, h_i=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
 
     if 0:
         import matplotlib.pyplot as plt
@@ -109,11 +107,11 @@ def test_wasp_resources_grid_point(site):
                    4.463644, 3.697135, 4.080554, 4.470596, 5.409509, 5.402648, 3.300305]
     wasp_p_air = [9.615095, 3.434769, 1.556282, 12.45899, 99.90289,
                   88.03519, 51.41135, 66.09097, 85.69466, 164.5592, 193.3779, 56.86945]
-    wasp_aep = np.array([3725293.0, 33722.71, 0.3093564, 3577990.0, 302099600.0, 188784100.0,
-                         48915640.0, 84636210.0, 189009800.0, 549195100.0, 691258600.0, 120013000.0]) / 1000
+#     wasp_aep = np.array([3725293.0, 33722.71, 0.3093564, 3577990.0, 302099600.0, 188784100.0,
+#                          48915640.0, 84636210.0, 189009800.0, 549195100.0, 691258600.0, 120013000.0]) / 1000
     wasp_aep_no_density_correction = np.array([3937022.0, 36046.93, 0.33592, 3796496.0, 314595600.0,
                                                196765700.0, 51195440.0, 88451200.0, 197132700.0, 568584400.0, 712938400.0, 124804600.0]) / 1000
-    wasp_aep_total = 2.181249024
+#     wasp_aep_total = 2.181249024
     wasp_aep_no_density_correction_total = 2.26224
     wt_u = np.array([3.99, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25])
     wt_p = np.array([0, 55., 185., 369., 619., 941., 1326., 1741., 2133., 2436., 2617., 2702., 2734.,
@@ -128,7 +126,7 @@ def test_wasp_resources_grid_point(site):
     f_lst = f_lst * 360 / 12
     pdf_lst = [lambda x, A=A, k=k: k / A * (x / A)**(k - 1) * np.exp(-(x / A)**k) * (x[1] - x[0])
                for A, k in zip(A_lst, k_lst)]
-    cdf_lst = [lambda x, A=A, k=k: 1 - np.exp(-(x / A) ** k) for A, k in zip(A_lst, k_lst)]
+#     cdf_lst = [lambda x, A=A, k=k: 1 - np.exp(-(x / A) ** k) for A, k in zip(A_lst, k_lst)]
     dx = .1
     ws = np.arange(dx / 2, 35, dx)
 
@@ -142,28 +140,27 @@ def test_wasp_resources_grid_point(site):
     npt.assert_array_almost_equal(tke_lst, np.array(wasp_ti) / 100)
 
     # compare pdf, u_mean and aep to wasp
-    WD, WS, TI, P = site.local_wind(x, np.array(y) + 1e-6, 30, wd=np.arange(0, 360, 30), ws=ws)
-    P = P / f_lst[na, :, na]  # only wind speed probablity (not wdir)
+    lw = site.local_wind(x, np.array(y) + 1e-6, 30, wd=np.arange(0, 360, 30), ws=ws)
+    P = lw.P_ilk / lw.P_ilk.sum(2)[:, :, na]  # only wind speed probablity (not wdir)
 
     # pdf
-    for i in range(12):
-        npt.assert_array_almost_equal(np.interp(ws, WS[0, i], np.cumsum(P[0, i])),
-                                      np.cumsum(pdf_lst[i](ws)), 1)
+    for l in range(12):
+        npt.assert_array_almost_equal(np.interp(ws, lw.WS_ilk[0, l], np.cumsum(P[0, l])),
+                                      np.cumsum(pdf_lst[l](ws)), 1)
 
     # u_mean
     npt.assert_almost_equal([A * math.gamma(1 + 1 / k) for A, k in zip(A_lst, k_lst)], wasp_u_mean, 5)
     npt.assert_almost_equal([(pdf(ws) * ws).sum() for pdf in pdf_lst], wasp_u_mean, 5)
-    npt.assert_almost_equal((P * WS).sum((0, 2)), wasp_u_mean, 5)
+    npt.assert_almost_equal((P * lw.WS_ilk).sum((0, 2)), wasp_u_mean, 5)
 
     # air power
     p_air = [(pdf(ws) * 1 / 2 * rho * ws**3).sum() for pdf in pdf_lst]
     npt.assert_array_almost_equal(p_air, wasp_p_air, 3)
-    npt.assert_array_almost_equal((P * 1 / 2 * rho * WS**3).sum((0, 2)), wasp_p_air, 2)
+    npt.assert_array_almost_equal((P * 1 / 2 * rho * lw.WS_ilk**3).sum((0, 2)), wasp_p_air, 2)
 
     # AEP
-    AEP_ilk = AEPCalculator(wake_model=NOJ(site, wt)).calculate_AEP_no_wake_loss(
-        x_i=x, y_i=y, h_i=30, wd=np.arange(0, 360, 30), ws=ws)
-
+    AEP_ilk = NOJ(site, wt)(x, y, h=30, wd=np.arange(0, 360, 30), ws=ws).aep_ilk(
+        with_wake_loss=False, normalize_probabilities=True)
     if 0:
         import matplotlib.pyplot as plt
         plt.plot(wasp_aep_no_density_correction / 1000, '.-', label='WAsP')
@@ -176,17 +173,6 @@ def test_wasp_resources_grid_point(site):
     npt.assert_almost_equal(AEP_ilk.sum(), wasp_aep_no_density_correction_total, 3)
 
 
-def test_probability(site):
-    x, y = site.initial_position[:1].T
-
-    ws = site.local_wind(x_i=x, y_i=y, h_i=[70], wd=[0], ws=[10])[1][:, 0, 0]
-
-    if 0:
-        import matplotlib.pyplot as plt
-        # plt.plot(ws, z, '.-')
-        # plt.show()
-
-
 @pytest.mark.parametrize('site,dw_ref', [
     (ParqueFicticioSite(distance=TerrainFollowingDistance2()),
      [0., 207.3842238, 484.3998264, 726.7130743, 1039.148129, 1263.1335982, 1490.3841602, 1840.6508086]),
@@ -196,9 +182,9 @@ def test_probability(site):
      [-0, 207, 477, 710, 1016, 1236, 1456, 1799])])
 def test_distances(site, dw_ref):
     x, y = site.initial_position.T
-    dw_ijl, cw_ijl, dh_ijl, dwo = site.distances(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
-                                                 dst_x_j=x, dst_y_j=y, dst_h_j=np.array([70]),
-                                                 wd_il=np.array([[0]]))
+    dw_ijl, cw_ijl, dh_ijl, _ = site.distances(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
+                                               dst_x_j=x, dst_y_j=y, dst_h_j=np.array([70]),
+                                               wd_il=np.array([[0]]))
     npt.assert_almost_equal(dw_ijl[0, :, 0], dw_ref)
 
     cw_ref = [236.1, 0., -131.1, -167.8, -204.5, -131.1, -131.1, -45.4]
@@ -230,12 +216,12 @@ def test_speed_up_using_pickle():
     if os.path.exists(pkl_fn):
         os.remove(pkl_fn)
     start = time.time()
-    site = WaspGridSiteBase.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=False)
+    site = WaspGridSite.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=False)
     time_wo_pkl = time.time() - start
-    site = WaspGridSiteBase.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=True)
+    site = WaspGridSite.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=True)
     assert os.path.exists(pkl_fn)
     start = time.time()
-    site = WaspGridSiteBase.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=True)
+    site = WaspGridSite.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=True)
     time_w_pkl = time.time() - start
     npt.assert_array_less(time_w_pkl * 10, time_wo_pkl)
 
@@ -246,15 +232,15 @@ def test_interp_funcs_initialization_missing_key(site):
 
 
 def test_one_layer():
-    site = WaspGridSiteBase.from_wasp_grd(os.path.dirname(one_layer.__file__) + "/", speedup_using_pickle=False)
+    site = WaspGridSite.from_wasp_grd(os.path.dirname(one_layer.__file__) + "/", speedup_using_pickle=False)
 
 
 def test_missing_path():
     with pytest.raises(NotImplementedError):
-        WaspGridSiteBase.from_wasp_grd("missing_path/", speedup_using_pickle=True)
+        WaspGridSite.from_wasp_grd("missing_path/", speedup_using_pickle=True)
 
     with pytest.raises(Exception, match='Path was not a directory'):
-        WaspGridSiteBase.from_wasp_grd("missing_path/", speedup_using_pickle=False)
+        WaspGridSite.from_wasp_grd("missing_path/", speedup_using_pickle=False)
 
 
 def test_elevation(site):

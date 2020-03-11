@@ -1,7 +1,6 @@
 from py_wake.examples.data.hornsrev1 import wt_x, wt_y, HornsrevV80,\
     Hornsrev1Site
-from py_wake.wake_models.noj import NOJ
-from py_wake.aep_calculator import AEPCalculator
+from py_wake import NOJ
 
 
 def main():
@@ -10,8 +9,9 @@ def main():
         wt = HornsrevV80()
         site = Hornsrev1Site()
         wt.plot(wt_x, wt_y)
-        aep_calculator = AEPCalculator(NOJ(site, wt))
-        print('AEP', aep_calculator.calculate_AEP(wt_x, wt_y)[0].sum())
+        wf_model = NOJ(site, wt)
+        aep = wf_model(wt_x, wt_y).aep()
+        plt.title('AEP: %.1fGWh' % aep)
         plt.show()
 
 

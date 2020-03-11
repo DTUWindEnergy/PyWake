@@ -55,10 +55,10 @@ def main():
 
     site = IEA37Site(16)
     x, y = site.initial_position.T
-    dw, cw, dh, dw_order = site.wt2wt_distances(x, y, 70, np.array([[0]]))
+    dw, cw, dh, dw_order = site.wt2wt_distances(x, y, [70], np.array([[0]]))
     print(dw.shape)
-    WD_ilk, WS_ilk, TI_ilk, P_lk = site.local_wind(x, y)
-    print(WS_ilk.shape)
+    lw = site.local_wind(x, y)
+    print(lw.WS_ilk.shape)
 
 
 if __name__ == '__main__':

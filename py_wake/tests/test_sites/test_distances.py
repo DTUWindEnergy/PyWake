@@ -5,21 +5,21 @@ from py_wake.site.distance import StraightDistance, TerrainFollowingDistance, Te
 from py_wake.site._site import UniformSite
 import pytest
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
-from py_wake.wake_models.noj import NOJ
-from py_wake.aep_calculator import AEPCalculator
-from py_wake.examples.data.ParqueFicticio.parque_ficticio import ParqueFicticioSite
+from py_wake import NOJ
+from py_wake.examples.data.ParqueFicticio import ParqueFicticioSite
+from py_wake.flow_map import HorizontalGrid
 
 
-class FlatTerrainFollowingDistance(UniformSite, TerrainFollowingDistance):
+class FlatSite(UniformSite):
     def __init__(self):
         UniformSite.__init__(self, p_wd=[1], ti=.075)
 
 
-class HalfCylinder(TerrainFollowingDistance, UniformSite):
+class HalfCylinder(UniformSite):
     def __init__(self, height, distance_resolution):
         self.height = height
-        super().__init__(distance_resolution=distance_resolution, p_wd=[1], ti=0)
-        # TerrainFollowingDistance.__init__(self, )
+        super().__init__(p_wd=[1], ti=0)
+        self.distance = TerrainFollowingDistance(distance_resolution=distance_resolution)
 
     def elevation(self, x_i, y_i):
         return np.sqrt(np.maximum(self.height**2 - x_i**2, 0))
@@ -29,32 +29,26 @@ class Rectangle(TerrainFollowingDistance, UniformSite):
     def __init__(self, height, width, distance_resolution):
         self.height = height
         self.width = width
-        super().__init__(distance_resolution=distance_resolution, p_wd=[1], ti=0)
-        # TerrainFollowingDistance.__init__(self, )
+        super().__init__(p_wd=[1], ti=0)
+        self.distance = TerrainFollowingDistance(distance_resolution=distance_resolution)
 
     def elevation(self, x_i, y_i):
         return np.where(np.abs(x_i) < self.width / 2, self.height, 0)
 
 
-def ParqueFicticioSiteTerrainFollowingDistance2():
-    site = ParqueFicticioSite(distance=TerrainFollowingDistance2())
-    x, y = site.initial_position.T
-    return site, x, y
-
-
-@pytest.mark.parametrize('Distance', [StraightDistance(),
-                                      FlatTerrainFollowingDistance()])
-def test_flat_distances(Distance):
+@pytest.mark.parametrize('distance', [StraightDistance(),
+                                      TerrainFollowingDistance()])
+def test_flat_distances(distance):
     x = [0, 50, 100, 100]
     y = [100, 100, 100, 0]
     h = [0, 10, 20, 30]
     wdirs = [0, 30, 90]
-    distances = Distance.distances
-    dw_ijl, hcw_ijl, dh_ijl, dw_indices_l = distances(src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=[0], dst_y_j=[0], dst_h_j=[0],
-                                                      wd_il=np.array(wdirs)[na])
+
+    dw_ijl, hcw_ijl, dh_ijl, dw_indices_l = distance(FlatSite(), src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=[0], dst_y_j=[0], dst_h_j=[0],
+                                                     wd_il=np.array(wdirs)[na])
 
     if 0:
-        Distance.plot(src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=[0], dst_y_j=[0], dst_h_j=[0],
+        distance.plot(src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=[0], dst_y_j=[0], dst_h_j=[0],
                       wd_il=np.array(wdirs)[na])
 
     npt.assert_array_almost_equal(dw_ijl, [[[100, 86.6025404, 0]],
@@ -74,18 +68,18 @@ def test_flat_distances(Distance):
                                           [2, 3, 1, 0]])
 
 
-@pytest.mark.parametrize('Distance', [  # StraightDistance(),
-    FlatTerrainFollowingDistance()])
-def test_flat_distances_wt2wt(Distance):
+@pytest.mark.parametrize('distance', [StraightDistance(),
+                                      TerrainFollowingDistance()])
+def test_flat_distances_wt2wt(distance):
     x = [0, 50, 100]
     y = [100, 100, 0]
     h = [0, 10, 20]
     wdirs = [0, 30]
-    distances = Distance.distances
-    dw_ijl, hcw_ijl, dh_ijl, dw_indices_l = distances(src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=x, dst_y_j=y, dst_h_j=[1, 2, 3],
-                                                      wd_il=np.array(wdirs)[na])
+
+    dw_ijl, hcw_ijl, dh_ijl, dw_indices_l = distance(FlatSite(), src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=x, dst_y_j=y, dst_h_j=[1, 2, 3],
+                                                     wd_il=np.array(wdirs)[na])
     if 0:
-        Distance.plot(src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=x, dst_y_j=y, dst_h_j=[1, 2, 3],
+        distance.plot(src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=x, dst_y_j=y, dst_h_j=[1, 2, 3],
                       wd_ijl=np.array(wdirs)[na, na])
 
     # check down wind distance wind from North and 30 deg
@@ -118,13 +112,13 @@ def test_iea37_distances():
     n_wt = 16  # must be 9, 16, 36, 64
     site = IEA37Site(n_wt)
     x, y = site.initial_position.T
-    WD_ilk, _, _, _ = site.local_wind(x_i=x, y_i=y,
-                                      wd=site.default_wd,
-                                      ws=site.default_ws)
+    lw = site.local_wind(x_i=x, y_i=y,
+                         wd=site.default_wd,
+                         ws=site.default_ws)
     dw_iil, hcw_iil, _, _ = site.wt2wt_distances(
         x_i=x, y_i=y,
         h_i=np.zeros_like(x),
-        wd_il=WD_ilk.mean(2))
+        wd_il=lw.WD_ilk.mean(2))
     # Wind direction.
     wdir = np.rad2deg(np.arctan2(hcw_iil, dw_iil))
     npt.assert_allclose(
@@ -176,20 +170,20 @@ def test_distance_over_rectangle():
     x, y = [-100, 50], [200, -100]
     windTurbines = IEA37_WindTurbines()
     site = Rectangle(height=200, width=100, distance_resolution=100)
-    wake_model = NOJ(site, windTurbines)
-    aep = AEPCalculator(wake_model)
+    wf_model = NOJ(site, windTurbines)
+    sim_res = wf_model(x, y, wd=[270], ws=[9])
     x_j = np.linspace(-100, 500, 100)
     y_j = np.linspace(-200, 300, 100)
-    X, Y, Z = aep.wake_map(x_j, y_j, 110, x, y, wd=[270], ws=[9])
+    flow_map = sim_res.flow_map(HorizontalGrid(x_j, y_j))
+    Z = flow_map.WS_eff_xylk[:, :, 0, 0]
+    X, Y = flow_map.X, flow_map.Y
 
     my = np.argmin(np.abs(Y[:, 0] - 200))
     my2 = np.argmin(np.abs(Y[:, 0] + 100))
 
     if 0:
         import matplotlib.pyplot as plt
-        c = plt.contourf(X, Y, Z, cmap='Blues_r', levels=100)  # , np.arange(2, 10, .01))
-        plt.colorbar(c)
-        windTurbines.plot(x, y)
+        flow_map.plot_wake_map()
         H = site.elevation(X, Y)
         plt.plot(X[my], Z[my] * 10, label='wsp*10')
         plt.plot(X[my2], Z[my2] * 10, label='wsp*10')
@@ -209,12 +203,8 @@ def test_distance_plot():
     y = [100, 100, 100, 0]
     h = [0, 10, 20, 30]
     wdirs = [0, 30, 90]
-    Distance = StraightDistance()
-    distances = Distance.distances
-    dw_ijl, hcw_ijl, dh_ijl, dw_indices_l = distances(src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=[0], dst_y_j=[0], dst_h_j=[0],
-                                                      wd_il=np.array(wdirs)[na])
-
-    Distance.plot(src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=[0], dst_y_j=[0], dst_h_j=[0],
+    distance = StraightDistance()
+    distance.plot(None, src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=[0], dst_y_j=[0], dst_h_j=[0],
                   wd_il=np.array(wdirs)[na])
     if 0:
         import matplotlib.pyplot as plt
@@ -225,8 +215,18 @@ def test_distance_plot():
 # TerrainFollowingDistance2
 # ======================================================================================================================
 
+class ParqueFicticioSiteTerrainFollowingDistance2(ParqueFicticioSite):
+    def __init__(self):
+        ParqueFicticioSite.__init__(self, distance=TerrainFollowingDistance2())
+#    def __init__():
+#     site = ParqueFicticioSite(distance=TerrainFollowingDistance2())
+#     x, y = site.initial_position.T
+#     return site, x, y
+
+
 def test_distances_ri():
-    site, x, y = ParqueFicticioSiteTerrainFollowingDistance2()
+    site = ParqueFicticioSiteTerrainFollowingDistance2()
+    x, y = site.initial_position.T
     site.calc_all = False
     site.r_i = np.ones(len(x)) * 90
     dw_ijl, cw_ijl, dh_ijl, _ = site.distances(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
@@ -238,7 +238,7 @@ def test_distances_ri():
 
 
 def test_distance2_outside_map_WestEast():
-    site = ParqueFicticioSiteTerrainFollowingDistance2()[0]
+    site = ParqueFicticioSiteTerrainFollowingDistance2()
 
     import matplotlib.pyplot as plt
 
@@ -260,7 +260,7 @@ def test_distance2_outside_map_WestEast():
 
 
 def test_distance2_outside_map_NorthSouth():
-    site = ParqueFicticioSiteTerrainFollowingDistance2()[0]
+    site = ParqueFicticioSiteTerrainFollowingDistance2()
 
     import matplotlib.pyplot as plt
 

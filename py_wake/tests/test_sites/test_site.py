@@ -23,24 +23,24 @@ def test_local_wind(site):
     x_i = y_i = np.arange(5)
     wdir_lst = np.arange(0, 360, 90)
     wsp_lst = np.arange(3, 6)
-    WD_ilk, WS_ilk, TI_ilk, P_lk = site.local_wind(x_i=x_i, y_i=y_i, wd=wdir_lst, ws=wsp_lst)
-    npt.assert_array_equal(WS_ilk.shape, (5, 4, 3))
+    lw = site.local_wind(x_i=x_i, y_i=y_i, wd=wdir_lst, ws=wsp_lst)
+    npt.assert_array_equal(lw.WS_ilk.shape, (5, 4, 3))
 
-    WD_ilk, WS_ilk, TI_ilk, P_lk = site.local_wind(x_i=x_i, y_i=y_i)
-    npt.assert_array_equal(WS_ilk.shape, (5, 360, 23))
+    lw = site.local_wind(x_i=x_i, y_i=y_i)
+    npt.assert_array_equal(lw.WS_ilk.shape, (5, 360, 23))
 
     # check probability local_wind()[-1]
-    npt.assert_equal(site.local_wind(x_i=x_i, y_i=y_i, wd=[0], ws=[10], wd_bin_size=1)[-1],
-                     site.local_wind(x_i=x_i, y_i=y_i, wd=[0], ws=[10], wd_bin_size=2)[-1] / 2)
-    npt.assert_almost_equal(site.local_wind(x_i=x_i, y_i=y_i, wd=[0], ws=[9, 10, 11])[-1].sum((1, 2)),
-                            site.local_wind(x_i=x_i, y_i=y_i, wd=[0], ws=[10], ws_bins=3)[-1][:, 0, 0], 5)
+    npt.assert_equal(site.local_wind(x_i=x_i, y_i=y_i, wd=[0], ws=[10], wd_bin_size=1).P_ilk,
+                     site.local_wind(x_i=x_i, y_i=y_i, wd=[0], ws=[10], wd_bin_size=2).P_ilk / 2)
+    npt.assert_almost_equal(site.local_wind(x_i=x_i, y_i=y_i, wd=[0], ws=[9, 10, 11]).P_ilk.sum((1, 2)),
+                            site.local_wind(x_i=x_i, y_i=y_i, wd=[0], ws=[10], ws_bins=3).P_ilk[:, 0, 0], 5)
 
     z = np.arange(1, 100)
     zero = [0] * len(z)
 
-    ws = site.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10])[1][:, 0, 0]
+    ws = site.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
     site2 = UniformWeibullSite(f, A, k, ti, shear=PowerShear(70, alpha=np.zeros_like(f) + .3))
-    ws70 = site2.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10])[1][:, 0, 0]
+    ws70 = site2.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
     if 0:
         import matplotlib.pyplot as plt
         plt.plot(ws, z)
@@ -58,6 +58,12 @@ def test_elevation(site):
 def test_site():
     with pytest.raises(NotImplementedError, match="interp_method=missing_method not implemeted yet."):
         site = UniformWeibullSite([1], [10], [2], .75, interp_method='missing_method')
+
+
+def test_ws_bins(site):
+    npt.assert_array_equal(site.ws_bins([3, 4, 5]), [2.5, 3.5, 4.5, 5.5])
+    npt.assert_array_equal(site.ws_bins(4), [3.5, 4.5])
+    npt.assert_array_equal(site.ws_bins([3, 4, 5], [2.5, 3.5, 4.5, 5.5]), [2.5, 3.5, 4.5, 5.5])
 
 
 def test_plot_ws_distribution(site):
@@ -145,13 +151,13 @@ def test_iea37_distances():
     n_wt = 16  # must be 9, 16, 36, 64
     site = IEA37Site(n_wt)
     x, y = site.initial_position.T
-    WD_ilk, _, _, _ = site.local_wind(x_i=x, y_i=y,
-                                      wd=site.default_wd,
-                                      ws=site.default_ws)
+    lw = site.local_wind(x_i=x, y_i=y,
+                         wd=site.default_wd,
+                         ws=site.default_ws)
     dw_iil, hcw_iil, _, _ = site.wt2wt_distances(
         x_i=x, y_i=y,
         h_i=np.zeros_like(x),
-        wd_il=WD_ilk.mean(2))
+        wd_il=lw.WD_ilk.mean(2))
     # Wind direction.
     wdir = np.rad2deg(np.arctan2(hcw_iil, dw_iil))
     npt.assert_allclose(

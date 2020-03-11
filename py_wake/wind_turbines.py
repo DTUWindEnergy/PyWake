@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 
 
 class WindTurbines():
-    """Set of wind turbines"""
+    """Set of multiple type wind turbines"""
 
     def __init__(self, names, diameters, hub_heights, ct_funcs, power_funcs, power_unit):
         """Initialize WindTurbines
@@ -34,7 +34,7 @@ class WindTurbines():
             self.power_funcs = power_funcs
 
     def _info(self, var, types):
-        return var[np.asarray(types, np.int)]
+        return var[np.asarray(types, int)]
 
     def hub_height(self, types=0):
         """Hub height of the specified type(s) of wind turbines
@@ -86,7 +86,7 @@ class WindTurbines():
         """
         return self._ct_power(ws_i, type_i)[0]
 
-    def get_defaults(self, N, type_i=None, h_i=None, d_i=None):
+    def get_defaults(self, N, type_i=0, h_i=None, d_i=None):
         """
         Parameters
         ----------
@@ -99,8 +99,7 @@ class WindTurbines():
         d_i : array_lie or None, optional
             Rotor diameter. If None: default diameter (set in WindTurbines)
         """
-        if type_i is None:
-            type_i = np.zeros(N, dtype=np.int)
+        type_i = np.zeros(N, dtype=int) + type_i
         if h_i is None:
             h_i = self.hub_height(type_i)
         elif isinstance(h_i, (int, float)):
@@ -125,7 +124,7 @@ class WindTurbines():
         else:
             return self.ct_funcs[0](ws_i), self.power_funcs[0](ws_i)
 
-    def plot(self, x, y, types=None, ax=None):
+    def plot(self, x, y, types=None, wd=None, yaw=0, ax=None):
         """Plot wind farm layout including type name and diameter
 
         Parameters
@@ -136,6 +135,10 @@ class WindTurbines():
             y position of wind turbines
         types : int or array_like
             type of the wind turbines
+        wd : int, float, array_like or None
+            - if int, float or array_like: wd is assumed to be the wind direction(s) and a line\
+            indicating the perpendicular rotor is plotted.
+            - if None: An circle indicating the rotor diameter is plotted
         ax : pyplot or matplotlib axes object, default None
 
         """
@@ -145,23 +148,51 @@ class WindTurbines():
         if ax is None:
             ax = plt.gca()
         markers = np.array(list("213v^<>o48spP*hH+xXDd|_"))
+        colors = ['gray', 'k', 'r', 'g', 'k'] * 5
 
         from matplotlib.patches import Circle
         assert len(x) == len(y)
-        types = np.zeros_like(x) + types  # ensure same length as x
-        for i, (x_, y_, d) in enumerate(zip(x, y, self.diameter(types))):
-            circle = Circle((x_, y_), d / 2, color='gray', alpha=.5)
-            ax.add_artist(circle)
-        for t, m in zip(np.unique(types), markers):
-            ax.plot(np.asarray(x)[types == t], np.asarray(y)[types == t], '%sk' % m, label=self._names[int(t)])
+        types = (np.zeros_like(x) + types).astype(int)  # ensure same length as x
+        yaw = np.zeros_like(x) + yaw
+        for i, (x_, y_, d, t, yaw_) in enumerate(zip(x, y, self.diameter(types), types, yaw)):
+            if wd is None or len(np.atleast_1d(wd)) > 3:
+                circle = Circle((x_, y_), d / 2, ec=colors[t], fc="None")
+                ax.add_artist(circle)
+                plt.plot(x_, y_, 'None', )
+            else:
+                for wd_ in np.atleast_1d(wd):
+                    c, s = np.cos(np.deg2rad(90 + wd_ - yaw_)), np.sin(np.deg2rad(90 + wd_ - yaw_))
+                    ax.plot([x_ - s * d / 2, x_ + s * d / 2], [y_ - c * d / 2, y_ + c * d / 2], lw=1, color=colors[t])
+
+        for t, m, c in zip(np.unique(types), markers, colors):
+            # ax.plot(np.asarray(x)[types == t], np.asarray(y)[types == t], '%sk' % m, label=self._names[int(t)])
+            ax.plot([], [], '2', color=c, label=self._names[int(t)])
 
         for i, (x_, y_, d) in enumerate(zip(x, y, self.diameter(types))):
             ax.annotate(i, (x_ + d / 2, y_ + d / 2), fontsize=7)
         ax.legend(loc=1)
         ax.axis('equal')
 
-    @classmethod
-    def from_WAsP_wtg(cls, wtg_file, power_unit='W'):
+    @staticmethod
+    def from_WindTurbines(wt_lst):
+        """Generate a WindTurbines object from a list of (Onetype)WindTurbines
+
+        Parameters
+        ----------
+        wt_lst : array_like
+            list of (OneType)WindTurbines
+        """
+        def get(att):
+            lst = []
+            for wt in wt_lst:
+                lst.extend(getattr(wt, att))
+            return lst
+        return WindTurbines(*[get(n) for n in ['_names', '_diameters', '_hub_heights',
+                                               'ct_funcs', 'power_funcs']],
+                            power_unit='w')
+
+    @staticmethod
+    def from_WAsP_wtg(wtg_file, power_unit='W'):
         """ Parse the one/multiple .wtg file(s) (xml) to initilize an
         WindTurbines object.
 
@@ -177,7 +208,7 @@ class WindTurbines():
         Note: it is assumed that the power_unit inside multiple .wtg files
         is the same, i.e., power_unit.
         """
-        if type(wtg_file) is not list:
+        if not isinstance(wtg_file, list):
             wtg_file_list = [wtg_file]
         else:
             wtg_file_list = wtg_file
@@ -220,12 +251,13 @@ class WindTurbines():
             ct_funcs.append(lambda u, ws=ws, ct=ct: np.interp(u, ws, ct, left=0, right=0))
             power_funcs.append(lambda u, ws=ws, power=power: np.interp(u, ws, power, left=0, right=0))
 
-        return cls(names=names, diameters=diameters,
-                   hub_heights=hub_heights, ct_funcs=ct_funcs,
-                   power_funcs=power_funcs, power_unit=power_unit)
+        return WindTurbines(names=names, diameters=diameters,
+                            hub_heights=hub_heights, ct_funcs=ct_funcs,
+                            power_funcs=power_funcs, power_unit=power_unit)
 
 
 class OneTypeWindTurbines(WindTurbines):
+    """Set of wind turbines (one type, i.e. all wind turbines have same name, diameter, power curve etc"""
 
     def __init__(self, name, diameter, hub_height, ct_func, power_func, power_unit):
         """Initialize OneTypeWindTurbine
