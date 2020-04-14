@@ -29,8 +29,10 @@ class Fuga(LinearSum, WakeModel):
             if os.path.getsize(path + 'CaseData.bin') == 187:
                 zeta0 = struct.unpack('d', fid.read(8))[0]
             else:
-                path = os.path.abspath(path).replace("\\", "/")
-                zeta0 = float(path[path.index('Zeta0'):].replace("Zeta0=", "").replace("/", ""))
+                with open(path + 'CaseData.bin') as fid2:
+                    info = fid2.read(127)
+                zeta0 = float(info[info.index('Zeta0'):].replace("Zeta0=", ""))
+                # zeta0 = float(path[path.index('Zeta0'):].replace("Zeta0=", "").replace("/", ""))
 
         def psim(zeta):
             return self.ams * zeta
@@ -39,7 +41,7 @@ class Fuga(LinearSum, WakeModel):
             raise NotImplementedError  # See Colonel.u2b.psim
         factor = 1 / (1 - (psim(zhub * self.invL) - psim(zeta0)) / np.log(zhub / z0))
 
-        f = [f for f in os.listdir(path) if f.endswith("input.par")][0]
+        f = [f for f in os.listdir(path) if f.endswith("input.par") or f.endswith('inputfile.par')][0]
         # z0_zi_zeta0 = os.path.split(os.path.dirname(path))[1]
         # z0, zi, zeta0 = re.match('Z0=(\d+.\d+)Zi=(\d+)Zeta0=(\d+.\d+E\+\d+)', z0_zi_zeta0).groups()
 
@@ -62,7 +64,10 @@ class Fuga(LinearSum, WakeModel):
         self.x = np.arange(-self.x0, nxW * 3 / 4) * dx
         self.y = np.arange(nyW // 2) * dy
         self.dy = dy
-        self.z = z0 * np.exp(zlevels * self.dsAll)
+        if self.lo_level == self.hi_level == 9999:
+            self.z = [zhub]
+        else:
+            self.z = z0 * np.exp(zlevels * self.dsAll)
 
         self.lut_interpolator = LUTInterpolator(self.x, self.y, self.z, self.du)
 
