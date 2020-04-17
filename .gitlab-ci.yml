@@ -36,23 +36,25 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
     deploy
   script:  # use sphinx to build docs, move to public page
   - pip install sphinx --upgrade
-  - pip install nbsphinx==0.3.5
-  - pip install git+https://github.com/vidartf/nbsphinx-link.git
+  - pip install nbsphinx --upgrade
   - pip install -e .
-  - cd docs/source/validation_report
-  - python tests.py
+  - cd docs/validation_report
+  - python generate_validation_figures.py
   - cd report
   - apt-get install -y texlive-latex-extra
   - pdflatex validation_report.tex
   - bibtex validation_report.aux
   - pdflatex validation_report.tex
   - pdflatex validation_report.tex
-  - cd ../../../../
-  - cd docs; make html
+  - cd ../../
+  - pwd
+  - make html
+  #- make latexpdf
   - cd ../; mv docs/build/html public/
   artifacts:  # required for GitLab pages [1]
     paths:
     - public
+    #- docs/build/latex/PyWake.pdf
   only:  # only run for these branches
   - master
   - /^test_doc.*/ 

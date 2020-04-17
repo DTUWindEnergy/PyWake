@@ -52,7 +52,7 @@ class Notebook():
                            "execution_count": 0,
                            "metadata": {},
                               "outputs": [],
-                              "source": code,
+                              "source": [l + "\n" for l in code.split("\n")]
                            })
 
     def replace_include_tag(self):
@@ -127,34 +127,8 @@ class Notebook():
 
         # print(txt)
 
-    def check_pip_header(self):
-        pip_header = """# Install PyWake if needed
-try:
-    import py_wake
-except ModuleNotFoundError:
-    !pip install git+https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake.git"""
-        code = self.get_code()
-        if not code:
-            return
-        if code[0].strip() != pip_header:
-            for i, cell in enumerate(self.cells):
-                if cell['cell_type'] == "code":
-                    break
-            self.insert_code_cell(i, pip_header)
-            self.save()
-            raise Exception("""pip install header was not present in %s.
-It has now been auto insert. Please check the notebook and commit the changes""" % os.path.abspath(self.filename))
-
-    def remove_empty_end_cell(self):
-        while self.cells[-1]['cell_type'] == 'code' and all([l.strip() == "" for l in self.cells[-1]['source']]):
-            self.nb['cells'] = self.cells[:-1]
-            self.save()
-
 
 if __name__ == '__main__':
-    import py_wake
-    nb = Notebook(os.path.dirname(py_wake.__file__) + '/../docs/notebooks/QuickStart.ipynb')
+    nb = Notebook('elements/v80.ipynb')
     nb.check_code()
     nb.check_links()
-    nb.remove_empty_end_cell()
-    nb.check_pip_header()

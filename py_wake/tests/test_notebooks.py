@@ -1,9 +1,9 @@
-
 import os
 
-import py_wake
 import pytest
+
 from py_wake.tests.notebook import Notebook
+import py_wake
 
 
 def get_notebooks():
@@ -22,6 +22,8 @@ def test_notebooks(notebook):
     try:
         notebook.check_code()
         notebook.check_links()
+        notebook.remove_empty_end_cell()
+        notebook.check_pip_header()
         pass
     except Exception as e:
         raise Exception(notebook.filename + " failed") from e

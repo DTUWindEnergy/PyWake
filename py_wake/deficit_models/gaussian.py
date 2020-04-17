@@ -54,7 +54,7 @@ class IEA37SimpleBastankhahGaussianDeficit(DeficitModel):
 
 
 class BastankhahGaussian(PropagateDownwind):
-    def __init__(self, site, windTurbines, superpositionModel=SquaredSum(),
+    def __init__(self, site, windTurbines, k=0.0324555, superpositionModel=SquaredSum(),
                  deflectionModel=None, turbulenceModel=None):
         """
         Parameters
@@ -70,7 +70,7 @@ class BastankhahGaussian(PropagateDownwind):
         turbulenceModel : TurbulenceModel, default None
             Model describing the amount of added turbulence in the wake
         """
-        PropagateDownwind.__init__(self, site, windTurbines, wake_deficitModel=BastankhahGaussianDeficit(),
+        PropagateDownwind.__init__(self, site, windTurbines, wake_deficitModel=BastankhahGaussianDeficit(k=k),
                                    superpositionModel=superpositionModel, deflectionModel=deflectionModel,
                                    turbulenceModel=turbulenceModel)
 
