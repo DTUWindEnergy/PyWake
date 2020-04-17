@@ -11,5 +11,5 @@ plugins = {
 }
 
 # 'filled_by_setup.py'
-__version__ = '1.0.2'
-__release__ = '1.0.2'
+__version__ = '2.0.0'
+__release__ = '2.0.0'

@@ -33,6 +33,7 @@ Contents:
         installation
         notebooks/Introduction  
         notebooks/ChangeLog
+        notebooks/Publications
         
         
     .. toctree::
