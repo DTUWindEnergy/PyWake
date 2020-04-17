@@ -1,8 +1,10 @@
 [![pipeline status](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/badges/master/pipeline.svg)](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/commits/master)
 [![coverage report](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/badges/master/coverage.svg)](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/commits/master)
 [![DOI](https://zenodo.org/badge/164115313.svg)](https://zenodo.org/badge/latestdoi/164115313)
+[![PyPi](https://img.shields.io/pypi/v/py_wake)](https://pypi.org/project/py-wake/)
+[![License](https://img.shields.io/pypi/l/py_wake)](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/blob/master/LICENSE)
 
-![PyWake](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/raw/master/docs/logo.png)
+![PyWake](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/raw/master/docs/logo.svg)
 
 ## Welcome to PyWake
 - an AEP calculator for wind farms implemented in Python including a collection of wake models
