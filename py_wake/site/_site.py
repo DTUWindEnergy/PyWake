@@ -339,7 +339,7 @@ class UniformSite(Site):
         wd_bin_size = self.wd_bin_size(wd, wd_bin_size)
         WD_ilk, WS_ilk = [np.tile(W, (len(x_i), 1, 1)).astype(np.float)
                           for W in np.meshgrid(wd, ws, indexing='ij')]
-        WD_index_ilk = np.round(WD_ilk).astype(np.int)
+        WD_index_ilk = np.round(WD_ilk).astype(int)
         if h_i is not None:
             WS_ilk = self.shear(WS_ilk, WD_ilk, h_i)
 
@@ -394,7 +394,7 @@ class UniformWeibullSite(UniformSite):
         return cdf(ws_bins[..., 1:]) - cdf(ws_bins[..., :-1])
 
     def probability(self, x_i, y_i, h_i, WD_ilk, WS_ilk, wd_bin_size, ws_bins):
-        i_ilk = np.round(WD_ilk).astype(np.int) % 360
+        i_ilk = np.round(WD_ilk).astype(int) % 360
         p_wd_ilk = self.p_wd[i_ilk] * wd_bin_size
         if wd_bin_size == 360:
             p_wd_ilk[:] = 1

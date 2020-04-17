@@ -105,7 +105,7 @@ class EngineeringWindFarmModel(WindFarmModel):
 
         return deficit
 
-    def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=None, wd=None, ws=None, yaw_ilk=None):
+    def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=0, wd=None, ws=None, yaw_ilk=None):
         """See WindFarmModel.calc_wt_interaction"""
         type_i, h_i, D_i = self.windTurbines.get_defaults(len(x_i), type_i, h_i)
         wd, ws = self.site.get_defaults(wd, ws)
@@ -346,8 +346,6 @@ class PropagateDownwind(EngineeringWindFarmModel):
                              'D_src_il': lambda: D_i[i_wt_l][na],
                              'yaw_ilk': lambda: yaw_mk[m][na],
                              'D_dst_ijl': lambda: D_i[dw_order_indices_dl[:, j + 1:]].T[na],
-                             # 'cw_ijl': lambda: cw_n[n_dw][na],
-
                              'dh_ijl': lambda: dh_n[n_dw][na],
                              'h_il': lambda: h_i[i_wt_l][na],
                              'ct_ilk': lambda: ct_ilk.reshape((I * L, K))[m][na]}

@@ -13,8 +13,10 @@ class AEPCalculator():
         windTurbines : WindTurbines
         flow_model : FlowModel
         """
+        warnings.simplefilter('default', DeprecationWarning)
         warnings.warn("""AEPCalculator(wake_model) is deprecated;
-wake_model(x_i, y_i, ...) returns a flowModelResult with same functionality as AEPCalculator.""", DeprecationWarning)
+wake_model(x_i, y_i, ...) returns a flowModelResult with same functionality as AEPCalculator.""",
+                      DeprecationWarning, stacklevel=2)
         self.wake_model = wake_model
         self.site = wake_model.site
         self.windTurbines = wake_model.windTurbines

@@ -1,11 +1,12 @@
 import numpy as np
 import matplotlib
+import shutil
+from py_wake.flow_map import HorizontalGrid
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
-from py_wake.aep_calculator import AEPCalculator
 from py_wake.wind_turbines import OneTypeWindTurbines
-from py_wake.wake_models import NOJ
-from py_wake.wake_models import BastankhahGaussian
+from py_wake import NOJ
+from py_wake import BastankhahGaussian
 from py_wake.site import UniformSite
 from py_wake.examples.data.hornsrev1 import wt_x as wt_x_hr
 from py_wake.examples.data.hornsrev1 import wt_y as wt_y_hr
@@ -19,6 +20,7 @@ from data.lillgrund import SWT2p3_93_65, LillgrundSite
 from copy import copy
 from matplotlib.ticker import MaxNLocator
 import os
+import sys
 import matplotlib.style
 import matplotlib as mpl
 from scipy.interpolate import interp1d
@@ -109,7 +111,7 @@ def GaussianFilter(y, wd, nwdGA, sigma):
             elif (wdrelcor) > 359.999:
                 wdrelcor = wdrelcor - 360.0
             int_gauss = int_gauss + gauss(0, sigma, wdrel)
-            yGA[0, i] = yGA[0, i] + y[wd.index(wdrelcor)] * gauss(0, sigma, wdrel)
+            yGA[0, i] = yGA[0, i] + y[wd == wdrelcor] * gauss(0, sigma, wdrel)
             j = j + 1
         yGA[0, i] = yGA[0, i] / int_gauss
     return yGA
@@ -192,8 +194,7 @@ def deficitPlotSingleWakeCases(SingleWakecases, site, linewidth, cLES, cRANS, co
         print(case['name'], case['TItot'], kNOJ, kGAU)
         wakemodels = [NOJ(site, wt, k=kGAU), BastankhahGaussian(site, wt, k=kGAU)]
         wake_ws = np.zeros((len(wakemodels), len(wds), len(xDown)))
-        for k in range(len(wakemodels)):
-            aep_calc = AEPCalculator(wakemodels[k])
+        for k, wakemodel in enumerate(wakemodels):
             # The velocity deficit at an arc is calculated by running the iwake_map for each point.
             # because it is only possible to provide a x and y array that define a rectangular plane.
             # This should be improved, where one can use a list of points and run wake_map once.
@@ -201,12 +202,11 @@ def deficitPlotSingleWakeCases(SingleWakecases, site, linewidth, cLES, cRANS, co
                 for j in range(len(xDown)):
                     x = xDown[j] * np.cos(wds[i] / 180.0 * np.pi)
                     y = xDown[j] * np.sin(wds[i] / 180.0 * np.pi)
-                    X, Y, WS_eff = aep_calc.wake_map(x_j=x,
-                                                     y_j=y,
-                                                     wt_x=[0.0],
-                                                     wt_y=[0.0],
-                                                     wd=[270.0],
-                                                     ws=case['U0'])
+
+                    WS_eff = wakemodel(x=[0.0],
+                                       y=[0.0],
+                                       wd=[270.0],
+                                       ws=case['U0']).flow_map(HorizontalGrid(x=x, y=y)).WS_eff_xylk[0, 0]
                     wake_ws[k, i, j] = WS_eff
         lines = []
         fig, ax = plt.subplots(1, len(xDown), sharey=False, figsize=(3 * len(xDown), 3))
@@ -284,7 +284,7 @@ def deficitPlotSingleWakeCases(SingleWakecases, site, linewidth, cLES, cRANS, co
                        ncol=4, loc='upper center', bbox_to_anchor=(0, 0, 1, 1), numpoints=1, scatterpoints=1)
         filename = case['name'] + '.pdf'
         fig.savefig(filename)
-        os.system('mv ' + filename + ' report/figures/')
+        shutil.copyfile(filename, 'report/figures/' + filename)
         UdefCases.append(Udef)
     return UdefCases
 
@@ -337,7 +337,7 @@ def barPlotSingleWakeCases(SingleWakecases, UdefCases, cLES, cRANS, colors):
                ncol=5, loc='upper center', bbox_to_anchor=(0, 0, 1, 1), numpoints=1, scatterpoints=1)
     filename = 'VelocityDeficit.pdf'
     fig.savefig(filename)
-    os.system('mv ' + filename + ' report/figures/')
+    shutil.copyfile(filename, 'report/figures/' + filename)
 
 
 def deficitPlotWFCases(WFcases, linewidth, cLES, cRANS, colors):
@@ -362,17 +362,17 @@ def deficitPlotWFCases(WFcases, linewidth, cLES, cRANS, colors):
 
         power_models = []
         powerGA_models = []
-        for k in range(len(wakemodels)):
-            aep_calc = AEPCalculator(wakemodels[k])
-            aep_calc._run_wake_model(case['wt_x'], case['wt_y'], ws=case['U0'])
-            power_models.append(aep_calc.power_ilk)
+        for wakemodel in wakemodels:
+            power_ilk = wakemodel(case['wt_x'], case['wt_y'], ws=case['U0']).power_ilk
+
+            power_models.append(power_ilk)
 
             # Gaussian averaging
-            powerGA = np.zeros((len(aep_calc.power_ilk[:, 0, 0]), len(
-                aep_calc.power_ilk[0, :, 0]), len(aep_calc.power_ilk[0, 0, :])))
+            powerGA = np.zeros(power_ilk.shape)
             for iAD in range(len(case['wt_x'])):
-                powerGA[iAD, :, 0] = GaussianFilter(aep_calc.power_ilk[iAD, :, 0], np.arange(
-                    0, 360.0, 1).tolist(), int(np.ceil(3 * sigma[iAD])), sigma[iAD])
+                powerGA[iAD, :, 0] = GaussianFilter(power_ilk[iAD, :, 0],
+                                                    np.arange(0, 360.0, 1),
+                                                    int(np.ceil(3 * sigma[iAD])), sigma[iAD])
             powerGA_models.append(powerGA)
 
         # Make a figure per wind direction and WT row or wind farm efficiency
@@ -533,36 +533,38 @@ def deficitPlotWFCases(WFcases, linewidth, cLES, cRANS, colors):
             fig.legend((ldata, ldummy, lRANS1, lRANS2, lines[0], linesGA[0], lines[1], linesGA[1]),
                        ('Data', '', 'RANS', 'RANS GA', NOJlabel, NOJlabel + ' GA', GAUlabel, GAUlabel + ' GA'), ncol=4, loc='upper center', bbox_to_anchor=(0, 0, 1, 1), numpoints=1, scatterpoints=1)
             fig.savefig(filename)
-            os.system('mv ' + filename + ' report/figures/')
+            shutil.copyfile(filename, 'report/figures/' + filename)
 
 
 def main():
     if __name__ == '__main__':
-
+        if os.path.isdir('report/figures'):
+            shutil.rmtree('report/figures')
+        os.mkdir('report/figures')
         site = UniformSite(p_wd=[1], ti=.1)  # Dummy site (flat and uniform)
 
         #  Validation cases:
         SingleWakecases = [
-            {'name': 'Wieringermeer-West', 'U0': 10.7, 'CT': 0.63, 'TItot': 0.08,  'D': 80.0,
+            {'name': 'Wieringermeer-West', 'U0': 10.7, 'CT': 0.63, 'TItot': 0.08, 'D': 80.0,
                 'zH': 80.0, 'xDown': np.array([2.5, 3.5, 7.5]), 'location': 'onshore'},
-            {'name': 'Wieringermeer-East', 'U0': 10.9, 'CT': 0.63, 'TItot': 0.06,  'D': 80.0,
+            {'name': 'Wieringermeer-East', 'U0': 10.9, 'CT': 0.63, 'TItot': 0.06, 'D': 80.0,
                 'zH': 80.0, 'xDown': np.array([2.5, 3.5, 7.5]), 'location': 'onshore'},
-            {'name': 'Nibe',               'U0': 8.5,  'CT': 0.89, 'TItot': 0.08,  'D': 40.0,
-                'zH': 45.0, 'xDown': np.array([2.5, 4, 7.5]),   'location': 'onshore'},
-            {'name': 'Nordtank-500',       'U0': 7.45, 'CT': 0.70, 'TItot': 0.112, 'D': 41.0,
-                'zH': 36.0, 'xDown': np.array([2, 5, 7.5]),     'location': 'onshore'},
-            {'name': 'NREL-5MW_TIlow',     'U0': 8.0,  'CT': 0.79, 'TItot': 0.04,  'D': 126.0,
-                'zH': 90.0, 'xDown': np.array([2.5, 5, 7.5]),   'location': 'offshore'},
-            {'name': 'NREL-5MW_TIhigh',    'U0': 8.0,  'CT': 0.79, 'TItot': 0.128, 'D': 126.0,
-                'zH': 90.0, 'xDown': np.array([2.5, 5, 7.5]),   'location': 'onshore'}
+            {'name': 'Nibe', 'U0': 8.5, 'CT': 0.89, 'TItot': 0.08, 'D': 40.0,
+                'zH': 45.0, 'xDown': np.array([2.5, 4, 7.5]), 'location': 'onshore'},
+            {'name': 'Nordtank-500', 'U0': 7.45, 'CT': 0.70, 'TItot': 0.112, 'D': 41.0,
+                'zH': 36.0, 'xDown': np.array([2, 5, 7.5]), 'location': 'onshore'},
+            {'name': 'NREL-5MW_TIlow', 'U0': 8.0, 'CT': 0.79, 'TItot': 0.04, 'D': 126.0,
+                'zH': 90.0, 'xDown': np.array([2.5, 5, 7.5]), 'location': 'offshore'},
+            {'name': 'NREL-5MW_TIhigh', 'U0': 8.0, 'CT': 0.79, 'TItot': 0.128, 'D': 126.0,
+                'zH': 90.0, 'xDown': np.array([2.5, 5, 7.5]), 'location': 'onshore'}
         ]
 
         #  If missing wind turbines need to be included in the plot, one should write np.nan in the wts list.
         hr_inner_rows = np.linspace(0, 79, 80).reshape(10, 8)[:, 1:7].flatten(
         ).tolist()  # WTs representing the inner rows of Horns Rev 1
-        WFcases = [{'name': 'Wieringermeer', 'U0': 8.35, 'TItot': 0.096, 'wt': N80(),          'wt_x': wt_x_w, 'wt_y': wt_y_w,  'site': site,             'location': 'onshore',
+        WFcases = [{'name': 'Wieringermeer', 'U0': 8.35, 'TItot': 0.096, 'wt': N80(), 'wt_x': wt_x_w, 'wt_y': wt_y_w, 'site': site, 'location': 'onshore',
                             'plots': [{'name': 'Row', 'wd': 275.0, 'wts': [0, 1, 2, 3, 4]}]},
-                   {'name': 'Lillgrund',     'U0': 9.0,  'TItot': 0.048, 'wt': SWT2p3_93_65(), 'wt_x': wt_x_l, 'wt_y': wt_y_l,  'site': LillgrundSite(),  'location': 'offshore',
+                   {'name': 'Lillgrund', 'U0': 9.0, 'TItot': 0.048, 'wt': SWT2p3_93_65(), 'wt_x': wt_x_l, 'wt_y': wt_y_l, 'site': LillgrundSite(), 'location': 'offshore',
                             'plots': [{'name': 'RowB', 'wd': 222.0, 'wts': [14, 13, 12, 11, 10, 9, 8, 7]},
                                       {'name': 'RowD', 'wd': 222.0, 'wts': [29, 28, 27, np.nan, 26, 25, 24, 23]},
                                       {'name': 'RowB', 'wd': 207.0, 'wts': [14, 13, 12, 11, 10, 9, 8, 7]},
@@ -572,7 +574,7 @@ def main():
                                       {'name': 'Row6', 'wd': 105.0, 'wts': [2, 9, 17, 25, 32, 37, 42, 46]},
                                       {'name': 'Row4', 'wd': 105.0, 'wts': [4, 11, 19, np.nan, np.nan, 39, 44]},
                                       {'name': 'WFeff'}]},
-                   {'name': 'Hornsrev1',     'U0': 8.0,  'TItot': 0.056, 'wt': HornsrevV80(),  'wt_x': wt_x_hr, 'wt_y': wt_y_hr, 'site': Hornsrev1Site(), 'location': 'offshore',
+                   {'name': 'Hornsrev1', 'U0': 8.0, 'TItot': 0.056, 'wt': HornsrevV80(), 'wt_x': wt_x_hr, 'wt_y': wt_y_hr, 'site': Hornsrev1Site(), 'location': 'offshore',
                             'plots': [{'name': 'InnerRowMean', 'wd': 270.0, 'wts': hr_inner_rows}]}
                    ]
 
