@@ -96,12 +96,17 @@ class EngineeringWindFarmModel(WindFarmModel):
     def _calc_deficit(self, dw_ijlk, **kwargs):
         """Calculate wake (and blockage) deficit"""
         deficit = self.wake_deficitModel.calc_deficit(dw_ijlk=dw_ijlk, **kwargs)
+
+        # the split line between wake and blockage is set slightly downstream to handle
+        # numerical inaccuracy in the trigonometric functions that calculates dw_ijlk
+        rotor_pos = 1e-10
         if self.blockage_deficitModel is None:
-            deficit *= (dw_ijlk > 0)
-            pass
+            # delete upstream deficit
+            deficit *= (dw_ijlk > rotor_pos)
         elif self.blockage_deficitModel != self:
-            deficit = deficit * (dw_ijlk > 0) + \
-                (dw_ijlk < 0) * self.blockage_deficitModel.calc_deficit(dw_ijlk=dw_ijlk, **kwargs)
+            # downstream wake deficit + upstream blockage
+            deficit = ((dw_ijlk > rotor_pos) * deficit +
+                       (dw_ijlk <= rotor_pos) * self.blockage_deficitModel.calc_deficit(dw_ijlk=dw_ijlk, **kwargs))
 
         return deficit
 
