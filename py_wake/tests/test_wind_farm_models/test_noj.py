@@ -9,12 +9,15 @@ from py_wake.site._site import UniformSite
 from py_wake.tests import npt
 from py_wake.flow_map import HorizontalGrid
 from py_wake.wind_turbines import WindTurbines
+from py_wake.wind_farm_models.engineering_models import All2AllIterative
+from py_wake.deficit_models.noj import NOJDeficit
+from py_wake.superposition_models import LinearSum
 
 
 # Two turbines, 0: Nibe-A, 1:Ct=0
 NibeA0 = WindTurbines(names=['Nibe-A'] * 2, diameters=[40] * 2,
                       hub_heights=[50] * 2,
-                      ct_funcs=[lambda _: 8 / 9, lambda _: 0],
+                      ct_funcs=[lambda x: x * 0 + 8 / 9, lambda x: x * 0],
                       power_funcs=[lambda _: 0] * 2, power_unit='w')
 
 
@@ -22,10 +25,10 @@ def test_NOJ_Nibe_result():
     # Replicate result from: Jensen, Niels Otto. "A note on wind generator interaction." (1983).
 
     site = UniformSite([1], 0.1)
-    wake_model = NOJ(site, NibeA0)
     x_i = [0, 0, 0]
     y_i = [0, -40, -100]
     h_i = [50, 50, 50]
+    wake_model = All2AllIterative(site, NibeA0, wake_deficitModel=NOJDeficit(), superpositionModel=LinearSum())
     WS_eff_ilk = wake_model.calc_wt_interaction(x_i, y_i, h_i, [0, 1, 1], 0.0, 8.1)[0]
     npt.assert_array_almost_equal(WS_eff_ilk[:, 0, 0], [8.1, 4.35, 5.7])
 

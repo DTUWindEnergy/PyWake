@@ -74,8 +74,8 @@ def test_ti_map():
     X, Y, Z = aep.ti_map(x_j, y_j, 110, x, y, wd=[0], ws=[9])
     m = 49, slice(100, 133, 2)
 
-    # print(np.round(Z[m], 2).tolist())  # ref
     if 0:
+        print(np.round(Z[m], 2).tolist())  # ref
         import matplotlib.pyplot as plt
         c = plt.contourf(X, Y, Z, np.arange(.075, .50, .001))
         plt.colorbar(c)
@@ -83,7 +83,7 @@ def test_ti_map():
         plt.plot(X[m], Y[m], '.-r')
         plt.show()
 
-    ref = [0.48, 0.07, 0.07, 0.13, 0.16, 0.18, 0.19, 0.19, 0.18, 0.15, 0.13, 0.12, 0.13, 0.13, 0.13, 0.12, 0.12]
+    ref = [0.48, 0.08, 0.08, 0.13, 0.16, 0.18, 0.19, 0.19, 0.2, 0.18, 0.17, 0.12, 0.13, 0.13, 0.13, 0.12, 0.12]
     npt.assert_array_almost_equal(Z[m], ref, 2)
 
 

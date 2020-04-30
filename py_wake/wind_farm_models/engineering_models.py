@@ -101,8 +101,7 @@ class EngineeringWindFarmModel(WindFarmModel):
         # numerical inaccuracy in the trigonometric functions that calculates dw_ijlk
         rotor_pos = 1e-10
         if self.blockage_deficitModel is None:
-            # delete upstream deficit
-            deficit *= (dw_ijlk > rotor_pos)
+            deficit *= (dw_ijlk > 0)
         elif self.blockage_deficitModel != self:
             # downstream wake deficit + upstream blockage
             deficit = ((dw_ijlk > rotor_pos) * deficit +
