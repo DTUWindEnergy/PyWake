@@ -22,26 +22,33 @@ class TurbulenceModel():
         """
 
     @abstractmethod
-    def calc_effective_TI(self, TI_lk, add_turb_jlk):
+    def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
         """Calculate effective turbulence intensity
 
         Parameters
         ----------
-        TI_lk : array_like
-            Local turbulence intensity at x'th most upstream turbines for all wind
-            directions(l) and wind speeds(k)
-        add_turb_jlk : array_like
-            deficit caused by upstream turbines(j) for all wind directions(l)
-            and wind speeds(k)
+        TI_xxx : array_like
+            Local turbulence intensity. xxx optionally includes destination turbine/site, wind directions, wind speeds
+        add_turb_jxxx : array_like
+            added turbulence caused by source turbines(j) on xxx (see above)
 
         Returns
         -------
-        TI_eff_lk : array_like
-            Effective wind speed at the x'th most upstream turbines for all wind
-            directions(l) and wind speeds(k)
+        TI_eff_xxx : array_like
+            Effective turbulence intensity xxx (see TI_xxx)
         """
 
 
+class LinearSum():
+    def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
+        return TI_xxx + np.sum(add_turb_jxxx, 0)
+
+
 class MaxSum():
-    def calc_effective_TI(self, TI_jlk, add_turb_ijlk):
-        return TI_jlk + np.max(add_turb_ijlk, 0)
+    def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
+        return TI_xxx + np.max(add_turb_jxxx, 0)
+
+
+class SqrMaxSum():
+    def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
+        return np.sqrt(TI_xxx**2 + np.max(add_turb_jxxx, 0)**2)

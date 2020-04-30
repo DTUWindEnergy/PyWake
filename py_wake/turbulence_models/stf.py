@@ -1,14 +1,16 @@
 from numpy import newaxis as na
 import numpy as np
-from py_wake.turbulence_models.turbulence_model import TurbulenceModel, MaxSum
+from py_wake.turbulence_models.turbulence_model import TurbulenceModel, LinearSum
 
 
-class STF2017TurbulenceModel(MaxSum, TurbulenceModel):
+class STF2017TurbulenceModel(LinearSum, TurbulenceModel):
     """Steen Frandsen model implemented according to IEC61400-1, 2017"""
 
     args4addturb = ['dw_ijlk', 'cw_ijlk', 'D_src_il', 'ct_ilk', 'TI_ilk']
 
     def weight(self, dw_ijlk, cw_ijlk, D_src_il):
+        # The weight is given by the exponential term in Eq 3.16 and accounts
+        # for the lateral offset between the wake and the affected turbine.
         s_ijlk = dw_ijlk / D_src_il[:, na, :, na]
         with np.warnings.catch_warnings():
             np.warnings.filterwarnings('ignore', r'divide by zero encountered in true_divide')
@@ -34,15 +36,26 @@ class STF2017TurbulenceModel(MaxSum, TurbulenceModel):
         TI_eff_ijlk: array:float
             Effective turbulence intensity [-]
         """
-
+        # The turbulence model assumes a bell-shaped turbulence profile, it
+        # provides a maximum added TI (ie at the peak of the bell) and then
+        # weights to account for the lateral offset between the source and
+        # wake target to arrive at an effective TI..
         # In the standard (see page 103), the maximal added TI is calculated as
         # TI_add = 1/(1.5 + 0.8*d/sqrt(Ct))
+        with np.warnings.catch_warnings():
+            np.warnings.filterwarnings('ignore', r'divide by zero encountered in true_divide')
+            np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
+            TI_add_ijlk = 1 / (1.5 + 0.8 * (dw_ijlk / D_src_il[:, na, :, na]) / np.sqrt(ct_ilk)[:, na])
+        TI_add_ijlk[np.isnan(TI_add_ijlk)] = 0
 
-        TI_add_ijlk = 1 / (1.5 + 0.8 * (dw_ijlk / D_src_il[:, na, :, na]) / np.sqrt(ct_ilk)[:, na])
+        # compute the weight considering a bell-shaped
         weights_ijlk = self.weight(dw_ijlk, cw_ijlk, D_src_il)
         # the way effective added TI is calculated is derived from Eqs. (3.16-18)
-        # in ST Frandsen's thesis
+        # in ST Frandsen's thesis. This is the effective TI and should not be
+        # mistaken with the added turbulence. The term is the bracket is defined
+        # as alpha by Frandsen.
         TI_add_ijlk = weights_ijlk * (np.hypot(TI_add_ijlk, TI_ilk[:, na]) - TI_ilk[:, na])
+
         return TI_add_ijlk
 
 
@@ -65,13 +78,13 @@ class STF2005TurbulenceModel(STF2017TurbulenceModel):
         # In the standard (see page 74), the maximal added TI is calculated as
         # TI_add = 0.9/(1.5 + 0.3*d*sqrt(V_hub/c))
 
-        TI_add_ijlk = 0.9 / (1.5 + 0.3 * (dw_ijlk / D_src_il[:, na, :, na]) * np.sqrt(WS_ilk)[:, na])
+        TI_maxadd_ijlk = 0.9 / (1.5 + 0.3 * (dw_ijlk / D_src_il[:, na, :, na]) * np.sqrt(WS_ilk)[:, na])
 
         weights_ijlk = self.weight(dw_ijlk, cw_ijlk, D_src_il)
 
         # the way effective added TI is calculated is derived from Eqs. (3.16-18)
         # in ST Frandsen's thesis
-        TI_add_ijlk = weights_ijlk * (np.hypot(TI_add_ijlk, TI_ilk[:, na]) - TI_ilk[:, na])
+        TI_add_ijlk = weights_ijlk * (np.hypot(TI_maxadd_ijlk, TI_ilk[:, na]) - TI_ilk[:, na])
         return TI_add_ijlk
 
 

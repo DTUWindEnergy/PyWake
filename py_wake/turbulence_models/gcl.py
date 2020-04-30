@@ -2,10 +2,10 @@
 from py_wake.deficit_models.noj import AreaOverlappingFactor
 import numpy as np
 from numpy import newaxis as na
-from py_wake.turbulence_models.turbulence_model import TurbulenceModel, MaxSum
+from py_wake.turbulence_models.turbulence_model import TurbulenceModel, SqrMaxSum
 
 
-class GCLTurbulenceModel(MaxSum, TurbulenceModel, AreaOverlappingFactor):
+class GCLTurbulenceModel(SqrMaxSum, TurbulenceModel, AreaOverlappingFactor):
     args4addturb = ['D_src_il', 'dw_ijlk', 'ct_ilk']
 
     def __init__(self, k=.1):

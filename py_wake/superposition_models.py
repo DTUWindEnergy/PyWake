@@ -4,39 +4,36 @@ from abc import ABC, abstractmethod
 
 class SuperpositionModel(ABC):
     @abstractmethod
-    def calc_effective_WS(self, WS_ilk, deficit_ijlk):
+    def calc_effective_WS(self, WS_xxx, deficit_jxxx):
         """Calculate effective wind speed
 
         This method must be overridden by subclass
 
         Parameters
         ----------
-        WS_ilk : array_like
-            Local wind speed at turbine/site(i) for all wind
-            directions(l) and wind speeds(k)
-        deficit_ijlk : array_like
-            deficit caused by upstream turbines(j) on all downstream turbines/points (i) for all wind directions(l)
-            and wind speeds(k)
+        WS_xxx : array_like
+            Local wind speed. xxx optionally includes destination turbine/site, wind directions, wind speeds
+        deficit_jxxx : array_like
+            deficit caused by source turbines(j) on xxx (see above)
 
         Returns
         -------
-        WS_eff_ilk : array_like
-            Effective wind speed at turbine/site(i) for all wind
-            directions(l) and wind speeds(k)
+        WS_eff_xxx : array_like
+            Effective wind speed for xxx (see WS_xxx)
 
         """
 
 
 class SquaredSum(SuperpositionModel):
-    def calc_effective_WS(self, WS_ilk, deficit_ijlk):
-        return WS_ilk - np.sqrt(np.sum(deficit_ijlk**2, 0))
+    def calc_effective_WS(self, WS_xxx, deficit_jxxx):
+        return WS_xxx - np.sqrt(np.sum(deficit_jxxx**2, 0))
 
 
 class LinearSum(SuperpositionModel):
-    def calc_effective_WS(self, WS_ilk, deficit_ijlk):
-        return WS_ilk - np.sum(deficit_ijlk, 0)
+    def calc_effective_WS(self, WS_xxx, deficit_jxxx):
+        return WS_xxx - np.sum(deficit_jxxx, 0)
 
 
 class MaxSum(SuperpositionModel):
-    def calc_effective_WS(self, WS_ilk, deficit_ijlk):
-        return WS_ilk - np.max(deficit_ijlk, 0)
+    def calc_effective_WS(self, WS_xxx, deficit_jxxx):
+        return WS_xxx - np.max(deficit_jxxx, 0)
