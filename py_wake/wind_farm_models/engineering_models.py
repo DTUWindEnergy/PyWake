@@ -134,11 +134,8 @@ class EngineeringWindFarmModel(WindFarmModel):
             hcw_iil = hcw_iil / self.wec
 
         # add eps to avoid non-differentiable 0
-        if 'autograd' in np.__name__:
-            eps = 2 * np.finfo(np.float).eps ** 2
-        else:
-            eps = 0
-        cw_iil = np.sqrt(hcw_iil**2 + dh_iil**2 + eps)
+
+        cw_iil = np.sqrt(hcw_iil**2 + dh_iil**2)
 
         kwargs = {'localWind': lw,
                   'WS_eff_ilk': WS_eff_ilk, 'TI_eff_ilk': TI_eff_ilk,

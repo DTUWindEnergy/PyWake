@@ -137,14 +137,15 @@ class SimulationResult():
             If True, wake loss is included, i.e. power is calculated using local effective wind speed\n
             If False, wake loss is neglected, i.e. power is calculated using local free flow wind speed
          """
-        P_ilk = self.localWind.P_ilk
         if normalize_probabilities:
-            P_ilk /= P_ilk.sum()
+            norm = self.localWind.P_ilk.sum((1, 2))[:, np.newaxis, np.newaxis]
+        else:
+            norm = 1
         if with_wake_loss:
-            return self.power_ilk * P_ilk * 24 * 365 * 1e-9
+            return self.power_ilk * self.localWind.P_ilk / norm * 24 * 365 * 1e-9
         else:
             power_ilk = self.windFarmModel.windTurbines.power(self.localWind.WS_ilk, self.type_i)
-            return power_ilk * P_ilk * 24 * 365 * 1e-9
+            return power_ilk * self.localWind.P_ilk / norm * 24 * 365 * 1e-9
 
     def aep(self, normalize_probabilities=False, with_wake_loss=True):
         """Anual Energy Production (sum of all wind turbines, directions and speeds) in GWh.
