@@ -4,7 +4,7 @@ from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake import NOJ, Fuga
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
-from py_wake.examples.data.hornsrev1 import HornsrevV80
+from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site
 from py_wake.tests.test_files.fuga import LUT_path_2MW_z0_0_03
 from py_wake.flow_map import HorizontalGrid
 from py_wake.wind_farm_models.engineering_models import All2AllIterative
@@ -111,6 +111,19 @@ def test_aep():
 
     npt.assert_almost_equal(sim_res.aep(), 3.35 * 24 * 365 / 360 / 1000)
     npt.assert_almost_equal(sim_res.aep(normalize_probabilities=True), 3.35 * 24 * 365 / 1000)
+
+
+def test_two_wt_aep():
+    site = Hornsrev1Site()
+    windTurbines = IEA37_WindTurbines()
+    wake_model = NOJ(site, windTurbines)
+    sim_res1 = wake_model([0], [0], wd=270)
+    sim_res2 = wake_model([0, 0], [0, 500], wd=270)
+
+    npt.assert_almost_equal(sim_res1.aep(normalize_probabilities=True), 3.35 * 5.845, 2)
+    npt.assert_almost_equal(sim_res1.aep() * 2, sim_res2.aep())
+    npt.assert_almost_equal(sim_res1.aep(normalize_probabilities=True) * 2,
+                            sim_res2.aep(normalize_probabilities=True))
 
 
 def test_All2AllIterativeDeflection():
