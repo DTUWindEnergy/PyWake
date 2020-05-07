@@ -3,11 +3,17 @@
 Setup file for PyWake
 """
 import os
-from git_utils import write_vers
+
 from setuptools import setup, find_packages
 
 repo = os.path.dirname(__file__)
-version = write_vers(vers_file='py_wake/__init__.py', repo=repo, skip_chars=1)
+try:
+    from git_utils import write_vers
+    version = write_vers(vers_file='py_wake/__init__.py', repo=repo, skip_chars=1)
+except ImportError:
+    # when installing from pipy
+    import py_wake
+    version = py_wake.__version__
 
 try:
     from pypandoc import convert_file
