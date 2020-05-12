@@ -1,5 +1,7 @@
 import numpy as np
 import xml.etree.ElementTree as ET
+from scipy.interpolate.fitpack2 import UnivariateSpline
+from autograd.core import defvjp, primitive
 
 
 class WindTurbines():
@@ -27,9 +29,10 @@ class WindTurbines():
         self._diameters = np.array(diameters)
         self._hub_heights = np.array(hub_heights)
         self.ct_funcs = ct_funcs
-        self.power_scale = {'w': 1, 'kw': 1e3, 'mw': 1e6, 'gw': 1e9}[power_unit.lower()]
-        if self.power_scale != 1:
-            self.power_funcs = list([lambda ws, f=f: f(ws) * self.power_scale for f in power_funcs])
+        assert len(names) == len(diameters) == len(hub_heights) == len(ct_funcs) == len(power_funcs)
+        power_scale = {'w': 1, 'kw': 1e3, 'mw': 1e6, 'gw': 1e9}[power_unit.lower()]
+        if power_scale != 1:
+            self.power_funcs = list([lambda ws, f=f: f(ws) * power_scale for f in power_funcs])
         else:
             self.power_funcs = power_funcs
 
@@ -67,7 +70,7 @@ class WindTurbines():
         power : array_like
             Power production for the specified wind turbine type(s) and wind speed
         """
-        return self._ct_power(ws_i, type_i)[1]
+        return self._ct_power(np.atleast_1d(ws_i), type_i)[1]
 
     def ct(self, ws_i, type_i=0):
         """Thrust coefficient
@@ -85,6 +88,9 @@ class WindTurbines():
             Thrust coefficient for the specified wind turbine type(s) and wind speed
         """
         return self._ct_power(ws_i, type_i)[0]
+
+    def types(self):
+        return np.arange(len(self._names))
 
     def get_defaults(self, N, type_i=0, h_i=None, d_i=None):
         """
@@ -115,14 +121,82 @@ class WindTurbines():
         if np.any(type_i != 0):
             CT = np.zeros_like(ws_i, dtype=np.float)
             P = np.zeros_like(ws_i, dtype=np.float)
-            type_i = np.zeros(ws_i.shape[0]) + type_i
-            for t in np.unique(type_i).astype(np.int):
-                m = type_i == t
-                CT[m] = self.ct_funcs[t](ws_i[m])
-                P[m] = self.power_funcs[t](ws_i[m])
+            type_i = (np.zeros(ws_i.shape[0]) + type_i).astype(int)
+            # TODO: check if faster to calculate both in same line
+            CT = np.array([self.ct_funcs[t](ws) for t, ws in zip(type_i, ws_i)])
+            P = np.array([self.power_funcs[t](ws) for t, ws in zip(type_i, ws_i)])
+#             for t in np.unique(type_i).astype(int):
+#                 m = type_i == t
+#                 CT[m] = self.ct_funcs[t](ws_i[m])
+#                 P[m] = self.power_funcs[t](ws_i[m])
             return CT, P
         else:
             return self.ct_funcs[0](ws_i), self.power_funcs[0](ws_i)
+
+    def set_gradient_funcs(self, power_grad_funcs, ct_grad_funcs):
+        def add_grad(f_lst, df_lst):
+            for i, f in enumerate(f_lst):
+                @primitive
+                def wrap(wsp, f=f):
+                    return f(wsp)
+
+                defvjp(wrap, lambda ans, wsp, df_lst=df_lst, i=i: lambda g, df_lst=df_lst, i=i: g * df_lst[i](wsp))
+                f_lst[i] = wrap
+
+        add_grad(self.power_funcs, power_grad_funcs)
+        add_grad(self.ct_funcs, ct_grad_funcs)
+
+    def spline_ct_power(self, err_tol_factor=1e-2):
+        def get_spline(func, err_tol_factor=1e-2):
+            """Generate a spline of a ws dependent curve (power/ct)
+
+            Parameters
+            ----------
+            func : function
+                curve function (power/ct)
+            err_tol_factor : float, default is 0.01
+                the number of data points used by the spline is increased until the relative
+                sum of errors is less than err_tol_factor.
+            """
+            # make curve tabular
+            ws = np.arange(0, 100, .001)
+            curve = func(ws)
+
+            # smoothen curve to avoid spline oscillations around steps (especially around cut out)
+            n, e = 99, 3
+            lp_filter = ((np.cos(np.linspace(-np.pi, np.pi, n)) + 1) / 2)**e
+            lp_filter /= lp_filter.sum()
+            curve = np.convolve(curve, lp_filter, 'same')
+
+            # make spline
+            return UnivariateSpline(ws, curve, s=(curve.max() * err_tol_factor)**2)
+
+        self.power_splines = [get_spline(p, err_tol_factor) for p in self.power_funcs]
+        self.ct_splines = [get_spline(ct, err_tol_factor) for ct in self.ct_funcs]
+        self.org_power_funcs = self.power_funcs.copy()
+        self.org_ct_funcs = self.ct_funcs.copy()
+
+        def add_grad(spline_lst):
+            funcgrad_lst = []
+            for spline in spline_lst:
+
+                @primitive
+                def f(ws):
+                    return spline(ws)
+
+                def f_vjp(ans, ws):
+                    def gr(g):
+                        return g * spline.derivative()(ws)
+                    return gr
+
+                defvjp(f, f_vjp)
+
+                funcgrad_lst.append(f)
+            return funcgrad_lst
+
+        # replace power anc ct funcs
+        self.power_funcs = add_grad(self.power_splines)
+        self.ct_funcs = add_grad(self.ct_splines)
 
     def plot(self, x, y, types=None, wd=None, yaw=0, ax=None):
         """Plot wind farm layout including type name and diameter

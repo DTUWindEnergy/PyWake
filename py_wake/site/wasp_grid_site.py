@@ -58,7 +58,7 @@ class WaspGridSite(UniformWeibullSite):
             speed_up_il, turning_il, TI_il = self.interpolate(['spd', 'orog_trn', 'tke'], x_i, y_i, h_i, wd, ws)
             WS_ilk = ws[na, na, :] * speed_up_il[:, :, na]
             TI_ilk = (TI_il[:, :, na] * (0.75 + 3.8 / WS_ilk))
-        else:
+        else:  # pragma: no cover
             speed_up_il, turning_il = self.interpolate(['spd', 'orog_trn'], x_i, y_i, h_i, wd, ws)
             WS_ilk = ws[na, na, :] * speed_up_il[:, :, na]
         turning_il[np.isnan(turning_il)] = 0

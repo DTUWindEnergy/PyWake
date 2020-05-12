@@ -13,6 +13,10 @@ from py_wake.superposition_models import SquaredSum
 from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
 from py_wake.turbulence_models.stf import STF2005TurbulenceModel
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
+from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian
+from numpy import newaxis as na
+import matplotlib.pyplot as plt
+from py_wake.gradients import autograd, cs, fd, plot_gradients
 
 
 def test_wake_model():
@@ -134,3 +138,58 @@ def test_All2AllIterativeDeflection():
                                 superpositionModel=SquaredSum(),
                                 deflectionModel=JimenezWakeDeflection())
     wf_model([0], [0])
+
+
+def test_dAEP_2wt():
+    site = Hornsrev1Site()
+    iea37_site = IEA37Site(16)
+
+    wt = IEA37_WindTurbines()
+    wfm = IEA37SimpleBastankhahGaussian(site, wt)
+    x, y = iea37_site.initial_position[np.array([0, 2, 5, 8, 14])].T
+
+    # plot 2 wt case
+    x, y = np.array([[0, 130 * 4], [0, 0]], dtype=np.float)
+    x_lst = np.array([0., 1.]) * np.arange(1, 1000)[:, na]
+    kwargs = {'ws': [10], 'wd': [270]}
+
+    _, (ax1, ax2) = plt.subplots(1, 2, sharey=False)
+    ax1.plot(x_lst[:, 1], [wfm(x_, y, **kwargs).aep() for x_ in x_lst])
+    ax1.set_xlabel('Downwind distance [m]')
+    ax1.set_ylabel('AEP [GWh]')
+
+    x_ = x_lst[200]
+    ax1.set_title("Center line")
+    for grad in [fd, cs, autograd]:
+        dAEPdx = wfm.dAEPdn(0, grad)(x_, y, **kwargs)[1]
+        npt.assert_almost_equal(dAEPdx, 3.976975605364392e-06, (10, 5)[grad == fd])
+        plot_gradients(wfm(x_, y, **kwargs).aep(), dAEPdx, x_[1], grad.__name__, step=100, ax=ax1)
+    y_lst = np.array([0, 1.]) * np.arange(-500, 500)[:, na]
+    ax2.plot(y_lst[:, 1], [wfm(x, y_, **kwargs).aep() for y_ in y_lst])
+    ax2.set_xlabel('Crosswind distance [m]')
+    ax2.set_ylabel('AEP [GWh]')
+    y_ = y_lst[525]
+    ax2.set_title("%d m downstream" % x[1])
+    for grad in [fd, cs, autograd]:
+        dAEPdy = wfm.dAEPdn(1, grad)(x, y_, **kwargs)[1]
+        plot_gradients(wfm(x, y_, **kwargs).aep(), dAEPdy, y_[1], grad.__name__, step=50, ax=ax2)
+        npt.assert_almost_equal(dAEPdy, 3.794435973860448e-05, (10, 5)[grad == fd])
+    if 0:
+        plt.show()
+    plt.close()
+
+
+def test_dAEPdx():
+    site = Hornsrev1Site()
+    iea37_site = IEA37Site(16)
+
+    wt = IEA37_WindTurbines()
+    wfm = IEA37SimpleBastankhahGaussian(site, wt)
+    x, y = iea37_site.initial_position[np.array([0, 2, 5, 8, 14])].T
+
+    dAEPdxy_autograd = wfm.dAEPdxy(gradient_method=autograd)(x, y)
+    dAEPdxy_cs = wfm.dAEPdxy(gradient_method=cs)(x, y)
+    dAEPdxy_fd = wfm.dAEPdxy(gradient_method=fd)(x, y)
+
+    npt.assert_array_almost_equal(dAEPdxy_autograd, dAEPdxy_cs, 15)
+    npt.assert_array_almost_equal(dAEPdxy_autograd, dAEPdxy_fd, 6)

@@ -5,6 +5,10 @@ from py_wake.examples.data import wtg_path
 from py_wake.examples.data.hornsrev1 import V80, wt9_x, wt9_y, Hornsrev1Site
 from py_wake.tests import npt
 from py_wake.wind_turbines import WindTurbines
+from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
+from py_wake.gradients import use_autograd_in, autograd, plot_gradients, fd
+import matplotlib.pyplot as plt
+from py_wake.examples.data.iea37 import iea37_reader
 
 
 def _test_wts_wtg(wts_wtg):
@@ -62,6 +66,7 @@ def test_twotype_windturbines():
     types2 = [1] * 9
     wts.plot(wt9_x, wt9_y, types1)
     wfm = NOJ(Hornsrev1Site(), wts)
+    npt.assert_array_equal(wts.types(), [0, 1])
     npt.assert_almost_equal(wfm(wt9_x, wt9_y, type=types0).aep(), 81.2066072392765)
     npt.assert_almost_equal(wfm(wt9_x, wt9_y, type=types1).aep(), 83.72420504573488)
     npt.assert_almost_equal(wfm(wt9_x, wt9_y, type=types2).aep(), 88.87227386796884)
@@ -74,3 +79,83 @@ def test_get_defaults():
     npt.assert_array_equal(np.array(v80.get_defaults(1))[:, 0], [0, 70, 80])
     npt.assert_array_equal(np.array(v80.get_defaults(1, h_i=100))[:, 0], [0, 100, 80])
     npt.assert_array_equal(np.array(v80.get_defaults(1, d_i=100))[:, 0], [0, 70, 100])
+
+
+def test_gradients():
+    wt = IEA37_WindTurbines()
+    with use_autograd_in([WindTurbines, iea37_reader]):
+        ws_lst = np.arange(3, 25, .1)
+        plt.plot(ws_lst, wt.power(ws_lst))
+
+        ws_pts = np.array([3., 6., 9., 12.])
+        dpdu_lst = np.diag(autograd(wt.power)(ws_pts))
+        if 0:
+            for dpdu, ws in zip(dpdu_lst, ws_pts):
+                plot_gradients(wt.power(ws), dpdu, ws, "", 1)
+
+            plt.show()
+        dpdu_ref = np.where((ws_pts > 4) & (ws_pts <= 9.8),
+                            3 * 3350000 * (ws_pts - 4)**2 / (9.8 - 4)**3,
+                            0)
+
+        npt.assert_array_almost_equal(dpdu_lst, dpdu_ref)
+
+
+def test_set_gradients():
+    wt = IEA37_WindTurbines()
+
+    wt.set_gradient_funcs([lambda ws: np.where((ws > 4) & (ws <= 9.8),
+                                               100000 * ws,  # not the right gradient, but similar to the reference
+                                               0)], [lambda ws: 0])
+    with use_autograd_in([WindTurbines, iea37_reader]):
+        ws_lst = np.arange(3, 25, .1)
+        plt.plot(ws_lst, wt.power(ws_lst))
+
+        ws_pts = np.array([3., 6., 9., 12.])
+        dpdu_lst = np.diag(autograd(wt.power)(ws_pts))
+        if 0:
+            for dpdu, ws in zip(dpdu_lst, ws_pts):
+                plot_gradients(wt.power(ws), dpdu, ws, "", 1)
+
+            plt.show()
+        dpdu_ref = np.where((ws_pts > 4) & (ws_pts <= 9.8),
+                            100000 * ws_pts,
+                            0)
+
+        npt.assert_array_almost_equal(dpdu_lst, dpdu_ref)
+
+
+def test_spline():
+    wt_tab = V80()
+    wt_spline = V80()
+    wt_spline.spline_ct_power(err_tol_factor=1e-2)
+    ws_lst = np.arange(3, 25, .001)
+
+    # mean and max error
+    assert (wt_tab.power(ws_lst) - wt_spline.power(ws_lst)).mean() < 1
+    assert ((wt_tab.power(ws_lst) - wt_spline.power(ws_lst)).max()) < 1400
+
+    # max change of gradient 80 times lower
+    assert np.diff(np.diff(wt_spline.power(ws_lst))).max() * 80 < np.diff(np.diff(wt_tab.power(ws_lst))).max()
+
+    ws_pts = [6.99, 7.01]
+    dpdu_tab_pts = np.diag(fd(wt_tab.power)(np.array(ws_pts)))
+    with use_autograd_in():
+        dpdu_spline_pts = np.diag(autograd(wt_spline.power)(np.array(ws_pts)))
+    npt.assert_array_almost_equal(dpdu_spline_pts, [205555.17794162, 211859.45965873])
+
+    if 0:
+        plt.plot(ws_lst, wt_tab.power(ws_lst))
+        plt.plot(ws_lst, wt_spline.power(ws_lst))
+
+        for wt, dpdu_pts, label in [(wt_tab, dpdu_tab_pts, 'V80 tabular'),
+                                    (wt_spline, dpdu_spline_pts, 'V80 spline')]:
+            for ws, dpdu in zip(ws_pts, dpdu_pts):
+                plot_gradients(wt.power(ws), dpdu, ws, label, 1)
+
+        ax = plt.gca().twinx()
+        ax.plot(ws_lst, wt.power(ws_lst) - wt_spline.power(ws_lst))
+        plt.figure()
+        plt.plot(np.diff(np.diff(wt_tab.power(ws_lst))))
+        plt.plot(np.diff(np.diff(wt_spline.power(ws_lst))))
+        plt.show()

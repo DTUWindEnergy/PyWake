@@ -6,6 +6,7 @@ from py_wake.superposition_models import SuperpositionModel
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.deflection_models.deflection_model import DeflectionModel
+from py_wake.gradients import use_autograd_in, autograd
 
 
 class EngineeringWindFarmModel(WindFarmModel):
@@ -251,6 +252,28 @@ class EngineeringWindFarmModel(WindFarmModel):
                              (i1[i], i2[i]) for i in range(len(i1))])
             raise ValueError(msg)
 
+    def dAEPdn(self, argnum, gradient_method):
+        def aep(x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None):  # @ReservedAssignment
+            if gradient_method == autograd:
+                with use_autograd_in():
+                    return self.__call__(x, y, h, type, wd, ws, yaw_ilk).aep()
+            else:
+                return self.__call__(x, y, h, type, wd, ws, yaw_ilk).aep()
+        return gradient_method(aep, argnum)
+
+    def dAEPdxy(self, gradient_method):
+
+        def wrap(x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None):  # @ReservedAssignment
+            def aep(x, y, h, type, wd, ws, yaw_ilk):  # @ReservedAssignment
+                if gradient_method == autograd:
+                    with use_autograd_in():
+                        return self.__call__(x, y, h, type, wd, ws, yaw_ilk).aep()
+                else:
+                    return self.__call__(x, y, h, type, wd, ws, yaw_ilk).aep()
+            return (gradient_method(aep, 0)(x, y, h, type, wd, ws, yaw_ilk),
+                    gradient_method(aep, 1)(x, y, h, type, wd, ws, yaw_ilk))
+        return wrap
+
 
 class PropagateDownwind(EngineeringWindFarmModel):
     """Downstream wake deficits calculated and propagated in downstream direction.
@@ -291,7 +314,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
         """
         lw = localWind
-        deficit_nk = np.zeros((I * I * L, K))
+        deficit_nk = []
         ct_ilk = np.zeros_like(lw.WS_ilk)
 
         def ilk2mk(x_ilk):
@@ -307,10 +330,12 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
         indices = np.arange(I * I * L).reshape((I, I, L))
         WS_mk = ilk2mk(lw.WS_ilk)
-        WS_eff_mk = ilk2mk(WS_eff_ilk)
+        WS_eff_mk = []
         yaw_mk = ilk2mk(yaw_ilk)
+        power_jlk = []
+        ct_jlk = []
+
         dw_n, hcw_n, cw_n, dh_n = [a.flatten() for a in [dw_iil, hcw_iil, cw_iil, dh_iil]]
-        power_ilk = np.zeros((I, L, K))
 
         i_wd_l = np.arange(L)
 
@@ -327,21 +352,24 @@ class PropagateDownwind(EngineeringWindFarmModel):
             # look up power and thrust coefficient
             if j == 0:  # Most upstream turbines (no wake)
                 WS_eff_lk = WS_mk[m]
+                WS_eff_mk.append(WS_eff_lk)
             else:  # 2..n most upstream turbines (wake)
-                WS_eff_lk = self.superpositionModel.calc_effective_WS(WS_mk[m], deficit_nk[n_uw])
-                WS_eff_mk[m] = WS_eff_lk
+                deficit2WT = np.array([d_nk2[i] for d_nk2, i in zip(deficit_nk, range(j)[::-1])])
+                WS_eff_lk = self.superpositionModel.calc_effective_WS(WS_mk[m], deficit2WT)
+                WS_eff_mk.append(WS_eff_lk)
                 if self.turbulenceModel:
                     TI_eff_mk[m] = self.turbulenceModel.calc_effective_TI(TI_mk[m], add_turb_nk[n_uw])
 
             ct_lk, power_lk = self.windTurbines._ct_power(WS_eff_lk, type_i[i_wt_l])
 
-            power_ilk[i_wt_l, i_wd_l] = power_lk
-            ct_ilk[i_wt_l, i_wd_l, :] = ct_lk
+            power_jlk.append(power_lk)
+            # ct_ilk[i_wt_l, i_wd_l, :] = ct_lk
+            ct_jlk.append(ct_lk)
 
             if j < I - 1:
                 # Calculate required args4deficit parameters
                 arg_funcs = {'WS_ilk': lambda: WS_mk[m][na],
-                             'WS_eff_ilk': lambda: WS_eff_mk[m][na],
+                             'WS_eff_ilk': lambda: WS_eff_mk[-1][na],
                              'TI_ilk': lambda: TI_mk[m][na],
                              'TI_eff_ilk': lambda: TI_eff_mk[m][na],
                              'D_src_il': lambda: D_i[i_wt_l][na],
@@ -349,7 +377,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
                              'D_dst_ijl': lambda: D_i[dw_order_indices_dl[:, j + 1:]].T[na],
                              'dh_ijl': lambda: dh_n[n_dw][na],
                              'h_il': lambda: h_i[i_wt_l][na],
-                             'ct_ilk': lambda: ct_ilk.reshape((I * L, K))[m][na]}
+                             'ct_ilk': lambda: ct_lk[na]}
 
                 if self.deflectionModel:
                     dw_ijlk, hcw_ijlk = self.deflectionModel.calc_deflection(
@@ -360,16 +388,25 @@ class PropagateDownwind(EngineeringWindFarmModel):
                     dw_ijlk, hcw_ijlk = dw_n[n_dw][na, :, :, na], hcw_n[n_dw][na, :, :, na],
 
                 arg_funcs['hcw_ijlk'] = lambda: hcw_ijlk
-                arg_funcs['cw_ijlk'] = lambda: np.hypot(dh_n[n_dw][na, :, :, na], hcw_ijlk)
+                # sqrt(a**2+b**2) as hypot does not support complex numbers
+                arg_funcs['cw_ijlk'] = lambda: np.sqrt(dh_n[n_dw][na, :, :, na]**2 + hcw_ijlk**2)
                 args = {k: arg_funcs[k]() for k in self.args4deficit if k != "dw_ijlk"}
 
                 # Calcualte deficit
-                deficit_nk[n_dw] = self.wake_deficitModel.calc_deficit(dw_ijlk=dw_ijlk, **args)[0]
+
+                deficit = self.wake_deficitModel.calc_deficit(dw_ijlk=dw_ijlk, **args)[0]
+                deficit_nk.append(deficit)
                 if self.turbulenceModel:
                     # Calculate added turbulence
                     add_turb_nk[n_dw] = self.turbulenceModel.calc_added_turbulence(dw_ijlk=dw_ijlk, **args)
 
-        WS_eff_ilk = WS_eff_mk.reshape((I, L, K))
+        WS_eff_jlk, power_jlk, ct_jlk = np.array(WS_eff_mk), np.array(power_jlk), np.array(ct_jlk)
+
+        dw_inv_indices = (np.argsort(dw_order_indices_dl, 1).T * L + np.arange(L)[na]).flatten()
+        WS_eff_ilk = WS_eff_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))
+
+        power_ilk = power_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))
+        ct_ilk = ct_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))
         if self.turbulenceModel:
             TI_eff_ilk = TI_eff_mk.reshape((I, L, K))
 

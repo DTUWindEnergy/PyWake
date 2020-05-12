@@ -115,3 +115,7 @@ archieve
 /zz_pywake_examples
 /zz_archieve
 /source2
+*.pdf
+/docs/validation_report/*.pdf
+/docs/validation_report/report/figures/*.pdf
+/py_wake/tests/test_files/speed_check

@@ -40,7 +40,6 @@ def test_fuga():
     Z73 = flow_map73.WS_eff_xylk[:, :, 0, 0]
 
     if 0:
-        import matplotlib.pyplot as plt
         flow_map70.plot_wake_map(levels=np.arange(6, 10.5, .1))
         plt.plot(X[0], Y[140])
         plt.figure()
@@ -51,12 +50,6 @@ def test_fuga():
         print(list(np.round(Z73[140, 100:400:10], 4)))
         plt.legend()
         plt.show()
-
-#     npt.assert_array_almost_equal(
-#         Z70[140, 100:400:10],
-#         [10.0547, 10.0519, 10.0741, 10.0099, 9.6774, 7.8538, 6.8484, 9.2134, 9.9749, 10.0232, 10.0658, 10.0189, 10.0187,
-#          9.1496, 7.2077, 9.1154, 10.0183, 10.0008, 10.0146, 9.8838, 9.2848, 7.9681, 6.7412, 8.3149, 9.9114, 10.0119,
-#          10.0011, 9.9979, 10.0002, 9.9981], 4)
 
     npt.assert_array_almost_equal(
         Z70[140, 100:400:10],
@@ -95,6 +88,59 @@ def test_fuga_blockage_wt_row():
                  sim_res_pdw.WS_eff_ilk[:, 0, 7] * 100)
         plt.grid()
         plt.show()
+
+
+def test_fuga_new_format():
+    # move turbine 1 600 300
+    wt_x = [-250, 600, -500, 0, 500, -250, 250]
+    wt_y = [433, 300, 0, 0, 0, -433, -433]
+    wts = HornsrevV80()
+
+    path = tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/'
+    site = UniformSite([1, 0, 0, 0], ti=0.075)
+    wake_model = Fuga(path, site, wts)
+    res = wake_model(x=wt_x, y=wt_y, wd=[30], ws=[10])
+
+    npt.assert_array_almost_equal(res.WS_eff_ilk.flatten(), [10.00725165, 10., 7.92176401, 10.02054952, 9.40501317,
+                                                             7.92609363, 7.52384558], 8)
+    npt.assert_array_almost_equal(res.ct_ilk.flatten(), [0.79260841, 0.793, 0.80592176, 0.79189033, 0.80132982,
+                                                         0.80592609, 0.80552385], 8)
+
+    x_j = np.linspace(-1500, 1500, 500)
+    y_j = np.linspace(-1500, 1500, 300)
+
+    wake_model = Fuga(path, site, wts)
+    sim_res = wake_model(wt_x, wt_y, wd=[30], ws=[10])
+    flow_map70 = sim_res.flow_map(HorizontalGrid(x_j, y_j, h=70))
+    flow_map73 = sim_res.flow_map(HorizontalGrid(x_j, y_j, h=73))
+
+    X, Y = flow_map70.XY
+    Z70 = flow_map70.WS_eff_xylk[:, :, 0, 0]
+    Z73 = flow_map73.WS_eff_xylk[:, :, 0, 0]
+
+    if 0:
+        flow_map70.plot_wake_map(levels=np.arange(6, 10.5, .1))
+        plt.plot(X[0], Y[140])
+        plt.figure()
+        plt.plot(X[0], Z70[140, :], label="Z=70m")
+        plt.plot(X[0], Z73[140, :], label="Z=73m")
+        plt.plot(X[0, 100:400:10], Z70[140, 100:400:10], '.')
+        print(list(np.round(Z70[140, 100:400:10], 4)))
+        print(list(np.round(Z73[140, 100:400:10], 4)))
+        plt.legend()
+        plt.show()
+
+    npt.assert_array_almost_equal(
+        Z70[140, 100:400:10],
+        [10.051, 10.0337, 10.0649, 10.0374, 9.7865, 7.7119, 6.4956, 9.2753, 10.0047, 10.0689, 10.0444,
+         10.0752, 10.0699, 9.1852, 6.9783, 9.152, 10.0707, 10.0477, 10.0365, 9.9884, 9.2867, 7.5714,
+         6.4451, 8.3276, 9.9976, 10.0251, 10.0261, 10.023, 10.0154, 9.9996], 4)
+
+    npt.assert_array_almost_equal(
+        Z73[140, 100:400:10],
+        [10.051, 10.0337, 10.0649, 10.0374, 9.7865, 7.7119, 6.4956, 9.2753, 10.0047, 10.0689, 10.0444,
+         10.0752, 10.0699, 9.1852, 6.9783, 9.152, 10.0707, 10.0477, 10.0365, 9.9884, 9.2867, 7.5714,
+         6.4451, 8.3276, 9.9976, 10.0251, 10.0261, 10.023, 10.0154, 9.9996], 4)
 
 
 # def cmp_fuga_with_colonel():
