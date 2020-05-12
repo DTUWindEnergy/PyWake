@@ -32,7 +32,7 @@ def test_stf(turbulence_model, ref_ti):
                                         turbulenceModel=turbulence_model)]:
 
         res = wake_model(x, y)
-        print(np.round(res.TI_eff_ilk[:, 0, 0], 3).tolist())
+        # print(np.round(res.TI_eff_ilk[:, 0, 0], 3).tolist())
         npt.assert_array_almost_equal(res.TI_eff_ilk[:, 0, 0], ref_ti, 3)
 
 

@@ -238,7 +238,7 @@ class TerrainFollowingDistance2():
         na = np.newaxis
         if calc_all or not np.array(self.r_i).any():
             mask_isl = np.ones_like(dist_down_isl, dtype=np.bool)
-        else:
+        else:  # pragma: no cover
             r_i = self.r_i
             # Only consider if: r0 + k_star * dist_down < dist_cross-r1 and straight distance > 2*r
             # where r1 is radius of downwind turbine.
@@ -255,7 +255,7 @@ class TerrainFollowingDistance2():
 
                 x_points_s = x_points_sl[:, l]
 
-                if not any_sites_in_wake[i, l]:
+                if not any_sites_in_wake[i, l]:  # pragma: no cover
                     continue
 
                 # find most downstream relevant site
@@ -309,7 +309,7 @@ class TerrainFollowingDistance2():
     def _cal_dist(self, x_i, y_i, H_i, dst_x_j, dst_y_j, dst_h_j, wd):
         num_sites = len(x_i)
 
-        if len(wd.shape) == 2:
+        if len(wd.shape) == 2:  # pragma: no cover
             num_wds = wd.shape[1]
             wd_mean_l = np.mean(wd, 0)
             complex_flag = True
@@ -325,7 +325,7 @@ class TerrainFollowingDistance2():
         rotate_angle_mean_l = (270 - wd_mean_l) * np.pi / 180.0
 
         dx_ii, dy_ii, dH_ii = [np.subtract(*np.meshgrid(v, v)) for v in [x_i, y_i, H_i]]
-        if complex_flag:
+        if complex_flag:  # pragma: no cover
             rotate_angle_il = (270 - wd) * np.pi / 180.0
             cos_wd_il = np.cos(rotate_angle_il)
             sin_wd_il = np.sin(rotate_angle_il)

@@ -27,3 +27,5 @@ def test_notebooks(notebook):
         pass
     except Exception as e:
         raise Exception(notebook.filename + " failed") from e
+    finally:
+        plt.close()

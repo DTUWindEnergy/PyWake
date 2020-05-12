@@ -36,6 +36,7 @@ setup(name='py_wake',
           'matplotlib',  # for plotting
           'numpy',  # for numerical calculations
           'xarray',  # for WaspGridSite data storage
+          'autograd',  # gradient calculation
           'pytest',  # for testing
           'pytest-cov',  # for calculating coverage
           'pyyaml',  # for reading yaml files
