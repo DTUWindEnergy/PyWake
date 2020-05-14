@@ -10,8 +10,9 @@ from py_wake.site._site import UniformSite
 
 class IEA37_WindTurbines(OneTypeWindTurbines):
     def __init__(self, yaml_filename=iea37_path + 'iea37-335mw.yaml'):
-        name, hub_height, diameter, ct_func, power_func = read_iea37_windturbine(yaml_filename)
+        name, hub_height, diameter, ct_func, power_func, dct, dpower = read_iea37_windturbine(yaml_filename)
         super().__init__(name, diameter, hub_height, ct_func, power_func, power_unit='W')
+        self.set_gradient_funcs(dpower, dct)
 
 
 class IEA37Site(UniformSite):

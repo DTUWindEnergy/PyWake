@@ -261,17 +261,19 @@ class EngineeringWindFarmModel(WindFarmModel):
                 return self.__call__(x, y, h, type, wd, ws, yaw_ilk).aep()
         return gradient_method(aep, argnum)
 
-    def dAEPdxy(self, gradient_method):
+    def dAEPdxy(self, gradient_method, normalize_probabilities=False, with_wake_loss=True, gradient_method_kwargs={}):
 
         def wrap(x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None):  # @ReservedAssignment
             def aep(x, y, h, type, wd, ws, yaw_ilk):  # @ReservedAssignment
                 if gradient_method == autograd:
                     with use_autograd_in():
-                        return self.__call__(x, y, h, type, wd, ws, yaw_ilk).aep()
+                        sr = self.__call__(x, y, h, type, wd, ws, yaw_ilk)
+                        return sr.aep(normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss)
                 else:
-                    return self.__call__(x, y, h, type, wd, ws, yaw_ilk).aep()
-            return (gradient_method(aep, 0)(x, y, h, type, wd, ws, yaw_ilk),
-                    gradient_method(aep, 1)(x, y, h, type, wd, ws, yaw_ilk))
+                    return self.__call__(x, y, h, type, wd, ws, yaw_ilk).aep(
+                        normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss)
+            return (gradient_method(aep, 0, **gradient_method_kwargs)(x, y, h, type, wd, ws, yaw_ilk),
+                    gradient_method(aep, 1, **gradient_method_kwargs)(x, y, h, type, wd, ws, yaw_ilk))
         return wrap
 
 

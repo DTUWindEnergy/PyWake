@@ -326,7 +326,7 @@ class UniformSite(Site):
 
     def probability(self, x_i, y_i, h_i, WD_ilk, WS_ilk, wd_bin_size, ws_bins):
         P_lk = np.ones_like(WS_ilk[0], dtype=np.float) * \
-            self.p_wd[np.round(WD_ilk[0]).astype(np.int) % 360] * wd_bin_size
+            self.p_wd[np.round(WD_ilk[0]).astype(int) % 360] * wd_bin_size
         return P_lk[na]
 
     def local_wind(self, x_i=None, y_i=None, h_i=None, wd=None, ws=None, wd_bin_size=None, ws_bins=None):
