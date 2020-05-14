@@ -27,8 +27,14 @@ class BastankhahGaussianDeficit(DeficitModel):
         deficit_ijlk = (WS_ilk[:, na] * (1. - np.sqrt(radical_ijlk)) * np.exp(exponent_ijlk)) * (dw_ijlk > 0)
         return deficit_ijlk
 
+    def wake_radius(self, D_src_il, dw_ijlk, ct_ilk, **_):
+        sqrt1ct_ilk = np.sqrt(1 - ct_ilk)
+        beta_ilk = 1 / 2 * (1 + sqrt1ct_ilk) / sqrt1ct_ilk
+        sigma_ijlk = self.k * dw_ijlk / D_src_il[:, na, :, na] + .2 * np.sqrt(beta_ilk)[:, na]
+        return 2 * sigma_ijlk * D_src_il[:, na, :, na]
 
-class IEA37SimpleBastankhahGaussianDeficit(DeficitModel):
+
+class IEA37SimpleBastankhahGaussianDeficit(BastankhahGaussianDeficit):
     """Implemented according to
     https://github.com/byuflowlab/iea37-wflo-casestudies/blob/master/iea37-wakemodel.pdf
 
@@ -38,7 +44,7 @@ class IEA37SimpleBastankhahGaussianDeficit(DeficitModel):
     args4update = ['ct_ilk']
 
     def __init__(self, ):
-        self.k = 0.0324555
+        BastankhahGaussianDeficit.__init__(self, k=0.0324555)
 
     def _calc_layout_terms(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, **_):
         sigma_ijlk = self.k * dw_ijlk * (dw_ijlk > 0) + (D_src_il / np.sqrt(8.))[:, na, :, na]

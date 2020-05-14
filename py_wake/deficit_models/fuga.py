@@ -10,7 +10,7 @@ from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2A
 class FugaDeficit(DeficitModel):
     ams = 5
     invL = 0
-    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijl', 'h_il', 'ct_ilk']
+    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijl', 'h_il', 'ct_ilk', 'D_src_il']
 
     def __init__(self, LUT_path):
         self.load(LUT_path)
@@ -89,6 +89,10 @@ class FugaDeficit(DeficitModel):
         if not self.deficit_initalized:
             self._calc_layout_terms(dw_ijlk, hcw_ijlk, h_il, dh_ijl)
         return self.mdu_ijlk * (ct_ilk * WS_eff_ilk**2 / WS_ilk)[:, na]
+
+    def wake_radius(self, D_src_il, **_):
+        # Set at twice the source radius for now
+        return D_src_il[:, na, :, na]
 
 
 class LUTInterpolator(object):

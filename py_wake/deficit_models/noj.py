@@ -10,7 +10,7 @@ class AreaOverlappingFactor():
     def __init__(self, k=.1):
         self.k = k
 
-    def overlapping_area_factor(self, dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl):
+    def overlapping_area_factor(self, wake_radius_ijlk, dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl):
         """Calculate overlapping factor
 
         Parameters
@@ -29,15 +29,15 @@ class AreaOverlappingFactor():
         A_ol_factor_jl : array_like
             area overlaping factor
         """
-        wake_radius_ijlk = (self.k * dw_ijlk + D_src_il[:, na, :, na] / 2)
+
         if D_dst_ijl is None:
             return wake_radius_ijlk > cw_ijlk
         else:
-            return self.cal_overlapping_area_factor(wake_radius_ijlk,
-                                                    (D_dst_ijl[..., na] / 2),
-                                                    np.abs(cw_ijlk))
+            return self._cal_overlapping_area_factor(wake_radius_ijlk,
+                                                     (D_dst_ijl[..., na] / 2),
+                                                     np.abs(cw_ijlk))
 
-    def cal_overlapping_area_factor(self, R1, R2, d):
+    def _cal_overlapping_area_factor(self, R1, R2, d):
         """ Calculate the overlapping area of two circles with radius R1 and
         R2, centers distanced d.
 
@@ -113,7 +113,8 @@ class NOJDeficit(DeficitModel, AreaOverlappingFactor):
         R_src_il = D_src_il / 2
         term_denominator_ijlk = (1 + self.k * dw_ijlk / R_src_il[:, na, :, na])**2
         term_denominator_ijlk += (term_denominator_ijlk == 0)
-        A_ol_factor_ijlk = self.overlapping_area_factor(dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl)
+        A_ol_factor_ijlk = self.overlapping_area_factor(self.wake_radius(D_src_il, dw_ijlk),
+                                                        dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl)
 
         with np.warnings.catch_warnings():
             np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
@@ -125,6 +126,10 @@ class NOJDeficit(DeficitModel, AreaOverlappingFactor):
         ct_ilk = np.minimum(ct_ilk, 1)   # treat ct_ilk for np.sqrt()
         term_numerator_ilk = (1 - np.sqrt(1 - ct_ilk))
         return term_numerator_ilk[:, na] * self.layout_factor_ijlk
+
+    def wake_radius(self, D_src_il, dw_ijlk, **_):
+        wake_radius_ijlk = (self.k * dw_ijlk + D_src_il[:, na, :, na] / 2)
+        return wake_radius_ijlk
 
 
 class NOJ(PropagateDownwind):

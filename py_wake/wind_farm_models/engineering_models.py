@@ -63,8 +63,6 @@ class EngineeringWindFarmModel(WindFarmModel):
         self.args4deficit = self.wake_deficitModel.args4deficit
         if self.blockage_deficitModel:
             self.args4deficit = set(self.args4deficit) | set(self.blockage_deficitModel.args4deficit)
-        if self.turbulenceModel:
-            self.args4deficit = set(self.args4deficit) | set(self.turbulenceModel.args4addturb)
 
     def __str__(self):
         def name(o):
@@ -210,6 +208,10 @@ class EngineeringWindFarmModel(WindFarmModel):
                     args = {k: arg_funcs[k]() for k in self.args4deficit if k != 'dw_ijlk'}
                     deficit_ijk[i] = self._calc_deficit(dw_ijlk=dw_ijlk, **args)[0, :, 0]
                     if self.turbulenceModel:
+                        arg_funcs['wake_radius_ijlk'] = lambda: self.wake_deficitModel.wake_radius(
+                            dw_ijlk=dw_ijlk, **args)
+                        args.update({k: arg_funcs[k]() for k in self.turbulenceModel.args4addturb
+                                     if k not in self.args4deficit})
                         add_turb_ijk[i] = self.turbulenceModel.calc_added_turbulence(dw_ijlk=dw_ijlk, **args)[0, :, 0]
 
             else:
@@ -235,10 +237,14 @@ class EngineeringWindFarmModel(WindFarmModel):
                 arg_funcs['dw_ijlk'] = lambda: dw_ijlk
                 arg_funcs['hcw_ijlk'] = lambda: hcw_ijlk
 
-                args = {k: arg_funcs[k]() for k in self.args4deficit}
-                deficit_ijk = self._calc_deficit(**args)[:, :, 0]
+                args = {k: arg_funcs[k]() for k in self.args4deficit if k != 'dw_ijlk'}
+                deficit_ijk = self._calc_deficit(dw_ijlk=dw_ijlk, **args)[:, :, 0]
                 if self.turbulenceModel:
-                    add_turb_ijk = self.turbulenceModel.calc_added_turbulence(**args)[:, :, 0]
+                    arg_funcs['wake_radius_ijlk'] = lambda: self.wake_deficitModel.wake_radius(
+                        dw_ijlk=dw_ijlk, **args)
+                    args.update({k: arg_funcs[k]() for k in self.turbulenceModel.args4addturb
+                                 if k not in self.args4deficit})
+                    add_turb_ijk = self.turbulenceModel.calc_added_turbulence(dw_ijlk=dw_ijlk, **args)[:, :, 0]
             WS_eff_jlk[:, l] = self.superpositionModel.calc_effective_WS(lw_j.WS_ilk[:, l], deficit_ijk)
             if self.turbulenceModel:
                 TI_eff_jlk[:, l] = self.turbulenceModel.calc_effective_TI(lw_j.TI_ilk[:, l], add_turb_ijk)
@@ -327,6 +333,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
         if self.turbulenceModel:
             add_turb_nk = np.zeros((I * I * L, K))
+            wake_radius_nk = np.zeros((I * I * L, K))
             TI_mk = ilk2mk(lw.TI_ilk)
             TI_eff_mk = ilk2mk(TI_eff_ilk)
 
@@ -365,10 +372,10 @@ class PropagateDownwind(EngineeringWindFarmModel):
             ct_lk, power_lk = self.windTurbines._ct_power(WS_eff_lk, type_i[i_wt_l])
 
             power_jlk.append(power_lk)
-            # ct_ilk[i_wt_l, i_wd_l, :] = ct_lk
             ct_jlk.append(ct_lk)
 
             if j < I - 1:
+
                 # Calculate required args4deficit parameters
                 arg_funcs = {'WS_ilk': lambda: WS_mk[m][na],
                              'WS_eff_ilk': lambda: WS_eff_mk[-1][na],
@@ -379,7 +386,9 @@ class PropagateDownwind(EngineeringWindFarmModel):
                              'D_dst_ijl': lambda: D_i[dw_order_indices_dl[:, j + 1:]].T[na],
                              'dh_ijl': lambda: dh_n[n_dw][na],
                              'h_il': lambda: h_i[i_wt_l][na],
-                             'ct_ilk': lambda: ct_lk[na]}
+                             'ct_ilk': lambda: ct_lk[na],
+                             'wake_radius_ijlk': lambda: wake_radius_ijlk
+                             }
 
                 if self.deflectionModel:
                     dw_ijlk, hcw_ijlk = self.deflectionModel.calc_deflection(
@@ -394,13 +403,20 @@ class PropagateDownwind(EngineeringWindFarmModel):
                 arg_funcs['cw_ijlk'] = lambda: np.sqrt(dh_n[n_dw][na, :, :, na]**2 + hcw_ijlk**2)
                 args = {k: arg_funcs[k]() for k in self.args4deficit if k != "dw_ijlk"}
 
-                # Calcualte deficit
+                # Calculate deficit
 
                 deficit = self.wake_deficitModel.calc_deficit(dw_ijlk=dw_ijlk, **args)[0]
                 deficit_nk.append(deficit)
+
                 if self.turbulenceModel:
+
+                    if 'wake_radius_ijlk' in self.turbulenceModel.args4addturb:
+                        wake_radius_ijlk = self.wake_deficitModel.wake_radius(dw_ijlk=dw_ijlk, **args)
+                        arg_funcs['wake_radius_ijlk'] = lambda: wake_radius_ijlk
+
+                    turb_args = {k: arg_funcs[k]() for k in self.turbulenceModel.args4addturb if k != "dw_ijlk"}
                     # Calculate added turbulence
-                    add_turb_nk[n_dw] = self.turbulenceModel.calc_added_turbulence(dw_ijlk=dw_ijlk, **args)
+                    add_turb_nk[n_dw] = self.turbulenceModel.calc_added_turbulence(dw_ijlk=dw_ijlk, **turb_args)
 
         WS_eff_jlk, power_jlk, ct_jlk = np.array(WS_eff_mk), np.array(power_jlk), np.array(ct_jlk)
 
@@ -484,6 +500,8 @@ class All2AllIterative(EngineeringWindFarmModel):
                 self._init_deficit(**args)
             if self.turbulenceModel:
                 args['TI_eff_ilk'] = TI_eff_ilk
+                if 'wake_radius_ijlk' in self.turbulenceModel.args4addturb:
+                    args['wake_radius_ijlk'] = self.wake_deficitModel.wake_radius(**args)
 
             # Calculate deficit
             deficit_iilk = self._calc_deficit(**args)

@@ -6,12 +6,13 @@ from py_wake.turbulence_models.turbulence_model import TurbulenceModel, SqrMaxSu
 
 
 class GCLTurbulenceModel(SqrMaxSum, TurbulenceModel, AreaOverlappingFactor):
-    args4addturb = ['D_src_il', 'dw_ijlk', 'ct_ilk']
+    args4addturb = ['D_src_il', 'dw_ijlk', 'ct_ilk', 'D_dst_ijl', 'cw_ijlk', 'wake_radius_ijlk']
 
     def __init__(self, k=.1):
         AreaOverlappingFactor.__init__(self, k)
 
-    def calc_added_turbulence(self, dw_ijlk, D_src_il, ct_ilk, **_):
+    def calc_added_turbulence(self, dw_ijlk, D_src_il, ct_ilk, wake_radius_ijlk,
+                              D_dst_ijl, cw_ijlk, **_):
         """ Calculate the added turbulence intensity at downstream distance
         x at the wake of a turbine.
 
@@ -31,12 +32,11 @@ class GCLTurbulenceModel(SqrMaxSum, TurbulenceModel, AreaOverlappingFactor):
         TI_add: float
             Added turbulence intensity [-]
         """
-        with np.warnings.catch_warnings():
-            np.warnings.filterwarnings('ignore', r'divide by zero encountered in true_divide')
-            r = 0.29 * np.sqrt(1 - np.sqrt(1 - ct_ilk))[:, na] / \
-                (((dw_ijlk * (dw_ijlk > 0) + (dw_ijlk <= 0) * 1e-10) / D_src_il[:, na, :, na])**(1 / 3))
-            r = r * (dw_ijlk > 1)
-            return r
+        dw_ijlk_gt0 = np.maximum(dw_ijlk, 1e-10)
+        r = 0.29 * np.sqrt(1 - np.sqrt(1 - ct_ilk))[:, na] / \
+            ((dw_ijlk_gt0 / D_src_il[:, na, :, na])**(1 / 3))
+        area_overlap_ijlk = self.overlapping_area_factor(wake_radius_ijlk, dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl)
+        return area_overlap_ijlk * r * (dw_ijlk > 0)
 
 
 def main():

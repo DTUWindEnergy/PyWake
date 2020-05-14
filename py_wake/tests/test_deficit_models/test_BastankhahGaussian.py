@@ -7,12 +7,17 @@ from py_wake.tests import npt
 from py_wake import IEA37SimpleBastankhahGaussian, BastankhahGaussian
 from py_wake.flow_map import HorizontalGrid
 import matplotlib.pyplot as plt
+from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, BastankhahGaussian
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind
+from py_wake.superposition_models import SquaredSum
+from py_wake.turbulence_models.gcl import GCLTurbulenceModel
+import pytest
 
 
 def test_BastankhahGaussian_ex16():
     site = IEA37Site(16)
     x, y = site.initial_position.T
-    windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
+    windTurbines = IEA37_WindTurbines()
     wake_model = BastankhahGaussian(site, windTurbines)
     if 0:
         windTurbines.plot(x, y)
@@ -78,7 +83,7 @@ def test_IEA37SimpleBastankhahGaussian_ex16():
 def test_IEA37SimpleBastankhahGaussian_wake_map():
     site = IEA37Site(16)
     x, y = site.initial_position.T
-    windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
+    windTurbines = IEA37_WindTurbines()
     wake_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
 
     x_j = np.linspace(-1500, 1500, 200)
@@ -93,3 +98,19 @@ def test_IEA37SimpleBastankhahGaussian_wake_map():
         plt.plot(X[49, 100:133:2], Y[49, 100:133:2], '.-')
         plt.show()
     npt.assert_array_almost_equal(Z[49, 100:133:2], ref, 2)
+
+
+def test_wake_radius():
+
+    npt.assert_array_almost_equal(BastankhahGaussianDeficit().wake_radius(
+        D_src_il=np.reshape([100, 110, 50, 200, 200], (5, 1)),
+        dw_ijlk=np.reshape([500, 600, 0, 0, 0], (5, 1, 1, 1)),
+        ct_ilk=np.reshape([8 / 9, .8, .8, .8, .4], (5, 1, 1)))[:, 0, 0, 0],
+        [89.024042, 94.915465, 25.440393, 101.761572, 85.622323])
+
+    # Check that it works when called from WindFarmModel
+    site = IEA37Site(16)
+    x, y = site.initial_position.T
+    windTurbines = IEA37_WindTurbines()
+    wfm = BastankhahGaussian(site, windTurbines, turbulenceModel=GCLTurbulenceModel())
+    wfm(x=[0, 500], y=[0, 0], wd=[30], ws=[10])
