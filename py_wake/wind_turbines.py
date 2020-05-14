@@ -363,6 +363,9 @@ class OneTypeWindTurbines(WindTurbines):
                                    power_func=lambda u, ws=ws, power=power: np.interp(u, ws, power),
                                    power_unit=power_unit)
 
+    def set_gradient_funcs(self, power_grad_funcs, ct_grad_funcs):
+        WindTurbines.set_gradient_funcs(self, [power_grad_funcs], [ct_grad_funcs])
+
 
 def cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=5000):
     def power_func(ws):

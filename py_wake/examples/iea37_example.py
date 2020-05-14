@@ -21,7 +21,7 @@ def main():
             windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
             wake_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
 
-            aep = wake_model(x, y, wd=np.arange(0, 360, 22.5), ws=[9.8]).aep()
+            aep = wake_model(x, y, wd=np.arange(0, 360, 22.5), ws=[9.8]).aep(normalize_probabilities=True)
 
             # Compare to reference results provided for IEA task 37
             print(n_wt, aep_ref[0] * 1e-3, aep)

@@ -2,6 +2,8 @@ import numpy as np
 from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose,\
     read_iea37_windturbine, read_iea37_windfarm
+from py_wake.tests import npt
+from py_wake.gradients import cs
 
 
 def test_read_iea37_windrose():
@@ -12,16 +14,18 @@ def test_read_iea37_windrose():
 
 
 def test_read_iea_windturbine():
-    wt_id, hubheight, diameter, ct, power = read_iea37_windturbine(iea37_path + 'iea37-335mw.yaml')
+    wt_id, hubheight, diameter, ct, power, dct, dpower = read_iea37_windturbine(iea37_path + 'iea37-335mw.yaml')
     assert wt_id == "3.35MW"
     assert hubheight == 110
     assert diameter == 130
 
     u = np.arange(30)
     p_r = 3350000
-    np.testing.assert_array_almost_equal([0, 1 / 5.8**3 * p_r, p_r, p_r, 0], power([4, 5, 9.8, 25, 25.1]))
+    npt.assert_array_almost_equal([0, 1 / 5.8**3 * p_r, p_r, p_r, 0], power([4, 5, 9.8, 25, 25.1]))
     ct_ = 4 * 1 / 3 * (1 - 1 / 3)
-    np.testing.assert_array_almost_equal([0, ct_, ct_, 0], ct([3.9, 4, 25, 25.1]))
+    npt.assert_array_almost_equal([0, ct_, ct_, 0], ct([3.9, 4, 25, 25.1]))
+    npt.assert_almost_equal(dpower(7), cs(power)(7))
+    npt.assert_equal(dct(7), 0)
     if 0:
         import matplotlib.pyplot as plt
         plt.plot(u, power(u) / 1e6)

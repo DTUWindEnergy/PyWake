@@ -42,7 +42,15 @@ def read_iea37_windturbine(filename):
 
         return power
 
-    return wt_id, hubheight, diameter, ct, power
+    def dpower(wsp):
+        return np.where((wsp > wsp_cut_in) & (wsp <= wsp_rated),
+                        3 * power_rated * (wsp - wsp_cut_in)**2 / (wsp_rated - wsp_cut_in)**3,
+                        0)
+
+    def dct(wsp):
+        return wsp * 0  # constant ct
+
+    return wt_id, hubheight, diameter, ct, power, dct, dpower
 
 
 def read_iea37_windfarm(filename):

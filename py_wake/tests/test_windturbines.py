@@ -104,9 +104,9 @@ def test_gradients():
 def test_set_gradients():
     wt = IEA37_WindTurbines()
 
-    wt.set_gradient_funcs([lambda ws: np.where((ws > 4) & (ws <= 9.8),
-                                               100000 * ws,  # not the right gradient, but similar to the reference
-                                               0)], [lambda ws: 0])
+    wt.set_gradient_funcs(lambda ws: np.where((ws > 4) & (ws <= 9.8),
+                                              100000 * ws,  # not the right gradient, but similar to the reference
+                                              0), lambda ws: 0)
     with use_autograd_in([WindTurbines, iea37_reader]):
         ws_lst = np.arange(3, 25, .1)
         plt.plot(ws_lst, wt.power(ws_lst))
