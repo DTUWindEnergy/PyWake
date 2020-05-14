@@ -7,7 +7,7 @@ from py_wake.tests import npt
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.flow_map import HorizontalGrid
-from py_wake.tests.test_wind_farm_models.test_noj import NibeA0
+from py_wake.tests.test_deficit_models.test_noj import NibeA0
 
 
 d02 = 8.1 - 5.7

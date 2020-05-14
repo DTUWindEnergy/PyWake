@@ -24,3 +24,18 @@ class DeficitModel(ABC):
         -------
         deficit_jlk : array_like
         """
+
+    def wake_radius(self, dw_ijlk, **_):
+        """Calculates the radius of the wake of the i'th turbine
+        for all wind directions(l) and wind speeds(k) at a set of points(j)
+
+        This method must be overridden by subclass
+
+        Arguments required by this method must be added to the class list
+        args4deficit
+
+        Returns
+        -------
+        wake_radius_ijlk : array_like
+        """
+        raise NotImplementedError("wake_radius not implemented for %s" % self.__class__.__name__)

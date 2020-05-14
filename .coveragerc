@@ -4,4 +4,4 @@ omit =
 	py_wake/examples/data/*
     tmp/*
 [report]
-fail_under = 98
+fail_under = 100

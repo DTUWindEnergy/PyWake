@@ -49,12 +49,13 @@ def test_main(module):
             # To count 'if __name__=="__main__": main()' in cov
             with mock.patch.object(module, "__name__", "__main__"):  # @UndefinedVariable
                 getattr(module, 'main')()
-                plt.close()
+
     except Exception as e:
         raise type(e)(str(e) +
                       ' in %s.main' % module.__name__).with_traceback(sys.exc_info()[2])
     finally:
         HorizontalGrid.default_resolution = default_resolution
+        plt.close()
 
 # if __name__ == '__main__':
 #     print_main_modules()

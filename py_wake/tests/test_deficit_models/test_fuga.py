@@ -6,8 +6,9 @@ from py_wake.tests.test_files import tfp
 from py_wake import Fuga
 from py_wake.examples.data import hornsrev1
 import matplotlib.pyplot as plt
-from py_wake.deficit_models.fuga import FugaBlockage
+from py_wake.deficit_models.fuga import FugaBlockage, FugaDeficit
 from py_wake.flow_map import HorizontalGrid
+from py_wake.turbulence_models.gcl import GCLTurbulenceModel
 
 
 def test_fuga():
@@ -141,6 +142,21 @@ def test_fuga_new_format():
         [10.051, 10.0337, 10.0649, 10.0374, 9.7865, 7.7119, 6.4956, 9.2753, 10.0047, 10.0689, 10.0444,
          10.0752, 10.0699, 9.1852, 6.9783, 9.152, 10.0707, 10.0477, 10.0365, 9.9884, 9.2867, 7.5714,
          6.4451, 8.3276, 9.9976, 10.0251, 10.0261, 10.023, 10.0154, 9.9996], 4)
+
+
+def test_wake_radius():
+    path = tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/'
+
+    deficit_model = FugaDeficit(path)
+    npt.assert_array_equal(deficit_model.wake_radius(D_src_il=np.reshape([100, 110], (2, 1))),
+                           np.reshape([100, 110], (2, 1, 1, 1)))
+
+    # Check that it works when called from WindFarmModel
+    path = tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/'
+    site = UniformSite([1, 0, 0, 0], ti=0.075)
+    wts = HornsrevV80()
+    wfm = Fuga(path, site, wts, turbulenceModel=GCLTurbulenceModel())
+    wfm(x=[0, 500], y=[0, 0], wd=[30], ws=[10])
 
 
 # def cmp_fuga_with_colonel():
