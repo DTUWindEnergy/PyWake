@@ -28,9 +28,10 @@ class EngineeringWindFarmModel(WindFarmModel):
     - TI_eff_ilk: local turbulence intensity with wake effects
     - D_src_il: Diameter of source turbine
     - D_dst_ijl: Diameter of destination turbine
-    - dw_ijl: Downwind distance from turbine i to point/turbine j
-    - hcw_ijl: Horizontal cross wind distance from turbine i to point/turbine j
-    - cw_ijl: Cross wind(horizontal and vertical) distance from turbine i to point/turbine j
+    - dw_ijlk: Downwind distance from turbine i to point/turbine j
+    - hcw_ijlk: Horizontal cross wind distance from turbine i to point/turbine j
+    - dh_ijl: vertical distance from turbine i to point/turbine j
+    - cw_ijlk: Cross wind(horizontal and vertical) distance from turbine i to point/turbine j
     - ct_ilk: Thrust coefficient
 
     """
@@ -323,26 +324,24 @@ class PropagateDownwind(EngineeringWindFarmModel):
         """
         lw = localWind
         deficit_nk = []
-        ct_ilk = np.zeros_like(lw.WS_ilk)
 
         def ilk2mk(x_ilk):
             return x_ilk.astype(np.float).reshape((I * L, K))
+
+        indices = np.arange(I * I * L).reshape((I, I, L))
+        TI_mk = ilk2mk(lw.TI_ilk)
+        WS_mk = ilk2mk(lw.WS_ilk)
+        WS_eff_mk = []
+        yaw_mk = ilk2mk(yaw_ilk)
+        power_jlk = []
+        ct_jlk = []
 
         if not self.deflectionModel:
             dw_ijlk, hcw_ijlk = dw_iil[..., na], hcw_iil[..., na]
 
         if self.turbulenceModel:
             add_turb_nk = np.zeros((I * I * L, K))
-            wake_radius_nk = np.zeros((I * I * L, K))
-            TI_mk = ilk2mk(lw.TI_ilk)
             TI_eff_mk = ilk2mk(TI_eff_ilk)
-
-        indices = np.arange(I * I * L).reshape((I, I, L))
-        WS_mk = ilk2mk(lw.WS_ilk)
-        WS_eff_mk = []
-        yaw_mk = ilk2mk(yaw_ilk)
-        power_jlk = []
-        ct_jlk = []
 
         dw_n, hcw_n, cw_n, dh_n = [a.flatten() for a in [dw_iil, hcw_iil, cw_iil, dh_iil]]
 
