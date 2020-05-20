@@ -90,7 +90,7 @@ def test_str():
                                 blockage_deficitModel=SelfSimilarityDeficit(),
                                 deflectionModel=JimenezWakeDeflection(),
                                 turbulenceModel=STF2005TurbulenceModel())
-    assert str(wf_model) == "All2AllIterative(EngineeringWindFarmModel, NOJDeficit-wake, SelfSimilarityDeficit-blockage, SquaredSum-superposition, JimenezWakeDeflection-deflection, STF2005TurbulenceModel-turbulence)"
+    assert str(wf_model) == "All2AllIterative(EngineeringWindFarmModel, NOJDeficit-wake, SelfSimilarityDeficit-blockage, RotorCenter-rotor-average, SquaredSum-superposition, JimenezWakeDeflection-deflection, STF2005TurbulenceModel-turbulence)"
 
 
 @pytest.mark.parametrize('deflectionModel', [(None),
