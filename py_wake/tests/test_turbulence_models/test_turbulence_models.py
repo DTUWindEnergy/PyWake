@@ -69,7 +69,7 @@ def test_models_with_BastankhahGaussian(turbulence_model, ref_ti):
 
         res = wake_model(x, y)
         # print(turbulence_model.__class__.__name__, np.round(res.TI_eff_ilk[:, 0, 0], 3).tolist())
-        if 1:
+        if 0:
             res.flow_map(wd=0).plot_ti_map()
             plt.show()
 

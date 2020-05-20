@@ -5,6 +5,7 @@ import numpy as np
 from py_wake.deficit_models.deficit_model import DeficitModel
 from py_wake.superposition_models import LinearSum
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
+from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
 
 
 class FugaDeficit(DeficitModel):
@@ -164,7 +165,8 @@ class LUTInterpolator(object):
 
 
 class Fuga(PropagateDownwind):
-    def __init__(self, LUT_path, site, windTurbines, deflectionModel=None, turbulenceModel=None):
+    def __init__(self, LUT_path, site, windTurbines,
+                 rotorAvgModel=RotorCenter(), deflectionModel=None, turbulenceModel=None):
         """
         Parameters
         ----------
@@ -174,18 +176,25 @@ class Fuga(PropagateDownwind):
             Site object
         windTurbines : WindTurbines
             WindTurbines object representing the wake generating wind turbines
+        rotorAvgModel : RotorAvgModel
+            Model defining one or more points at the down stream rotors to
+            calculate the rotor average wind speeds from.\n
+            Defaults to RotorCenter that uses the rotor center wind speed (i.e. one point) only
         deflectionModel : DeflectionModel
             Model describing the deflection of the wake due to yaw misalignment, sheared inflow, etc.
         turbulenceModel : TurbulenceModel
             Model describing the amount of added turbulence in the wake
         """
         PropagateDownwind.__init__(self, site, windTurbines,
-                                   wake_deficitModel=FugaDeficit(LUT_path), superpositionModel=LinearSum(),
+                                   wake_deficitModel=FugaDeficit(LUT_path),
+                                   rotorAvgModel=rotorAvgModel, superpositionModel=LinearSum(),
                                    deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
 
 
 class FugaBlockage(All2AllIterative):
-    def __init__(self, LUT_path, site, windTurbines, turbulenceModel=None, convergence_tolerance=1e-6):
+    def __init__(self, LUT_path, site, windTurbines,
+                 rotorAvgModel=RotorCenter(),
+                 deflectionModel=None, turbulenceModel=None, convergence_tolerance=1e-6):
         """
         Parameters
         ----------
@@ -195,6 +204,10 @@ class FugaBlockage(All2AllIterative):
             Site object
         windTurbines : WindTurbines
             WindTurbines object representing the wake generating wind turbines
+        rotorAvgModel : RotorAvgModel
+            Model defining one or more points at the down stream rotors to
+            calculate the rotor average wind speeds from.\n
+            Defaults to RotorCenter that uses the rotor center wind speed (i.e. one point) only
         deflectionModel : DeflectionModel
             Model describing the deflection of the wake due to yaw misalignment, sheared inflow, etc.
         turbulenceModel : TurbulenceModel
@@ -202,8 +215,9 @@ class FugaBlockage(All2AllIterative):
         """
         fuga_deficit = FugaDeficit(LUT_path)
         All2AllIterative.__init__(self, site, windTurbines, wake_deficitModel=fuga_deficit,
-                                  superpositionModel=LinearSum(), blockage_deficitModel=fuga_deficit,
-                                  turbulenceModel=turbulenceModel, convergence_tolerance=convergence_tolerance)
+                                  rotorAvgModel=rotorAvgModel, superpositionModel=LinearSum(),
+                                  blockage_deficitModel=fuga_deficit, turbulenceModel=turbulenceModel,
+                                  convergence_tolerance=convergence_tolerance)
 
 
 def main():
@@ -216,7 +230,7 @@ def main():
         # setup site, turbines and wind farm model
         site = IEA37Site(16)
         x, y = site.initial_position.T
-        windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
+        windTurbines = IEA37_WindTurbines()
 
         from py_wake.tests.test_files import tfp
         path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'

@@ -4,6 +4,7 @@ import numpy as np
 from py_wake.deficit_models import DeficitModel
 from py_wake.superposition_models import SquaredSum
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
+from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
 
 
 class BastankhahGaussianDeficit(DeficitModel):
@@ -47,8 +48,9 @@ class IEA37SimpleBastankhahGaussianDeficit(BastankhahGaussianDeficit):
         BastankhahGaussianDeficit.__init__(self, k=0.0324555)
 
     def _calc_layout_terms(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, **_):
-        sigma_ijlk = self.k * dw_ijlk * (dw_ijlk > 0) + (D_src_il / np.sqrt(8.))[:, na, :, na]
-        self.layout_factor_ijlk = WS_ilk[:, na] * (dw_ijlk > 0) * \
+        eps = 1e-10
+        sigma_ijlk = self.k * dw_ijlk * (dw_ijlk > eps) + (D_src_il / np.sqrt(8.))[:, na, :, na]
+        self.layout_factor_ijlk = WS_ilk[:, na] * (dw_ijlk > eps) * \
             np.exp(-0.5 * (cw_ijlk / sigma_ijlk)**2)
         self.denominator_ijlk = 8. * (sigma_ijlk / D_src_il[:, na, :, na])**2
 
@@ -60,7 +62,8 @@ class IEA37SimpleBastankhahGaussianDeficit(BastankhahGaussianDeficit):
 
 
 class BastankhahGaussian(PropagateDownwind):
-    def __init__(self, site, windTurbines, k=0.0324555, superpositionModel=SquaredSum(),
+    def __init__(self, site, windTurbines, k=0.0324555,
+                 rotorAvgModel=RotorCenter(), superpositionModel=SquaredSum(),
                  deflectionModel=None, turbulenceModel=None):
         """
         Parameters
@@ -69,6 +72,10 @@ class BastankhahGaussian(PropagateDownwind):
             Site object
         windTurbines : WindTurbines
             WindTurbines object representing the wake generating wind turbines
+        rotorAvgModel : RotorAvgModel
+            Model defining one or more points at the down stream rotors to
+            calculate the rotor average wind speeds from.\n
+            Defaults to RotorCenter that uses the rotor center wind speed (i.e. one point) only
         superpositionModel : SuperpositionModel, default SquaredSum
             Model defining how deficits sum up
         deflectionModel : DeflectionModel, default None
@@ -77,12 +84,14 @@ class BastankhahGaussian(PropagateDownwind):
             Model describing the amount of added turbulence in the wake
         """
         PropagateDownwind.__init__(self, site, windTurbines, wake_deficitModel=BastankhahGaussianDeficit(k=k),
-                                   superpositionModel=superpositionModel, deflectionModel=deflectionModel,
-                                   turbulenceModel=turbulenceModel)
+                                   rotorAvgModel=rotorAvgModel, superpositionModel=superpositionModel,
+                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
 
 
 class IEA37SimpleBastankhahGaussian(PropagateDownwind):
-    def __init__(self, site, windTurbines, superpositionModel=SquaredSum(), deflectionModel=None, turbulenceModel=None):
+    def __init__(self, site, windTurbines,
+                 rotorAvgModel=RotorCenter(), superpositionModel=SquaredSum(),
+                 deflectionModel=None, turbulenceModel=None):
         """
         Parameters
         ----------
@@ -90,6 +99,10 @@ class IEA37SimpleBastankhahGaussian(PropagateDownwind):
             Site object
         windTurbines : WindTurbines
             WindTurbines object representing the wake generating wind turbines
+        rotorAvgModel : RotorAvgModel
+            Model defining one or more points at the down stream rotors to
+            calculate the rotor average wind speeds from.\n
+            Defaults to RotorCenter that uses the rotor center wind speed (i.e. one point) only
         superpositionModel : SuperpositionModel, default SquaredSum
             Model defining how deficits sum up
         deflectionModel : DeflectionModel, default None
@@ -97,9 +110,10 @@ class IEA37SimpleBastankhahGaussian(PropagateDownwind):
         turbulenceModel : TurbulenceModel, default None
             Model describing the amount of added turbulence in the wake
         """
-        PropagateDownwind.__init__(self, site, windTurbines, wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
-                                   superpositionModel=superpositionModel, deflectionModel=deflectionModel,
-                                   turbulenceModel=turbulenceModel)
+        PropagateDownwind.__init__(self, site, windTurbines,
+                                   wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
+                                   rotorAvgModel=rotorAvgModel, superpositionModel=superpositionModel,
+                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
 
 
 def main():
