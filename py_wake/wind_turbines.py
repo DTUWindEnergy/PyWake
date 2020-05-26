@@ -2,6 +2,7 @@ import numpy as np
 import xml.etree.ElementTree as ET
 from scipy.interpolate.fitpack2 import UnivariateSpline
 from autograd.core import defvjp, primitive
+from scipy import interpolate
 
 
 class WindTurbines():
@@ -317,8 +318,8 @@ class WindTurbines():
             names.append(name)
             diameters.append(diameter)
             hub_heights.append(hub_height)
-            ct_funcs.append(lambda u, ws=ws, ct=ct: np.interp(u, ws, ct, left=0, right=0))
-            power_funcs.append(lambda u, ws=ws, power=power: np.interp(u, ws, power, left=0, right=0))
+            ct_funcs.append(interpolate.interp1d(ws, ct, bounds_error=False, fill_value=0))
+            power_funcs.append(interpolate.interp1d(ws, power, bounds_error=False, fill_value=0))
 
         return WindTurbines(names=names, diameters=diameters,
                             hub_heights=hub_heights, ct_funcs=ct_funcs,
