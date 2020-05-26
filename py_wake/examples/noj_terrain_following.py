@@ -12,7 +12,7 @@ def main():
         windTurbines = IEA37_WindTurbines()
         wf_model = NOJ(site, windTurbines)
         x, y = site.initial_position.T
-        print(wf_model(x, y).aep)
+        print(wf_model(x, y).aep())
 
 
 main()
