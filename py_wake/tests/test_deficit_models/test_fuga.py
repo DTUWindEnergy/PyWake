@@ -144,21 +144,6 @@ def test_fuga_new_format():
          6.4451, 8.3276, 9.9976, 10.0251, 10.0261, 10.023, 10.0154, 9.9996], 4)
 
 
-def test_wake_radius():
-    path = tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/'
-
-    deficit_model = FugaDeficit(path)
-    npt.assert_array_equal(deficit_model.wake_radius(D_src_il=np.reshape([100, 110], (2, 1))),
-                           np.reshape([100, 110], (2, 1, 1, 1)))
-
-    # Check that it works when called from WindFarmModel
-    path = tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/'
-    site = UniformSite([1, 0, 0, 0], ti=0.075)
-    wts = HornsrevV80()
-    wfm = Fuga(path, site, wts, turbulenceModel=GCLTurbulenceModel())
-    wfm(x=[0, 500], y=[0, 0], wd=[30], ws=[10])
-
-
 # def cmp_fuga_with_colonel():
 #     from py_wake.aep_calculator import AEPCalculator
 #

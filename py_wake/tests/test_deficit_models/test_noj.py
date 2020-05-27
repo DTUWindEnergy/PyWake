@@ -77,24 +77,5 @@ def test_NOJ_6_turbines_in_row():
         WS_eff_ilk[1:, 0, 0], 11 - np.sqrt(np.cumsum(((11 * 2 / 3 * 20**2)**2) / (20 + 8 * np.arange(1, 6))**4)))
 
 
-def test_wake_map():
-    site = IEA37Site(16)
-
-    x, y = site.initial_position.T
-
-    windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
-    wake_model = NOJ(site, windTurbines)
-    x_j = np.linspace(-1500, 1500, 200)
-    y_j = np.linspace(-1500, 1500, 100)
-    flow_map = wake_model(x, y, wd=[0], ws=[9]).flow_map(HorizontalGrid(x_j, y_j, 110))
-    Z = flow_map.WS_eff_xylk.mean((2, 3))
-    if 0:
-        flow_map.plot_wake_map()
-        plt.show()
-
-    ref = [3.27, 3.27, 9.0, 7.46, 7.46, 7.46, 7.46, 7.31, 7.31, 7.31, 7.31, 8.3, 8.3, 8.3, 8.3, 8.3, 8.3]
-    npt.assert_array_almost_equal(Z[49, 100:133:2], ref, 2)
-
-
 if __name__ == '__main__':
     test_wake_map()
