@@ -39,3 +39,28 @@ class DeficitModel(ABC):
         wake_radius_ijlk : array_like
         """
         raise NotImplementedError("wake_radius not implemented for %s" % self.__class__.__name__)
+
+
+class ConvectionDeficitModel(DeficitModel):
+
+    @abstractmethod
+    def calc_deficit_convection(self):
+        """Calculate wake deficit caused by the x'th most upstream wind turbines
+        for all wind directions(l) and wind speeds(k) on a set of points(j)
+
+        This method must be overridden by subclass
+
+        Arguments required by this method must be added to the class list
+        args4deficit
+
+        See documentation of EngineeringWindFarmModel for a list of available input arguments
+
+        Returns
+        -------
+        deficit_centre_ijlk : array_like
+            ???
+        uc_ijlk : array_like
+            ???
+        sigma_sqr_ijlk : array_like
+            ???
+        """
