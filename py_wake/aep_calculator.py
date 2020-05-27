@@ -42,9 +42,8 @@ wake_model(x_i, y_i, ...) returns a flowModelResult with same functionality as A
         h_i : array_like or None, optional
             Hub height of wind turbines\n
             If None, default, the standard hub height is used
-        type_i array_like or None, optional
+        type_i int, array_like, optional, default is 0
             Wind turbine types\n
-            If None, default, the first type is used (type=0)
         wd : int, float, array_like or None
             Wind directions(s)\n
             If None, default, the wake is calculated for site.default_wd

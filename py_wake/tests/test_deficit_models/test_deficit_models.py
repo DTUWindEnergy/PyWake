@@ -47,13 +47,19 @@ def test_IEA37_ex16(deficitModel, aep_ref):
     site = IEA37Site(16)
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
-    wf_model = PropagateDownwind(site, windTurbines, wake_deficitModel=deficitModel, superpositionModel=SquaredSum())
+    wf_model = PropagateDownwind(site, windTurbines, wake_deficitModel=deficitModel,
+                                 superpositionModel=SquaredSum(), turbulenceModel=GCLTurbulenceModel())
 
     aep_ilk = wf_model(x, y, wd=np.arange(0, 360, 22.5), ws=[9.8]).aep_ilk(normalize_probabilities=True)
     aep_MW_l = aep_ilk.sum((0, 2)) * 1000
 
-    npt.assert_almost_equal(aep_MW_l.sum(), aep_ref[0], 5)
+    # check if ref is reasonable
+    aep_est = 16 * 3.35 * 24 * 365 * .8  # n_wt * P_rated * hours_pr_year - 20% wake loss = 375628.8
+    npt.assert_allclose(aep_ref[0], aep_est, rtol=.1)
+    npt.assert_allclose(aep_ref[1], [9500, 8700, 11500, 14300, 21300, 25900, 39600, 44300, 23900,
+                                     13900, 15200, 33000, 72100, 18300, 12500, 8000], rtol=.15)
 
+    npt.assert_almost_equal(aep_MW_l.sum(), aep_ref[0], 5)
     npt.assert_array_almost_equal(aep_MW_l, aep_ref[1], 5)
 
 
@@ -75,7 +81,8 @@ def test_deficitModel_wake_map(deficitModel, ref):
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
 
-    wf_model = PropagateDownwind(site, windTurbines, wake_deficitModel=deficitModel, superpositionModel=SquaredSum())
+    wf_model = PropagateDownwind(site, windTurbines, wake_deficitModel=deficitModel, superpositionModel=SquaredSum(),
+                                 turbulenceModel=GCLTurbulenceModel())
 
     x_j = np.linspace(-1500, 1500, 200)
     y_j = np.linspace(-1500, 1500, 100)
@@ -83,18 +90,31 @@ def test_deficitModel_wake_map(deficitModel, ref):
     flow_map = wf_model(x, y, wd=0, ws=9).flow_map(HorizontalGrid(x_j, y_j))
     X, Y = flow_map.X, flow_map.Y
     Z = flow_map.WS_eff_xylk[:, :, 0, 0]
-    # test that the result is equal to last run (no evidens that  these number are correct)
-    if 0:
 
+    mean_ref = [3.2, 4.9, 8., 8.2, 7.9, 7.4, 7., 7., 7.4, 7.9, 8.1, 8.1, 8., 7.8, 7.9, 8.1, 8.4]
+
+    if 0:
         flow_map.plot_wake_map()
         plt.plot(X[49, 100:133:2], Y[49, 100:133:2], '.-')
         windTurbines.plot(x, y)
+        plt.figure()
+        plt.plot(Z[49, 100:133:2])
+        plt.plot(ref, label='ref')
+        plt.plot(mean_ref, label='Mean ref')
+        plt.legend()
         plt.show()
+
+    # check that ref is reasonable
+    npt.assert_allclose(ref[2:], mean_ref[2:], atol=2.6)
+
     npt.assert_array_almost_equal(Z[49, 100:133:2], ref, 2)
 
 
+v = []
+
+
 @pytest.mark.parametrize(
-    'deficitModel,wake_radius',
+    'deficitModel,wake_radius_ref',
     # test that the result is equal to last run (no evidens that  these number are correct)
     [(NOJDeficit(), [100., 75., 150., 100., 100.]),
      (BastankhahGaussianDeficit(),
@@ -104,15 +124,20 @@ def test_deficitModel_wake_map(deficitModel, ref):
      (FugaDeficit(LUT_path=tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/'),
       [100, 50, 100, 100, 100]),
      (GCLDeficitModel(),
-      [156.949964, 97.763333, 195.526667, 113.225695, 250.604162])])
-def test_wake_radius(deficitModel, wake_radius):
+      [156.949964, 97.763333, 195.526667, 113.225695, 111.340236])])
+def test_wake_radius(deficitModel, wake_radius_ref):
+
+    mean_ref = [105, 68, 135, 93, 123]
+    # check that ref is reasonable
+    npt.assert_allclose(wake_radius_ref, mean_ref, rtol=.5)
 
     npt.assert_array_almost_equal(deficitModel.wake_radius(
         D_src_il=np.reshape([100, 50, 100, 100, 100], (5, 1)),
         dw_ijlk=np.reshape([500, 500, 1000, 500, 500], (5, 1, 1, 1)),
         ct_ilk=np.reshape([.8, .8, .8, .4, .8], (5, 1, 1)),
-        TI_ilk=np.reshape([.1, .1, .1, .1, .2], (5, 1, 1)))[:, 0, 0, 0],
-        wake_radius)
+        TI_ilk=np.reshape([.1, .1, .1, .1, .05], (5, 1, 1)),
+        TI_eff_ilk=np.reshape([.1, .1, .1, .1, .05], (5, 1, 1)))[:, 0, 0, 0],
+        wake_radius_ref)
 
     # Check that it works when called from WindFarmModel
     site = IEA37Site(16)
