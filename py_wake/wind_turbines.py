@@ -11,9 +11,9 @@ class Interp1dFun(object):
     def __init__(self, xp, fp, left=None, right=None, period=None):
         self.xp = xp
         self.fp = fp
-        self.left=left
-        self.right=right
-        self.period=period
+        self.left = left
+        self.right = right
+        self.period = period
 
     def interp(self, x):
         return np.interp(x, self.xp, self.fp, left=self.left,
