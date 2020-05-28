@@ -9,6 +9,7 @@ from py_wake.examples.data.iea37 import iea37_reader
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
 from py_wake.gradients import use_autograd_in, autograd, plot_gradients, fd
 from py_wake.tests import npt
+from py_wake.wind_turbines import WindTurbines
 
 
 def _test_wts_wtg(wts_wtg):
