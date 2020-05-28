@@ -118,20 +118,15 @@ class WindTurbines():
 
     def _ct_power(self, ws_i, type_i=0):
         ws_i = np.asarray(ws_i)
-        if np.any(type_i != 0):
-            CT = np.zeros_like(ws_i, dtype=np.float)
-            P = np.zeros_like(ws_i, dtype=np.float)
-            type_i = (np.zeros(ws_i.shape[0]) + type_i).astype(int)
-            # TODO: check if faster to calculate both in same line
+        t = np.unique(type_i)  # .astype(int)
+        if len(t) > 1:
+            if type_i.shape != ws_i.shape:
+                type_i = (np.zeros(ws_i.shape[0]) + type_i).astype(int)
             CT = np.array([self.ct_funcs[t](ws) for t, ws in zip(type_i, ws_i)])
             P = np.array([self.power_funcs[t](ws) for t, ws in zip(type_i, ws_i)])
-#             for t in np.unique(type_i).astype(int):
-#                 m = type_i == t
-#                 CT[m] = self.ct_funcs[t](ws_i[m])
-#                 P[m] = self.power_funcs[t](ws_i[m])
             return CT, P
         else:
-            return self.ct_funcs[0](ws_i), self.power_funcs[0](ws_i)
+            return self.ct_funcs[t[0]](ws_i), self.power_funcs[t[0]](ws_i)
 
     def set_gradient_funcs(self, power_grad_funcs, ct_grad_funcs):
         def add_grad(f_lst, df_lst):
