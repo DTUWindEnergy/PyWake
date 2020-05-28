@@ -2,7 +2,23 @@ import numpy as np
 import xml.etree.ElementTree as ET
 from scipy.interpolate.fitpack2 import UnivariateSpline
 from autograd.core import defvjp, primitive
-from scipy import interpolate
+
+
+class Interp1dFun(object):
+    """ Decorate numpy.interp in a class that can be used like
+    scipy.interpolate.interp1d: initialized once and interpolate latter."""
+
+    def __init__(self, xp, fp, left=None, right=None, period=None):
+        self.xp = xp
+        self.fp = fp
+        self.left=left
+        self.right=right
+        self.period=period
+
+    def interp(self, x):
+        return np.interp(x, self.xp, self.fp, left=self.left,
+                         right=self.right,
+                         period=self.period)
 
 
 class WindTurbines():
@@ -318,8 +334,12 @@ class WindTurbines():
             names.append(name)
             diameters.append(diameter)
             hub_heights.append(hub_height)
-            ct_funcs.append(interpolate.interp1d(ws, ct, bounds_error=False, fill_value=0))
-            power_funcs.append(interpolate.interp1d(ws, power, bounds_error=False, fill_value=0))
+
+            ct_interp_class = Interp1dFun(ws, ct, left=0, right=0)
+            ct_funcs.append(ct_interp_class.interp)
+
+            power_interp_class = Interp1dFun(ws, power, left=0, right=0)
+            power_funcs.append(power_interp_class.interp)
 
         return WindTurbines(names=names, diameters=diameters,
                             hub_heights=hub_heights, ct_funcs=ct_funcs,
