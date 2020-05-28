@@ -1,14 +1,14 @@
 import os
+
+import matplotlib.pyplot as plt
 import numpy as np
 from py_wake import NOJ
 from py_wake.examples.data import wtg_path
 from py_wake.examples.data.hornsrev1 import V80, wt9_x, wt9_y, Hornsrev1Site
-from py_wake.tests import npt
-from py_wake.wind_turbines import WindTurbines
+from py_wake.examples.data.iea37 import iea37_reader
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
 from py_wake.gradients import use_autograd_in, autograd, plot_gradients, fd
-import matplotlib.pyplot as plt
-from py_wake.examples.data.iea37 import iea37_reader
+from py_wake.tests import npt
 
 
 def _test_wts_wtg(wts_wtg):
