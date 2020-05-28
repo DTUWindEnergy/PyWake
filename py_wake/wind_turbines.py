@@ -4,23 +4,6 @@ from scipy.interpolate.fitpack2 import UnivariateSpline
 from autograd.core import defvjp, primitive
 
 
-class Interp1dFun(object):
-    """ Decorate numpy.interp in a class that can be used like
-    scipy.interpolate.interp1d: initialized once and interpolate latter."""
-
-    def __init__(self, xp, fp, left=None, right=None, period=None):
-        self.xp = xp
-        self.fp = fp
-        self.left = left
-        self.right = right
-        self.period = period
-
-    def interp(self, x):
-        return np.interp(x, self.xp, self.fp, left=self.left,
-                         right=self.right,
-                         period=self.period)
-
-
 class WindTurbines():
     """Set of multiple type wind turbines"""
 
@@ -50,6 +33,7 @@ class WindTurbines():
         power_scale = {'w': 1, 'kw': 1e3, 'mw': 1e6, 'gw': 1e9}[power_unit.lower()]
         if power_scale != 1:
             self.power_funcs = list([lambda ws, f=f: f(ws) * power_scale for f in power_funcs])
+            self.power_funcs = list([PowerScaler(f, power_scale) for f in power_funcs])
         else:
             self.power_funcs = power_funcs
 
@@ -334,12 +318,8 @@ class WindTurbines():
             names.append(name)
             diameters.append(diameter)
             hub_heights.append(hub_height)
-
-            ct_interp_class = Interp1dFun(ws, ct, left=0, right=0)
-            ct_funcs.append(ct_interp_class.interp)
-
-            power_interp_class = Interp1dFun(ws, power, left=0, right=0)
-            power_funcs.append(power_interp_class.interp)
+            ct_funcs.append(Interp(ws, ct, left=0, right=0))
+            power_funcs.append(Interp(ws, power, left=0, right=0))
 
         return WindTurbines(names=names, diameters=diameters,
                             hub_heights=hub_heights, ct_funcs=ct_funcs,
@@ -381,6 +361,32 @@ class OneTypeWindTurbines(WindTurbines):
 
     def set_gradient_funcs(self, power_grad_funcs, ct_grad_funcs):
         WindTurbines.set_gradient_funcs(self, [power_grad_funcs], [ct_grad_funcs])
+
+
+class PowerScaler():
+    def __init__(self, f, power_scale):
+        self.f = f
+        self.power_scale = power_scale
+
+    def __call__(self, ws):
+        return self.f(ws) * self.power_scale
+
+
+class Interp(object):
+    """ Decorate numpy.interp in a class that can be used like
+    scipy.interpolate.interp1d: initialized once and interpolate latter."""
+
+    def __init__(self, xp, fp, left=None, right=None, period=None):
+        self.xp = xp
+        self.fp = fp
+        self.left = left
+        self.right = right
+        self.period = period
+
+    def __call__(self, x):
+        return np.interp(x, self.xp, self.fp, left=self.left,
+                         right=self.right,
+                         period=self.period)
 
 
 def cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=5000):
