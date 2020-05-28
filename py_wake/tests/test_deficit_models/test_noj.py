@@ -1,10 +1,6 @@
 import pytest
-
-import matplotlib.pyplot as plt
 import numpy as np
 from py_wake import NOJ
-from py_wake.examples.data.iea37 import iea37_path
-from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
 from py_wake.flow_map import HorizontalGrid
@@ -72,7 +68,7 @@ def test_NOJ_6_turbines_in_row():
 
     site = UniformSite([1], 0.1)
     wake_model = NOJ(site, NibeA0)
-    WS_eff_ilk = wake_model.calc_wt_interaction(x, y, [50] * n_wt, [0.0] * n_wt, 0.0, 11.0)[0]
+    WS_eff_ilk = wake_model.calc_wt_interaction(x, y, [50] * n_wt, [0] * n_wt, 0.0, 11.0)[0]
     np.testing.assert_array_almost_equal(
         WS_eff_ilk[1:, 0, 0], 11 - np.sqrt(np.cumsum(((11 * 2 / 3 * 20**2)**2) / (20 + 8 * np.arange(1, 6))**4)))
 
