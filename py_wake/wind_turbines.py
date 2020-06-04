@@ -194,7 +194,7 @@ class WindTurbines():
         self.power_funcs = add_grad(self.power_splines)
         self.ct_funcs = add_grad(self.ct_splines)
 
-    def plot(self, x, y, types=None, wd=None, yaw=0, ax=None):
+    def plot_xy(self, x, y, types=None, wd=None, yaw=0, ax=None):
         """Plot wind farm layout including type name and diameter
 
         Parameters
@@ -242,6 +242,55 @@ class WindTurbines():
             ax.annotate(i, (x_ + d / 2, y_ + d / 2), fontsize=7)
         ax.legend(loc=1)
         ax.axis('equal')
+
+    def plot_yz(self, y, z=None, types=None, wd=None, yaw=0, ax=None):
+        """Plot wind farm layout in yz-plane including type name and diameter
+
+        Parameters
+        ----------
+        y : array_like
+            y position of wind turbines
+        types : int or array_like
+            type of the wind turbines
+        wd : int, float, array_like or None
+            - if int, float or array_like: wd is assumed to be the wind direction(s) and a line\
+            indicating the perpendicular rotor is plotted.
+            - if None: An circle indicating the rotor diameter is plotted
+        ax : pyplot or matplotlib axes object, default None
+
+        """
+        import matplotlib.pyplot as plt
+        if z is None:
+            z = np.zeros_like(y)
+        if types is None:
+            types = np.zeros_like(y)
+
+        if ax is None:
+            ax = plt.gca()
+        markers = np.array(list("213v^<>o48spP*hH+xXDd|_"))
+        colors = ['gray', 'k', 'r', 'g', 'k'] * 5
+
+        from matplotlib.patches import Circle
+        types = (np.zeros_like(y) + types).astype(int)  # ensure same length as x
+
+        yaw = np.zeros_like(y) + yaw
+        for i, (y_, z_, h_, d, t, yaw_) in enumerate(
+                zip(y, z, self.hub_height(types), self.diameter(types), types, yaw)):
+            circle = Circle((y_, h_ + z_), d / 2, ec=colors[t], fc="None")
+            ax.add_artist(circle)
+            plt.plot([y_, y_], [z_, z_ + h_], 'k')
+            plt.plot(y_, h_, 'None')
+
+        for t, m, c in zip(np.unique(types), markers, colors):
+            ax.plot([], [], '2', color=c, label=self._names[int(t)])
+
+        for i, (y_, z_, h_, d) in enumerate(zip(y, z, self.hub_height(types), self.diameter(types))):
+            ax.annotate(i, (y_ + d / 2, z_ + h_ + d / 2), fontsize=7)
+        ax.legend(loc=1)
+        ax.axis('equal')
+
+    def plot(self, x, y, types=None, wd=None, yaw=0, ax=None):
+        return self.plot_xy(x, y, types, wd, yaw, ax)
 
     @staticmethod
     def from_WindTurbines(wt_lst):

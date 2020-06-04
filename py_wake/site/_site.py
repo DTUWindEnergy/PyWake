@@ -45,8 +45,12 @@ class Site(ABC):
     def get_defaults(self, wd=None, ws=None):
         if wd is None:
             wd = self.default_wd
+        else:
+            wd = np.atleast_1d(wd)
         if ws is None:
             ws = self.default_ws
+        else:
+            ws = np.atleast_1d(ws)
         return wd, ws
 
     @abstractmethod

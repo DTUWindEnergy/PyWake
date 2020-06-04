@@ -172,7 +172,11 @@ class SimulationResult():
         if grid is None:
             grid = HorizontalGrid()
         if isinstance(grid, HorizontalGrid):
-            grid = grid(self.x_i, self.y_i, self.h_i)
+            plane = grid.plane
+            grid = grid(x_i=self.x_i, y_i=self.y_i, h_i=self.h_i,
+                        d_i=self.windFarmModel.windTurbines.diameter(self.type_i))
+        else:
+            plane = (None,)
         if wd is None:
             wd = self.wd
         else:
@@ -200,7 +204,7 @@ class SimulationResult():
         else:
             yaw_ilk = None
         return FlowMap(self, X, Y, lw_j, WS_eff_jlk, TI_eff_jlk, wd, ws,
-                       yaw_ilk=yaw_ilk)
+                       yaw_ilk=yaw_ilk, plane=plane)
 
 
 def main():
