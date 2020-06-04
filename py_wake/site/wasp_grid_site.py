@@ -62,7 +62,7 @@ class WaspGridSite(UniformWeibullSite):
             speed_up_il, turning_il = self.interpolate(['spd', 'orog_trn'], x_i, y_i, h_i, wd, ws)
             WS_ilk = ws[na, na, :] * speed_up_il[:, :, na]
         turning_il[np.isnan(turning_il)] = 0
-        WD_ilk = ((wd_il + turning_il) % 360)[:, :, na]
+        WD_ilk = np.repeat(((wd_il + turning_il) % 360)[:, :, na], WS_ilk.shape[2], 2)
 
         P_ilk = self.probability(x_i, y_i, h_i, wd_il[:, :, na], WS_ilk,
                                  wd_bin_size, ws_bins=self.ws_bins(WS_ilk, ws_bins))

@@ -102,6 +102,13 @@ def test_gradients():
         npt.assert_array_almost_equal(dpdu_lst, dpdu_ref)
 
 
+def test_plot_yz():
+    wt = IEA37_WindTurbines()
+    wt.plot_yz([0, 300])
+    if 0:
+        plt.show()
+
+
 def test_set_gradients():
     wt = IEA37_WindTurbines()
 

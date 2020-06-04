@@ -3,7 +3,7 @@ from .deficit_models.noj import NOJ
 from .deficit_models.fuga import Fuga, FugaBlockage
 from .deficit_models.gaussian import BastankhahGaussian, IEA37SimpleBastankhahGaussian
 from .deficit_models.gcl import GCL
-from py_wake.flow_map import HorizontalGrid
+from py_wake.flow_map import HorizontalGrid, XYGrid, YZGrid
 
 plugins = {
     entry_point.name: entry_point.load()

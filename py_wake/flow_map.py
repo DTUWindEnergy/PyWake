@@ -2,7 +2,7 @@ import numpy as np
 
 
 class FlowMap():
-    def __init__(self, simulationResult, X, Y, localWind_j, WS_eff_jlk, TI_eff_jlk, wd, ws, yaw_ilk):
+    def __init__(self, simulationResult, X, Y, localWind_j, WS_eff_jlk, TI_eff_jlk, wd, ws, yaw_ilk, plane):
         self.simulationResult = simulationResult
         self.X = X
         self.Y = Y
@@ -13,6 +13,7 @@ class FlowMap():
         self.wd = wd
         self.ws = ws
         self.yaw_ilk = yaw_ilk
+        self.plane = plane
         self.windFarmModel = self.simulationResult.windFarmModel
 
     @property
@@ -91,11 +92,24 @@ class FlowMap():
             cmap = 'Blues_r'
         if ax is None:
             ax = plt.gca()
-        c = ax.contourf(self.X, self.Y, data.reshape(self.X.shape), levels=levels, cmap=cmap)
+        if self.plane[0] == "YZ":
+            y = self.X[0]
+            x = np.zeros_like(y) + self.plane[1]
+            z = self.simulationResult.windFarmModel.site.elevation(x, y)
+            c = ax.contourf(self.X, self.Y + z, data.reshape(self.X.shape), levels=levels, cmap=cmap)
+
+            # plot terrain
+            y = np.arange(y.min(), y.max())
+            x = np.zeros_like(y) + self.plane[1]
+            z = self.simulationResult.windFarmModel.site.elevation(x, y)
+            plt.plot(y, z, 'k')
+        else:
+            c = ax.contourf(self.X, self.Y, data.reshape(self.X.shape), levels=levels, cmap=cmap)
         if plot_colorbar:
             plt.colorbar(c, label=clabel)
         if plot_windturbines:
             self.plot_windturbines(ax=ax)
+
         return c
 
     def plot_windturbines(self, ax=None):
@@ -104,8 +118,13 @@ class FlowMap():
             yaw_ilk = 0
         else:
             yaw_ilk = self.yaw_ilk.mean((1, 2))
-        fm.windTurbines.plot(self.simulationResult.x_i, self.simulationResult.y_i,
-                             wd=self.wd, yaw=yaw_ilk, ax=ax)
+        if self.plane[0] == "XY":
+            fm.windTurbines.plot_xy(self.simulationResult.x_i, self.simulationResult.y_i,
+                                    wd=self.wd, yaw=yaw_ilk, ax=ax)
+        elif self.plane[0] == "YZ":
+            x_i, y_i = self.simulationResult.x_i, self.simulationResult.y_i
+            z_i = self.simulationResult.windFarmModel.site.elevation(x_i, y_i)
+            fm.windTurbines.plot_yz(y_i, z_i, wd=self.wd, yaw=yaw_ilk, ax=ax)
 
     def plot_wake_map(self, levels=100, cmap=None, plot_colorbar=True, plot_windturbines=True, ax=None):
         """Plot effective wind speed contourf map
@@ -184,8 +203,9 @@ class HorizontalGrid():
         self.y = y
         self.h = h
         self.extend = extend
+        self.plane = "XY", h
 
-    def __call__(self, x_i, y_i, h_i):
+    def __call__(self, x_i, y_i, h_i, **_):
         # setup horizontal X,Y grid
         def f(x, N=self.resolution, ext=self.extend):
             ext *= max(1000, (max(x) - min(x)))
@@ -199,7 +219,59 @@ class HorizontalGrid():
             h = np.mean(h_i)
         else:
             h = self.h
+        self.plane = "XY", h
 
         X, Y = np.meshgrid(x, y)
         H = np.zeros_like(X) + h
         return X, Y, X.flatten(), Y.flatten(), H.flatten()
+
+
+XYGrid = HorizontalGrid
+
+
+class YZGrid(HorizontalGrid):
+
+    def __init__(self, x, y=None, z=None, resolution=None, extend=.2):
+        """Generate a vertical grid for a flow map in the yz-plane
+
+        Parameters
+        ----------
+        x : array_like, optional
+            x coordinates for the yz-grid\n
+        y : array_like, optional
+            y coordinates used for generating meshgrid
+        z : array_like, optional
+            z coordinates(height above ground) used for generating meshgrid
+        resolution : int or None, optional
+            grid resolution if x or y is not specified. defaults to self.default_resolution
+        extend : float, optional
+            defines the oversize of the grid if x or y is not specified
+
+        Notes
+        -----
+        if y or z is not specified then a grid with <resolution> number of points
+        covering the wind turbines + <extend> * range
+        """
+        self.resolution = resolution or self.default_resolution
+        self.x = x
+        self.y = y
+        self.z = z
+        self.extend = extend
+        self.plane = "YZ", x
+
+    def __call__(self, x_i, y_i, h_i, d_i):
+        # setup horizontal X,Y grid
+        def f(x, N=self.resolution, ext=self.extend):
+            ext *= max(1000, (max(x) - min(x)))
+            return np.linspace(min(x) - ext, max(x) + ext, N)
+        x, y, z = self.x, self.y, self.z
+        if y is None:
+            y = f(y_i)
+        if self.z is None:
+            z = np.arange(0, (1 + self.extend) * (h_i.max() + d_i.max() / 2), np.diff(y[:2]), np.diff(y[:2])[0])
+        else:
+            z = self.z
+
+        Y, Z = np.meshgrid(y, z)
+        X = np.zeros_like(Y) + x
+        return Y, Z, X.flatten(), Y.flatten(), Z.flatten()
