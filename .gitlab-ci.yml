@@ -26,9 +26,10 @@ test_PyWake_windows:  # name the job what we like
   stage:  # build, test, deploy defined by default [2]
     test
   script:  # runs on windows machine due to tag below
-  - c:/Anaconda3/envs/pyTopfarm/python.exe -m pytest --cov-report term-missing:skip-covered --cov=py_wake --cov-config .coveragerc
+  - source activate pyTopfarm
+  - pytest --cov-report term-missing:skip-covered --cov=py_wake --cov-config .coveragerc
   tags:  # tag for shared runner on windows machine
-  - CPAV_old_PC
+  - ANMH_old
 
 # ===== build documentation =====
 pages:  # "pages" is a job specifically for GitLab pages [1]
