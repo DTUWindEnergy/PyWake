@@ -5,6 +5,12 @@ from numpy import newaxis as na
 
 
 class RotorAvgModel(DeficitModel):
+    """Wrap a DeficitModel.
+    The RotorAvgModel
+    - add an extra dimension (one or more points covering the downstream rotors)
+    - Call the wrapped DeficitModel to calculate the deficit at all points
+    - Compute a (weighted) mean of the deficit values covering the downstream rotors
+    """
     args4rotor_avg_deficit = ['hcw_ijlk', 'dh_ijl', 'D_dst_ijl']
 
     def set_wake_deficitModel(self, deficitModel):
@@ -27,6 +33,9 @@ class RotorAvgModel(DeficitModel):
 
 class RotorCenter(RotorAvgModel):
     args4rotor_avg_deficit = ['D_dst_ijl']
+    nodes_x = [0]
+    nodes_y = [0]
+    nodes_weight = [1]
 
     def _calc_rotor_avg_deficit(self, **kwargs):
         return self.deficitModel.calc_deficit(**kwargs)
@@ -35,11 +44,14 @@ class RotorCenter(RotorAvgModel):
         self.deficitModel._calc_layout_terms(**kwargs)
 
 
-class GridRotorAvgModel(RotorAvgModel):
+class GridRotorAvg(RotorAvgModel):
+    nodes_weight = None
+
     def __init__(self, nodes_x, nodes_y, nodes_weight=None):
-        self.nodes_x = nodes_x
-        self.nodes_y = nodes_y
-        self.nodes_weight = nodes_weight
+        self.nodes_x = np.asarray(nodes_x)
+        self.nodes_y = np.asarray(nodes_y)
+        if nodes_weight is not None:
+            self.nodes_weight = np.asarray(nodes_weight)
 
     def _update_kwargs(self, hcw_ijlk, dh_ijl, D_dst_ijl, **kwargs):
         # add extra dimension, p, with 40 points distributed over the destination rotors
@@ -68,16 +80,16 @@ class GridRotorAvgModel(RotorAvgModel):
         self.deficitModel._calc_layout_terms(**self._update_kwargs(**kwargs))
 
 
-class EqGridRotorAvgModel(GridRotorAvgModel):
+class EqGridRotorAvg(GridRotorAvg):
     def __init__(self, n):
         X, Y = np.meshgrid(np.linspace(-1, 1, n + 2)[1:-1], np.linspace(-1, 1, n + 2)[1:-1])
         m = (X**2 + Y**2) < 1
-        GridRotorAvgModel.__init__(self,
-                                   nodes_x=X[m].flatten(),
-                                   nodes_y=Y[m].flatten())
+        GridRotorAvg.__init__(self,
+                              nodes_x=X[m].flatten(),
+                              nodes_y=Y[m].flatten())
 
 
-class GQGridRotorAvgModel(GridRotorAvgModel):
+class GQGridRotorAvg(GridRotorAvg):
     """Gauss Quadrature grid rotor average model"""
 
     def __init__(self, n_x, n_y):
@@ -85,13 +97,13 @@ class GQGridRotorAvgModel(GridRotorAvgModel):
         m = (x**2 + y**2) < 1
         w = w[m]
         w /= w.sum()
-        GridRotorAvgModel.__init__(self, nodes_x=x[m], nodes_y=y[m], nodes_weight=w)
+        GridRotorAvg.__init__(self, nodes_x=x[m], nodes_y=y[m], nodes_weight=w)
 
 
-class PolarGridRotorAvgModel(GridRotorAvgModel):
+class PolarGridRotorAvg(GridRotorAvg):
     def __init__(self, nodes_r, nodes_theta, nodes_weight):
-        self.nodes_x = nodes_r * np.cos(nodes_theta + np.pi / 2)
-        self.nodes_y = nodes_r * np.sin(nodes_theta + np.pi / 2)
+        self.nodes_x = nodes_r * np.cos(-nodes_theta - np.pi / 2)
+        self.nodes_y = nodes_r * np.sin(-nodes_theta - np.pi / 2)
         self.nodes_weight = nodes_weight
 
 

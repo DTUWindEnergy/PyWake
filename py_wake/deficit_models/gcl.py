@@ -146,11 +146,29 @@ def get_dU(x, r, R, CT, TI):
     return dU
 
 
-class GCLDeficitModel(DeficitModel):
+class GCLDeficit(DeficitModel):
+    """
+    Implemented according to:
+            Larsen, G. C. (2009). A simple stationary semi-analytical wake model.
+            Risoe National Laboratory for Sustainable Energy,
+            Technical University of Denmark. Denmark.
+            Forskningscenter Risoe. Risoe-R, No. 1713(EN)
+
+    Description:
+        based on an analytical solution of the thin shear layer approximation of the NS equations.
+        The wake flow fields are assumed rotationally symmetric, and the rotor inflow fields
+        are consistently assumed uniform.
+        The effect of expansion is approximately accounted for by imposing suitable
+        empirical downstream boundary conditions on the wake expansion that depend
+        on the rotor thrust and the ambient turbulence conditions, respectively.
+    """
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_ilk']
 
     def wake_radius(self, dw_ijlk, D_src_il, TI_ilk, ct_ilk, **_):
-        return get_Rw(x=dw_ijlk, R=(D_src_il / 2)[:, na, :, na], TI=TI_ilk[:, na], CT=ct_ilk[:, na])[0]
+        with np.warnings.catch_warnings():
+            # if term is 0, exp(log(0))=0 as expected for a positive factor
+            np.warnings.filterwarnings('ignore', r'invalid value encountered in log')
+            return get_Rw(x=dw_ijlk, R=(D_src_il / 2)[:, na, :, na], TI=TI_ilk[:, na], CT=ct_ilk[:, na])[0]
 
     def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, TI_ilk, **_):
         eps = 1e-10
@@ -164,7 +182,7 @@ class GCLDeficitModel(DeficitModel):
 class GCL(PropagateDownwind):
     def __init__(self, site, windTurbines, rotorAvgModel=RotorCenter(), superpositionModel=LinearSum(),
                  deflectionModel=None, turbulenceModel=None):
-        PropagateDownwind.__init__(self, site, windTurbines, wake_deficitModel=GCLDeficitModel(),
+        PropagateDownwind.__init__(self, site, windTurbines, wake_deficitModel=GCLDeficit(),
                                    rotorAvgModel=rotorAvgModel, superpositionModel=superpositionModel,
                                    deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
 

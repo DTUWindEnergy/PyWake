@@ -15,7 +15,7 @@ from py_wake.tests.test_deficit_models.test_noj import NibeA0
 from py_wake.turbulence_models.stf import STF2005TurbulenceModel, STF2017TurbulenceModel
 from py_wake.turbulence_models.turbulence_model import MaxSum
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
-from py_wake.turbulence_models.gcl import GCLTurbulenceModel
+from py_wake.turbulence_models.gcl import GCLTurbulence
 import matplotlib.pyplot as plt
 from py_wake.turbulence_models.crespo import CrespoHernandez
 from py_wake.deficit_models.gaussian import BastankhahGaussian
@@ -26,8 +26,8 @@ from py_wake.deficit_models.gaussian import BastankhahGaussian
                                 0.075, 0.075, 0.075, 0.075, 0.104, 0.136, 0.098, 0.104]),
     (STF2017TurbulenceModel(), [0.075, 0.075, 0.075, 0.114, 0.197, 0.142, 0.075, 0.075,
                                 0.075, 0.075, 0.075, 0.075, 0.115, 0.158, 0.108, 0.115]),
-    (GCLTurbulenceModel(), [0.075, 0.075, 0.075, 0.117, 0.151, 0.135, 0.075, 0.075, 0.075,
-                            0.075, 0.075, 0.075, 0.128, 0.127, 0.117, 0.128]),
+    (GCLTurbulence(), [0.075, 0.075, 0.075, 0.117, 0.151, 0.135, 0.075, 0.075, 0.075,
+                       0.075, 0.075, 0.075, 0.128, 0.127, 0.117, 0.128]),
     (CrespoHernandez(), [0.075, 0.075, 0.075, 0.129, 0.17, 0.151, 0.075,
                          0.075, 0.075, 0.075, 0.075, 0.075, 0.143, 0.141, 0.13, 0.143])
 ])
@@ -54,8 +54,8 @@ def test_models_with_noj(turbulence_model, ref_ti):
 
 
 @pytest.mark.parametrize('turbulence_model,ref_ti', [
-    (GCLTurbulenceModel(), [0.075, 0.075, 0.075, 0.097, 0.151, 0.135,
-                            0.075, 0.075, 0.075, 0.075, 0.075, 0.075, 0.128, 0.123, 0.116, 0.128]),
+    (GCLTurbulence(), [0.075, 0.075, 0.075, 0.097, 0.151, 0.135,
+                       0.075, 0.075, 0.075, 0.075, 0.075, 0.075, 0.128, 0.123, 0.116, 0.128]),
     (CrespoHernandez(), [0.075, 0.075, 0.075, 0.104, 0.17, 0.151, 0.075,
                          0.075, 0.075, 0.075, 0.075, 0.075, 0.143, 0.137, 0.129, 0.143])
 ])

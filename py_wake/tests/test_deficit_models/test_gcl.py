@@ -1,12 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from py_wake.deficit_models.gcl import GCLDeficitModel, get_dU, get_Rw, GCL
-from py_wake.examples.data.iea37 import iea37_path
-from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
-from py_wake.flow_map import HorizontalGrid
+from py_wake.deficit_models.gcl import GCLDeficit, get_dU, get_Rw
 from py_wake.superposition_models import LinearSum
 from py_wake.tests import npt
-from py_wake.turbulence_models.gcl import GCLTurbulenceModel
+
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.tests.check_speed import timeit
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80
@@ -20,7 +17,7 @@ def test_GCL_ex80():
     wfm = PropagateDownwind(
         site,
         windTurbines,
-        wake_deficitModel=GCLDeficitModel(),
+        wake_deficitModel=GCLDeficit(),
         superpositionModel=LinearSum())
     if 0:
         windTurbines.plot(x, y)
@@ -35,7 +32,7 @@ def test_GCL_ex80():
         from line_profiler import LineProfiler
         lp = LineProfiler()
         lp.timer_unit = 1e-6
-        lp.add_function(GCLDeficitModel.calc_deficit)
+        lp.add_function(GCLDeficit.calc_deficit)
         lp.add_function(get_dU)
         lp.add_function(get_Rw)
         lp_wrapper = lp(run)

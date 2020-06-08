@@ -3,3 +3,4 @@ from .selfsimilarity import SelfSimilarityDeficit
 from .noj import NOJDeficit
 from .gaussian import BastankhahGaussianDeficit, IEA37SimpleBastankhahGaussianDeficit
 from .fuga import FugaDeficit
+from .gcl import GCLDeficit

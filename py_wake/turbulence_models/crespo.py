@@ -1,7 +1,7 @@
 from numpy import newaxis as na
 import numpy as np
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel, SqrMaxSum
-from py_wake.deficit_models.noj import AreaOverlappingFactor
+from py_wake.utils.area_overlapping_factor import AreaOverlappingFactor
 
 
 class CrespoHernandez(SqrMaxSum, TurbulenceModel, AreaOverlappingFactor):

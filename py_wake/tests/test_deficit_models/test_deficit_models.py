@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, IEA37SimpleBastankhahGaussianDeficit
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.superposition_models import SquaredSum
-from py_wake.turbulence_models.gcl import GCLTurbulenceModel
+from py_wake.turbulence_models.gcl import GCLTurbulence
 import pytest
-from py_wake.deficit_models.gcl import GCLDeficitModel
+from py_wake.deficit_models.gcl import GCLDeficit
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models.fuga import FugaDeficit
 from py_wake.tests.test_files import tfp
@@ -35,17 +35,17 @@ from py_wake.deficit_models.noj import NOJDeficit
                            27677.4453, 42962.87107, 49467.33757, 24268.41448, 15412.81128,
                            16675.27526, 35497.95388, 75248.37632, 19673.5648, 13682.27714,
                            8923.20653])),
-     (GCLDeficitModel(), (370863.6246093183,
-                          [9385.75387, 8768.52105, 11450.13309, 14262.42186, 21178.74926,
-                           25751.59502, 39483.21753, 44573.31533, 23652.09976, 13924.58752,
-                           15106.11692, 32840.02909, 71830.22035, 18200.49805, 12394.7626,
-                           8061.6033]))])
+     (GCLDeficit(), (370863.6246093183,
+                     [9385.75387, 8768.52105, 11450.13309, 14262.42186, 21178.74926,
+                      25751.59502, 39483.21753, 44573.31533, 23652.09976, 13924.58752,
+                      15106.11692, 32840.02909, 71830.22035, 18200.49805, 12394.7626,
+                      8061.6033]))])
 def test_IEA37_ex16(deficitModel, aep_ref):
     site = IEA37Site(16)
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
     wf_model = PropagateDownwind(site, windTurbines, wake_deficitModel=deficitModel,
-                                 superpositionModel=SquaredSum(), turbulenceModel=GCLTurbulenceModel())
+                                 superpositionModel=SquaredSum(), turbulenceModel=GCLTurbulence())
 
     aep_ilk = wf_model(x, y, wd=np.arange(0, 360, 22.5), ws=[9.8]).aep_ilk(normalize_probabilities=True)
     aep_MW_l = aep_ilk.sum((0, 2)) * 1000
@@ -71,7 +71,7 @@ def test_IEA37_ex16(deficitModel, aep_ref):
       [3.32, 4.86, 7.0, 8.1, 7.8, 7.23, 6.86, 6.9, 7.3, 7.82, 8.11, 8.04, 7.87, 7.79, 7.85, 8.04, 8.28]),
      (FugaDeficit(LUT_path=tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/'),
       [6.91, 7.87, 8.77, 8.88, 8.55, 7.88, 7.24, 7.32, 8.01, 8.62, 8.72, 8.42, 8.05, 7.85, 8., 8.37, 8.69]),
-     (GCLDeficitModel(),
+     (GCLDeficit(),
       [2.39, 5.01, 7.74, 8.34, 7.95, 7.58, 7.29, 7.32, 7.61, 7.92, 8.11, 8.09, 7.95, 7.83, 7.92, 8.1, 8.3])])
 def test_deficitModel_wake_map(deficitModel, ref):
     site = IEA37Site(16)
@@ -79,7 +79,7 @@ def test_deficitModel_wake_map(deficitModel, ref):
     windTurbines = IEA37_WindTurbines()
 
     wf_model = PropagateDownwind(site, windTurbines, wake_deficitModel=deficitModel, superpositionModel=SquaredSum(),
-                                 turbulenceModel=GCLTurbulenceModel())
+                                 turbulenceModel=GCLTurbulence())
 
     x_j = np.linspace(-1500, 1500, 200)
     y_j = np.linspace(-1500, 1500, 100)
@@ -120,7 +120,7 @@ v = []
       [83.336286, 57.895893, 115.791786, 75.266662, 83.336286]),
      (FugaDeficit(LUT_path=tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/'),
       [100, 50, 100, 100, 100]),
-     (GCLDeficitModel(),
+     (GCLDeficit(),
       [156.949964, 97.763333, 195.526667, 113.225695, 111.340236])])
 def test_wake_radius(deficitModel, wake_radius_ref):
 
@@ -139,7 +139,7 @@ def test_wake_radius(deficitModel, wake_radius_ref):
     # Check that it works when called from WindFarmModel
     site = IEA37Site(16)
     windTurbines = IEA37_WindTurbines()
-    wfm = PropagateDownwind(site, windTurbines, wake_deficitModel=deficitModel, turbulenceModel=GCLTurbulenceModel())
+    wfm = PropagateDownwind(site, windTurbines, wake_deficitModel=deficitModel, turbulenceModel=GCLTurbulence())
     wfm(x=[0, 500], y=[0, 0], wd=[30], ws=[10])
 
 
@@ -148,6 +148,6 @@ def test_wake_radius_not_implemented():
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
     wfm = PropagateDownwind(site, windTurbines, wake_deficitModel=NoWakeDeficit(),
-                            turbulenceModel=GCLTurbulenceModel())
+                            turbulenceModel=GCLTurbulence())
     with pytest.raises(NotImplementedError, match="wake_radius not implemented for NoWakeDeficit"):
         wfm(x, y)
