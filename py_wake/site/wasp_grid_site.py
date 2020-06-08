@@ -288,7 +288,7 @@ def load_wasp_grd(path, globstr='*.grd', speedup_using_pickle=True):
 
     file_height_dict = defaultdict(list)
 
-    pattern = re.compile(r'Sector (\w+|\d+) \s+ Height (\d+)m \s+ ([a-zA-Z0-9- ]+)')
+    pattern = re.compile(r'Sector (\w+|\d+) \s+ Height (\d+\.?\d*)m \s+ ([a-zA-Z0-9- ]+)')
     for f in files:
         sector, height, var_name = re.findall(pattern, f)[0]
         # print(sector, height, var_name)
