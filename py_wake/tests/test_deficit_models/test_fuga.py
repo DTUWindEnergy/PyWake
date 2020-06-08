@@ -6,9 +6,8 @@ from py_wake.tests.test_files import tfp
 from py_wake import Fuga
 from py_wake.examples.data import hornsrev1
 import matplotlib.pyplot as plt
-from py_wake.deficit_models.fuga import FugaBlockage, FugaDeficit
+from py_wake.deficit_models.fuga import FugaBlockage
 from py_wake.flow_map import HorizontalGrid
-from py_wake.turbulence_models.gcl import GCLTurbulenceModel
 
 
 def test_fuga():

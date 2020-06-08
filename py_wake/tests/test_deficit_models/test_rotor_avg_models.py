@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
-from py_wake.rotor_avg_models.rotor_avg_model import gauss_quadrature, PolarGridRotorAvgModel, RotorCenter, polar_gauss_quadrature, EqGridRotorAvgModel, GQGridRotorAvgModel
+from py_wake.rotor_avg_models.rotor_avg_model import gauss_quadrature, PolarGridRotorAvg, RotorCenter, \
+    polar_gauss_quadrature, EqGridRotorAvg, GQGridRotorAvg
 from py_wake.tests import npt
 import numpy as np
 from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37_WindTurbines
@@ -9,7 +10,7 @@ from py_wake.wind_farm_models.engineering_models import All2AllIterative
 from py_wake.superposition_models import SquaredSum
 
 
-def test_RotorGridAvgModel():
+def test_RotorGridAvg():
     site = IEA37Site(16)
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
@@ -21,11 +22,11 @@ def test_RotorGridAvgModel():
 
     for name, rotorAvgModel, ref1 in [
             ('RotorCenter', RotorCenter(), 7.172723970425709),
-            ('RotorGrid2', EqGridRotorAvgModel(2), 7.495889360682771),
-            ('RotorGrid3', EqGridRotorAvgModel(3), 7.633415167369133),
-            ('RotorGrid4', EqGridRotorAvgModel(4), 7.710215921858325),
-            ('RotorGrid100', EqGridRotorAvgModel(100), 7.820762402628349),
-            ('RotorGQGrid_4,3', GQGridRotorAvgModel(4, 3), 7.826105012683896)]:
+            ('RotorGrid2', EqGridRotorAvg(2), 7.495889360682771),
+            ('RotorGrid3', EqGridRotorAvg(3), 7.633415167369133),
+            ('RotorGrid4', EqGridRotorAvg(4), 7.710215921858325),
+            ('RotorGrid100', EqGridRotorAvg(100), 7.820762402628349),
+            ('RotorGQGrid_4,3', GQGridRotorAvg(4, 3), 7.826105012683896)]:
 
         # test with PropagateDownwind
         wfm = IEA37SimpleBastankhahGaussian(site,
@@ -56,8 +57,8 @@ def test_gauss_quadrature():
     npt.assert_array_almost_equal(w, np.array([0.347855, 0.652145, 0.652145, 0.347855]) / 2)
 
 
-def test_RotorEqGridAvgModel():
-    m = EqGridRotorAvgModel(3)
+def test_RotorEqGridAvg():
+    m = EqGridRotorAvg(3)
     npt.assert_array_almost_equal(m.nodes_x, [-0.5, 0.0, 0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.5], 2)
     npt.assert_array_almost_equal(m.nodes_y, [-0.5, -0.5, -0.5, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5], 2)
     if 0:
@@ -71,7 +72,7 @@ def test_RotorEqGridAvgModel():
 
 
 def test_RotorGaussQuadratureGridAvgModel():
-    m = GQGridRotorAvgModel(4, 3)
+    m = GQGridRotorAvg(4, 3)
     npt.assert_array_almost_equal(m.nodes_x, [-0.34, 0.34, -0.86, -0.34, 0.34, 0.86, -0.34, 0.34], 2)
     npt.assert_array_almost_equal(m.nodes_y, [-0.77, -0.77, 0.0, 0.0, 0.0, 0.0, 0.77, 0.77], 2)
     npt.assert_array_almost_equal(m.nodes_weight, [0.11, 0.11, 0.1, 0.18, 0.18, 0.1, 0.11, 0.11], 2)
@@ -87,7 +88,7 @@ def test_RotorGaussQuadratureGridAvgModel():
 
 
 def test_polar_gauss_quadrature():
-    m = PolarGridRotorAvgModel(*polar_gauss_quadrature(4, 3))
+    m = PolarGridRotorAvg(*polar_gauss_quadrature(4, 3))
 
     if 0:
         for v in [m.nodes_x, m.nodes_y, m.nodes_weight]:
@@ -100,7 +101,7 @@ def test_polar_gauss_quadrature():
 
     npt.assert_array_almost_equal(m.nodes_x, [-0.05, -0.21, -0.44, -0.61, -0.0, -0.0,
                                               -0.0, -0.0, 0.05, 0.21, 0.44, 0.61], 2)
-    npt.assert_array_almost_equal(m.nodes_y, [0.05, 0.25, 0.51, 0.71, -0.07, -0.33, -0.67,
-                                              -0.93, 0.05, 0.25, 0.51, 0.71], 2)
+    npt.assert_array_almost_equal(m.nodes_y, [-0.05, -0.25, -0.51, -0.71, 0.07, 0.33,
+                                              0.67, 0.93, -0.05, -0.25, -0.51, -0.71], 2)
     npt.assert_array_almost_equal(m.nodes_weight, [0.05, 0.09, 0.09, 0.05, 0.08, 0.14, 0.14,
                                                    0.08, 0.05, 0.09, 0.09, 0.05], 2)

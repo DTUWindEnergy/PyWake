@@ -1,11 +1,18 @@
-
-from py_wake.deficit_models.noj import AreaOverlappingFactor
-import numpy as np
 from numpy import newaxis as na
+import numpy as np
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel, SqrMaxSum
+from py_wake.utils.area_overlapping_factor import AreaOverlappingFactor
 
 
-class GCLTurbulenceModel(SqrMaxSum, TurbulenceModel, AreaOverlappingFactor):
+class GCLTurbulence(SqrMaxSum, TurbulenceModel, AreaOverlappingFactor):
+    """G. C. Larsen model implemented according to
+
+    Pierik, J. T. G., Dekker, J. W. M., Braam, H., Bulder, B. H., Winkelaar, D.,
+    Larsen, G. C., Morfiadakis, E., Chaviaropoulos, P., Derrick, A., & Molly, J. P. (1999).
+    European wind turbine standards II (EWTS-II). In E. L. Petersen, P. Hjuler Jensen, K. Rave,
+    P. Helm, & H. Ehmann (Eds.), Wind energy for the next millennium. Proceedings (pp. 568-571).
+    James and James Science Publishers.
+    """
     args4addturb = ['D_src_il', 'dw_ijlk', 'ct_ilk', 'D_dst_ijl', 'cw_ijlk', 'wake_radius_ijlk']
 
     def __init__(self, k=.1):
@@ -50,7 +57,7 @@ def main():
         x, y = site.initial_position.T
         windTurbines = IEA37_WindTurbines()
 
-        wf_model = NOJ(site, windTurbines, turbulenceModel=GCLTurbulenceModel())
+        wf_model = NOJ(site, windTurbines, turbulenceModel=GCLTurbulence())
 
         # calculate AEP
         sim_res = wf_model(x, y)

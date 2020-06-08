@@ -51,7 +51,6 @@ def test_YZGrid_terrain():
     y = fm.X[0]
     x = np.zeros_like(y) + x
     z = site.elevation(x, y)
-    print(fm.lw_j.WS_ilk)
     if 0:
         simulation_result.flow_map().plot_wake_map()
         plt.plot(x, y, '.')
