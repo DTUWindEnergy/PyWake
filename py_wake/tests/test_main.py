@@ -8,7 +8,7 @@ import pytest
 import sys
 import py_wake
 from unittest import mock
-from py_wake.flow_map import HorizontalGrid
+from py_wake.flow_map import Grid
 
 
 def get_main_modules():
@@ -42,8 +42,8 @@ def test_main(module):
 
     def no_print(*_):
         pass
-    default_resolution = HorizontalGrid.default_resolution
-    HorizontalGrid.default_resolution = 100
+    default_resolution = Grid.default_resolution
+    Grid.default_resolution = 100
     try:
         with mock.patch.object(module, "print", no_print):  # @UndefinedVariable
             # To count 'if __name__=="__main__": main()' in cov
@@ -54,7 +54,7 @@ def test_main(module):
         raise type(e)(str(e) +
                       ' in %s.main' % module.__name__).with_traceback(sys.exc_info()[2])
     finally:
-        HorizontalGrid.default_resolution = default_resolution
+        Grid.default_resolution = default_resolution
         plt.close()
 
 # if __name__ == '__main__':

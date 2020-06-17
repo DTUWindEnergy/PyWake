@@ -11,6 +11,9 @@ from py_wake.site.distance import TerrainFollowingDistance, StraightDistance, Te
 import math
 from py_wake import NOJ
 from py_wake.wind_turbines import OneTypeWindTurbines
+from py_wake.flow_map import HorizontalGrid
+from py_wake.tests.check_speed import timeit
+import matplotlib.pyplot as plt
 
 
 @pytest.fixture
@@ -51,13 +54,12 @@ def test_local_wind(site):
 
 def test_shear(site):
     npt.assert_array_almost_equal(site._ds['spd'].sel(x=262878, y=6504714, sec=1), [.6240589, .8932919])
-    x = [262878.0001]
-    y = [6504714.0001]
+    x = [262878.0001] * 3
+    y = [6504714.0001] * 3
     z = [30, 115, 200]
     ws = site.local_wind(x_i=x, y_i=y, h_i=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
 
     if 0:
-        import matplotlib.pyplot as plt
         plt.plot(ws, z, '.-')
         plt.show()
 
@@ -162,7 +164,6 @@ def test_wasp_resources_grid_point(site):
     AEP_ilk = NOJ(site, wt)(x, y, h=30, wd=np.arange(0, 360, 30), ws=ws).aep_ilk(
         with_wake_loss=False, normalize_probabilities=True)
     if 0:
-        import matplotlib.pyplot as plt
         plt.plot(wasp_aep_no_density_correction / 1000, '.-', label='WAsP')
         plt.plot(AEP_ilk.sum((0, 2)) * 1e3, label='PyWake')
         plt.xlabel('Sector')
@@ -269,8 +270,6 @@ def test_plot_map(site):
 
 
 def test_elevation_outside_map(site):
-    import matplotlib.pyplot as plt
-
     site.plot_map('elev')
     x = np.linspace(262500, 265500, 500)
     y = x * 0 + 6505450
@@ -288,20 +287,18 @@ def test_plot_ws_distribution(site):
     p1 = site.plot_ws_distribution(x=x, y=y, h=70, wd=[0, 90, 180, 270])
     p2 = site.plot_ws_distribution(x=x, y=y, h=70, wd=[0, 90, 180, 270], include_wd_distribution=True)
     if 0:
-        import matplotlib.pyplot as plt
+        print(np.round(p1[-1, ::30].data, 4).tolist())
+        print(np.round(p2[-1, ::30].data, 4).tolist())
         plt.show()
 
-    # print(np.round(p1[::30], 4).tolist())
-    npt.assert_array_almost_equal(p1[::30], [0.0001, 0.0042, 0.0072, 0.0077, 0.0063,
-                                             0.0041, 0.0021, 0.0009, 0.0003, 0.0001], 4)
-    # print(np.round(p2[::30], 4).tolist())
-    npt.assert_array_almost_equal(p2[::30], [0.0001, 0.0021, 0.0033, 0.0033, 0.0025,
-                                             0.0014, 0.0007, 0.0002, 0.0001, 0.0], 4)
+    npt.assert_array_almost_equal(p1[-1, ::30], [0.0001, 0.0079, 0.011, 0.0082, 0.0039,
+                                                 0.0013, 0.0003, 0.0, 0.0, 0.0], 4)
+    npt.assert_array_almost_equal(p2[-1, ::30], [0.0001, 0.0036, 0.0047, 0.0033, 0.0014,
+                                                 0.0004, 0.0001, 0.0, 0.0, 0.0], 4)
 
 
 def test_plot_wd_distribution(site):
     x, y = site.initial_position[0]
-    import matplotlib.pyplot as plt
     p = site.plot_wd_distribution(x=x, y=y, h=70, n_wd=12, ax=plt)
     # print(np.round(p, 3).tolist())
     npt.assert_array_almost_equal(p, [0.052, 0.043, 0.058, 0.085, 0.089, 0.061,
@@ -314,23 +311,21 @@ def test_plot_wd_distribution(site):
 def test_plot_wd_distribution_with_ws_levels(site):
     x, y = site.initial_position[0]
     p = site.plot_wd_distribution(x=x, y=y, n_wd=12, ws_bins=[0, 5, 10, 15, 20, 25])
-    # print(np.round(p, 3).tolist())
-    npt.assert_array_almost_equal(p, [[0.031, 0.019, 0.003, 0.0, 0.0],
-                                      [0.023, 0.018, 0.002, 0.0, 0.0],
-                                      [0.018, 0.032, 0.007, 0.0, 0.0],
-                                      [0.018, 0.048, 0.018, 0.001, 0.0],
-                                      [0.024, 0.052, 0.014, 0.0, 0.0],
-                                      [0.029, 0.031, 0.003, 0.0, 0.0],
-                                      [0.023, 0.022, 0.002, 0.0, 0.0],
-                                      [0.022, 0.041, 0.016, 0.002, 0.0],
-                                      [0.023, 0.062, 0.048, 0.016, 0.003],
-                                      [0.027, 0.058, 0.044, 0.018, 0.004],
-                                      [0.034, 0.044, 0.023, 0.007, 0.001],
-                                      [0.036, 0.026, 0.006, 0.001, 0.0]], 3)
-
     if 0:
-        import matplotlib.pyplot as plt
+        print(np.round(p, 3).data.tolist())
         plt.show()
+    npt.assert_array_almost_equal(p, [[0.039, 0.013, 0.001, 0.0, 0.0],
+                                      [0.034, 0.009, 0.0, 0.0, 0.0],
+                                      [0.035, 0.022, 0.0, 0.0, 0.0],
+                                      [0.034, 0.048, 0.003, 0.0, 0.0],
+                                      [0.031, 0.052, 0.007, 0.0, 0.0],
+                                      [0.03, 0.03, 0.002, 0.0, 0.0],
+                                      [0.027, 0.019, 0.001, 0.0, 0.0],
+                                      [0.034, 0.043, 0.006, 0.0, 0.0],
+                                      [0.047, 0.082, 0.023, 0.001, 0.0],
+                                      [0.048, 0.074, 0.026, 0.003, 0.0],
+                                      [0.044, 0.046, 0.015, 0.002, 0.0],
+                                      [0.041, 0.023, 0.003, 0.0, 0.0]], 3)
 
 
 def test_additional_input():
@@ -351,6 +346,37 @@ def test_additional_input():
                                             5.10998066, 5.16969047, 5.22940029, 5.28911011, 5.34881993,
                                             5.40852975, 5.46823957, 5.52794939, 5.5876592, 5.64736902,
                                             5.70707884, 5.76678866, 5.82649848, 5.8862083, 5.94591812]))
+
+
+def test_interpolation_speed():
+    import xarray as xr
+    da = xr.DataArray(np.sin(0.3 * np.arange(20).reshape(5, 4)),
+                      [('x', np.arange(5)),
+                       ('y', [0.1, 0.2, 0.3, 0.4])])
+    x = xr.DataArray([0.5, 1.5, 2.5], dims='z')
+    y = xr.DataArray([0.15, 0.25, 0.35], dims='z')
+    da.interp(x=x, y=y)
+
+    site = ParqueFicticioSite()
+    x, y = site.initial_position.T
+    X, Y, x_j, y_j, h_j = HorizontalGrid()(x, y, 70)
+    wd = [270]  # site.default_wd
+    ws = site.default_ws
+    res1, t_lst = timeit(site.interp_funcs['A'])((x_j, y_j, h_j, x_j * 0 + 270))
+    print(res1.shape)
+    res2, t_lst = timeit(lambda x, y, z, sec:
+                         site._ds.A.interp(x=xr.DataArray(x, dims='z'),
+                                           y=xr.DataArray(y, dims='z'),
+                                           z=xr.DataArray(z, dims='z'),
+                                           sec=xr.DataArray(sec, dims='z')).data)(x_j, y_j, h_j, x_j * 0 + 10)
+    npt.assert_array_almost_equal(res1, res2)
+    if 0:
+        c = plt.contourf(X, Y, res1.reshape(X.shape))
+        plt.colorbar(c)
+        plt.figure()
+        c = plt.contourf(X, Y, res2.reshape(X.shape))
+        plt.colorbar(c)
+        plt.show()
 
 
 if __name__ == '__main__':

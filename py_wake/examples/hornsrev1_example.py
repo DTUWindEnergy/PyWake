@@ -11,7 +11,7 @@ def main():
         wt.plot(wt_x, wt_y)
         wf_model = NOJ(site, wt)
         aep = wf_model(wt_x, wt_y).aep()
-        plt.title('AEP: %.1fGWh' % aep)
+        plt.title('AEP: %.1fGWh' % aep.sum())
         plt.show()
 
 

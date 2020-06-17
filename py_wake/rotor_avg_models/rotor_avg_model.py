@@ -19,7 +19,7 @@ class RotorAvgModel(DeficitModel):
             [a for a in self.args4rotor_avg_deficit if a not in deficitModel.args4deficit]
 
     def calc_deficit(self, D_dst_ijl, **kwargs):
-        if D_dst_ijl is None:
+        if np.all(D_dst_ijl == 0):
             return self.deficitModel.calc_deficit(D_dst_ijl=D_dst_ijl, **kwargs)
         else:
             return self._calc_rotor_avg_deficit(D_dst_ijl=D_dst_ijl, **kwargs)

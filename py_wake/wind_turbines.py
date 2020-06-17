@@ -218,14 +218,14 @@ class WindTurbines():
         if ax is None:
             ax = plt.gca()
         markers = np.array(list("213v^<>o48spP*hH+xXDd|_"))
-        colors = ['gray', 'k', 'r', 'g', 'k'] * 5
+        colors = ['gray', 'r', 'g', 'k'] * 5
 
         from matplotlib.patches import Circle
         assert len(x) == len(y)
         types = (np.zeros_like(x) + types).astype(int)  # ensure same length as x
         yaw = np.zeros_like(x) + yaw
         for i, (x_, y_, d, t, yaw_) in enumerate(zip(x, y, self.diameter(types), types, yaw)):
-            if wd is None or len(np.atleast_1d(wd)) > 3:
+            if wd is None or len(np.atleast_1d(wd)) > 1:
                 circle = Circle((x_, y_), d / 2, ec=colors[t], fc="None")
                 ax.add_artist(circle)
                 plt.plot(x_, y_, 'None', )
@@ -236,7 +236,7 @@ class WindTurbines():
 
         for t, m, c in zip(np.unique(types), markers, colors):
             # ax.plot(np.asarray(x)[types == t], np.asarray(y)[types == t], '%sk' % m, label=self._names[int(t)])
-            ax.plot([], [], '2', color=c, label=self._names[int(t)])
+            ax.plot([], [], '2', color=colors[t], label=self._names[int(t)])
 
         for i, (x_, y_, d) in enumerate(zip(x, y, self.diameter(types))):
             ax.annotate(i, (x_ + d / 2, y_ + d / 2), fontsize=7)

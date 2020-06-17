@@ -1,8 +1,11 @@
 from abc import abstractmethod, ABC
-from py_wake.site._site import Site, LocalWind
+from py_wake.site._site import Site
 from py_wake.wind_turbines import WindTurbines
 import numpy as np
-from py_wake.flow_map import FlowMap, HorizontalGrid
+from py_wake.flow_map import FlowMap, HorizontalGrid, FlowBox, YZGrid, Grid
+import xarray as xr
+from py_wake.utils import xarray_utils  # register ilk function @UnusedImport
+from numpy import newaxis as na
 
 
 class WindFarmModel(ABC):
@@ -38,24 +41,47 @@ class WindFarmModel(ABC):
         """
         assert len(x) == len(y)
         type, h, _ = self.windTurbines.get_defaults(len(x), type, h)
-        wd, ws = self.site.get_defaults(wd, ws)
 
         if len(x) == 0:
-            wd, ws = np.atleast_1d(wd), np.atleast_1d(ws)
-            z = np.zeros((0, len(wd), len(ws)))
-            localWind = LocalWind(z, z, z, z)
-            return SimulationResult(self, localWind=localWind,
-                                    x_i=x, y_i=y, h_i=h, type_i=type, yaw_ilk=yaw_ilk,
-                                    wd=wd, ws=ws,
+
+            lw = self.site.local_wind(x_i=[0], y_i=[0], h_i=[100], wd=wd, ws=ws)
+            z = xr.DataArray(np.zeros((1, len(lw.wd), len(lw.ws))), coords=[('wt', [0]), ('wd', lw.wd), ('ws', lw.ws)])
+            return SimulationResult(self, localWind=lw,
+                                    type_i=[0], yaw_ilk=yaw_ilk,
                                     WS_eff_ilk=z, TI_eff_ilk=z,
                                     power_ilk=z, ct_ilk=z)
         WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, localWind = self.calc_wt_interaction(
             x_i=x, y_i=y, h_i=h, type_i=type, yaw_ilk=yaw_ilk, wd=wd, ws=ws)
         return SimulationResult(self, localWind=localWind,
-                                x_i=x, y_i=y, h_i=h, type_i=type, yaw_ilk=yaw_ilk,
-                                wd=wd, ws=ws,
+                                type_i=type, yaw_ilk=yaw_ilk,
+
                                 WS_eff_ilk=WS_eff_ilk, TI_eff_ilk=TI_eff_ilk,
                                 power_ilk=power_ilk, ct_ilk=ct_ilk)
+
+    def aep(self, x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None,  # @ReservedAssignment
+            normalize_probabilities=False, with_wake_loss=True):
+        """Anual Energy Production (sum of all wind turbines, directions and speeds) in GWh.
+
+        the typical use is:
+        >> sim_res = windFarmModel(x,y,...)
+        >> sim_res.aep()
+
+        This function bypasses the simulation result and returns only the total AEP,
+        which makes it slightly faster for small problems.
+        >> windFarmModel.aep(x,y,...)
+
+        """
+        _, _, power_ilk, _, localWind = self.calc_wt_interaction(
+            x_i=x, y_i=y, h_i=h, type_i=type, yaw_ilk=yaw_ilk, wd=wd, ws=ws)
+        P_ilk = localWind.P_ilk
+        if normalize_probabilities:
+            norm = P_ilk.sum((1, 2))[:, na, na]
+        else:
+            norm = 1
+
+        if with_wake_loss is False:
+            power_ilk = self.windTurbines.power(localWind.WS_ilk, type)
+        return (power_ilk * P_ilk / norm * 24 * 365 * 1e-9).sum()
 
     @abstractmethod
     def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=None, yaw_ilk=None, wd=None, ws=None):
@@ -101,24 +127,49 @@ class WindFarmModel(ABC):
         """
 
 
-class SimulationResult():
+class SimulationResult(xr.Dataset):
     """Simulation result returned when calling a WindFarmModel object"""
+    __slots__ = ('windFarmModel', )
 
-    def __init__(self, windFarmModel, localWind, x_i, y_i, h_i, type_i, yaw_ilk,
-                 wd, ws, WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk):
+    def __init__(self, windFarmModel, localWind, type_i, yaw_ilk,
+                 WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk):
         self.windFarmModel = windFarmModel
-        self.localWind = localWind
-        self.x_i = x_i
-        self.y_i = y_i
-        self.h_i = h_i
-        self.type_i = type_i
-        self.yaw_ilk = yaw_ilk
-        self.WS_eff_ilk = WS_eff_ilk
-        self.TI_eff_ilk = TI_eff_ilk
-        self.power_ilk = power_ilk
-        self.ct_ilk = ct_ilk
-        self.wd = wd
-        self.ws = ws
+        lw = localWind
+        n_wt = len(lw.i)
+
+        coords = {k: (k, v, {'Description': d}) for k, v, d in [
+            ('wt', np.arange(n_wt), 'Wind turbine number'),
+            ('wd', lw.wd, 'Ambient reference wind direction [deg]'),
+            ('ws', lw.ws, 'Ambient reference wind speed [m/s]')]}
+        coords.update({k: ('wt', v, {'Description': d}) for k, v, d in [
+            ('x', lw.x, 'Wind turbine x coordinate [m]'),
+            ('y', lw.y, 'Wind turbine y coordinate [m]'),
+            ('h', lw.h, 'Wind turbine hub height [m]'),
+            ('type', type_i, 'Wind turbine type')]})
+        xr.Dataset.__init__(self,
+                            data_vars={k: (['wt', 'wd', 'ws'], v, {'Description': d}) for k, v, d in [
+                                ('WS_eff', WS_eff_ilk, 'Effective local wind speed [m/s]'),
+                                ('TI_eff', np.zeros_like(WS_eff_ilk) + TI_eff_ilk,
+                                 'Effective local turbulence intensity'),
+                                ('Power', power_ilk, 'Power [W]'),
+                                ('CT', ct_ilk, 'Thrust coefficient'),
+                            ]},
+                            coords=coords)
+        self['P'] = localWind.P
+        self['WD'] = localWind.WD
+        self['WS'] = localWind.WS
+        self['TI'] = localWind.TI
+        if yaw_ilk is None:
+            self['Yaw'] = xr.DataArray(0).broadcast_like(self.Power)
+        else:
+            self['Yaw'] = xr.DataArray(yaw_ilk, dims=['wt', 'wd', 'ws'])
+        self['Yaw'].attrs['Description'] = 'Yaw misalignment [deg]'
+
+        # for backward compatibility
+        for k in ['WD', 'WS', 'TI', 'P', 'WS_eff', 'TI_eff']:
+            setattr(self.__class__, "%s_ilk" % k, property(lambda self, k=k: self[k].ilk()))
+        setattr(self.__class__, "ct_ilk", property(lambda self: self.CT.ilk()))
+        setattr(self.__class__, "power_ilk", property(lambda self: self.Power.ilk()))
 
     def aep_ilk(self, normalize_probabilities=False, with_wake_loss=True):
         """Anual Energy Production of all turbines (i), wind directions (l) and wind speeds (k) in  in GWh
@@ -137,22 +188,39 @@ class SimulationResult():
             If True, wake loss is included, i.e. power is calculated using local effective wind speed\n
             If False, wake loss is neglected, i.e. power is calculated using local free flow wind speed
          """
-        if normalize_probabilities:
-            norm = self.localWind.P_ilk.sum((1, 2))[:, np.newaxis, np.newaxis]
-        else:
-            norm = 1
-        if with_wake_loss:
-            return self.power_ilk * self.localWind.P_ilk / norm * 24 * 365 * 1e-9
-        else:
-            power_ilk = self.windFarmModel.windTurbines.power(self.localWind.WS_ilk, self.type_i)
-            return power_ilk * self.localWind.P_ilk / norm * 24 * 365 * 1e-9
+        return self.aep(normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss).ilk()
 
     def aep(self, normalize_probabilities=False, with_wake_loss=True):
         """Anual Energy Production (sum of all wind turbines, directions and speeds) in GWh.
 
         See aep_ilk
         """
-        return self.aep_ilk(normalize_probabilities, with_wake_loss).sum()
+        if normalize_probabilities:
+            norm = self.P.ilk().sum((1, 2))[:, na, na]
+        else:
+            norm = 1
+        if with_wake_loss:
+            power_ilk = self.Power.ilk()
+
+        else:
+            power_ilk = self.windFarmModel.windTurbines.power(self.WS.ilk(self.Power.shape), self.type)
+
+        return xr.DataArray(power_ilk * self.P.ilk() / norm * 24 * 365 * 1e-9,
+                            self.Power.coords,
+                            name='AEP',
+                            attrs={'Description': 'Annual energy production [GWh]'})
+
+    def flow_box(self, x, y, h, wd=None, ws=None):
+        X, Y, H = np.meshgrid(x, y, h)
+        x_j, y_j, h_j = X.flatten(), Y.flatten(), H.flatten()
+
+        wd, ws = self._wd_ws(wd, ws)
+        lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(
+            x_j, y_j, h_j,
+            self.sel(wd=wd, ws=ws)
+        )
+
+        return FlowBox(self, X, Y, H, lw_j, WS_eff_jlk, TI_eff_jlk)
 
     def flow_map(self, grid=None, wd=None, ws=None):
         """Return a FlowMap object with WS_eff and TI_eff of all grid points
@@ -171,12 +239,27 @@ class SimulationResult():
 
         if grid is None:
             grid = HorizontalGrid()
-        if isinstance(grid, HorizontalGrid):
-            plane = grid.plane
-            grid = grid(x_i=self.x_i, y_i=self.y_i, h_i=self.h_i,
-                        d_i=self.windFarmModel.windTurbines.diameter(self.type_i))
+        if isinstance(grid, Grid):
+            if isinstance(grid, HorizontalGrid):
+                plane = "XY", self.h
+            elif isinstance(grid, YZGrid):
+                plane = 'YZ', grid.x
+            grid = grid(x_i=self.x, y_i=self.y, h_i=self.h,
+                        d_i=self.windFarmModel.windTurbines.diameter(self.type))
         else:
             plane = (None,)
+
+        wd, ws = self._wd_ws(wd, ws)
+        X, Y, x_j, y_j, h_j = grid
+
+        lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(
+            x_j, y_j, h_j,
+            self.sel(wd=wd, ws=ws)
+        )
+
+        return FlowMap(self, X, Y, lw_j, WS_eff_jlk, TI_eff_jlk, plane=plane)
+
+    def _wd_ws(self, wd, ws):
         if wd is None:
             wd = self.wd
         else:
@@ -185,26 +268,7 @@ class SimulationResult():
             ws = self.ws
         else:
             assert np.all(np.isin(ws, self.ws)), "All ws=%s not in simulation result (ws=%s)" % (ws, self.ws)
-        wd, ws = np.atleast_1d(wd), np.atleast_1d(ws)
-        l_indices = np.argwhere(wd[:, None] == self.wd)[:, 1]
-        k_indices = np.argwhere(ws[:, None] == self.ws)[:, 1]
-        X, Y, x_j, y_j, h_j = grid
-        lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(
-            x_j, y_j, h_j,
-            self.x_i, self.y_i, self.h_i, self.type_i, self.yaw_ilk,
-            self.localWind.WD_ilk[:, l_indices][:, :, k_indices],
-            self.localWind.WS_ilk[:, l_indices][:, :, k_indices],
-            self.localWind.TI_ilk[:, l_indices][:, :, k_indices],
-            self.WS_eff_ilk[:, l_indices][:, :, k_indices],
-            self.TI_eff_ilk[:, l_indices][:, :, k_indices],
-            self.ct_ilk[:, l_indices][:, :, k_indices],
-            wd, ws)
-        if self.yaw_ilk is not None:
-            yaw_ilk = self.yaw_ilk[:, l_indices][:, :, k_indices]
-        else:
-            yaw_ilk = None
-        return FlowMap(self, X, Y, lw_j, WS_eff_jlk, TI_eff_jlk, wd, ws,
-                       yaw_ilk=yaw_ilk, plane=plane)
+        return np.atleast_1d(wd), np.atleast_1d(ws)
 
 
 def main():
@@ -218,14 +282,13 @@ def main():
         x, y = site.initial_position.T
         windTurbines = IEA37_WindTurbines()
 
-        # NOJ wake model
         wind_farm_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
         simulation_result = wind_farm_model(x, y)
         fm = simulation_result.flow_map(wd=30)
         fm.plot_wake_map()
 
         plt.figure()
-        fm.plot(fm.power_xylk()[:, :, 0, 0] * 1e-3, "Power [kW]")
+        fm.plot(fm.power_xylk() * 1e-3, "Power [kW]")
 
         fm = simulation_result.flow_map(grid=HorizontalGrid(resolution=50))
         plt.figure()

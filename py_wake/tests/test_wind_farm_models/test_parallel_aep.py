@@ -16,7 +16,7 @@ wd_lst = np.arange(0, 360, 10)
 
 def aep_wd(args):
     x, y, wd = args
-    return wf_model(x, y, wd=wd, ws=None).aep()
+    return wf_model(x, y, wd=wd, ws=None).aep().sum()
 
 
 def aep_all_multiprocessing(pool, x, y):
@@ -25,12 +25,12 @@ def aep_all_multiprocessing(pool, x, y):
 
 def aep_wfm_xy(args):
     wfm, x, y = args
-    return wfm(x, y, wd=wd_lst).aep()
+    return wfm(x, y, wd=wd_lst).aep().sum()
 
 
 def aep_xy(args):
     x, y = args
-    return wf_model(x, y, wd=wd_lst).aep()
+    return wf_model(x, y, wd=wd_lst).aep().sum()
 
 
 def test_multiprocessing_wd():

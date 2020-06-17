@@ -206,7 +206,7 @@ def main():
         sim_res = wf_model(x, y)
 
         # calculate AEP
-        aep = sim_res.aep()
+        aep = sim_res.aep().sum()
 
         # plot wake map
         flow_map = sim_res.flow_map(wd=30, ws=9.8)

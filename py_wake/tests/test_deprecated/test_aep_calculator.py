@@ -1,4 +1,3 @@
-from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.site._site import UniformWeibullSite
 from py_wake.tests import npt
@@ -43,7 +42,7 @@ def test_aep_map():
     site = IEA37Site(16)
     x = [0, 0]
     y = [0, 200]
-    windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
+    windTurbines = IEA37_WindTurbines()
     wake_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
     aep = AEPCalculator(wake_model)
     # print(aep.calculate_AEP([0], [0]).sum())
@@ -60,7 +59,7 @@ def test_aep_map():
         plt.show()
     # print(np.round(Z[m], 2).tolist()) # ref
     ref = [21.5, 21.4, 21.02, 20.34, 18.95, 16.54, 13.17, 10.17, 10.17, 13.17, 16.54, 18.95, 20.34, 21.02, 21.4]
-    npt.assert_array_almost_equal(Z[m], ref, 2)
+    npt.assert_array_almost_equal(Z[m].squeeze('h'), ref, 2)
 
 
 def test_ti_map():
@@ -89,7 +88,7 @@ def test_ti_map():
 
 def test_aep_map_no_turbines():
     site = IEA37Site(16)
-    windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
+    windTurbines = IEA37_WindTurbines()
     wake_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
     aep = AEPCalculator(wake_model)
     x_j = np.arange(-150, 150, 20)

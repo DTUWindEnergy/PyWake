@@ -99,7 +99,7 @@ def main():
         windTurbines = IEA37_WindTurbines()
 
         import matplotlib.pyplot as plt
-        fig, (ax1, ax2) = plt.subplots(1, 2)
+        _, (ax1, ax2) = plt.subplots(1, 2)
         for ax, wf_model, lbl in [(ax1, NOJ(site, windTurbines, turbulenceModel=STF2005TurbulenceModel()), 'STF2005'),
                                   (ax2, NOJ(site, windTurbines, turbulenceModel=STF2017TurbulenceModel()), 'STF2017')]:
 
@@ -107,10 +107,8 @@ def main():
             print(sim_res.TI_eff_ilk[:, 0])
             # plot wake map
             flow_map = sim_res.flow_map(wd=0, ws=9.8)
-            c = flow_map.plot_ti_map(ax=ax, plot_colorbar=False)
+            c = flow_map.plot_ti_map(ax=ax)
             ax.set_title('Turbulence intensity calculated by %s' % lbl)
-        cbaxes = fig.add_axes([.92, 0.1, 0.01, 0.8])
-        plt.colorbar(c, cax=cbaxes, label='turbulence intensity [m/s]')
         plt.show()
 
 

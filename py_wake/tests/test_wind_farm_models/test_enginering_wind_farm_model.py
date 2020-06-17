@@ -4,7 +4,7 @@ from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake import NOJ, Fuga
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
-from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site
+from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y
 from py_wake.tests.test_files.fuga import LUT_path_2MW_z0_0_03
 from py_wake.flow_map import HorizontalGrid
 from py_wake.wind_farm_models.engineering_models import All2AllIterative
@@ -17,6 +17,7 @@ from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian
 from numpy import newaxis as na
 import matplotlib.pyplot as plt
 from py_wake.gradients import autograd, cs, fd, plot_gradients
+from py_wake.tests.check_speed import timeit
 
 
 def test_wake_model():
@@ -94,7 +95,8 @@ def test_str():
 
 
 @pytest.mark.parametrize('deflectionModel', [(None),
-                                             (JimenezWakeDeflection())])
+                                             (JimenezWakeDeflection())
+                                             ])
 def test_huge_flow_map(deflectionModel):
     site = IEA37Site(16)
     windTurbines = IEA37_WindTurbines()
@@ -110,11 +112,17 @@ def test_huge_flow_map(deflectionModel):
 def test_aep():
     site = UniformSite([1], ti=0)
     windTurbines = IEA37_WindTurbines()
-    wake_model = NOJ(site, windTurbines)
-    sim_res = wake_model([0], [0], wd=270)
+    wfm = NOJ(site, windTurbines)
 
-    npt.assert_almost_equal(sim_res.aep(), 3.35 * 24 * 365 / 360 / 1000)
-    npt.assert_almost_equal(sim_res.aep(normalize_probabilities=True), 3.35 * 24 * 365 / 1000)
+    sim_res = wfm([0], [0], wd=270)
+
+    npt.assert_almost_equal(sim_res.aep().sum(), 3.35 * 24 * 365 / 360 / 1000)
+    npt.assert_almost_equal(sim_res.aep(normalize_probabilities=True).sum(), 3.35 * 24 * 365 / 1000)
+
+    npt.assert_equal(sim_res.aep().data.sum(), wfm.aep([0], [0], wd=270))
+    npt.assert_almost_equal(sim_res.aep(normalize_probabilities=True).sum(),
+                            wfm.aep([0], [0], wd=270, normalize_probabilities=True))
+    npt.assert_almost_equal(sim_res.aep(with_wake_loss=False).sum(), wfm.aep([0], [0], wd=270, with_wake_loss=False))
 
 
 def test_two_wt_aep():
@@ -124,10 +132,15 @@ def test_two_wt_aep():
     sim_res1 = wake_model([0], [0], wd=270)
     sim_res2 = wake_model([0, 0], [0, 500], wd=270)
 
-    npt.assert_almost_equal(sim_res1.aep(normalize_probabilities=True), 3.35 * 5.845, 2)
-    npt.assert_almost_equal(sim_res1.aep() * 2, sim_res2.aep())
-    npt.assert_almost_equal(sim_res1.aep(normalize_probabilities=True) * 2,
-                            sim_res2.aep(normalize_probabilities=True))
+    # one wt, wind from west ~ 5845 hours of full load
+    npt.assert_almost_equal(sim_res1.aep(normalize_probabilities=True).sum(), 3.35 * 5.845, 2)
+
+    # No wake, two wt = 2 x one wt
+    npt.assert_almost_equal(sim_res1.aep().sum() * 2, sim_res2.aep().sum())
+
+    # same for normalized propabilities
+    npt.assert_almost_equal(sim_res1.aep(normalize_probabilities=True).sum() * 2,
+                            sim_res2.aep(normalize_probabilities=True).sum())
 
 
 def test_All2AllIterativeDeflection():
@@ -150,31 +163,33 @@ def test_dAEP_2wt():
 
     # plot 2 wt case
     x, y = np.array([[0, 130 * 4], [0, 0]], dtype=np.float)
-    x_lst = np.array([0., 1.]) * np.arange(1, 1000)[:, na]
+    x_lst = np.array([0., 1.]) * np.arange(1, 600, 10)[:, na]
     kwargs = {'ws': [10], 'wd': [270]}
 
     _, (ax1, ax2) = plt.subplots(1, 2, sharey=False)
-    ax1.plot(x_lst[:, 1], [wfm(x_, y, **kwargs).aep() for x_ in x_lst])
+    ax1.plot(x_lst[:, 1], [wfm.aep(x_, y, **kwargs) for x_ in x_lst])
     ax1.set_xlabel('Downwind distance [m]')
     ax1.set_ylabel('AEP [GWh]')
 
-    x_ = x_lst[200]
+    x_ = x_lst[20]
     ax1.set_title("Center line")
     for grad in [fd, cs, autograd]:
         dAEPdx = wfm.dAEPdn(0, grad)(x_, y, **kwargs)[1]
         npt.assert_almost_equal(dAEPdx, 3.976975605364392e-06, (10, 5)[grad == fd])
-        plot_gradients(wfm(x_, y, **kwargs).aep(), dAEPdx, x_[1], grad.__name__, step=100, ax=ax1)
-    y_lst = np.array([0, 1.]) * np.arange(-500, 500)[:, na]
-    ax2.plot(y_lst[:, 1], [wfm(x, y_, **kwargs).aep() for y_ in y_lst])
+        plot_gradients(wfm.aep(x_, y, **kwargs), dAEPdx, x_[1], grad.__name__, step=100, ax=ax1)
+    y_lst = np.array([0, 1.]) * np.arange(-100, 100, 5)[:, na]
+    ax2.plot(y_lst[:, 1], [wfm.aep(x, y_, **kwargs) for y_ in y_lst])
     ax2.set_xlabel('Crosswind distance [m]')
     ax2.set_ylabel('AEP [GWh]')
-    y_ = y_lst[525]
+    y_ = y_lst[25]
     ax2.set_title("%d m downstream" % x[1])
     for grad in [fd, cs, autograd]:
         dAEPdy = wfm.dAEPdn(1, grad)(x, y_, **kwargs)[1]
-        plot_gradients(wfm(x, y_, **kwargs).aep(), dAEPdy, y_[1], grad.__name__, step=50, ax=ax2)
+        plot_gradients(wfm.aep(x, y_, **kwargs), dAEPdy, y_[1], grad.__name__, step=50, ax=ax2)
         npt.assert_almost_equal(dAEPdy, 3.794435973860448e-05, (10, 5)[grad == fd])
+
     if 0:
+        plt.legend()
         plt.show()
     plt.close()
 

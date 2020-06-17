@@ -64,7 +64,7 @@ def main():
         print(sim_res.TI_eff_ilk.flatten())
 
         # plot wake mape
-        aep = sim_res.aep()
+        aep = sim_res.aep().sum()
         flow_map = sim_res.flow_map(wd=0, ws=9.8)
         flow_map.plot_ti_map()
         plt.title('AEP: %.2f GWh' % aep)
