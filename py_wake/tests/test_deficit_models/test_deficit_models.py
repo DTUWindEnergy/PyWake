@@ -15,6 +15,27 @@ from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models.fuga import FugaDeficit
 from py_wake.tests.test_files import tfp
 from py_wake.deficit_models.noj import NOJDeficit
+from py_wake import deficit_models
+from py_wake.deficit_models.deficit_model import DeficitModel
+import pkgutil
+import inspect
+import os
+from builtins import issubclass
+from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel
+
+
+def get_all_deficit_models():
+
+    all_deficit_modules = []
+    for loader, module_name, _ in pkgutil.walk_packages([os.path.dirname(deficit_models.__file__)]):
+
+        _module = loader.find_module(module_name).load_module(module_name)
+        for n in dir(_module):
+            v = _module.__dict__[n]
+            if inspect.isclass(v) and issubclass(v, DeficitModel) and \
+                    v is not DeficitModel and not issubclass(v, RotorAvgModel):
+                all_deficit_modules.append(v())
+    return all_deficit_modules
 
 
 @pytest.mark.parametrize(

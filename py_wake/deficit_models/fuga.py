@@ -6,6 +6,7 @@ from py_wake.deficit_models.deficit_model import DeficitModel
 from py_wake.superposition_models import LinearSum
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
+from py_wake.tests.test_files import tfp
 
 
 class FugaDeficit(DeficitModel):
@@ -13,7 +14,7 @@ class FugaDeficit(DeficitModel):
     invL = 0
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijl', 'h_il', 'ct_ilk', 'D_src_il']
 
-    def __init__(self, LUT_path):
+    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'):
         self.load(LUT_path)
 
     def load(self, path):
@@ -84,7 +85,7 @@ class FugaDeficit(DeficitModel):
     def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_il, dh_ijl, **_):
 
         self.mdu_ijlk = self.interpolate(dw_ijlk, np.abs(hcw_ijlk),
-                                         (h_il[:, na] + dh_ijl)[..., na]) * ~((dw_ijlk == 0) & (hcw_ijlk == 0))
+                                         (h_il[:, na] + dh_ijl)[:, :, :, na]) * ~((dw_ijlk == 0) & (hcw_ijlk == 0))
 
     def calc_deficit(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk, dh_ijl, h_il, ct_ilk, **_):
         if not self.deficit_initalized:
@@ -222,7 +223,6 @@ class FugaBlockage(All2AllIterative):
 
 def main():
     if __name__ == '__main__':
-        from py_wake.examples.data.iea37 import iea37_path
         from py_wake.examples.data.iea37._iea37 import IEA37Site
         from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
         import matplotlib.pyplot as plt
@@ -232,7 +232,6 @@ def main():
         x, y = site.initial_position.T
         windTurbines = IEA37_WindTurbines()
 
-        from py_wake.tests.test_files import tfp
         path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
 
         for wf_model in [Fuga(path, site, windTurbines),

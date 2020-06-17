@@ -15,7 +15,7 @@ class SelfSimilarityDeficit(DeficitModel):
         """References:
             [1] N. Troldborg, A.R. Meyer Fortsing, Wind Energy, 2016
         """
-
+        eps = 1e-10
         R_ijl = (D_src_il / 2)[:, na]
         x = -dw_ijlk / R_ijl[..., na]
         r12_ijlk = np.sqrt(self.lambda_ * (self.eta + x ** 2))   # Eq. (13) from [1]
@@ -23,7 +23,7 @@ class SelfSimilarityDeficit(DeficitModel):
                                           (R_ijl[..., na] * r12_ijlk))) ** (8 / 9)  # Eq. (6) from [1]
         a0_ilk = 1 / 2 * (1 - np.sqrt(1 - 1.1 * ct_ilk))  # Eq. (6) from [1]
         axial_factor_ijlk = a0_ilk[:, na] * (1 - x / np.sqrt(x**2 + 1))          # Eq. (7) from [1]
-        return WS_ilk[:, na] * (dw_ijlk < 0) * axial_factor_ijlk * radial_factor_ijlk
+        return WS_ilk[:, na] * (dw_ijlk < -eps) * axial_factor_ijlk * radial_factor_ijlk
 
 
 def main():

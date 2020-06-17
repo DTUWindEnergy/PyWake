@@ -6,8 +6,10 @@ import numpy as np
 from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37_WindTurbines
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit
 from py_wake.flow_map import HorizontalGrid
-from py_wake.wind_farm_models.engineering_models import All2AllIterative
-from py_wake.superposition_models import SquaredSum
+from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind
+from py_wake.superposition_models import SquaredSum, LinearSum
+from py_wake.tests.test_deficit_models.test_deficit_models import get_all_deficit_models
+import pytest
 
 
 def test_RotorGridAvg():
@@ -105,3 +107,22 @@ def test_polar_gauss_quadrature():
                                               0.67, 0.93, -0.05, -0.25, -0.51, -0.71], 2)
     npt.assert_array_almost_equal(m.nodes_weight, [0.05, 0.09, 0.09, 0.05, 0.08, 0.14, 0.14,
                                                    0.08, 0.05, 0.09, 0.09, 0.05], 2)
+
+
+@pytest.mark.parametrize('WFM', [All2AllIterative, PropagateDownwind])
+@pytest.mark.parametrize('deficitModel', get_all_deficit_models())
+def test_with_all_deficit_models(WFM, deficitModel):
+    site = IEA37Site(16)
+    windTurbines = IEA37_WindTurbines()
+
+    wfm = WFM(site, windTurbines, wake_deficitModel=deficitModel,
+              rotorAvgModel=RotorCenter(),
+              superpositionModel=LinearSum(),
+              deflectionModel=None, turbulenceModel=None)
+
+    wfm2 = WFM(site, windTurbines, wake_deficitModel=deficitModel,
+               rotorAvgModel=EqGridRotorAvg(1),
+               superpositionModel=LinearSum(),
+               deflectionModel=None, turbulenceModel=None)
+    kwargs = {'x': [0, 0, 500, 500], 'y': [0, 500, 0, 500], 'wd': [0], 'ws': [8]}
+    npt.assert_equal(wfm.aep(**kwargs), wfm2.aep(**kwargs))
