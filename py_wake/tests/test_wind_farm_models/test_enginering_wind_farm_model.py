@@ -18,6 +18,10 @@ from numpy import newaxis as na
 import matplotlib.pyplot as plt
 from py_wake.gradients import autograd, cs, fd, plot_gradients
 from py_wake.tests.check_speed import timeit
+from py_wake.deficit_models.fuga import FugaDeficit
+from py_wake.tests.test_files import tfp
+from py_wake.superposition_models import LinearSum
+from py_wake.deficit_models.no_wake import NoWakeDeficit
 
 
 def test_wake_model():
@@ -208,3 +212,19 @@ def test_dAEPdx():
 
     npt.assert_array_almost_equal(dAEPdxy_autograd, dAEPdxy_cs, 15)
     npt.assert_array_almost_equal(dAEPdxy_autograd, dAEPdxy_fd, 6)
+
+
+@pytest.mark.parametrize('wake_deficitModel,blockage_deficitModel', [(FugaDeficit(), None),
+                                                                     (NoWakeDeficit(), SelfSimilarityDeficit()),
+                                                                     (FugaDeficit(), SelfSimilarityDeficit())])
+def test_deficit_symmetry(wake_deficitModel, blockage_deficitModel):
+    site = Hornsrev1Site()
+    windTurbines = IEA37_WindTurbines()
+
+    wfm = All2AllIterative(site, windTurbines, wake_deficitModel=wake_deficitModel,
+                           superpositionModel=LinearSum(),
+                           blockage_deficitModel=blockage_deficitModel,
+                           deflectionModel=None, turbulenceModel=None)
+
+    power = wfm([0, 0, 500, 500], [0, 500, 0, 500], wd=[0], ws=[8]).power_ilk[:, 0, 0]
+    npt.assert_array_almost_equal(power[:2], power[2:])
