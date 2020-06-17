@@ -68,9 +68,9 @@ def test_twotype_windturbines():
     wts.plot(wt9_x, wt9_y, types1)
     wfm = NOJ(Hornsrev1Site(), wts)
     npt.assert_array_equal(wts.types(), [0, 1])
-    npt.assert_almost_equal(wfm(wt9_x, wt9_y, type=types0).aep(), 81.2066072392765)
-    npt.assert_almost_equal(wfm(wt9_x, wt9_y, type=types1).aep(), 83.72420504573488)
-    npt.assert_almost_equal(wfm(wt9_x, wt9_y, type=types2).aep(), 88.87227386796884)
+    npt.assert_almost_equal(wfm.aep(wt9_x, wt9_y, type=types0), 81.2066072392765)
+    npt.assert_almost_equal(wfm.aep(wt9_x, wt9_y, type=types1), 83.72420504573488)
+    npt.assert_almost_equal(wfm.aep(wt9_x, wt9_y, type=types2), 88.87227386796884)
     if 0:
         plt.show()
 

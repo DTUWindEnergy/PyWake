@@ -16,7 +16,7 @@ import sys
 register_matplotlib_converters()
 
 
-def timeit(func, min_time=1, min_runs=3):
+def timeit(func, min_time=1, min_runs=3, verbose=False):
     @functools.wraps(func)
     def newfunc(*args, **kwargs):
         t_lst = []
@@ -29,7 +29,8 @@ def timeit(func, min_time=1, min_runs=3):
                     fn = func.__name__
                 else:
                     fn = "Function"
-                print('%s: %f +/-%f (%d runs)' % (fn, np.mean(t_lst), np.std(t_lst), i + 1))
+                if verbose:
+                    print('%s: %f +/-%f (%d runs)' % (fn, np.mean(t_lst), np.std(t_lst), i + 1))
                 return res, t_lst
     return newfunc
 
@@ -39,7 +40,7 @@ def check_speed_Hornsrev(WFModel):
     wt = HornsrevV80()
     site = Hornsrev1Site()
     wf_model = WFModel(site, wt)
-    aep, t_lst = timeit(lambda x, y: wf_model(x, y).aep())(wt_x, wt_y)
+    aep, t_lst = timeit(lambda x, y: wf_model(x, y).aep().sum())(wt_x, wt_y)
 
     fn = tfp + "speed_check/%s.txt" % WFModel.__name__
     if os.path.isfile(fn):
@@ -65,8 +66,9 @@ def check_speed_Hornsrev(WFModel):
         if y[-1] > (y[:-1].mean() + 2 * error[:-1].mean()):
             raise Exception("Simulation time too slow, %f > %f" % (y[-1], (y[:-1].mean() + 2 * error[:-1].mean())))
 
-    with open(fn, 'a') as fid:
-        fid.write("%s;%.10f;%s\n" % (datetime.now(), aep, t_lst))
+    if getattr(sys, 'gettrace')() is None:
+        with open(fn, 'a') as fid:
+            fid.write("%s;%.10f;%s\n" % (datetime.now(), aep, t_lst))
 
 
 if __name__ == '__main__':
@@ -80,5 +82,6 @@ if __name__ == '__main__':
             check_speed_Hornsrev(WFModel)
         except Exception as e:
             print(e)
+            raise e
 
     plt.show()

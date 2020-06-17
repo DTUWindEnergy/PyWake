@@ -25,7 +25,7 @@ wake_model(x_i, y_i, ...) returns a flowModelResult with same functionality as A
         for n in ['WS_eff_ilk', 'TI_eff_ilk', 'power_ilk', 'ct_ilk']:
             setattr(self, n, getattr(flowModelResult, n))
         for n in ['WD_ilk', 'WS_ilk', 'TI_ilk', 'P_ilk']:
-            setattr(self, n, getattr(flowModelResult.localWind, n))
+            setattr(self, n, getattr(flowModelResult, n))
 
     def calculate_AEP(self, x_i, y_i, h_i=None, type_i=0, wd=None, ws=None):
         """Calculate AEP
@@ -113,7 +113,7 @@ wake_model(x_i, y_i, ...) returns a flowModelResult with same functionality as A
         sim_res = self.wake_model(x=wt_x, y=wt_y, type=wt_type, h=wt_height, wd=wd, ws=ws)
         flow_map = sim_res.flow_map(HorizontalGrid(x=x_j, y=y_j, h=height_level))
         X, Y = flow_map.XY
-        return X, Y, flow_map.WS_eff_xylk.mean((2, 3))
+        return X, Y, flow_map.WS_eff_xylk.mean(['wd', 'ws'])
 
     def ti_map(self, x_j=None, y_j=None, height_level=None, wt_x=[],
                wt_y=[], wt_type=0, wt_height=None, wd=None, ws=None):
@@ -161,7 +161,7 @@ wake_model(x_i, y_i, ...) returns a flowModelResult with same functionality as A
         sim_res = self.wake_model(x=wt_x, y=wt_y, type=wt_type, h=wt_height, wd=wd, ws=ws)
         flow_map = sim_res.flow_map(HorizontalGrid(x=x_j, y=y_j, h=height_level))
         X, Y = flow_map.XY
-        return X, Y, flow_map.TI_eff_xylk.mean((2, 3))
+        return X, Y, flow_map.TI_eff_xylk.mean(['wd', 'ws'])
 
     def plot_wake_map(self, x_j=None, y_j=None, h=None, wt_x=[], wt_y=[], wt_type=0, wt_height=None,
                       wd=None, ws=None, ax=None, levels=100):

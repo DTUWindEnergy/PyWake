@@ -8,6 +8,7 @@ from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.deflection_models.deflection_model import DeflectionModel
 from py_wake.gradients import use_autograd_in, autograd
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter, RotorAvgModel
+from py_wake.utils.progressbar import progressbar
 
 
 class EngineeringWindFarmModel(WindFarmModel):
@@ -129,8 +130,8 @@ class EngineeringWindFarmModel(WindFarmModel):
 
         I, L = dw_iil.shape[1:]
         K = lw.WS_ilk.shape[2]
-        WS_eff_ilk = lw.WS_ilk.copy()
-        TI_eff_ilk = lw.TI_ilk.copy()
+        WS_eff_ilk = lw.WS.ilk((I, L, K)).copy()
+        TI_eff_ilk = lw.TI.ilk((I, L, K)).copy()
         if yaw_ilk is None:
             yaw_ilk = np.zeros((I, L, K))
         else:
@@ -155,95 +156,69 @@ class EngineeringWindFarmModel(WindFarmModel):
     def _calc_wt_interaction(self, **kwargs):
         """calculate WT interaction"""
 
-    def _flow_map(self, x_j, y_j, h_j,
-                  wt_x_i, wt_y_i, wt_h_i, wt_type_i, yaw_ilk,
-                  WD_ilk, WS_ilk, TI_ilk, WS_eff_ilk, TI_eff_ilk, ct_ilk,
-                  wd, ws):
+    def _flow_map(self, x_j, y_j, h_j, sim_res_data):
         """call this function via SimulationResult.flow_map"""
         # calculate distances
-        wt_d_i = self.windTurbines.diameter(wt_type_i)
+        wt_d_i = self.windTurbines.diameter(sim_res_data.type)
+        wt_x_i, wt_y_i, wt_h_i, wd, ws = [sim_res_data[k] for k in ['x', 'y', 'h', 'wd', 'ws']]
 
         lw_j = self.site.local_wind(x_i=x_j, y_i=y_j, h_i=h_j, wd=wd, ws=ws)
-        if len(wt_x_i) == 0:
-            # If not turbines just return local wind
-            return lw_j, lw_j.WS_ilk, lw_j.TI_ilk
-
         I, J, L, K = [len(x) for x in [wt_x_i, x_j, wd, ws]]
+
         WS_eff_jlk = np.zeros((len(x_j), L, K))
         TI_eff_jlk = np.zeros((len(x_j), L, K))
 
-        if self.deflectionModel:
-            if yaw_ilk is None:
-                yaw_ilk = np.zeros((I, L, K))
-            yaw_ilk = np.deg2rad(yaw_ilk)
-        if L > 1:
-            print("|" + "-" * 100 + "|\n|", end="", flush=True)
-        for l in range(L):
-            if L > 1 and (l * 100) // L > ((l - 1) * 100) // L:
-                print(".", end="", flush=True)
+        for l in progressbar(range(L)):
+
             dw_ijl, hcw_ijl, dh_ijl, _ = self.site.distances(wt_x_i, wt_y_i, wt_h_i, x_j, y_j, h_j,
-                                                             wd_il=WD_ilk[:, l:l + 1, :].mean(2))
+                                                             wd_il=sim_res_data.WD.ilk((I, L, K))[:, l:l + 1, :].mean(2))
 
             if self.wec != 1:
                 hcw_ijl = hcw_ijl / self.wec
+
+            def get_ilk(k):
+                def wrap():
+                    v = sim_res_data[k].ilk((I, L, K))
+                    l_ = [l, 0][v.shape[1] == 1]
+                    return v[:, l_][:, na]
+                return wrap
+            arg_funcs = {'WS_ilk': get_ilk('WS'),
+                         'WS_eff_ilk': get_ilk('WS_eff'),
+                         'TI_ilk': get_ilk('TI'),
+                         'TI_eff_ilk': get_ilk('TI_eff'),
+                         'yaw_ilk': lambda: np.deg2rad(get_ilk('Yaw')()),
+                         'D_src_il': lambda: wt_d_i[:, na],
+                         'D_dst_ijl': lambda: np.zeros_like(dh_ijl),
+                         'dh_ijl': lambda: dh_ijl,
+                         'h_il': lambda: wt_h_i.data[:, na],
+                         'ct_ilk': get_ilk('CT')}
+            if self.deflectionModel:
+                dw_ijlk, hcw_ijlk = self.deflectionModel.calc_deflection(
+                    dw_ijl, hcw_ijl,
+                    **{k: arg_funcs[k]() for k in self.deflectionModel.args4deflection})
+            else:
+                dw_ijlk, hcw_ijlk = dw_ijl[..., na], hcw_ijl[..., na]
+            arg_funcs['cw_ijlk'] = lambda: np.hypot(dh_ijl[..., na], hcw_ijlk)
+            arg_funcs['dw_ijlk'] = lambda: dw_ijlk
+            arg_funcs['hcw_ijlk'] = lambda: hcw_ijlk
 
             if I * J * K * 8 / 1024**2 > 10:
                 # one wt at the time to avoid memory problems
                 deficit_ijk = np.zeros((I, J, K))
                 add_turb_ijk = np.zeros((I, J, K))
+
                 for i in range(I):
-                    arg_funcs = {'WS_ilk': lambda: WS_ilk[i, l][na, na],
-                                 'WS_eff_ilk': lambda: WS_eff_ilk[i, l][na, na],
-                                 'TI_ilk': lambda: TI_ilk[i, l][na, na],
-                                 'TI_eff_ilk': lambda: TI_eff_ilk[i, l][na, na],
-                                 'yaw_ilk': lambda: yaw_ilk[i, l][na, na],
-                                 'D_src_il': lambda: wt_d_i[i][na, na],
-                                 'D_dst_ijl': lambda: None,
-                                 'dh_ijl': lambda: dh_ijl[i][na],
-                                 'h_il': lambda: wt_h_i[i][na, na],
-                                 'ct_ilk': lambda: ct_ilk[i, l][na, na]}
-
-                    if self.deflectionModel:
-                        dw_ijlk, hcw_ijlk = self.deflectionModel.calc_deflection(
-                            dw_ijl[i][na], hcw_ijl[i][na],
-                            **{k: arg_funcs[k]() for k in self.deflectionModel.args4deflection})
-                    else:
-                        dw_ijlk, hcw_ijlk = dw_ijl[i][na, :, :, na], hcw_ijl[i][na, :, :, na]
-                    arg_funcs['cw_ijlk'] = lambda: np.hypot(dh_ijl[i][na, :, :, na], hcw_ijlk)
-                    arg_funcs['hcw_ijlk'] = lambda: hcw_ijlk
-
-                    args = {k: arg_funcs[k]() for k in self.args4deficit if k != 'dw_ijlk'}
-                    deficit_ijk[i] = self._calc_deficit(dw_ijlk=dw_ijlk, **args)[0, :, 0]
+                    args = {k: arg_funcs[k]()[i][na] for k in self.args4deficit if k != 'dw_ijlk'}
+                    deficit_ijk[i] = self._calc_deficit(dw_ijlk=dw_ijlk[i], **args)[0, :, 0]
                     if self.turbulenceModel:
                         arg_funcs['wake_radius_ijlk'] = lambda: self.wake_deficitModel.wake_radius(
-                            dw_ijlk=dw_ijlk, **args)
+                            dw_ijlk=dw_ijlk[i], **args)
                         args.update({k: arg_funcs[k]() for k in self.turbulenceModel.args4addturb
                                      if k not in self.args4deficit})
-                        add_turb_ijk[i] = self.turbulenceModel.calc_added_turbulence(dw_ijlk=dw_ijlk, **args)[0, :, 0]
+                        add_turb_ijk[i] = self.turbulenceModel.calc_added_turbulence(
+                            dw_ijlk=dw_ijlk[i], **args)[0, :, 0]
 
             else:
-
-                arg_funcs = {'WS_ilk': lambda: WS_ilk[:, l][:, na],
-                             'WS_eff_ilk': lambda: WS_eff_ilk[:, l][:, na],
-                             'TI_ilk': lambda: TI_ilk[:, l][:, na],
-                             'TI_eff_ilk': lambda: TI_eff_ilk[:, l][:, na],
-                             'yaw_ilk': lambda: yaw_ilk[:, l][:, na],
-                             'D_src_il': lambda: wt_d_i[:, na],
-                             'D_dst_ijl': lambda: None,
-                             'dh_ijl': lambda: dh_ijl,
-                             'h_il': lambda: wt_h_i[:, na],
-                             'ct_ilk': lambda: ct_ilk[:, l][:, na]}
-
-                if self.deflectionModel:
-                    dw_ijlk, hcw_ijlk = self.deflectionModel.calc_deflection(
-                        dw_ijl, hcw_ijl,
-                        **{k: arg_funcs[k]() for k in self.deflectionModel.args4deflection})
-                else:
-                    dw_ijlk, hcw_ijlk = dw_ijl[..., na], hcw_ijl[..., na]
-                arg_funcs['cw_ijlk'] = lambda: np.hypot(dh_ijl[..., na], hcw_ijlk)
-                arg_funcs['dw_ijlk'] = lambda: dw_ijlk
-                arg_funcs['hcw_ijlk'] = lambda: hcw_ijlk
-
                 args = {k: arg_funcs[k]() for k in self.args4deficit if k != 'dw_ijlk'}
                 deficit_ijk = self._calc_deficit(dw_ijlk=dw_ijlk, **args)[:, :, 0]
                 if self.turbulenceModel:
@@ -252,9 +227,11 @@ class EngineeringWindFarmModel(WindFarmModel):
                     args.update({k: arg_funcs[k]() for k in self.turbulenceModel.args4addturb
                                  if k not in self.args4deficit})
                     add_turb_ijk = self.turbulenceModel.calc_added_turbulence(dw_ijlk=dw_ijlk, **args)[:, :, 0]
-            WS_eff_jlk[:, l] = self.superpositionModel.calc_effective_WS(lw_j.WS_ilk[:, l], deficit_ijk)
+            l_ = [l, 0][lw_j.WS_ilk.shape[1] == 1]
+            WS_eff_jlk[:, l] = self.superpositionModel.calc_effective_WS(lw_j.WS_ilk[:, l_], deficit_ijk)
             if self.turbulenceModel:
-                TI_eff_jlk[:, l] = self.turbulenceModel.calc_effective_TI(lw_j.TI_ilk[:, l], add_turb_ijk)
+                l_ = [l, 0][lw_j.WS_ilk.shape[1] == 1]
+                TI_eff_jlk[:, l] = self.turbulenceModel.calc_effective_TI(lw_j.TI_ilk[:, l_], add_turb_ijk)
         return lw_j, WS_eff_jlk, TI_eff_jlk
 
     def _validate_input(self, dw_iil, hcw_iil):
@@ -269,9 +246,9 @@ class EngineeringWindFarmModel(WindFarmModel):
         def aep(x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None):  # @ReservedAssignment
             if gradient_method == autograd:
                 with use_autograd_in():
-                    return self.__call__(x, y, h, type, wd, ws, yaw_ilk).aep()
+                    return self.aep(x, y, h, type, wd, ws, yaw_ilk)
             else:
-                return self.__call__(x, y, h, type, wd, ws, yaw_ilk).aep()
+                return self.aep(x, y, h, type, wd, ws, yaw_ilk)
         return gradient_method(aep, argnum)
 
     def dAEPdxy(self, gradient_method, normalize_probabilities=False, with_wake_loss=True, gradient_method_kwargs={}):
@@ -280,11 +257,11 @@ class EngineeringWindFarmModel(WindFarmModel):
             def aep(x, y, h, type, wd, ws, yaw_ilk):  # @ReservedAssignment
                 if gradient_method == autograd:
                     with use_autograd_in():
-                        sr = self.__call__(x, y, h, type, wd, ws, yaw_ilk)
-                        return sr.aep(normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss)
+                        return self.aep(x, y, h, type, wd, ws, yaw_ilk,
+                                        normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss)
                 else:
-                    return self.__call__(x, y, h, type, wd, ws, yaw_ilk).aep(
-                        normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss)
+                    return self.aep(x, y, h, type, wd, ws, yaw_ilk,
+                                    normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss)
             return (gradient_method(aep, 0, **gradient_method_kwargs)(x, y, h, type, wd, ws, yaw_ilk),
                     gradient_method(aep, 1, **gradient_method_kwargs)(x, y, h, type, wd, ws, yaw_ilk))
         return wrap
@@ -336,12 +313,13 @@ class PropagateDownwind(EngineeringWindFarmModel):
         deficit_nk = []
 
         def ilk2mk(x_ilk):
-            return x_ilk.astype(np.float).reshape((I * L, K))
+            return np.broadcast_to(x_ilk.astype(np.float), (I, L, K)).reshape((I * L, K))
 
         indices = np.arange(I * I * L).reshape((I, I, L))
         TI_mk = ilk2mk(lw.TI_ilk)
         WS_mk = ilk2mk(lw.WS_ilk)
         WS_eff_mk = []
+        TI_eff_mk = []
         yaw_mk = ilk2mk(yaw_ilk)
         power_jlk = []
         ct_jlk = []
@@ -351,7 +329,6 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
         if self.turbulenceModel:
             add_turb_nk = np.zeros((I * I * L, K))
-            TI_eff_mk = ilk2mk(TI_eff_ilk)
 
         dw_n, hcw_n, cw_n, dh_n = [a.flatten() for a in [dw_iil, hcw_iil, cw_iil, dh_iil]]
 
@@ -371,12 +348,14 @@ class PropagateDownwind(EngineeringWindFarmModel):
             if j == 0:  # Most upstream turbines (no wake)
                 WS_eff_lk = WS_mk[m]
                 WS_eff_mk.append(WS_eff_lk)
+                if self.turbulenceModel:
+                    TI_eff_mk.append(TI_mk[m])
             else:  # 2..n most upstream turbines (wake)
                 deficit2WT = np.array([d_nk2[i] for d_nk2, i in zip(deficit_nk, range(j)[::-1])])
                 WS_eff_lk = self.superpositionModel.calc_effective_WS(WS_mk[m], deficit2WT)
                 WS_eff_mk.append(WS_eff_lk)
                 if self.turbulenceModel:
-                    TI_eff_mk[m] = self.turbulenceModel.calc_effective_TI(TI_mk[m], add_turb_nk[n_uw])
+                    TI_eff_mk.append(self.turbulenceModel.calc_effective_TI(TI_mk[m], add_turb_nk[n_uw]))
 
             ct_lk, power_lk = self.windTurbines._ct_power(WS_eff_lk, type_i[i_wt_l])
 
@@ -435,7 +414,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
         power_ilk = power_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))
         ct_ilk = ct_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))
         if self.turbulenceModel:
-            TI_eff_ilk = TI_eff_mk.reshape((I, L, K))
+            TI_eff_ilk = np.reshape(TI_eff_mk, (I * L, K))[dw_inv_indices].reshape((I, L, K))
 
         return WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk
 
@@ -485,11 +464,11 @@ class All2AllIterative(EngineeringWindFarmModel):
         power_ilk = np.zeros((I, L, K))
         WS_eff_ilk_last = WS_eff_ilk.copy()
 
-        ct_ilk = self.windTurbines.ct(lw.WS_ilk, type_i)
+        ct_ilk = self.windTurbines.ct(lw.WS.ilk((I, L, K)), type_i)
         D_src_il = D_i[:, na]
-        args = {'WS_ilk': lw.WS_ilk,
-                'TI_ilk': lw.TI_ilk,
-                'TI_eff_ilk': lw.TI_ilk,
+        args = {'WS_ilk': lw.WS.ilk((I, L, K)),
+                'TI_ilk': lw.TI.ilk((I, L, K)),
+                'TI_eff_ilk': lw.TI.ilk((I, L, K)),
                 'yaw_ilk': yaw_ilk,
                 'D_src_il': D_src_il,
                 'D_dst_ijl': D_src_il[na],

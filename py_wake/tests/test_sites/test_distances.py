@@ -108,7 +108,6 @@ def test_flat_distances_wt2wt(distance):
 
 def test_iea37_distances():
     from py_wake.examples.data.iea37 import IEA37Site
-
     n_wt = 16  # must be 9, 16, 36, 64
     site = IEA37Site(n_wt)
     x, y = site.initial_position.T
@@ -239,9 +238,6 @@ def test_distances_ri():
 
 def test_distance2_outside_map_WestEast():
     site = ParqueFicticioSiteTerrainFollowingDistance2()
-
-    import matplotlib.pyplot as plt
-
     site.plot_map('elev')
     x = np.arange(-1500, 1000, 500) + 264777
     h = x * 0

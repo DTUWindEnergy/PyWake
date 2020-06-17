@@ -141,7 +141,7 @@ def main():
         flow_map = sim_res.flow_map(wd=30, ws=9.8)
         flow_map.plot_wake_map()
         flow_map.plot_windturbines()
-        plt.title('AEP: %.2f GWh' % aep)
+        plt.title('AEP: %.2f GWh' % aep.sum())
         plt.show()
 
 

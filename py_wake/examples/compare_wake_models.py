@@ -25,7 +25,7 @@ def main():
 
             # Plot wake map
             plt.figure(wake_model.__class__.__name__)
-            plt.title('AEP: %.2f GWh' % sim_res.aep())
+            plt.title('AEP: %.2f GWh' % sim_res.aep().sum())
 
             flow_map = sim_res.flow_map(wd=[0], ws=[9])
             flow_map.plot_wake_map()

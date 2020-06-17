@@ -23,22 +23,18 @@ class Shear(ABC):
         """
 
 
-class NoShear(Shear):
-    def __call__(self, WS_ilk, WD_ilk, h_i):
-        return WS_ilk
-
-
 class PowerShear():
-    def __init__(self, h_ref, alpha, interp_method='piecewise'):
+    def __init__(self, h_ref, alpha, interp_method='nearest'):
         self.h_ref = h_ref
-        from py_wake.site._site import Sector2Subsector
-        self.alpha = Sector2Subsector(np.atleast_1d(alpha), interp_method=interp_method)
+        from py_wake.site._site import get_sector_xr
+        self.alpha = get_sector_xr(alpha, "Power shear coefficient")
+        self.interp_method = interp_method
 
-    def __call__(self, WS_ilk, WD_ilk, h_i):
-        WD_index_ilk = np.round(WD_ilk).astype(np.int)
-
-        wind_shear_ratio = (np.asarray(h_i) / self.h_ref)[:, na, na] ** self.alpha[WD_index_ilk]
-        return WS_ilk * wind_shear_ratio
+    def __call__(self, WS, WD, h):
+        alpha = self.alpha.interp_all(WD, method=self.interp_method)
+        if alpha.shape == ():
+            alpha = alpha.data
+        return (h / self.h_ref) ** alpha * WS
 
 
 # ======================================================================================================================

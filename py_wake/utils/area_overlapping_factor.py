@@ -27,7 +27,7 @@ class AreaOverlappingFactor():
             area overlaping factor
         """
 
-        if D_dst_ijl is None:
+        if np.all(D_dst_ijl == 0) or D_dst_ijl is None:
             return wake_radius_ijlk > cw_ijlk
         else:
             return self._cal_overlapping_area_factor(wake_radius_ijlk,

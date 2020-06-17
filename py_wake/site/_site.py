@@ -1,5 +1,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
+import py_wake.utils.xarray_utils  # register ilk function @UnusedImport
+import matplotlib.pyplot as plt
 
 """
 suffixs:
@@ -9,31 +11,74 @@ suffixs:
 - k: Wind speeds
 - m: Height above ground
 """
-from numpy import newaxis as na
-from scipy import interpolate
 from py_wake.site.distance import StraightDistance
-from py_wake.site.shear import NoShear, PowerShear
+from py_wake.site.shear import PowerShear
+import xarray as xr
 
 
-class LocalWind():
-    def __init__(self, WD_ilk, WS_ilk, TI_ilk, P_ilk):
+class LocalWind(xr.Dataset):
+    __slots__ = ('wd_bin_size')
+
+    def __init__(self, x_i, y_i, h_i, wd, ws, wd_bin_size, WD=None, WS=None, TI=None, P=None):
         """
 
         Parameters
         ----------
-        WD_ilk : array_like
+        WD : array_like
             local free flow wind directions
-        WS_ilk : array_like
+        WS : array_like
             local free flow wind speeds
-        TI_ilk : array_like
+        TI : array_like
             local free flow turbulence intensity
-        P_ilk : array_like
+        P : array_like
             Probability/weight
         """
-        self.WD_ilk = WD_ilk
-        self.WS_ilk = WS_ilk
-        self.TI_ilk = TI_ilk
-        self.P_ilk = P_ilk
+        coords = {'wd': wd, 'ws': ws, }
+        assert len(np.atleast_1d(x_i)) == len(np.atleast_1d(y_i))
+        n_i = max(len(np.atleast_1d(x_i)), len(np.atleast_1d(h_i)))
+        coords['i'] = np.arange(n_i)
+
+        for k, v in [('x', x_i), ('y', y_i), ('h', h_i)]:
+            if v is not None:
+                coords[k] = ('i', np.zeros(n_i) + v)
+
+        xr.Dataset.__init__(self, data_vars={k: v for k, v in [('WD', WD), ('WS', WS),
+                                                               ('TI', TI), ('P', P)] if v is not None},
+                            coords=coords)
+        self.wd_bin_size = wd_bin_size
+
+        # set localWind.WS_ilk etc.
+        for k in ['WD', 'WS', 'TI', 'P']:
+            setattr(self.__class__, "%s_ilk" % k, property(lambda self, k=k: self[k].ilk()))
+
+    def set_W(self, ws, wd, ti, ws_bins, use_WS=False):
+        def set_desc(v, description):
+            v.attrs.update({'Description': description})
+            return v
+        self['WS'] = set_desc(ws, 'Local free-stream wind speed [m/s]')
+        self['WD'] = set_desc(wd, 'Local free-stream wind direction [deg]')
+        self['TI'] = set_desc(ti, 'Local free-stream turbulence intensity')
+
+        # upper and lower bounds of wind speed bins
+        WS = [self.ws, self.WS][use_WS]
+        lattr = {'Description': 'Lower bound of wind speed bins [m/s]'}
+        uattr = {'Description': 'Upper bound of wind speed bins [m/s]'}
+        if not hasattr(ws_bins, '__len__') or len(ws_bins) != len(WS) + 1:
+            if len(WS.shape) and WS.shape[-1] > 1:
+                d = np.diff(WS) / 2
+                ws_bins = np.maximum(np.concatenate(
+                    [WS[..., :1] - d[..., :1], WS[..., :-1] + d, WS[..., -1:] + d[..., -1:]], -1), 0)
+            else:
+                # WS is single value
+                if ws_bins is None:
+                    ws_bins = 1
+                ws_bins = WS.data + np.array([-ws_bins / 2, ws_bins / 2])
+
+            self['ws_lower'] = xr.DataArray(ws_bins[..., :-1], dims=WS.dims, attrs=lattr)
+            self['ws_upper'] = xr.DataArray(ws_bins[..., 1:], dims=WS.dims, attrs=uattr)
+        else:
+            self['ws_lower'] = xr.DataArray(ws_bins[:-1], dims=['ws'], attrs=lattr)
+            self['ws_upper'] = xr.DataArray(ws_bins[1:], dims=['ws'], attrs=uattr)
 
 
 class Site(ABC):
@@ -53,7 +98,14 @@ class Site(ABC):
             ws = np.atleast_1d(ws)
         return wd, ws
 
-    @abstractmethod
+    def wref(self, wd, ws, ws_bins=None):
+        wd, ws = self.get_defaults(wd, ws)
+        WS = xr.DataArray(ws, [('ws', ws)])
+        ds = self.ws_bins(WS, ws_bins)
+        ds['WS'] = WS
+        ds['WD'] = xr.DataArray(wd, [('wd', wd)])
+        return ds
+
     def local_wind(self, x_i, y_i, h_i=None, wd=None, ws=None, wd_bin_size=None, ws_bins=None):
         """Local free flow wind conditions
 
@@ -87,31 +139,48 @@ class Site(ABC):
             P_ilk : array_like
                 Probability/weight
         """
+        wd, ws = self.get_defaults(wd, ws)
+        self.wd_bin_size(wd, wd_bin_size)
+        if wd_bin_size is None:
+            wd_bin_size = 1
+        lw = LocalWind(x_i, y_i, h_i, wd, ws, wd_bin_size)
+        return self._local_wind(lw, ws_bins)
 
     @abstractmethod
-    def probability(self, x_i, y_i, h_i, WD_ilk, WS_ilk, wd_bin_size, ws_bins):
+    def _local_wind(self, localWind, ws_bins=None):
+        """Local free flow wind conditions
+
+        Parameters
+        ----------
+        localWind  : LocalWind
+            xarray dataset containing coordinates x, y, h, wd, ws
+        ws_bin : array_like or None, optional
+            Wind speed bin edges
+
+        Returns
+        -------
+        LocalWind xarray dataset containing:
+            WD : DataArray
+                local free flow wind directions
+            WS : DataArray
+                local free flow wind speeds
+            TI : DataArray
+                local free flow turbulence intensity
+            P : DataArray
+                Probability/weight
+        """
+
+    @abstractmethod
+    def probability(self, localWind):
         """Probability of wind situation (wind speed and direction)
 
         Parameters
         ----------
-        x_i : array_like
-            Local x coordinate
-        y_i : array_like
-            Local y coordinate
-        h_i : array_like
-            Local height
-        WD_lk : array_like
-            Wind direction
-        WS_lk : array_like
-            Wind speed
-        wd_bin_size : int or float
-            size of wind direction sectors
-        ws_bins : array_like
-            ws bin edges, size=k+1
+        localWind : LocalWind
 
         Returns
         -------
-        P_ilk : float or array_like
+        P : DataArray
             Probability of wind speed and direction at local positions
         """
 
@@ -173,21 +242,45 @@ class Site(ABC):
         if wd_bin_size is not None:
             return wd_bin_size
         else:
-            return 1
+            return 360 / len(np.atleast_1d(wd))
 
-    def ws_bins(self, ws, ws_bins=None):
-        ws = np.asarray(ws)
-        if hasattr(ws_bins, '__len__') and len(ws_bins) == len(ws) + 1:
-            return ws_bins
-        if len(ws.shape) and ws.shape[-1] > 1:
-            d = np.diff(ws) / 2
-            return np.maximum(np.concatenate(
-                [ws[..., :1] - d[..., :1], ws[..., :-1] + d, ws[..., -1:] + d[..., -1:]], -1), 0)
+    def ws_bins(self, WS, ws_bins=None):
+        # TODO: delete function
+        if not isinstance(WS, xr.DataArray):
+            WS = xr.DataArray(WS, [('ws', np.atleast_1d(WS))])
+        if not hasattr(ws_bins, '__len__') or len(ws_bins) != len(WS) + 1:
+
+            if len(WS.shape) and WS.shape[-1] > 1:
+                d = np.diff(WS) / 2
+                ws_bins = np.maximum(np.concatenate(
+                    [WS[..., :1] - d[..., :1], WS[..., :-1] + d, WS[..., -1:] + d[..., -1:]], -1), 0)
+            else:
+                # WS is single value
+                if ws_bins is None:
+                    ws_bins = 1
+                ws_bins = WS.data + np.array([-ws_bins / 2, ws_bins / 2])
         else:
-            # ws is single value
-            if ws_bins is None:
-                ws_bins = 1
-            return ws + np.array([-ws_bins / 2, ws_bins / 2])
+            ws_bins = np.asarray(ws_bins)
+        return xr.Dataset({'ws_lower': (WS.dims, ws_bins[..., :-1]),
+                           'ws_upper': (WS.dims, ws_bins[..., 1:])},
+                          coords=WS.coords)
+
+    def _sector(self, wd):
+        sector = np.zeros(360, dtype=int)
+
+        d_wd = (np.diff(np.r_[wd, wd[0]]) % 360) / 2
+        assert np.all(d_wd == d_wd[0]), "Wind directions must be equidistant"
+        lower = np.ceil(wd - d_wd).astype(int)
+        upper = np.ceil(wd + d_wd).astype(int)
+        for i, (lo, up) in enumerate(zip(lower, upper)):
+            if lo < 0:
+                sector[lo % 360 + 1:] = i
+                lo = 0
+            if up > 359:
+                sector[:up % 360 + 1] = i
+                up = 359
+            sector[lo + 1:up + 1] = i
+        return sector
 
     def plot_ws_distribution(self, x=0, y=0, h=70, wd=[0], include_wd_distribution=False, ax=None):
         """Plot wind speed distribution
@@ -202,7 +295,7 @@ class Site(ABC):
             Local height above ground
         wd : int or array_like
             Wind direction(s) (one curve pr wind direction)
-        include_wwd_distributeion : bool, default is False
+        include_wd_distributeion : bool, default is False
             If true, the wind speed probability distributions are multiplied by
             the wind direction probability. The sector size is set to 360 / len(wd).
             This only makes sense if the wd array is evenly distributed
@@ -210,40 +303,31 @@ class Site(ABC):
 
         """
         if ax is None:
-            import matplotlib.pyplot as plt
+
             ax = plt
         ws = np.arange(0.05, 30.05, .1)
-        x = np.atleast_1d(x)
-        y = np.atleast_1d(y)
-        h = np.atleast_1d(h)
+        lbl = "Wind direction: %d deg"
+        if include_wd_distribution:
 
-        wd = np.atleast_1d(wd)
-        for wd_ in wd:
-            wd_bin_size = 360 / len(wd)
-
-            if include_wd_distribution:
-                v = wd_bin_size / 2
-                wd_l = np.arange(wd_ - v, wd_ + v) % 360
-                WD_lk, WS_lk = np.meshgrid(wd_l, ws, indexing='ij')
-
-                p = self.probability(x, y, h, WD_lk[na], WS_lk[na], wd_bin_size=1,
-                                     ws_bins=self.ws_bins(WS_lk[na])).sum((0, 1))
-                lbl = r"Wind direction: %d$\pm$%s deg" % (wd_, (int(v), v)[(wd_bin_size % 2) != 0])
-            else:
-                #                 WD_lk = np.array([wd_])[:, na]
-                #                 WS_lk = ws
-                WD_lk, WS_lk = np.meshgrid([wd_], ws, indexing='ij')
-
-                p = self.probability(x, y, h, WD_lk[na, :, :], WS_lk[na, :, :],
-                                     wd_bin_size=wd_bin_size, ws_bins=self.ws_bins(WS_lk[na, :, :]))[0, 0]
-                p /= p.sum()
-                lbl = "Wind direction: %d deg" % (wd_)
-
-            ax.plot(ws, p * 10, label=lbl)
+            lw = self.local_wind(x_i=x, y_i=y, h_i=h, wd=np.arange(360), ws=ws, wd_bin_size=1)
+            lw.coords['sector'] = ('wd', self._sector(wd))
+            P = lw.P.groupby('sector').sum()
+            v = 360 / len(wd) / 2
+            lbl += r"$\pm$%s deg" % ((int(v), v)[(v % 2) != 0])
+        else:
+            lw = self.local_wind(x_i=x, y_i=y, h_i=h, wd=wd, ws=ws, wd_bin_size=1)
+            P = lw.P
+            if 'ws' not in P.dims:
+                P = P.broadcast_like(lw.WS).T
+            P = P / P.sum('ws')  # exclude wd probability
+        if 'i' in P.dims:
+            P = P.squeeze('i')
+        for wd, p in zip(wd, P):
+            ax.plot(ws, p * 10, label=lbl % wd)
             ax.xlabel('Wind speed [m/s]')
             ax.ylabel('Probability')
         ax.legend(loc=1)
-        return p
+        return P
 
     def plot_wd_distribution(self, x=0, y=0, h=70, n_wd=12, ws_bins=None, ax=None):
         """Plot wind direction (and speed) distribution
@@ -263,16 +347,15 @@ class Site(ABC):
             the probability of different wind speeds\n
             If int, number of wind speed bins in the range 0-30\n
             If array_like, limits of the wind speed bins limited by ws_bins,
-            e.g. [0,10,20], will show 0-10 m/s and 10-20 m/s
+            e.g. [0,10,20], will show 0-10 m/wd_bin_size and 10-20 m/wd_bin_size
         ax : pyplot or matplotlib axes object, default None
         """
         if ax is None:
-            import matplotlib.pyplot as plt
             ax = plt
-        x = np.atleast_1d(x)
-        y = np.atleast_1d(y)
-        h = np.atleast_1d(h)
-        wd = np.linspace(0, 360, n_wd, endpoint=False)
+        assert 360 % n_wd == 0
+
+        wd_bin_size = 360 // n_wd
+        wd = np.arange(0, 360, wd_bin_size)
         theta = wd / 180 * np.pi
         if not ax.__class__.__name__ == 'PolarAxesSubplot':
             if hasattr(ax, 'subplot'):
@@ -284,36 +367,36 @@ class Site(ABC):
         ax.set_theta_direction(-1)
         ax.set_theta_offset(np.pi / 2.0)
 
-        s = 360 / n_wd
         if ws_bins is None:
-
-            WD_lk, WS_lk = np.meshgrid(np.arange(-s / 2, s / 2) + 1, [100], indexing='ij')
-
-            p = [self.probability(x_i=x, y_i=y, h_i=h, WD_ilk=(WD_lk[na] + wd_) % 360,
-                                  WS_ilk=WS_lk[na],
-                                  wd_bin_size=1, ws_bins=[0, 200]).sum() for wd_ in wd]
-            ax.bar(theta, p, width=s / 180 * np.pi, bottom=0.0)
+            WS = xr.DataArray([100], [('ws', [100])])
+            lw = self.local_wind(x_i=x, y_i=y, h_i=h, wd=np.arange(360), ws=[100], ws_bins=[0, 200], wd_bin_size=1)
         else:
             if not hasattr(ws_bins, '__len__'):
                 ws_bins = np.linspace(0, 30, ws_bins)
             else:
                 ws_bins = np.asarray(ws_bins)
             ws = ((ws_bins[1:] + ws_bins[:-1]) / 2)
-            ws_bins = self.ws_bins(ws)
+            lw = self.local_wind(x_i=x, y_i=y, h_i=h, wd=np.arange(360), ws=ws, wd_bin_size=1)
 
-            WD_lk, WS_lk = np.meshgrid(np.arange(-s / 2, s / 2) + 1, ws, indexing='ij')
-            p = [self.probability(x_i=x, y_i=y, h_i=h, WD_ilk=(WD_lk[na] + wd_) % 360, WS_ilk=WS_lk[na],
-                                  wd_bin_size=1, ws_bins=ws_bins).sum((0, 1)) for wd_ in wd]
-            cum_p = np.cumsum(p, 1).T
-            start_p = np.vstack([np.zeros_like(cum_p[:1]), cum_p[:-1]])
+        lw.coords['sector'] = ('wd', self._sector(wd))
+        p = lw.P.groupby('sector').sum()
+        if 'i' in p.dims:
+            p = p.squeeze('i')
 
-            for ws1, ws2, p_ws1, p_ws2 in zip(ws_bins[:-1], ws_bins[1:], start_p, cum_p):
-                ax.bar(theta, p_ws2 - p_ws1, width=s / 180 * np.pi, bottom=p_ws1, label="%s-%s m/s" % (ws1, ws2))
+        if ws_bins is None:
+            p = p.squeeze('ws')
+            ax.bar(theta, p.data, width=np.deg2rad(wd_bin_size), bottom=0.0)
+        else:
+            p = p.T
+            start_p = np.vstack([np.zeros_like(p[:1]), p.cumsum('ws')[:-1]])
+            for ws1, ws2, p_ws0, p_ws in zip(lw.ws_lower.data, lw.ws_upper.data, start_p, p):
+                ax.bar(theta, p_ws, width=np.deg2rad(wd_bin_size), bottom=p_ws0,
+                       label="%s-%s m/s" % (ws1, ws2))
             ax.legend(bbox_to_anchor=(1.15, 1.1))
 
         ax.set_rlabel_position(-22.5)  # Move radial labels away from plotted line
         ax.grid(True)
-        return p
+        return p.T
 
 
 class UniformSite(Site):
@@ -321,36 +404,38 @@ class UniformSite(Site):
     constant wind speed probability of 1. Only for one fixed wind speed
     """
 
-    def __init__(self, p_wd, ti, ws=12, interp_method='piecewise', shear=NoShear()):
+    def __init__(self, p_wd, ti, ws=12, interp_method='nearest', shear=None):
         super().__init__(StraightDistance())
         self.default_ws = ws
-        self.ti = Sector2Subsector(np.atleast_1d(ti), interp_method=interp_method)
-        self.p_wd = Sector2Subsector(p_wd / np.sum(p_wd), interp_method=interp_method) / (360 / len(p_wd))
+        self.ti = get_sector_xr(ti, 'Turbulence intensity')
+        self.p_wd = get_sector_xr(p_wd / np.mean(p_wd) / 360, "Probability of wind direction +/- 0.5deg")
+        self.interp_method = interp_method.replace('piecewise', 'nearest').replace('spline', 'cubic')
+        if self.interp_method not in ['linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic', 'previous', 'next']:
+            raise NotImplementedError('interp_method=%s not implemented' % interp_method)
         self.shear = shear
 
-    def probability(self, x_i, y_i, h_i, WD_ilk, WS_ilk, wd_bin_size, ws_bins):
-        P_lk = np.ones_like(WS_ilk[0], dtype=np.float) * \
-            self.p_wd[np.round(WD_ilk[0]).astype(int) % 360] * wd_bin_size
-        return P_lk[na]
+    def probability(self, localWind):
+        P = self.p_wd.interp(wd=localWind.WD, method=self.interp_method) * localWind.wd_bin_size
+        P.attrs['Description'] = "Probability of wind flow case (i.e. wind direction +/-%fdeg)" % (
+            localWind.wd_bin_size / 2)
+        return P
 
-    def local_wind(self, x_i=None, y_i=None, h_i=None, wd=None, ws=None, wd_bin_size=None, ws_bins=None):
-        if wd is None:
-            wd = self.default_wd
-        if ws is None:
-            ws = self.default_ws
+    def _local_wind(self, localWind, ws_bins=None):
+        lw = localWind
+        if self.shear:
+            assert 'h' in lw and np.all(lw.h.data != None), "Height must be specified and not None"  # nopep8
+            h = np.unique(lw.h)
+            if len(h) > 1:
+                h = lw.h
+            WS = self.shear(lw.ws, lw.wd, h)
+        else:
+            WS = lw.ws
 
-        ws_bins = self.ws_bins(ws, ws_bins)
-        wd_bin_size = self.wd_bin_size(wd, wd_bin_size)
-        WD_ilk, WS_ilk = [np.tile(W, (len(x_i), 1, 1)).astype(np.float)
-                          for W in np.meshgrid(wd, ws, indexing='ij')]
-        WD_index_ilk = np.round(WD_ilk).astype(int)
-        if h_i is not None:
-            WS_ilk = self.shear(WS_ilk, WD_ilk, h_i)
+        TI = self.ti.interp_all(lw)
+        lw.set_W(WS, lw.wd, TI, ws_bins)
 
-        TI_ilk = self.ti[WD_index_ilk]
-
-        P_ilk = self.probability(0, 0, 0, WD_ilk, WS_ilk, wd_bin_size, ws_bins)
-        return LocalWind(WD_ilk, WS_ilk, TI_ilk, P_ilk)
+        lw['P'] = self.probability(lw)
+        return lw
 
     def elevation(self, x_i, y_i):
         return np.zeros_like(x_i)
@@ -361,7 +446,7 @@ class UniformWeibullSite(UniformSite):
     weibull distributed wind speed
     """
 
-    def __init__(self, p_wd, a, k, ti, interp_method='nearest', shear=NoShear()):
+    def __init__(self, p_wd, a, k, ti, interp_method='nearest', shear=None):
         """Initialize UniformWeibullSite
 
         Parameters
@@ -388,71 +473,32 @@ class UniformWeibullSite(UniformSite):
         """
         super().__init__(p_wd, ti, interp_method=interp_method, shear=shear)
         self.default_ws = np.arange(3, 26)
-        self.a = Sector2Subsector(a, interp_method=interp_method)
-        self.k = Sector2Subsector(k, interp_method=interp_method)
+        self.a = get_sector_xr(a, 'Weibull A')
+        self.k = get_sector_xr(k, 'Weibull k')
 
-    def weibull_weight(self, WS, A, k, ws_bins):
+    def weibull_weight(self, localWind, A, k):
         def cdf(ws, A=A, k=k):
-            return 1 - np.exp(-(ws / A) ** k)
-        ws_bins = np.asarray(ws_bins)
-        return cdf(ws_bins[..., 1:]) - cdf(ws_bins[..., :-1])
+            return 1 - np.exp(-(1 / A * ws) ** k)
 
-    def probability(self, x_i, y_i, h_i, WD_ilk, WS_ilk, wd_bin_size, ws_bins):
-        i_ilk = np.round(WD_ilk).astype(int) % 360
-        p_wd_ilk = self.p_wd[i_ilk] * wd_bin_size
-        if wd_bin_size == 360:
-            p_wd_ilk[:] = 1
-        P_ilk = self.weibull_weight(WS_ilk, self.a[i_ilk], self.k[i_ilk], ws_bins) * p_wd_ilk
+        P = cdf(localWind.ws_upper) - cdf(localWind.ws_lower)
+        P.attrs['Description'] = "Probability of wind flow case (i.e. wind direction and wind speed)"
+        return P
+
+    def probability(self, localWind):
+        lw = localWind
+        p_wd_ilk = UniformSite.probability(self, lw)
+
+        P_ilk = p_wd_ilk * self.weibull_weight(lw,
+                                               self.a.interp(wd=lw.WD, method=self.interp_method),
+                                               self.k.interp(wd=lw.WD, method=self.interp_method))
         return P_ilk
 
 
-def Sector2Subsector(para, axis=-1, wd_binned=None, interp_method='piecewise'):
-    """ Expand para on the wind direction dimension, i.e., increase the nubmer
-    of sectors (sectors to subsectors), by interpolating between sectors, using
-    specified method.
-
-    Parameters
-    ----------
-    para : array_like
-        Parameter to be expand, it can be sector-wise Weibull A, k, frequency.
-    axis : integer
-        Denotes which dimension of para corresponds to wind direction.
-    wd_binned : array_like
-        Wind direction of subsectors to be expanded to.
-    inter_method : string
-        'piecewise'/'linear'/'spline', based on interp1d in scipy.interpolate,
-        'spline' means cubic spline.
-
-    --------------------------------------
-    Note: the interpolating method for sector-wise Weibull distributions and
-    joint distribution of wind speed and wind direction is referred to the
-    following paper:
-        Feng, J. and Shen, W.Z., 2015. Modelling wind for wind farm layout
-        optimization using joint distribution of wind speed and wind direction.
-        Energies, 8(4), pp.3075-3092. [https://doi.org/10.3390/en8043075]
-    """
-    if wd_binned is None:
-        wd_binned = np.arange(360)
-    para = np.array(para)
-    num_sector = para.shape[axis]
-    wd_sector = np.linspace(0, 360, num_sector, endpoint=False)
-
-    try:
-        interp_index = ['nearest', 'piecewise', 'linear', 'spline'].index(interp_method)
-        interp_kind = ['nearest', 'nearest', 'linear', 'cubic'][interp_index]
-    except ValueError:
-        raise NotImplementedError(
-            'interp_method={0} not implemeted yet.'.format(interp_method))
-    wd_sector_extended = np.hstack((wd_sector, 360.0))
-    para_sector_extended = np.concatenate((para, para.take([0], axis=axis)),
-                                          axis=axis)
-    if interp_kind == 'cubic' and len(wd_sector_extended) < 4:
-        interp_kind = 'linear'
-    f_interp = interpolate.interp1d(wd_sector_extended, para_sector_extended,
-                                    kind=interp_kind, axis=axis)
-    para_expanded = f_interp(wd_binned % 360)
-
-    return para_expanded
+def get_sector_xr(v, name):
+    if isinstance(v, (int, float)):
+        return xr.DataArray(v, coords=[], name=name)
+    v = np.r_[v, np.atleast_1d(v)[0]]
+    return xr.DataArray(v, coords=[('wd', np.linspace(0, 360, len(v)))], name=name)
 
 
 def main():
@@ -471,9 +517,8 @@ def main():
         x_i = y_i = np.arange(5)
         wdir_lst = np.arange(0, 360, 90)
         wsp_lst = np.arange(1, 20)
-        local_wind = site.local_wind(x_i=x_i, y_i=y_i, wd=wdir_lst, ws=wsp_lst)
+        local_wind = site.local_wind(x_i=x_i, y_i=y_i, h_i=h_ref, wd=wdir_lst, ws=wsp_lst)
         print(local_wind.WS_ilk.shape)
-        import matplotlib.pyplot as plt
 
         site.plot_ws_distribution(0, 0, wdir_lst)
 

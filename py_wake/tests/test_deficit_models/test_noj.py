@@ -14,7 +14,7 @@ from py_wake.superposition_models import LinearSum
 NibeA0 = WindTurbines(names=['Nibe-A'] * 2, diameters=[40] * 2,
                       hub_heights=[50] * 2,
                       ct_funcs=[lambda x: x * 0 + 8 / 9, lambda x: x * 0],
-                      power_funcs=[lambda _: 0] * 2, power_unit='w')
+                      power_funcs=[lambda ws: ws * 0] * 2, power_unit='w')
 
 
 def test_NOJ_Nibe_result():
@@ -40,7 +40,7 @@ def test_NOJ_Nibe_result_wake_map():
     site = UniformSite([1], 0.1)
     wake_model = NOJ(site, windTurbines)
     sim_res = wake_model(x=[0], y=[0], wd=[0], ws=[8.1])
-    WS_eff_xy = sim_res.flow_map(HorizontalGrid(x=[0], y=[0, -40, -100], h=50)).WS_eff_xylk.mean((2, 3))
+    WS_eff_xy = sim_res.flow_map(HorizontalGrid(x=[0], y=[0, -40, -100], h=50)).WS_eff_xylk.mean(['wd', 'ws'])
     npt.assert_array_almost_equal(WS_eff_xy[:, 0], [8.1, 4.35, 5.7])
 
 
@@ -71,7 +71,3 @@ def test_NOJ_6_turbines_in_row():
     WS_eff_ilk = wake_model.calc_wt_interaction(x, y, [50] * n_wt, [0] * n_wt, 0.0, 11.0)[0]
     np.testing.assert_array_almost_equal(
         WS_eff_ilk[1:, 0, 0], 11 - np.sqrt(np.cumsum(((11 * 2 / 3 * 20**2)**2) / (20 + 8 * np.arange(1, 6))**4)))
-
-
-if __name__ == '__main__':
-    test_wake_map()

@@ -43,44 +43,45 @@ class WaspGridSite(UniformWeibullSite):
                          ti=0)
         self.distance = distance
 
-    def local_wind(self, x_i, y_i, h_i, wd=None, ws=None, wd_bin_size=None, ws_bins=None):
-        if wd is None:
-            wd = self.default_wd
-        if ws is None:
-            ws = self.default_ws
-        wd, ws = np.asarray(wd), np.asarray(ws)
-        self.wd = wd
+    def _local_wind(self, localWind, ws_bins=None):
 
-        wd_bin_size = self.wd_bin_size(wd, wd_bin_size)
-        wd_il = np.repeat([wd], len(x_i), 0)
+        lw = localWind
+
+        # TODO: delete?
+        self.wd = lw.wd
+
+        WS = xr.DataArray(lw.ws, coords=[('ws', lw.ws)])
+        WD = xr.DataArray(lw.wd, coords=[('wd', lw.wd)])
 
         if self.TI_data_exist:
-            speed_up_il, turning_il, TI_il = self.interpolate(['spd', 'orog_trn', 'tke'], x_i, y_i, h_i, wd, ws)
-            WS_ilk = ws[na, na, :] * speed_up_il[:, :, na]
-            TI_ilk = (TI_il[:, :, na] * (0.75 + 3.8 / WS_ilk))
+            speed_up, turning, TI = [xr.DataArray(v, coords=[('i', lw.i), ('wd', lw.wd)])
+                                     for v in self.interpolate(['spd', 'orog_trn', 'tke'], lw.x, lw.y, lw.h, lw.wd, lw.ws)]
+            TI = TI * (.75 + 3.8 / WS)
         else:  # pragma: no cover
-            speed_up_il, turning_il = self.interpolate(['spd', 'orog_trn'], x_i, y_i, h_i, wd, ws)
-            WS_ilk = ws[na, na, :] * speed_up_il[:, :, na]
-        turning_il[np.isnan(turning_il)] = 0
-        WD_ilk = np.repeat(((wd_il + turning_il) % 360)[:, :, na], WS_ilk.shape[2], 2)
+            raise Exception("Not tested")
+            speed_up, turning = self.interpolate(['spd', 'orog_trn'], lw.x, lw.y, lw.h, lw.wd, lw.ws)
 
-        P_ilk = self.probability(x_i, y_i, h_i, wd_il[:, :, na], WS_ilk,
-                                 wd_bin_size, ws_bins=self.ws_bins(WS_ilk, ws_bins))
-        return LocalWind(WD_ilk, WS_ilk, TI_ilk, P_ilk)
+        WS = speed_up * WS
+        turning = turning.fillna(0)
+        lw.set_W(WS, WD, TI, ws_bins, use_WS=True)
+        lw['P'] = self.probability(lw)
 
-    def probability(self, x_i, y_i, h_i, WD_ilk, WS_ilk, wd_bin_size, ws_bins):
+        lw['WD'] = turning + WD
+
+        return lw
+
+    def probability(self, localWind):
         """See Site.probability
         """
-        h_i = np.zeros_like(x_i) + h_i
-        x_i, y_i = [np.asarray(v) for v in [x_i, y_i]]
-        Weibull_A_il, Weibull_k_il, freq_il = \
-            [self.interp_funcs[n]((x_i[:, na], y_i[:, na], h_i[:, na], WD_ilk.mean(2))) for n in
-             ['A', 'k', 'f']]
-        P_wd_il = freq_il * wd_bin_size
+        lw = localWind
+        Weibull_A, Weibull_k, freq = \
+            [xr.DataArray(v, coords=[('i', lw.i), ('wd', lw.wd)])
+             for v in self.interpolate(['A', 'k', 'f'], lw.x, lw.y, lw.h, lw.wd)]
 
-        P_ilk = self.weibull_weight(WS_ilk, Weibull_A_il[:, :, na],
-                                    Weibull_k_il[:, :, na], ws_bins) * P_wd_il[:, :, na]
-        return P_ilk
+        P_wd = freq * lw.wd_bin_size
+
+        P = self.weibull_weight(lw, Weibull_A, Weibull_k) * P_wd
+        return P
 
     def elevation(self, x_i, y_i):
         return self.elevation_interpolator(x_i, y_i, self.mode)
@@ -131,9 +132,8 @@ class WaspGridSite(UniformWeibullSite):
         if ws is None:
             ws = self.default_ws
         wd, ws = np.asarray(wd), np.asarray(ws)
-        h_i = np.asarray(h_i)
-        x_il, y_il, h_il = [np.repeat([v], len(wd), 0).T for v in [x_i, y_i, h_i]]
-        wd_il = np.repeat([wd], len(x_i), 0)
+        x_il, y_il, h_il = [np.repeat([np.asarray(v)], len(wd), 0).T for v in [x_i, y_i, h_i]]
+        wd_il = np.repeat([wd], len(np.atleast_1d(x_i)), 0)
         return [self.interp_funcs[n]((x_il, y_il, h_il, wd_il)) for n in np.asarray(keys)]
 
     def plot_map(self, data_name, height=None, sector=None, xlim=[None, None], ylim=[None, None], ax=None):

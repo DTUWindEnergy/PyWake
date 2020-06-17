@@ -41,7 +41,9 @@ setup(name='py_wake',
           'pytest-cov',  # for calculating coverage
           'pyyaml',  # for reading yaml files
           'scipy',  # constraints
+          'tqdm', # progressbar
           'sphinx',  # generating documentation
-          'sphinx_rtd_theme'  # docs theme
+          'sphinx_rtd_theme',  # docs theme
+          
       ],
       zip_safe=True)

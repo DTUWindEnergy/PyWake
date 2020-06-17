@@ -1,20 +1,54 @@
 import numpy as np
+import xarray as xr
+from numpy import newaxis as na
 
 
-class FlowMap():
-    def __init__(self, simulationResult, X, Y, localWind_j, WS_eff_jlk, TI_eff_jlk, wd, ws, yaw_ilk, plane):
+class FlowBox(xr.Dataset):
+    __slots__ = ('simulationResult', 'windFarmModel')
+
+    def __init__(self, simulationResult, X, Y, H, localWind_j, WS_eff_jlk, TI_eff_jlk):
         self.simulationResult = simulationResult
+        self.windFarmModel = self.simulationResult.windFarmModel
+        lw_j = localWind_j
+        wd, ws = lw_j.wd, lw_j.ws
+        coords = {'x': X[0, :, 0], 'y': Y[:, 0, 0], 'h': H[0, 0, :], 'wd': wd, 'ws': ws}
+
+        def get_da(arr_jlk):
+            return xr.DataArray(arr_jlk.reshape(X.shape + (len(wd), len(ws))), coords, dims=['y', 'x', 'h', 'wd', 'ws'])
+        JLK = WS_eff_jlk.shape
+        xr.Dataset.__init__(self, data_vars={k: get_da(v) for k, v in [
+            ('WS_eff', WS_eff_jlk), ('TI_eff', TI_eff_jlk),
+            ('WD', lw_j.WD.ilk(JLK)), ('WS', lw_j.WS.ilk(JLK)), ('TI', lw_j.TI.ilk(JLK)), ('P', lw_j.P.ilk(JLK))]})
+
+
+class FlowMap(FlowBox):
+    __slots__ = ('simulationResult', 'windFarmModel', 'X', 'Y', 'plane', 'WS_eff_xylk', 'TI_eff_xylk')
+
+    def __init__(self, simulationResult, X, Y, localWind_j, WS_eff_jlk, TI_eff_jlk, plane):
         self.X = X
         self.Y = Y
-        self.localWind_j = localWind_j
-        self.lw_j = localWind_j
-        self.WS_eff_xylk = WS_eff_jlk.reshape(X.shape + WS_eff_jlk.shape[1:])
-        self.TI_eff_xylk = TI_eff_jlk.reshape(X.shape + WS_eff_jlk.shape[1:])
-        self.wd = wd
-        self.ws = ws
-        self.yaw_ilk = yaw_ilk
+        if plane[0] == 'XY':
+            X = X[:, :, na]
+            Y = Y[:, :, na]
+            H = np.reshape(localWind_j.h.data, X.shape)
+        elif plane[0] == 'YZ':
+            H = Y.T[na, :, :]
+            Y = X.T[:, na, :]
+            X = np.reshape(localWind_j.x.data, Y.shape)
+        else:
+            raise NotImplementedError()
+        FlowBox.__init__(self, simulationResult, X, Y, H, localWind_j, WS_eff_jlk, TI_eff_jlk)
+
+        if plane[0] == "XY":
+            # set flowMap.WS_xylk etc.
+            for k in ['WS_eff', 'TI_eff', 'WS', 'WD', 'TI', 'P']:
+                setattr(self.__class__, "%s_xylk" % k, property(lambda self, k=k: self[k].isel(h=0)))
+        if plane[0] == "YZ":
+            # set flowMap.WS_xylk etc.
+            for k in ['WS_eff', 'TI_eff', 'WS', 'WD', 'TI', 'P']:
+                setattr(self.__class__, "%s_xylk" % k, property(lambda self, k=k: self[k].isel(x=0)))
+
         self.plane = plane
-        self.windFarmModel = self.simulationResult.windFarmModel
 
     @property
     def XY(self):
@@ -22,9 +56,10 @@ class FlowMap():
 
     def power_xylk(self, wt_type=0, with_wake_loss=True):
         if with_wake_loss:
-            return self.windFarmModel.windTurbines.power(self.WS_eff_xylk, wt_type)
+            power_xylk = self.windFarmModel.windTurbines.power(self.WS_eff_xylk, wt_type)
         else:
-            return self.windFarmModel.windTurbines.power(self.lw_j.WS_ilk.reshape(self.WS_eff_xylk.shape), wt_type)
+            power_xylk = self.windFarmModel.windTurbines.power(self.WS_xylk, wt_type)
+        return xr.DataArray(power_xylk[:, :, na], self.coords, dims=['y', 'x', 'h', 'wd', 'ws'])
 
     def aep_xylk(self, wt_type=0, normalize_probabilities=False, with_wake_loss=True):
         """Anual Energy Production of a potential wind turbine at all grid positions (x,y)
@@ -48,13 +83,9 @@ class FlowMap():
             If False, wake loss is neglected, i.e. power is calculated using local free flow wind speed
          """
         power_xylk = self.power_xylk(wt_type, with_wake_loss)
-        P_jlk = self.lw_j.P_ilk
+        P_xylk = self.P_xylk  # .isel.ilk((1,) + power_xylk.shape[2:])
         if normalize_probabilities:
-            P_jlk /= P_jlk.sum()
-        if P_jlk.shape[0] == 1:
-            P_xylk = P_jlk[np.newaxis]
-#         else:
-#             P_xylk = P_jlk.reshape(power_xylk.shape)
+            P_xylk = P_xylk / P_xylk.sum(['wd', 'ws'])
         return power_xylk * P_xylk * 24 * 365 * 1e-9
 
     def aep_xy(self, wt_type=0, normalize_probabilities=False, with_wake_loss=True):
@@ -63,7 +94,7 @@ class FlowMap():
 
         see aep_xylk
         """
-        return self.aep_xylk(wt_type, normalize_probabilities, with_wake_loss).sum((2, 3))
+        return self.aep_xylk(wt_type, normalize_probabilities, with_wake_loss).sum(['wd', 'ws'])
 
     def plot(self, data, clabel, levels=100, cmap=None, plot_colorbar=True, plot_windturbines=True, ax=None):
         """Plot data as contouf map
@@ -96,17 +127,20 @@ class FlowMap():
             y = self.X[0]
             x = np.zeros_like(y) + self.plane[1]
             z = self.simulationResult.windFarmModel.site.elevation(x, y)
-            c = ax.contourf(self.X, self.Y + z, data.reshape(self.X.shape), levels=levels, cmap=cmap)
-
+            c = ax.contourf(self.X, self.Y + z, np.reshape(data.isel(x=0), self.X.shape), levels=levels, cmap=cmap)
+            if plot_colorbar:
+                plt.colorbar(c, cmap=cmap, label=clabel)
             # plot terrain
             y = np.arange(y.min(), y.max())
             x = np.zeros_like(y) + self.plane[1]
             z = self.simulationResult.windFarmModel.site.elevation(x, y)
             plt.plot(y, z, 'k')
         else:
-            c = ax.contourf(self.X, self.Y, data.reshape(self.X.shape), levels=levels, cmap=cmap)
-        if plot_colorbar:
-            plt.colorbar(c, label=clabel)
+            # ax.contourf(self.X, self.Y, data.reshape(self.X.shape), levels=levels, cmap=cmap)
+            c = data.isel(h=0).plot(levels=levels, cmap=cmap, ax=ax, add_colorbar=plot_colorbar)
+            if plot_colorbar:
+                c.colorbar.set_label(clabel)
+
         if plot_windturbines:
             self.plot_windturbines(ax=ax)
 
@@ -114,17 +148,14 @@ class FlowMap():
 
     def plot_windturbines(self, ax=None):
         fm = self.windFarmModel
-        if self.yaw_ilk is None:
-            yaw_ilk = 0
-        else:
-            yaw_ilk = self.yaw_ilk.mean((1, 2))
-        if self.plane[0] == "XY":
-            fm.windTurbines.plot_xy(self.simulationResult.x_i, self.simulationResult.y_i,
-                                    wd=self.wd, yaw=yaw_ilk, ax=ax)
-        elif self.plane[0] == "YZ":
-            x_i, y_i = self.simulationResult.x_i, self.simulationResult.y_i
+        yaw = self.simulationResult.Yaw.sel(wd=self.wd[0]).mean(['ws']).data
+        if self.plane[0] == "YZ":
+            x_i, y_i = self.simulationResult.x, self.simulationResult.y
             z_i = self.simulationResult.windFarmModel.site.elevation(x_i, y_i)
-            fm.windTurbines.plot_yz(y_i, z_i, wd=self.wd, yaw=yaw_ilk, ax=ax)
+            fm.windTurbines.plot_yz(y_i, z_i, wd=self.wd, yaw=yaw, ax=ax)
+        else:  # self.plane[0] == "XY":
+            fm.windTurbines.plot_xy(self.simulationResult.x, self.simulationResult.y, self.simulationResult.type.data,
+                                    wd=self.wd, yaw=yaw, ax=ax)
 
     def plot_wake_map(self, levels=100, cmap=None, plot_colorbar=True, plot_windturbines=True, ax=None):
         """Plot effective wind speed contourf map
@@ -144,7 +175,7 @@ class FlowMap():
             if True (default), lines/circles showing the wind turbine rotors are plotted
         ax : pyplot or matplotlib axes object, default None
         """
-        return self.plot(self.WS_eff_xylk.mean((2, 3)), clabel='wind speed [m/s]',
+        return self.plot(self.WS_eff.mean(['wd', 'ws']), clabel='wind speed [m/s]',
                          levels=levels, cmap=cmap, plot_colorbar=plot_colorbar,
                          plot_windturbines=plot_windturbines, ax=ax)
 
@@ -169,13 +200,18 @@ class FlowMap():
         """
         if cmap is None:
             cmap = 'Blues'
-        return self.plot(self.TI_eff_xylk.mean((2, 3)), clabel="Turbulence intensity [-]",
-                         levels=levels, cmap=cmap, plot_colorbar=plot_colorbar,
-                         plot_windturbines=plot_windturbines, ax=ax)
+        c = self.plot(self.TI_eff.mean(['wd', 'ws']), clabel="Turbulence intensity [-]",
+                      levels=levels, cmap=cmap, plot_colorbar=plot_colorbar,
+                      plot_windturbines=plot_windturbines, ax=ax)
+
+        return c
 
 
-class HorizontalGrid():
+class Grid():
     default_resolution = 500
+
+
+class HorizontalGrid(Grid):
 
     def __init__(self, x=None, y=None, h=None, resolution=None, extend=.2):
         """Generate a horizontal grid for a flow map
@@ -222,14 +258,14 @@ class HorizontalGrid():
         self.plane = "XY", h
 
         X, Y = np.meshgrid(x, y)
-        H = np.zeros_like(X) + h
+        H = np.broadcast_to(h, X.shape)
         return X, Y, X.flatten(), Y.flatten(), H.flatten()
 
 
 XYGrid = HorizontalGrid
 
 
-class YZGrid(HorizontalGrid):
+class YZGrid(Grid):
 
     def __init__(self, x, y=None, z=None, resolution=None, extend=.2):
         """Generate a vertical grid for a flow map in the yz-plane
@@ -268,7 +304,7 @@ class YZGrid(HorizontalGrid):
         if y is None:
             y = f(y_i)
         if self.z is None:
-            z = np.arange(0, (1 + self.extend) * (h_i.max() + d_i.max() / 2), np.diff(y[:2]), np.diff(y[:2])[0])
+            z = np.arange(0, (1 + self.extend) * (h_i.max() + d_i.max() / 2), np.diff(y[:2])[0])
         else:
             z = self.z
 
