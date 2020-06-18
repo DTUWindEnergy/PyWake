@@ -58,9 +58,9 @@ class ConvectionDeficitModel(DeficitModel):
         Returns
         -------
         deficit_centre_ijlk : array_like
-            ???
+            Wind speed deficit caused by the i'th turbine at j'th downstream location, without accounting for crosswind distance (ie cw = 0)
         uc_ijlk : array_like
-            ???
+            Convection velocity of the i'th turbine at locations j
         sigma_sqr_ijlk : array_like
-            ???
+            Squared wake width of i'th turbine at j
         """

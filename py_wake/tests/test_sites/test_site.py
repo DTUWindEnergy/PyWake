@@ -5,7 +5,6 @@ from py_wake.tests import npt
 import pytest
 from py_wake.site.shear import PowerShear
 import matplotlib.pyplot as plt
-import xarray as xr
 
 f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,
      0.086432, 0.117705, 0.151576, 0.147379, 0.10012, 0.05166]

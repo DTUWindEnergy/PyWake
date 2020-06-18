@@ -24,6 +24,9 @@ class RotorAvgModel(DeficitModel):
         else:
             return self._calc_rotor_avg_deficit(D_dst_ijl=D_dst_ijl, **kwargs)
 
+    def calc_deficit_convection(self, D_dst_ijl, **kwargs):
+        return self.deficitModel.calc_deficit_convection(D_dst_ijl=D_dst_ijl, **kwargs)
+
     @abstractmethod
     def _calc_rotor_avg_deficit(self):
         """Similar to calc_deficit, but with an extra point dimension to calculate the

@@ -3,7 +3,7 @@ import numpy as np
 from autograd import numpy as anp
 from py_wake.examples.data.iea37 import iea37_reader
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
-from py_wake.gradients import use_autograd_in, autograd, plot_gradients, fd, cs
+from py_wake.utils.gradients import use_autograd_in, autograd, plot_gradients, fd, cs
 from py_wake.tests import npt
 from py_wake.wind_turbines import WindTurbines
 from py_wake import wind_turbines

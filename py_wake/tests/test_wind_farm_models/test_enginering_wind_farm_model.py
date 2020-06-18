@@ -16,7 +16,7 @@ from py_wake.deflection_models.jimenez import JimenezWakeDeflection
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian
 from numpy import newaxis as na
 import matplotlib.pyplot as plt
-from py_wake.gradients import autograd, cs, fd, plot_gradients
+from py_wake.utils.gradients import autograd, cs, fd, plot_gradients
 from py_wake.tests.check_speed import timeit
 from py_wake.deficit_models.fuga import FugaDeficit
 from py_wake.tests.test_files import tfp
