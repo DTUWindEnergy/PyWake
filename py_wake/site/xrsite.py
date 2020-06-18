@@ -14,19 +14,29 @@ class XRSite(UniformWeibullSite):
         Site.__init__(self, distance)
 
         assert 'TI' in ds
+        if 'wd' in ds:
+            wd = ds.coords['wd']
+            if not wd[-1] == 360:
+                wd = np.r_[wd, 360]
+            sector_widths = np.diff(wd)
+            assert np.all(sector_widths == sector_widths[0]), \
+                "all sectors must have same width"
+            sector_width = sector_widths[0]
+        else:
+            sector_width = 360
         if 'P' not in ds:
             assert 'Weibull_A' in ds and 'Weibull_k' in ds and 'Sector_frequency' in ds
-            if 'wd' in ds.Sector_frequency.dims:
-                sector_widths = np.diff(np.r_[ds.coords['wd'], 360])
-                assert np.all(sector_widths == sector_widths[0]), \
-                    "all sectors must have same width"
-                sector_width = sector_widths[0]
-            else:
-                sector_width = 360
-            ds.Sector_frequency.attrs['sector_width'] = sector_width
+        ds.attrs['sector_width'] = sector_width
 
         if initial_position is not None:
             ds.attrs['initial_position'] = initial_position
+
+        # add 360 deg to all wd dependent datavalues
+        if 'wd' in ds and ds.wd[-1] != 360:
+            ds = ds.reindex(wd=np.r_[ds.wd, 360])
+            for n, v in ds.data_vars.items():
+                if 'wd' in v.dims:
+                    ds[n].loc[{'wd': 360}] = ds[n].sel(wd=0)
         self.ds = ds
 
     @property
@@ -65,14 +75,14 @@ class XRSite(UniformWeibullSite):
 
         def get(n, default=None):
             if n in self.ds:
-                return self.ds[n].interp_all(lw.coords)
+                return self.ds[n].interp_all(lw.coords, method=self.interp_method)
             else:
                 return default
 
         WS, WD, TI = [get(n, d) for n, d in [('WS', lw.ws), ('WD', lw.wd), ('TI', None)]]
 
         if 'Speedup' in self.ds:
-            WS = self.ds.Speedup.interp_all(lw.coords) * WS
+            WS = self.ds.Speedup.interp_all(lw.coords, method=self.interp_method) * WS
 
         if self.shear:
             assert 'h' in lw and np.all(lw.h.data != None), "Height must be specified and not None"  # nopep8
@@ -84,14 +94,15 @@ class XRSite(UniformWeibullSite):
             WS = self.shear(WS, lw.wd, h)
 
         if 'Turning' in self.ds:
-            WD = (self.ds.Turning.interp_all(lw.coords) + WD) % 360
+            WD = (self.ds.Turning.interp_all(lw.coords, method=self.interp_method) + WD) % 360
 
         lw.set_W(WS, WD, TI, ws_bins, self.use_WS_bins)
         if 'P' in self.ds:
-            lw['P'] = self.ds.P
+            lw['P'] = self.ds.P.interp_all(lw.coords, method=self.interp_method) / \
+                self.ds.sector_width * lw.wd_bin_size
         else:
             sf = self.ds.Sector_frequency.interp_all(lw.coords, method=self.interp_method)
-            p_wd = sf / self.ds.Sector_frequency.sector_width * lw.wd_bin_size
+            p_wd = sf / self.ds.sector_width * lw.wd_bin_size
             lw['P'] = p_wd * self.weibull_weight(lw,
                                                  self.ds.Weibull_A.interp(wd=lw.wd, method=self.interp_method),
                                                  self.ds.Weibull_k.interp(wd=lw.wd, method=self.interp_method))
