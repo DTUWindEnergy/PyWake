@@ -2,13 +2,14 @@ from abc import abstractmethod
 from numpy import newaxis as na
 import numpy as np
 from py_wake.deficit_models import DeficitModel
-from py_wake.superposition_models import SuperpositionModel, LinearSum
-from py_wake.turbulence_models.turbulence_model import TurbulenceModel
+from py_wake.superposition_models import SuperpositionModel, LinearSum, WeightedSum
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.deflection_models.deflection_model import DeflectionModel
-from py_wake.gradients import use_autograd_in, autograd
+from py_wake.utils.gradients import use_autograd_in, autograd
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter, RotorAvgModel
 from py_wake.utils.progressbar import progressbar
+from py_wake.turbulence_models.turbulence_model import TurbulenceModel
+from py_wake.deficit_models.deficit_model import ConvectionDeficitModel
 
 
 class EngineeringWindFarmModel(WindFarmModel):
@@ -50,6 +51,10 @@ class EngineeringWindFarmModel(WindFarmModel):
         assert blockage_deficitModel is None or isinstance(blockage_deficitModel, DeficitModel)
         assert deflectionModel is None or isinstance(deflectionModel, DeflectionModel)
         assert turbulenceModel is None or isinstance(turbulenceModel, TurbulenceModel)
+        if isinstance(superpositionModel, WeightedSum):
+            assert isinstance(wake_deficitModel, ConvectionDeficitModel)
+            assert rotorAvgModel.__class__ is RotorCenter, "Multiple rotor average points not implemented for WeightedSum"
+        assert 'TI_eff_ilk' not in wake_deficitModel.args4deficit or turbulenceModel  # TI_eff requires a turbulence model
         self.site = site
         self.windTurbines = windTurbines
         self.wake_deficitModel = wake_deficitModel
@@ -100,21 +105,28 @@ class EngineeringWindFarmModel(WindFarmModel):
         if self.blockage_deficitModel:
             self.blockage_deficitModel.deficit_initalized = False
 
-    def _calc_deficit(self, dw_ijlk, **kwargs):
-        """Calculate wake (and blockage) deficit"""
-        deficit = self.rotorAvgModel.calc_deficit(dw_ijlk=dw_ijlk, **kwargs)
-
+    def _add_blockage(self, deficit, dw_ijlk, **kwargs):
         # the split line between wake and blockage is set slightly downstream to handle
         # numerical inaccuracy in the trigonometric functions that calculates dw_ijlk
-        rotor_pos = 1e-10
+        rotor_pos = -1e-10
         if self.blockage_deficitModel is None:
             deficit *= (dw_ijlk > rotor_pos)
         elif self.blockage_deficitModel != self:
             # downstream wake deficit + upstream blockage
             deficit = ((dw_ijlk > rotor_pos) * deficit +
                        (dw_ijlk <= rotor_pos) * self.blockage_deficitModel.calc_deficit(dw_ijlk=dw_ijlk, **kwargs))
-
         return deficit
+
+    def _calc_deficit(self, dw_ijlk, **kwargs):
+        """Calculate wake (and blockage) deficit"""
+        deficit = self.rotorAvgModel.calc_deficit(dw_ijlk=dw_ijlk, **kwargs)
+        return self._add_blockage(deficit, dw_ijlk, **kwargs)
+
+    def _calc_deficit_convection(self, dw_ijlk, **kwargs):
+        """Calculate wake convection deficit (and blockage)"""
+        deficit, uc, sigma_sqr = self.rotorAvgModel.calc_deficit_convection(dw_ijlk=dw_ijlk, **kwargs)
+        deficit = self._add_blockage(deficit, dw_ijlk)
+        return deficit, uc, sigma_sqr
 
     def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=0, wd=None, ws=None, yaw_ilk=None):
         """See WindFarmModel.calc_wt_interaction"""
@@ -149,8 +161,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                   'type_i': type_i, 'h_i': h_i, 'D_i': D_i, 'yaw_ilk': yaw_ilk,
                   'dw_iil': dw_iil, 'hcw_iil': hcw_iil, 'cw_iil': cw_iil, 'dh_iil': dh_iil,
                   'dw_order_indices_dl': dw_order_indices_dl, 'I': I, 'L': L, 'K': K}
-        WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk = self._calc_wt_interaction(**kwargs)
-        return WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, lw
+        return self._calc_wt_interaction(**kwargs) + (lw,)
 
     @abstractmethod
     def _calc_wt_interaction(self, **kwargs):
@@ -220,7 +231,15 @@ class EngineeringWindFarmModel(WindFarmModel):
 
             else:
                 args = {k: arg_funcs[k]() for k in self.args4deficit if k != 'dw_ijlk'}
-                deficit_ijk = self._calc_deficit(dw_ijlk=dw_ijlk, **args)[:, :, 0]
+
+                if isinstance(self.superpositionModel, WeightedSum):
+                    deficit, uc, sigma_sqr = self._calc_deficit_convection(dw_ijlk=dw_ijlk, **args)
+                    deficit_ijk = deficit[:, :, 0]
+                    uc_ijk = uc[:, :, 0]
+                    sigma_sqr_ijk = sigma_sqr[:, :, 0]
+                else:
+                    deficit_ijk = self._calc_deficit(dw_ijlk=dw_ijlk, **args)[:, :, 0]
+
                 if self.turbulenceModel:
                     arg_funcs['wake_radius_ijlk'] = lambda: self.wake_deficitModel.wake_radius(
                         dw_ijlk=dw_ijlk, **args)
@@ -228,7 +247,14 @@ class EngineeringWindFarmModel(WindFarmModel):
                                  if k not in self.args4deficit})
                     add_turb_ijk = self.turbulenceModel.calc_added_turbulence(dw_ijlk=dw_ijlk, **args)[:, :, 0]
             l_ = [l, 0][lw_j.WS_ilk.shape[1] == 1]
-            WS_eff_jlk[:, l] = self.superpositionModel.calc_effective_WS(lw_j.WS_ilk[:, l_], deficit_ijk)
+            if isinstance(self.superpositionModel, WeightedSum):
+                cw_ijk, hcw_ijk, dh_ijk = np.hypot(dh_ijl[..., na], hcw_ijlk)[
+                    :, :, l], hcw_ijlk[:, :, l], dh_ijl[:, :, l, na]
+                WS_eff_jlk[:, l] = self.superpositionModel.calc_effective_WS(
+                    lw_j.WS_ilk[:, l], deficit_ijk, uc_ijk, sigma_sqr_ijk, cw_ijk, hcw_ijk, dh_ijk)
+            else:
+                WS_eff_jlk[:, l] = self.superpositionModel.calc_effective_WS(lw_j.WS_ilk[:, l_], deficit_ijk)
+
             if self.turbulenceModel:
                 l_ = [l, 0][lw_j.WS_ilk.shape[1] == 1]
                 TI_eff_jlk[:, l] = self.turbulenceModel.calc_effective_TI(lw_j.TI_ilk[:, l_], add_turb_ijk)
@@ -311,6 +337,11 @@ class PropagateDownwind(EngineeringWindFarmModel):
         """
         lw = localWind
         deficit_nk = []
+        uc_nk = []
+        sigma_sqr_nk = []
+        cw_nk = []
+        hcw_nk = []
+        dh_nk = []
 
         def ilk2mk(x_ilk):
             return np.broadcast_to(x_ilk.astype(np.float), (I, L, K)).reshape((I * L, K))
@@ -351,8 +382,20 @@ class PropagateDownwind(EngineeringWindFarmModel):
                 if self.turbulenceModel:
                     TI_eff_mk.append(TI_mk[m])
             else:  # 2..n most upstream turbines (wake)
-                deficit2WT = np.array([d_nk2[i] for d_nk2, i in zip(deficit_nk, range(j)[::-1])])
-                WS_eff_lk = self.superpositionModel.calc_effective_WS(WS_mk[m], deficit2WT)
+                if isinstance(self.superpositionModel, WeightedSum):
+                    deficit2WT = np.array([d_nk2[i] for d_nk2, i in zip(deficit_nk, range(j)[::-1])])
+                    uc2WT = np.array([d_nk2[i] for d_nk2, i in zip(uc_nk, range(j)[::-1])])
+                    sigmasqr2WT = np.array([d_nk2[i] for d_nk2, i in zip(sigma_sqr_nk, range(j)[::-1])])
+                    cw2WT = np.array([d_nk2[i] for d_nk2, i in zip(cw_nk, range(j)[::-1])])
+                    hcw2WT = np.array([d_nk2[i] for d_nk2, i in zip(hcw_nk, range(j)[::-1])])
+                    dh2WT = np.array([d_nk2[i] for d_nk2, i in zip(dh_nk, range(j)[::-1])])
+
+                    WS_eff_lk = self.superpositionModel.calc_effective_WS(
+                        WS_mk[m], deficit2WT, uc2WT, sigmasqr2WT, cw2WT, hcw2WT, dh2WT)
+                else:
+                    deficit2WT = np.array([d_nk2[i] for d_nk2, i in zip(deficit_nk, range(j)[::-1])])
+                    WS_eff_lk = self.superpositionModel.calc_effective_WS(WS_mk[m], deficit2WT)
+
                 WS_eff_mk.append(WS_eff_lk)
                 if self.turbulenceModel:
                     TI_eff_mk.append(self.turbulenceModel.calc_effective_TI(TI_mk[m], add_turb_nk[n_uw]))
@@ -368,7 +411,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
                 arg_funcs = {'WS_ilk': lambda: WS_mk[m][na],
                              'WS_eff_ilk': lambda: WS_eff_mk[-1][na],
                              'TI_ilk': lambda: TI_mk[m][na],
-                             'TI_eff_ilk': lambda: TI_eff_mk[m][na],
+                             'TI_eff_ilk': lambda: TI_eff_mk[-1][na],
                              'D_src_il': lambda: D_i[i_wt_l][na],
                              'yaw_ilk': lambda: yaw_mk[m][na],
                              'D_dst_ijl': lambda: D_i[dw_order_indices_dl[:, j + 1:]].T[na],
@@ -388,13 +431,22 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
                 arg_funcs['hcw_ijlk'] = lambda: hcw_ijlk
                 # sqrt(a**2+b**2) as hypot does not support complex numbers
-                arg_funcs['cw_ijlk'] = lambda: np.sqrt(dh_n[n_dw][na, :, :, na]**2 + hcw_ijlk**2)
+                cw_ijlk = np.sqrt(dh_n[n_dw][na, :, :, na]**2 + hcw_ijlk**2)
+                arg_funcs['cw_ijlk'] = lambda: cw_ijlk
                 args = {k: arg_funcs[k]() for k in self.args4deficit if k != "dw_ijlk"}
+                hcw_nk.append(hcw_ijlk[0])
+                dh_nk.append(dh_n[n_dw][:, :, na])
+                cw_nk.append(cw_ijlk[0])
 
                 # Calculate deficit
-
-                deficit = self.rotorAvgModel.calc_deficit(dw_ijlk=dw_ijlk, **args)[0]
-                deficit_nk.append(deficit)
+                if isinstance(self.superpositionModel, WeightedSum):
+                    deficit, uc, sigma_sqr = self._calc_deficit_convection(dw_ijlk=dw_ijlk, **args)
+                    # deficit_nk.append(deficit[0])
+                    uc_nk.append(uc[0])
+                    sigma_sqr_nk.append(sigma_sqr[0])
+                else:
+                    deficit = self._calc_deficit(dw_ijlk=dw_ijlk, **args)
+                deficit_nk.append(deficit[0])
 
                 if self.turbulenceModel:
 

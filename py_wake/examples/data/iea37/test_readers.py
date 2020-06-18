@@ -3,7 +3,7 @@ from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose,\
     read_iea37_windturbine, read_iea37_windfarm
 from py_wake.tests import npt
-from py_wake.gradients import cs
+from py_wake.utils.gradients import cs
 
 
 def test_read_iea37_windrose():

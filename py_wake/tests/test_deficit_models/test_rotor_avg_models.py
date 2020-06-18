@@ -10,6 +10,8 @@ from py_wake.wind_farm_models.engineering_models import All2AllIterative, Propag
 from py_wake.superposition_models import SquaredSum, LinearSum
 from py_wake.tests.test_deficit_models.test_deficit_models import get_all_deficit_models
 import pytest
+from py_wake.turbulence_models.gcl import GCLTurbulence
+from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 
 
 def test_RotorGridAvg():
@@ -118,11 +120,11 @@ def test_with_all_deficit_models(WFM, deficitModel):
     wfm = WFM(site, windTurbines, wake_deficitModel=deficitModel,
               rotorAvgModel=RotorCenter(),
               superpositionModel=LinearSum(),
-              deflectionModel=None, turbulenceModel=None)
+              deflectionModel=None, turbulenceModel=STF2017TurbulenceModel())
 
     wfm2 = WFM(site, windTurbines, wake_deficitModel=deficitModel,
                rotorAvgModel=EqGridRotorAvg(1),
                superpositionModel=LinearSum(),
-               deflectionModel=None, turbulenceModel=None)
+               deflectionModel=None, turbulenceModel=STF2017TurbulenceModel())
     kwargs = {'x': [0, 0, 500, 500], 'y': [0, 500, 0, 500], 'wd': [0], 'ws': [8]}
     npt.assert_equal(wfm.aep(**kwargs), wfm2.aep(**kwargs))
