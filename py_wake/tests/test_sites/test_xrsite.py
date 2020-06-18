@@ -57,7 +57,7 @@ def complex_grid_site():
                    'Turning': (['x', 'y'], np.arange(-2, 4, 1).reshape((3, 2))),
                    'Sector_frequency': ('wd', f), 'Weibull_A': ('wd', A), 'Weibull_k': ('wd', k), 'TI': ti},
         coords={'x': [0, 5, 10], 'y': [0, 5], 'wd': np.linspace(0, 360, len(f), endpoint=False)})
-    return XRSite(ds, shear=PowerShear(h_ref=100, alpha=.2))
+    return XRSite(ds, shear=PowerShear(h_ref=100, alpha=.2), interp_method='linear')
 
 
 def test_uniform_local_wind(uniform_site):
@@ -70,7 +70,7 @@ def test_uniform_local_wind(uniform_site):
     npt.assert_array_equal(lw.WS, 10)
     npt.assert_array_equal(lw.WD, wdir_lst)
     npt.assert_array_equal(lw.TI, 0.1)
-    npt.assert_array_equal(lw.P, [0.035972, 0.070002, 0.086432, 0.147379])
+    npt.assert_array_equal(lw.P, np.array([0.035972, 0.070002, 0.086432, 0.147379]) / 30)
     npt.assert_array_equal(site.elevation(x_i, y_i), 0)
 
     lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=100)
@@ -169,12 +169,12 @@ def test_wd_independent_site():
             'Weibull_A': 4, 'Weibull_k': 2, 'TI': ti},
         coords={})
     site = XRSite(ds, shear=None)
-    npt.assert_equal(site.ds.Sector_frequency.sector_width, 360)
+    npt.assert_equal(site.ds.sector_width, 360)
 
 
 def test_load_save(complex_grid_site):
     complex_grid_site.save(tfp + "tmp.nc")
-    site = XRSite.load(tfp + "tmp.nc")
+    site = XRSite.load(tfp + "tmp.nc", interp_method='linear')
     test_complex_grid_local_wind(site)
 
 
@@ -186,3 +186,13 @@ def test_elevation():
         coords={'x': [0, 5, 10], 'y': [0, 5]})
     site = XRSite(ds)
     npt.assert_array_almost_equal(site.elevation([2.5, 7.5], [2.5, 2.5]), [0.95, 1.15])
+
+
+def test_cyclic_interpolation(uniform_site):
+    site = uniform_site
+    lw = site.local_wind([0], [0], 100, wd=np.arange(360), ws=10)
+    if 0:
+        plt.plot(np.linspace(0, 360, len(f) + 1), np.r_[f, f[0]], '.')
+        plt.plot(lw.wd, lw.P)
+        plt.show()
+    npt.assert_array_almost_equal(lw.P[::30], np.array(f) / 30)
