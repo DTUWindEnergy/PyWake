@@ -5,6 +5,7 @@ from os.path import join as pjoin
 import re
 import ssl
 import sys
+import matplotlib.pyplot as plt
 
 
 class Notebook():
@@ -101,6 +102,7 @@ class Notebook():
             with contextlib.redirect_stdout(None):
                 with contextlib.redirect_stderr(None):
                     exec("def test():\n    " + "\n    ".join(lines) + "\ntest()", {}, {})
+                    plt.close()
         except Exception as e:
             raise type(e)("Code error in %s\n%s\n" % (self.filename, str(e))).with_traceback(sys.exc_info()[2])
 
