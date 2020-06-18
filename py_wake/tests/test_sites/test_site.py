@@ -1,6 +1,5 @@
 from py_wake.site._site import UniformWeibullSite, UniformSite
 import numpy as np
-from numpy import newaxis as na
 from py_wake.tests import npt
 import pytest
 from py_wake.site.shear import PowerShear
