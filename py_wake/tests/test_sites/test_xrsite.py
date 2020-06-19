@@ -7,6 +7,10 @@ import pytest
 import matplotlib.pyplot as plt
 from numpy import newaxis as na
 from py_wake.tests.test_files import tfp
+from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80, wt9_x, wt9_y
+from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
+from py_wake.wind_turbines import WindTurbines
+from py_wake.deficit_models.gaussian import BastankhahGaussian
 
 
 f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,
@@ -196,3 +200,38 @@ def test_cyclic_interpolation(uniform_site):
         plt.plot(lw.wd, lw.P)
         plt.show()
     npt.assert_array_almost_equal(lw.P[::30], np.array(f) / 30)
+
+
+def test_from_flow_box_2wt():
+    site = Hornsrev1Site()
+    windTurbines = V80()
+
+    # simulate current and neighbour wt
+    wfm = BastankhahGaussian(site, windTurbines)
+    wd = np.arange(30)
+    sim_res = wfm([0, 0], [0, 500], wd=wd)
+    ref_aep = sim_res.aep().sel(wt=0)
+
+    wt_x, wt_y = [0], [0]
+    neighbour_x, neighbour_y = [0], [500]
+
+    # make site with effects of neighbour wt
+    sim_res = wfm(neighbour_x, neighbour_y, wd=wd)
+    e = 100
+    box = sim_res.flow_box(x=np.linspace(min(wt_x) - e, max(wt_x) + e, 21),
+                           y=np.linspace(min(wt_y) - e, max(wt_y) + e, 21),
+                           h=windTurbines.hub_height(windTurbines.types()))
+    site = XRSite.from_flow_box(box)
+
+    # Simujlate current wt and compare aep
+    wfm = BastankhahGaussian(site, windTurbines)
+    sim_res = wfm(wt_x, wt_y, wd=wd)
+    aep = sim_res.aep()
+
+    if 0:
+        site.ds.WS.sel(ws=10, wd=3).plot()
+        windTurbines.plot(wt_x, wt_y)
+        windTurbines.plot(neighbour_x, neighbour_y)
+        plt.show()
+
+    npt.assert_array_almost_equal(ref_aep, aep.sel(wt=0))
