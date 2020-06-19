@@ -10,13 +10,15 @@ class ilk():
 
     def __call__(self, shape=None):
         dims = self.dataArray.dims
-        v = self.dataArray.data
+        squeeze_dims = [d for d in self.dataArray.dims if d not in ['i', 'wt', 'wd', 'ws']]
+        v = self.dataArray.squeeze(squeeze_dims, drop=True).data
         if 'wt' not in dims and 'i' not in dims:
             v = v[na]
         if 'wd' not in dims:
             v = v[:, na]
         if 'ws' not in dims:
             v = v[:, :, na]
+
         if shape is None:
             return v
         else:
@@ -36,3 +38,23 @@ class interp_all():
 
 
 xr.register_dataarray_accessor("interp_all")(interp_all)
+
+
+class sel_interp_all():
+    def __init__(self, dataArray):
+        self.dataArray = dataArray
+
+    def __call__(self, coords, **kwargs):
+        interp_coords = {}
+        da = self.dataArray
+        for d in self.dataArray.dims:
+            if d in coords:
+                try:
+                    da = da.sel({d: coords[d].data})
+                except KeyError:
+                    interp_coords[d] = coords[d]
+
+        return da.interp(**interp_coords, **kwargs)
+
+
+xr.register_dataarray_accessor("sel_interp_all")(sel_interp_all)
