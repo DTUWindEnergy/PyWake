@@ -44,17 +44,17 @@ class sel_interp_all():
     def __init__(self, dataArray):
         self.dataArray = dataArray
 
-    def __call__(self, coords, **kwargs):
+    def __call__(self, coords, method="linear", bounds_error=True, **kwargs):
         interp_coords = {}
         da = self.dataArray
         for d in self.dataArray.dims:
             if d in coords:
                 try:
-                    da = da.sel({d: coords[d].data})
-                except KeyError:
+                    da = da.sel({d: coords[d]})
+                except (KeyError, IndexError):
                     interp_coords[d] = coords[d]
-
-        return da.interp(**interp_coords, **kwargs)
+        kwargs['bounds_error'] = bounds_error
+        return da.interp(**interp_coords, method=method, kwargs=kwargs)
 
 
 xr.register_dataarray_accessor("sel_interp_all")(sel_interp_all)

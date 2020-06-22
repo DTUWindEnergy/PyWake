@@ -203,7 +203,7 @@ class SimulationResult(xr.Dataset):
 
         return xr.DataArray(power_ilk * self.P.ilk() / norm * 24 * 365 * 1e-9,
                             self.Power.coords,
-                            name='AEP',
+                            name='AEP [GWh]',
                             attrs={'Description': 'Annual energy production [GWh]'})
 
     def flow_box(self, x, y, h, wd=None, ws=None):
@@ -284,7 +284,7 @@ def main():
         fm.plot_wake_map()
 
         plt.figure()
-        fm.plot(fm.power_xylk() * 1e-3, "Power [kW]")
+        fm.plot(fm.power_xylk().sum(['wd', 'ws']) * 1e-3, "Power [kW]")
 
         fm = simulation_result.flow_map(grid=HorizontalGrid(resolution=50))
         plt.figure()

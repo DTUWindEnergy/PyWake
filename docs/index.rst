@@ -44,6 +44,7 @@ Contents:
         notebooks/WindTurbines
         notebooks/EngineeringWindFarmModels
         notebooks/RunWindFarmSimulation
+        notebooks/Optimization
         
    
     .. toctree::
