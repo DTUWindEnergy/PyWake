@@ -7,14 +7,14 @@ import numpy as np
 class XRSite(UniformWeibullSite):
     use_WS_bins = False
 
-    def __init__(self, ds, initial_position=None, interp_method='nearest', shear=None, distance=StraightDistance()):
+    def __init__(self, ds, initial_position=None, interp_method='linear', shear=None, distance=StraightDistance()):
         self.interp_method = interp_method
         self.shear = shear
         self.distance = distance
         Site.__init__(self, distance)
 
         assert 'TI' in ds
-        if 'wd' in ds:
+        if 'wd' in ds and len(np.atleast_1d(ds.wd)) > 1:
             wd = ds.coords['wd']
             sector_widths = np.diff(wd)
             assert np.all(sector_widths == sector_widths[0]), \
@@ -30,7 +30,7 @@ class XRSite(UniformWeibullSite):
             ds.attrs['initial_position'] = initial_position
 
         # add 360 deg to all wd dependent datavalues
-        if 'wd' in ds and ds.wd[-1] != 360 and 360 - ds.wd[-1] == ds.wd[1] - ds.wd[0]:
+        if 'wd' in ds and len(np.atleast_1d(ds.wd)) > 1 and ds.wd[-1] != 360 and 360 - ds.wd[-1] == sector_width:
             ds = ds.reindex(wd=np.r_[ds.wd, 360])
             for n, v in ds.data_vars.items():
                 if 'wd' in v.dims:
@@ -51,12 +51,17 @@ class XRSite(UniformWeibullSite):
 
     @staticmethod
     def from_flow_box(flowBox, interp_method='linear', distance=StraightDistance()):
-        ds = flowBox.drop_vars(['WS', 'TI']).rename_vars(WS_eff='WS', TI_eff='TI')
-        return XRSite(ds, interp_method=interp_method, distance=distance)
+        ds = flowBox.drop_vars(['WS', 'TI']).rename_vars(WS_eff='WS', TI_eff='TI').squeeze()
+        site = XRSite(ds, interp_method=interp_method, distance=distance)
+
+        # Correct P from propability pr. deg to sector probability as expected by XRSite
+        site.ds['P'] = site.ds.P * site.ds.sector_width
+        return site
 
     def elevation(self, x_i, y_i):
         if 'Elevation' in self.ds:
-            return self.ds.Elevation.interp(x=xr.DataArray(x_i, dims='z'), y=xr.DataArray(y_i, dims='z'))
+            return self.ds.Elevation.interp(x=xr.DataArray(x_i, dims='z'), y=xr.DataArray(y_i, dims='z'),
+                                            method=self.interp_method, kwargs={'bounds_error': True})
         else:
             return 0
 
