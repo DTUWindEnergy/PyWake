@@ -82,14 +82,15 @@ class FugaDeficit(DeficitModel):
         z = np.maximum(np.minimum(z, self.z[-1]), self.z[0])
         return self.lut_interpolator((x, y, z))
 
-    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_il, dh_ijl, **_):
+    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_il, dh_ijl, D_src_il, **_):
 
-        self.mdu_ijlk = self.interpolate(dw_ijlk, np.abs(hcw_ijlk),
-                                         (h_il[:, na] + dh_ijl)[:, :, :, na]) * ~((dw_ijlk == 0) & (hcw_ijlk == 0))
+        self.mdu_ijlk = self.interpolate(dw_ijlk, np.abs(hcw_ijlk), (h_il[:, na] + dh_ijl)[:, :, :, na]) * \
+            ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na])  # avoid wake on itself
+              )
 
-    def calc_deficit(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk, dh_ijl, h_il, ct_ilk, **_):
+    def calc_deficit(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk, dh_ijl, h_il, ct_ilk, D_src_il, **_):
         if not self.deficit_initalized:
-            self._calc_layout_terms(dw_ijlk, hcw_ijlk, h_il, dh_ijl)
+            self._calc_layout_terms(dw_ijlk, hcw_ijlk, h_il, dh_ijl, D_src_il)
         return self.mdu_ijlk * (ct_ilk * WS_eff_ilk**2 / WS_ilk)[:, na]
 
     def wake_radius(self, D_src_il, **_):
