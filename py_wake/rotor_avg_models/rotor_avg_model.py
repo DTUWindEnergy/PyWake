@@ -65,6 +65,8 @@ class GridRotorAvg(RotorAvgModel):
         if 'cw_ijlk' in self.args4deficit:
             cw_ijlkp = np.sqrt(hcw_ijlkp**2 + dh_ijlp[:, :, :, na]**2)
             new_kwargs['cw_ijlk'] = cw_ijlkp
+        if 'D_dst_ijl' in self.args4deficit:
+            new_kwargs['D_dst_ijl'] = D_dst_ijl
 
         new_kwargs.update({k: v[..., na] for k, v in kwargs.items() if k not in new_kwargs})
         return new_kwargs
@@ -73,6 +75,7 @@ class GridRotorAvg(RotorAvgModel):
 
         # add extra dimension, p, with 40 points distributed over the destination rotors
         kwargs = self._update_kwargs(**kwargs)
+
         deficit_ijlkp = self.deficitModel.calc_deficit(**kwargs)
         # Calculate weighted sum of deficit over the destination rotors
         if self.nodes_weight is None:

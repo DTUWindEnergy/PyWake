@@ -30,9 +30,14 @@ class AreaOverlappingFactor():
         if np.all(D_dst_ijl == 0) or D_dst_ijl is None:
             return wake_radius_ijlk > cw_ijlk
         else:
-            return self._cal_overlapping_area_factor(wake_radius_ijlk,
-                                                     (D_dst_ijl[..., na] / 2),
-                                                     np.abs(cw_ijlk))
+            if wake_radius_ijlk.ndim == 5:
+                return self._cal_overlapping_area_factor(wake_radius_ijlk[..., 0],
+                                                         (D_dst_ijl[..., na] / 2),
+                                                         np.abs(cw_ijlk[..., 0]))[..., na]
+            else:
+                return self._cal_overlapping_area_factor(wake_radius_ijlk,
+                                                         (D_dst_ijl[..., na] / 2),
+                                                         np.abs(cw_ijlk))
 
     def _cal_overlapping_area_factor(self, R1, R2, d):
         """ Calculate the overlapping area of two circles with radius R1 and
