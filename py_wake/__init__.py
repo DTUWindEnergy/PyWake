@@ -1,8 +1,8 @@
 import pkg_resources
-from .deficit_models.noj import NOJ
+from .deficit_models.noj import NOJ, NOJLocal
 from .deficit_models.fuga import Fuga, FugaBlockage
 from .deficit_models.gaussian import BastankhahGaussian, IEA37SimpleBastankhahGaussian
-from .deficit_models.gcl import GCL
+from .deficit_models.gcl import GCL, GCLLocal
 from py_wake.flow_map import HorizontalGrid, XYGrid, YZGrid
 
 plugins = {

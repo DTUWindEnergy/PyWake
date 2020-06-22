@@ -187,10 +187,49 @@ class GCL(PropagateDownwind):
                                    deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
 
 
+class GCLLocalDeficit(DeficitModel):
+    """
+    Description:
+        Identical to GCLDeficit with the addition of the possibility to use the
+        local wind speed at the rotor and the local TI.
+    """
+    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_eff_ilk']
+
+    def __init__(self, use_effective_ws=True):
+        self.use_effective_ws = use_effective_ws
+
+    def wake_radius(self, dw_ijlk, D_src_il, TI_eff_ilk, ct_ilk, **_):
+        with np.warnings.catch_warnings():
+            # if term is 0, exp(log(0))=0 as expected for a positive factor
+            np.warnings.filterwarnings('ignore', r'invalid value encountered in log')
+            return get_Rw(x=dw_ijlk, R=(D_src_il / 2)[:, na, :, na], TI=TI_eff_ilk[:, na], CT=ct_ilk[:, na])[0]
+
+    def calc_deficit(self, WS_ilk, WS_eff_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, TI_eff_ilk, **_):
+        WS_ref_ilk = (WS_ilk, WS_eff_ilk)[self.use_effective_ws]
+        eps = 1e-10
+        dw_ijlk_gt0 = np.maximum(dw_ijlk, eps)
+        R_src_il = D_src_il / 2.
+        dU = -get_dU(x=dw_ijlk_gt0, r=cw_ijlk, R=R_src_il[:, na, :, na],
+                     CT=ct_ilk[:, na], TI=TI_eff_ilk[:, na])
+        return WS_ref_ilk[:, na] * dU * (dw_ijlk > eps)
+
+
+class GCLLocal(PropagateDownwind):
+    def __init__(self, site, windTurbines, use_effective_ws=True,
+                 rotorAvgModel=RotorCenter(), superpositionModel=LinearSum(),
+                 deflectionModel=None, turbulenceModel=None):
+
+        PropagateDownwind.__init__(self, site, windTurbines,
+                                   wake_deficitModel=GCLLocalDeficit(use_effective_ws=use_effective_ws),
+                                   rotorAvgModel=rotorAvgModel, superpositionModel=superpositionModel,
+                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
+
+
 def main():
     if __name__ == '__main__':
         from py_wake.examples.data.iea37._iea37 import IEA37Site
         from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
+        from py_wake.turbulence_models.gcl import GCLTurbulence
         import matplotlib.pyplot as plt
 
         # setup site, turbines and wind farm model
@@ -199,20 +238,33 @@ def main():
         windTurbines = IEA37_WindTurbines()
 
         wf_model = GCL(site, windTurbines)
-        plt.figure()
-        print(wf_model)
-
+        wf_model_local = GCLLocal(site, windTurbines, turbulenceModel=GCLTurbulence())
         # run wind farm simulation
         sim_res = wf_model(x, y)
-
+        sim_res_local = wf_model_local(x, y)
         # calculate AEP
         aep = sim_res.aep().sum()
+        aep_local = sim_res_local.aep().sum()
 
         # plot wake map
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 4.5), tight_layout=True)
+        levels = np.arange(0, 10.5, 0.5)
+        print(wf_model)
         flow_map = sim_res.flow_map(wd=30, ws=9.8)
-        flow_map.plot_wake_map()
-        flow_map.plot_windturbines()
-        plt.title('AEP: %.2f GWh' % aep)
+        flow_map.plot_wake_map(levels=levels, ax=ax1, plot_colorbar=False)
+        flow_map.plot_windturbines(ax=ax1)
+        ax1.set_title('Original Larsen, AEP: %.2f GWh' % aep)
+
+        # plot wake map
+        print(wf_model_local)
+        flow_map = sim_res_local.flow_map(wd=30, ws=9.8)
+        flow_map.plot_wake_map(levels=levels, ax=ax2, plot_colorbar=False)
+        flow_map.plot_windturbines(ax=ax2)
+        ax2.set_title('Local Larsen, AEP: %.2f GWh' % aep_local)
+
+        plt.figure()
+        flow_map.plot_ti_map(levels=np.arange(0, 1, .01))
+        plt.title('TI map for GCLLocal with GCL turbulence model')
         plt.show()
 
 
