@@ -31,10 +31,9 @@ class XRSite(UniformWeibullSite):
 
         # add 360 deg to all wd dependent datavalues
         if 'wd' in ds and len(np.atleast_1d(ds.wd)) > 1 and ds.wd[-1] != 360 and 360 - ds.wd[-1] == sector_width:
-            ds = ds.reindex(wd=np.r_[ds.wd, 360])
-            for n, v in ds.data_vars.items():
-                if 'wd' in v.dims:
-                    ds[n].loc[{'wd': 360}] = ds[n].sel(wd=0)
+            ds = xr.concat([ds, ds.sel(wd=0)], 'wd', data_vars='minimal')
+            ds.update({'wd': np.r_[ds.wd[:-1], 360]})
+
         self.ds = ds
 
     @property
