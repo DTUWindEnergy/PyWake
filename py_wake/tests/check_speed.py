@@ -16,7 +16,7 @@ import sys
 register_matplotlib_converters()
 
 
-def timeit(func, min_time=1, min_runs=3, verbose=False):
+def timeit(func, min_time=0, min_runs=1, verbose=False):
     @functools.wraps(func)
     def newfunc(*args, **kwargs):
         t_lst = []
