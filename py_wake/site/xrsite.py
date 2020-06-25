@@ -2,6 +2,8 @@ from py_wake.site._site import Site, UniformWeibullSite
 import xarray as xr
 from py_wake.site.distance import StraightDistance
 import numpy as np
+from py_wake.utils.eq_distance_interpolator import EqDistRegGridInterpolator
+import warnings
 
 
 class XRSite(UniformWeibullSite):
@@ -64,6 +66,55 @@ class XRSite(UniformWeibullSite):
         else:
             return 0
 
+    def interp(self, var, coords):
+
+        sel_dims = []
+        ip_dims = list(var.dims)
+        if 'ws' in ip_dims and len(set(coords['ws'].data) - set(np.atleast_1d(var.ws.data))) == 0:
+            # All ws is in var - no need to interpolate
+            ip_dims.remove('ws')
+            sel_dims.append('ws')
+        if ip_dims and ip_dims[-1] == 'wd' in ip_dims and len(set(coords['wd'].data) - set(var.wd.data)) == 0:
+            # All wd is in var - no need to interpolate
+            ip_dims.remove('wd')
+            sel_dims.append('wd')
+        if 'i' in ip_dims and 'i' in coords and len(var.i) != len(coords['i']):
+            raise ValueError(
+                "Number of points, i(=%d), in site data variable, %s, must match number of requested points(=%d)" %
+                (len(var.i), var.name, len(coords['i'])))
+        if ip_dims and ip_dims[-1] == 'i':
+            ip_dims.remove('i')
+            sel_dims.append('i')
+
+        if len(ip_dims) > 0:
+            try:
+                eq_interp = EqDistRegGridInterpolator([var.coords[k].data for k in ip_dims], var.data,
+                                                      method=self.interp_method)
+            except ValueError as e:
+                warnings.warn("""The fast EqDistRegGridInterpolator fails (%s).
+                Falling back on the slower xarray interp""" % e,
+                              RuntimeWarning)
+
+                return var.sel_interp_all(coords, method=self.interp_method)
+            xp = np.array([coords[k].data for k in ip_dims]).T
+            res = eq_interp(xp).T
+        else:
+            res = var.data
+
+        if 'wd' in sel_dims:
+            l_indices = np.searchsorted(var.wd.data, coords['wd'].data)
+            if var.dims[-1] == 'wd':
+                res = res[..., l_indices]
+            else:
+                res = res[..., l_indices, :]
+        if 'ws' in sel_dims:
+            k_indices = np.searchsorted(var.ws.data, coords['ws'].data)
+            res = res[..., k_indices]
+
+        ds = coords.to_dataset()
+        ds[var.name] = ([d for d in ['i', 'wd', 'ws'] if d in var.dims or d.replace('i', 'x') in var.dims], res)
+        return ds[var.name]
+
     def _local_wind(self, localWind, ws_bins=None):
         """
         Returns
@@ -82,14 +133,14 @@ class XRSite(UniformWeibullSite):
 
         def get(n, default=None):
             if n in self.ds:
-                return self.ds[n].sel_interp_all(lw.coords, method=self.interp_method)
+                return self.interp(self.ds[n], lw.coords)
             else:
                 return default
 
         WS, WD, TI = [get(n, d) for n, d in [('WS', lw.ws), ('WD', lw.wd), ('TI', None)]]
 
         if 'Speedup' in self.ds:
-            WS = self.ds.Speedup.sel_interp_all(lw.coords, method=self.interp_method) * WS
+            WS = self.interp(self.ds.Speedup, lw.coords) * WS
 
         if self.shear:
             assert 'h' in lw and np.all(lw.h.data != None), "Height must be specified and not None"  # nopep8
@@ -101,16 +152,16 @@ class XRSite(UniformWeibullSite):
             WS = self.shear(WS, lw.wd, h)
 
         if 'Turning' in self.ds:
-            WD = (self.ds.Turning.sel_interp_all(lw.coords, method=self.interp_method) + WD) % 360
+            WD = (self.interp(self.ds.Turning, lw.coords) + WD) % 360
 
         lw.set_W(WS, WD, TI, ws_bins, self.use_WS_bins)
         if 'P' in self.ds:
-            lw['P'] = self.ds.P.sel_interp_all(lw.coords, method=self.interp_method) / \
+            lw['P'] = self.interp(self.ds.P, lw.coords) / \
                 self.ds.sector_width * lw.wd_bin_size
         else:
-            sf = self.ds.Sector_frequency.sel_interp_all(lw.coords, method=self.interp_method)
+            sf = self.interp(self.ds.Sector_frequency, lw.coords)
             p_wd = sf / self.ds.sector_width * lw.wd_bin_size
             lw['P'] = p_wd * self.weibull_weight(lw,
-                                                 self.ds.Weibull_A.sel_interp_all(lw.coords, method=self.interp_method),
-                                                 self.ds.Weibull_k.sel_interp_all(lw.coords, method=self.interp_method))
+                                                 self.interp(self.ds.Weibull_A, lw.coords),
+                                                 self.interp(self.ds.Weibull_k, lw.coords))
         return lw

@@ -8,12 +8,13 @@ import matplotlib.pyplot as plt
 from numpy import newaxis as na
 from py_wake.tests.test_files import tfp
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80, wt9_x, wt9_y
-from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
+from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.wind_turbines import WindTurbines
 from py_wake.deficit_models.gaussian import BastankhahGaussian, BastankhahGaussianDeficit
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.superposition_models import LinearSum
 from py_wake.tests.check_speed import timeit
+from py_wake.site._site import LocalWind
 
 
 f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,
@@ -240,12 +241,9 @@ def test_from_flow_box_2wt():
     npt.assert_array_almost_equal(ref_aep, aep.sel(wt=0))
 
 
-def test_neighbour_farm():
+def test_neighbour_farm_speed():
     # import and setup site and windTurbines
-    from py_wake.examples.data.iea37 import IEA37Site
     site = IEA37Site(16)
-
-    wd = np.arange(260, 281)
 
     # setup current, neighbour and all positions
     wt_x, wt_y = site.initial_position.T
@@ -259,14 +257,16 @@ def test_neighbour_farm():
     wf_model = PropagateDownwind(site, windTurbines,
                                  wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=True),
                                  superpositionModel=LinearSum())
+    # Consider wd=270 +/- 60 deg only
+    wd_lst = np.arange(210, 331)
 
-    sim_res, _ = timeit(wf_model, verbose=False, min_runs=1, min_time=0)(all_x, all_y, type=types, wd=wd, ws=9.8)
+    sim_res, t = timeit(wf_model, verbose=True)(all_x, all_y, type=types, ws=9.8, wd=wd_lst)
     if 1:
         ext = 100
-        flow_box = wf_model(neighbour_x, neighbour_y, wd=wd).flow_box(
-            x=np.linspace(min(wt_x) - ext, max(wt_x) + ext, 101),
-            y=np.linspace(min(wt_y) - ext, max(wt_y) + ext, 101),
-            h=110)
+        flow_box = wf_model(neighbour_x, neighbour_y, wd=wd_lst).flow_box(
+            x=np.linspace(min(wt_x) - ext, max(wt_x) + ext, 51),
+            y=np.linspace(min(wt_y) - ext, max(wt_y) + ext, 51),
+            h=[100, 110, 120])
 
         wake_site = XRSite.from_flow_box(flow_box)
         wake_site.save('tmp.nc')
@@ -276,7 +276,65 @@ def test_neighbour_farm():
     wf_model_wake_site = PropagateDownwind(wake_site, windTurbines,
                                            wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=True),
                                            superpositionModel=LinearSum())
-
-    sim_res_wake_site, _ = timeit(wf_model_wake_site, verbose=False, min_runs=1, min_time=0)(wt_x, wt_y, wd=wd, ws=9.8)
+    if 0:
+        from line_profiler import LineProfiler
+        lp = LineProfiler()
+        lp.timer_unit = 1e-6
+        lp.add_function(XRSite.interp)
+        lp_wrapper = lp(wf_model_wake_site.__call__)
+        sim_res_wake_site = lp_wrapper(wt_x, wt_y, ws=9.8, wd=wd_lst)
+        lp.print_stats()
+    else:
+        sim_res_wake_site, _ = timeit(wf_model_wake_site, verbose=True)(wt_x, wt_y, ws=9.8, wd=wd_lst)
     npt.assert_allclose(sim_res.aep().sel(wt=np.arange(len(wt_x))).sum(), sim_res_wake_site.aep().sum(), rtol=0.0005)
-    npt.assert_array_almost_equal(sim_res.aep().sel(wt=np.arange(len(wt_x))), sim_res_wake_site.aep(), 3)
+    npt.assert_array_almost_equal(sim_res.aep().sel(wt=np.arange(len(wt_x))), sim_res_wake_site.aep(), 2)
+
+
+@pytest.mark.parametrize('h,wd,ws,h_i,wd_l,ws_k', [
+    ([100, 110, 120], range(360), [9.8], 110, range(360), [9.8]),
+    ([100, 110, 120], range(5, 25), [9.8], 110, range(10, 20), [9.8]),
+    ([100, 110, 120], range(5, 25), [9, 10, 11], 110, range(10, 20), [10]),
+    ([100, 110, 120], range(5, 25), [8, 10, 11], 110, range(10, 20), [9.8]),
+])
+def test_interp(h, wd, ws, h_i, wd_l, ws_k):
+    ds = xr.Dataset({
+        'TI': (['x', 'y', 'h', 'wd', 'ws'], np.random.rand(10, 20, len(h), len(wd), len(ws))),
+        'P': 1
+    },
+        coords={'x': np.linspace(0, 100, 10),
+                'y': np.linspace(200, 300, 20),
+                'h': h,
+                'wd': wd,
+                'ws': ws}
+    )
+    site = XRSite(ds)
+    lw = LocalWind(x_i=[25, 50], y_i=[225, 250], h_i=h_i, wd=wd_l, ws=ws_k, wd_bin_size=1)
+    ip1 = site.interp(site.ds.TI, lw.coords)
+    ip2 = ds.TI.sel_interp_all(lw.coords)
+    npt.assert_array_equal(ip1.shape, ip2.shape)
+    npt.assert_array_almost_equal(ip1.data, ip2.data)
+
+
+def test_interp2():
+    wd = np.arange(5)
+    ws = np.arange(10)
+
+    ds = xr.Dataset({
+        'TI': (['i', 'wd', 'ws'], np.random.rand(10, len(wd), len(ws))),
+        'P': 1
+    },
+        coords={'i': np.arange(10),
+                'wd': wd,
+                'ws': ws}
+    )
+    site = XRSite(ds)
+    with pytest.raises(ValueError, match=r"Number of points, i\(=10\), in site data variable, TI, must match "):
+        lw = LocalWind(x_i=[25, 50], y_i=[225, 250], h_i=110, wd=wd, ws=ws, wd_bin_size=1)
+        site.interp(site.ds.TI, lw.coords)
+
+    x = y = np.arange(10)
+    lw = LocalWind(x_i=x, y_i=y, h_i=110, wd=wd, ws=ws, wd_bin_size=1)
+    ip1 = site.interp(site.ds.TI, lw.coords)
+    ip2 = ds.TI.sel_interp_all(lw.coords)
+    npt.assert_array_equal(ip1.shape, ip2.shape)
+    npt.assert_array_almost_equal(ip1.data, ip2.data)
