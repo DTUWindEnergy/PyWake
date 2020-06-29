@@ -4,6 +4,7 @@ from py_wake.site.distance import StraightDistance
 import numpy as np
 from py_wake.utils.eq_distance_interpolator import EqDistRegGridInterpolator
 import warnings
+from py_wake.tests import npt
 
 
 class XRSite(UniformWeibullSite):
@@ -53,6 +54,7 @@ class XRSite(UniformWeibullSite):
     @staticmethod
     def from_flow_box(flowBox, interp_method='linear', distance=StraightDistance()):
         ds = flowBox.drop_vars(['WS', 'TI']).rename_vars(WS_eff='WS', TI_eff='TI').squeeze()
+        ds = ds.transpose(*[n for n in ['x', 'y', 'h', 'wd', 'ws'] if n in ds.dims])
         site = XRSite(ds, interp_method=interp_method, distance=distance)
 
         # Correct P from propability pr. deg to sector probability as expected by XRSite
@@ -68,51 +70,98 @@ class XRSite(UniformWeibullSite):
 
     def interp(self, var, coords):
 
-        sel_dims = []
-        ip_dims = list(var.dims)
-        if 'ws' in ip_dims and len(set(coords['ws'].data) - set(np.atleast_1d(var.ws.data))) == 0:
-            # All ws is in var - no need to interpolate
-            ip_dims.remove('ws')
-            sel_dims.append('ws')
-        if ip_dims and ip_dims[-1] == 'wd' in ip_dims and len(set(coords['wd'].data) - set(var.wd.data)) == 0:
-            # All wd is in var - no need to interpolate
-            ip_dims.remove('wd')
-            sel_dims.append('wd')
-        if 'i' in ip_dims and 'i' in coords and len(var.i) != len(coords['i']):
-            raise ValueError(
-                "Number of points, i(=%d), in site data variable, %s, must match number of requested points(=%d)" %
-                (len(var.i), var.name, len(coords['i'])))
-        if ip_dims and ip_dims[-1] == 'i':
+        # Interpolate via EqDistRegGridInterpolator (equidistance regular grid interpolator) which is much faster
+        # than xarray.interp.
+        # This function is comprehensive because var can contain any combinations of coordinates (i or (xy,h)) and wd,ws
+
+        def sel(data, data_dims, indices, dim_name):
+            i = data_dims.index(dim_name)
+            ix = tuple([(slice(None), indices)[dim == i] for dim in range(data.ndim)])
+            return data[ix]
+
+        ip_dims = [n for n in ['i', 'x', 'y', 'h', 'wd', 'ws'] if n in var.dims]  # interpolation dimensions
+        data = var.data
+        data_dims = var.dims
+
+        def pre_sel(data, name):
+            # If only a single value is needed on the <name>-dimension, the data is squeezed to contain this value only
+            # Otherwise the indices of the needed values are returned
+            if name not in var.dims:
+                return data, None
+            c, v = coords[name].data, var[name].data
+            indices = None
+            if ip_dims and ip_dims[-1] == name and len(set(c) - set(np.atleast_1d(v))) == 0:
+                # all coordinates in var, no need to interpolate
+                ip_dims.remove(name)
+                indices = np.searchsorted(v, c)
+                if len(indices) == 1:
+                    # only one index, select before interpolation
+                    data = sel(data, data_dims, indices, name)
+                    indices = [0]
+                else:
+                    indices = indices
+            return data, indices
+
+        # pre select, i.e. reduce input data size in case only one ws or wd is needed
+        data, k_indices = pre_sel(data, 'ws')
+        data, l_indices = pre_sel(data, 'wd')
+
+        if 'i' in ip_dims:
+            if 'i' in coords and len(var.i) != len(coords['i']):
+                raise ValueError(
+                    "Number of points, i(=%d), in site data variable, %s, must match number of requested points(=%d)" %
+                    (len(var.i), var.name, len(coords['i'])))
+            # requesting all points(wt positions) in site
             ip_dims.remove('i')
-            sel_dims.append('i')
+            ip_data_dims = ['i']
 
         if len(ip_dims) > 0:
             try:
-                eq_interp = EqDistRegGridInterpolator([var.coords[k].data for k in ip_dims], var.data,
+                eq_interp = EqDistRegGridInterpolator([var.coords[k].data for k in ip_dims], data,
                                                       method=self.interp_method)
             except ValueError as e:
                 warnings.warn("""The fast EqDistRegGridInterpolator fails (%s).
                 Falling back on the slower xarray interp""" % e,
                               RuntimeWarning)
-
                 return var.sel_interp_all(coords, method=self.interp_method)
-            xp = np.array([coords[k].data for k in ip_dims]).T
-            res = eq_interp(xp).T
-        else:
-            res = var.data
 
-        if 'wd' in sel_dims:
-            l_indices = np.searchsorted(var.wd.data, coords['wd'].data)
-            if var.dims[-1] == 'wd':
-                res = res[..., l_indices]
-            else:
-                res = res[..., l_indices, :]
-        if 'ws' in sel_dims:
-            k_indices = np.searchsorted(var.ws.data, coords['ws'].data)
-            res = res[..., k_indices]
+            # get dimension of interpolation coordinates
+            I = (1, len(coords.get('x', coords.get('y', coords.get('h', [None])))))[
+                any([n in data_dims for n in 'xyh'])]
+            L, K = [(1, len(coords.get(n, [None])))[indices is None and n in data_dims]
+                    for n, indices in [('wd', l_indices), ('ws', k_indices)]]
+
+            # gather interpolation coordinates xp with len #xyh x #wd x #ws
+            xp = [coords[n].data.repeat(L * K) for n in 'xyh' if n in ip_dims]
+            ip_data_dims = [n for n, l in [('i', ['x', 'y', 'h']), ('wd', ['wd']), ('ws', ['ws'])]
+                            if any([l_ in ip_dims for l_ in l])]
+            shape = [l for d, l in [('i', I), ('wd', L), ('ws', K)] if d in ip_data_dims]
+            if 'wd' in ip_dims:
+                xp.append(np.tile(coords['wd'].data.repeat(K), I))
+            elif 'wd' in data_dims:
+                shape.append(data.shape[data_dims.index('wd')])
+            if 'ws' in ip_dims:
+                xp.append(np.tile(coords['ws'].data, I * L))
+            elif 'ws' in data_dims:
+                shape.append(data.shape[data_dims.index('ws')])
+
+            ip_data = eq_interp(np.array(xp).T).T
+            ip_data = ip_data.reshape(shape)
+        else:
+            ip_data = data
+            ip_data_dims = []
+
+        if 'i' in var.dims:
+            ip_data_dims.insert(0, 'i')
+        if l_indices is not None:
+            ip_data_dims.append('wd')
+            ip_data = sel(ip_data, ip_data_dims, l_indices, 'wd')
+        if k_indices is not None:
+            ip_data_dims.append('ws')
+            ip_data = sel(ip_data, ip_data_dims, k_indices, 'ws')
 
         ds = coords.to_dataset()
-        ds[var.name] = ([d for d in ['i', 'wd', 'ws'] if d in var.dims or d.replace('i', 'x') in var.dims], res)
+        ds[var.name] = (ip_data_dims, ip_data)
         return ds[var.name]
 
     def _local_wind(self, localWind, ws_bins=None):

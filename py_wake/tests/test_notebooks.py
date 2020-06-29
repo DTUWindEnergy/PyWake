@@ -4,6 +4,7 @@ import pytest
 
 from py_wake.tests.notebook import Notebook
 import py_wake
+from py_wake.flow_map import Grid
 
 
 def get_notebooks():
@@ -20,6 +21,8 @@ def test_notebooks(notebook):
     plt.show = no_show  # disable plt show that requires the user to close the plot
 
     try:
+        default_resolution = Grid.default_resolution
+        Grid.default_resolution = 100
         notebook.check_code()
         notebook.check_links()
         notebook.remove_empty_end_cell()
@@ -28,4 +31,5 @@ def test_notebooks(notebook):
     except Exception as e:
         raise Exception(notebook.filename + " failed") from e
     finally:
+        Grid.default_resolution = default_resolution
         plt.close()

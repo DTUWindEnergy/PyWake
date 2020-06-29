@@ -213,25 +213,23 @@ class EngineeringWindFarmModel(WindFarmModel):
             arg_funcs['dw_ijlk'] = lambda: dw_ijlk
             arg_funcs['hcw_ijlk'] = lambda: hcw_ijlk
 
+            args = {k: arg_funcs[k]() for k in self.args4deficit if k != 'dw_ijlk'}
+            arg_funcs['wake_radius_ijlk'] = lambda: self.wake_deficitModel.wake_radius(dw_ijlk=dw_ijlk, **args)
+            if self.turbulenceModel:
+                args.update({k: arg_funcs[k]() for k in self.turbulenceModel.args4addturb
+                             if k not in self.args4deficit})
+
             if I * J * K * 8 / 1024**2 > 10:
                 # one wt at the time to avoid memory problems
                 deficit_ijk = np.zeros((I, J, K))
                 add_turb_ijk = np.zeros((I, J, K))
-
                 for i in range(I):
-                    args = {k: arg_funcs[k]()[i][na] for k in self.args4deficit if k != 'dw_ijlk'}
-                    deficit_ijk[i] = self._calc_deficit(dw_ijlk=dw_ijlk[i], **args)[0, :, 0]
+                    args_i = {k: v[i][na] for k, v in args.items()}
+                    deficit_ijk[i] = self._calc_deficit(dw_ijlk=dw_ijlk[i], **args_i)[0, :, 0]
                     if self.turbulenceModel:
-                        arg_funcs['wake_radius_ijlk'] = lambda: self.wake_deficitModel.wake_radius(
-                            dw_ijlk=dw_ijlk[i], **args)
-                        args.update({k: arg_funcs[k]() for k in self.turbulenceModel.args4addturb
-                                     if k not in self.args4deficit})
                         add_turb_ijk[i] = self.turbulenceModel.calc_added_turbulence(
-                            dw_ijlk=dw_ijlk[i], **args)[0, :, 0]
-
+                            dw_ijlk=dw_ijlk[i], **args_i)[0, :, 0]
             else:
-                args = {k: arg_funcs[k]() for k in self.args4deficit if k != 'dw_ijlk'}
-
                 if isinstance(self.superpositionModel, WeightedSum):
                     deficit, uc, sigma_sqr = self._calc_deficit_convection(dw_ijlk=dw_ijlk, **args)
                     deficit_ijk = deficit[:, :, 0]
@@ -239,13 +237,9 @@ class EngineeringWindFarmModel(WindFarmModel):
                     sigma_sqr_ijk = sigma_sqr[:, :, 0]
                 else:
                     deficit_ijk = self._calc_deficit(dw_ijlk=dw_ijlk, **args)[:, :, 0]
-
                 if self.turbulenceModel:
-                    arg_funcs['wake_radius_ijlk'] = lambda: self.wake_deficitModel.wake_radius(
-                        dw_ijlk=dw_ijlk, **args)
-                    args.update({k: arg_funcs[k]() for k in self.turbulenceModel.args4addturb
-                                 if k not in self.args4deficit})
                     add_turb_ijk = self.turbulenceModel.calc_added_turbulence(dw_ijlk=dw_ijlk, **args)[:, :, 0]
+
             l_ = [l, 0][lw_j.WS_ilk.shape[1] == 1]
             if isinstance(self.superpositionModel, WeightedSum):
                 cw_ijk, hcw_ijk, dh_ijk = np.hypot(dh_ijl[..., na], hcw_ijlk)[

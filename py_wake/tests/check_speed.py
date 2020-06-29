@@ -16,22 +16,36 @@ import sys
 register_matplotlib_converters()
 
 
-def timeit(func, min_time=0, min_runs=1, verbose=False):
+def timeit(func, min_time=0, min_runs=1, verbose=False, line_profile=False, profile_funcs=[]):
     @functools.wraps(func)
     def newfunc(*args, **kwargs):
-        t_lst = []
-        for i in range(100000):
-            startTime = time.time()
-            res = func(*args, **kwargs)
-            t_lst.append(time.time() - startTime)
-            if sum(t_lst) > min_time and len(t_lst) >= min_runs:
-                if hasattr(func, '__name__'):
-                    fn = func.__name__
-                else:
-                    fn = "Function"
-                if verbose:
-                    print('%s: %f +/-%f (%d runs)' % (fn, np.mean(t_lst), np.std(t_lst), i + 1))
-                return res, t_lst
+        if line_profile:
+            from line_profiler import LineProfiler
+            lp = LineProfiler()
+            lp.timer_unit = 1e-6
+            for f in profile_funcs:
+                lp.add_function(f)
+            lp_wrapper = lp(func)
+            t = time.time()
+            res = lp_wrapper()
+            t = time.time() - t
+            if verbose:
+                lp.print_stats()
+            return res, [t]
+        else:
+            t_lst = []
+            for i in range(100000):
+                startTime = time.time()
+                res = func(*args, **kwargs)
+                t_lst.append(time.time() - startTime)
+                if sum(t_lst) > min_time and len(t_lst) >= min_runs:
+                    if hasattr(func, '__name__'):
+                        fn = func.__name__
+                    else:
+                        fn = "Function"
+                    if verbose:
+                        print('%s: %f +/-%f (%d runs)' % (fn, np.mean(t_lst), np.std(t_lst), i + 1))
+                    return res, t_lst
     return newfunc
 
 
