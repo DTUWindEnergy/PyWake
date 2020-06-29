@@ -22,6 +22,15 @@ def test_eqdistance_interpolator_wrong_method():
         EqDistRegGridInterpolator([[10, 20, 30]], [1, 2, 3], method="cubic")(None)
 
 
+def test_eqdistance_interpolator_outside_area():
+    with pytest.raises(ValueError, match='Outside data area'):
+        EqDistRegGridInterpolator([[10, 20, 30]], [1, 2, 3])(9.9)
+    with pytest.raises(ValueError, match='Outside data area'):
+        EqDistRegGridInterpolator([[10, 20, 30]], [1, 2, 3])(30.1)
+    with pytest.raises(ValueError, match="Outside data area"):
+        EqDistRegGridInterpolator([[5, 10, 15], [200, 300]], np.arange(6).reshape(3, 2))([(5, 300.1)])
+
+
 def test_eqdistance_interpolator_2d():
     x = [5, 10, 15]
     y = [200, 300, 400, 500]

@@ -17,7 +17,7 @@ check_code_style:  # name the job what we like
     test
   script:
   - pip install -e .
-  - pycodestyle --ignore=E501,W504 py_wake
+  - pycodestyle --ignore=E501,W504,E741 py_wake
   tags:  # only runners with this tag can do the job [3]
   - python
 

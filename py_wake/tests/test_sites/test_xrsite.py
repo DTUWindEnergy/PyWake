@@ -257,14 +257,14 @@ def test_neighbour_farm_speed():
     wf_model = PropagateDownwind(site, windTurbines,
                                  wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=True),
                                  superpositionModel=LinearSum())
-    # Consider wd=270 +/- 60 deg only
-    wd_lst = np.arange(210, 331)
+    # Consider wd=270 +/- 30 deg only
+    wd_lst = np.arange(240, 301)
 
-    sim_res, t = timeit(wf_model, verbose=True)(all_x, all_y, type=types, ws=9.8, wd=wd_lst)
+    sim_res, t = timeit(wf_model, verbose=False)(all_x, all_y, type=types, ws=9.8, wd=wd_lst)
     if 1:
         ext = 100
         flow_box = wf_model(neighbour_x, neighbour_y, wd=wd_lst).flow_box(
-            x=np.linspace(min(wt_x) - ext, max(wt_x) + ext, 51),
+            x=np.linspace(min(wt_x) - ext, max(wt_x) + ext, 53),
             y=np.linspace(min(wt_y) - ext, max(wt_y) + ext, 51),
             h=[100, 110, 120])
 
@@ -276,16 +276,8 @@ def test_neighbour_farm_speed():
     wf_model_wake_site = PropagateDownwind(wake_site, windTurbines,
                                            wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=True),
                                            superpositionModel=LinearSum())
-    if 0:
-        from line_profiler import LineProfiler
-        lp = LineProfiler()
-        lp.timer_unit = 1e-6
-        lp.add_function(XRSite.interp)
-        lp_wrapper = lp(wf_model_wake_site.__call__)
-        sim_res_wake_site = lp_wrapper(wt_x, wt_y, ws=9.8, wd=wd_lst)
-        lp.print_stats()
-    else:
-        sim_res_wake_site, _ = timeit(wf_model_wake_site, verbose=True)(wt_x, wt_y, ws=9.8, wd=wd_lst)
+
+    sim_res_wake_site, _ = timeit(wf_model_wake_site, verbose=False)(wt_x, wt_y, ws=9.8, wd=wd_lst)
     npt.assert_allclose(sim_res.aep().sel(wt=np.arange(len(wt_x))).sum(), sim_res_wake_site.aep().sum(), rtol=0.0005)
     npt.assert_array_almost_equal(sim_res.aep().sel(wt=np.arange(len(wt_x))), sim_res_wake_site.aep(), 2)
 
@@ -294,28 +286,51 @@ def test_neighbour_farm_speed():
     ([100, 110, 120], range(360), [9.8], 110, range(360), [9.8]),
     ([100, 110, 120], range(5, 25), [9.8], 110, range(10, 20), [9.8]),
     ([100, 110, 120], range(5, 25), [9, 10, 11], 110, range(10, 20), [10]),
+    ([100, 110, 120], range(5, 25), [9, 10, 11], 110, range(10, 20), [10, 11]),
     ([100, 110, 120], range(5, 25), [8, 10, 11], 110, range(10, 20), [9.8]),
+    ([100, 110, 120], range(5, 25), [9, 10, 11], 110, range(10, 20), [9.8]),
+    ([100, 110, 120], range(5, 25), [9, 10, 11], 110, range(10, 20), [9.8, 10.2]),
+    ([100, 110, 120], range(5, 25), [9, 10, 11], 110, [11.5, 12.5], [10]),
+    ([100, 110, 120], range(5, 25), [9, 10, 11], 110, [11.5, 12.5], [10]),
+    ([100, 110, 120], range(5, 25), [9, 10, 11], 110, [11.5, 12.5], [9.8, 10.2]),
 ])
 def test_interp(h, wd, ws, h_i, wd_l, ws_k):
     ds = xr.Dataset({
-        'TI': (['x', 'y', 'h', 'wd', 'ws'], np.random.rand(10, 20, len(h), len(wd), len(ws))),
-        'P': 1
+        'TI': 1,
+        'P': 1,
+        'XYHLK': (['x', 'y', 'h', 'wd', 'ws'], np.random.rand(10, 20, len(h), len(wd), len(ws))),
+        'XYHL': (['x', 'y', 'h', 'wd'], np.random.rand(10, 20, len(h), len(wd))),
+        'XYHK': (['x', 'y', 'h', 'ws'], np.random.rand(10, 20, len(h), len(ws))),
+        'K': (['ws'], np.random.rand(len(ws))),
+        'L': (['wd'], np.random.rand(len(wd))),
+        'KL': (['wd', 'ws'], np.random.rand(len(wd), len(ws))),
+        'XY': (['x', 'y'], np.random.rand(10, 20)),
+        'H': (['h'], np.random.rand(len(h))),
+        'XYH': (['x', 'y', 'h'], np.random.rand(10, 20, len(h))),
+        'XYL': (['x', 'y', 'wd'], np.random.rand(10, 20, len(wd))),
+        'XYK': (['x', 'y', 'ws'], np.random.rand(10, 20, len(ws))),
+        'I': (['i'], np.random.rand(2)),
+        'IL': (['i', 'wd'], np.random.rand(2, len(wd))),
+        'IK': (['i', 'ws'], np.random.rand(2, len(ws))),
+        'ILK': (['i', 'wd', 'ws'], np.random.rand(2, len(wd), len(ws))),
     },
         coords={'x': np.linspace(0, 100, 10),
                 'y': np.linspace(200, 300, 20),
                 'h': h,
                 'wd': wd,
-                'ws': ws}
+                'ws': ws,
+                'i': [0, 1]}
     )
     site = XRSite(ds)
     lw = LocalWind(x_i=[25, 50], y_i=[225, 250], h_i=h_i, wd=wd_l, ws=ws_k, wd_bin_size=1)
-    ip1 = site.interp(site.ds.TI, lw.coords)
-    ip2 = ds.TI.sel_interp_all(lw.coords)
-    npt.assert_array_equal(ip1.shape, ip2.shape)
-    npt.assert_array_almost_equal(ip1.data, ip2.data)
+    for n in ['XYHLK', 'XYHL', 'XYHK', 'K', 'L', 'KL', 'XY', 'H', 'XYH', 'XYL', 'XYK', 'I', 'IL', 'IK', 'ILK']:
+        ip1 = site.interp(site.ds[n], lw.coords)
+        ip2 = ds[n].sel_interp_all(lw.coords)
+        npt.assert_array_equal(ip1.shape, ip2.shape)
+        npt.assert_array_almost_equal(ip1.data, ip2.data)
 
 
-def test_interp2():
+def test_interp_special_cases():
     wd = np.arange(5)
     ws = np.arange(10)
 

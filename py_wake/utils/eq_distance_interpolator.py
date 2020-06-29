@@ -26,12 +26,16 @@ class EqDistRegGridInterpolator(object):
         if method not in ['linear', 'nearest']:
             raise ValueError('Method must be "linear" or "nearest"')
         xp = (xp - self.x0) / self.dx
+        if np.any(xp < 0) or np.any(xp + 1 > self.n[na]):
+            raise ValueError("Outside data area")
         xi0 = xp.astype(int)
         xif = xp - xi0
         if method == 'nearest':
             xif = np.round(xif)
 
-        indexes = np.minimum((self.ui.T[:, :, na] + xi0.T[:, na]), (self.n - 1)[:, na, na])
+        indexes = (self.ui.T[:, :, na] + xi0.T[:, na])
+
+        indexes = np.minimum(indexes, (self.n - 1)[:, na, na])
         v = self.V[tuple(indexes)].T
 
         w = np.product([np.choose(self.ui, [xif1, xif]) for xif, xif1 in zip(xif, 1 - xif)], 2)

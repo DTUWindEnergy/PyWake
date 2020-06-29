@@ -4,8 +4,6 @@ import numpy as np
 
 
 class AreaOverlappingFactor():
-    def __init__(self, k=.1):
-        self.k = k
 
     def overlapping_area_factor(self, wake_radius_ijlk, dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl):
         """Calculate overlapping factor

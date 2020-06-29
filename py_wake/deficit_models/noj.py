@@ -10,33 +10,40 @@ from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.deficit_models.gaussian import NiayifarGaussianDeficit
 
 
-class NOJDeficit(DeficitModel, AreaOverlappingFactor):
-    args4deficit = ['WS_ilk', 'D_src_il', 'D_dst_ijl', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
+class NOJDeficit(NiayifarGaussianDeficit, AreaOverlappingFactor):
 
-    def __init__(self, k=.1):
-        AreaOverlappingFactor.__init__(self, k)
+    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il', 'D_dst_ijl', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
-    def _calc_layout_terms(self, WS_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk, **_):
+    def __init__(self, k=.1, use_effective_ws=False):
+        self.a = [0, k]
+        self.use_effective_ws = use_effective_ws
+
+    def _calc_layout_terms(self, WS_ilk, WS_eff_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk, **kwargs):
+        WS_ref_ilk = (WS_ilk, WS_eff_ilk)[self.use_effective_ws]
         R_src_il = D_src_il / 2
-        term_denominator_ijlk = (1 + self.k * dw_ijlk / R_src_il[:, na, :, na])**2
+        wake_radius, k_ijlk = self._wake_radius(D_src_il, dw_ijlk, **kwargs)
+        term_denominator_ijlk = (1 + k_ijlk * dw_ijlk / R_src_il[:, na, :, na])**2
         term_denominator_ijlk += (term_denominator_ijlk == 0)
-        A_ol_factor_ijlk = self.overlapping_area_factor(self.wake_radius(D_src_il, dw_ijlk),
-                                                        dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl)
+        A_ol_factor_ijlk = self.overlapping_area_factor(wake_radius, dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl)
 
         with np.warnings.catch_warnings():
             np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
-            self.layout_factor_ijlk = WS_ilk[:, na] * (dw_ijlk > 0) * (A_ol_factor_ijlk / term_denominator_ijlk)
+            self.layout_factor_ijlk = WS_ref_ilk[:, na] * (dw_ijlk > 0) * (A_ol_factor_ijlk / term_denominator_ijlk)
 
-    def calc_deficit(self, WS_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk, ct_ilk, **_):
+    def calc_deficit(self, WS_ilk, WS_eff_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk, ct_ilk, **kwargs):
         if not self.deficit_initalized:
-            self._calc_layout_terms(WS_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk)
+            self._calc_layout_terms(WS_ilk, WS_eff_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk, **kwargs)
         ct_ilk = np.minimum(ct_ilk, 1)   # treat ct_ilk for np.sqrt()
         term_numerator_ilk = (1 - np.sqrt(1 - ct_ilk))
         return term_numerator_ilk[:, na] * self.layout_factor_ijlk
 
-    def wake_radius(self, D_src_il, dw_ijlk, **_):
-        wake_radius_ijlk = (self.k * dw_ijlk + D_src_il[:, na, :, na] / 2)
-        return wake_radius_ijlk
+    def _wake_radius(self, D_src_il, dw_ijlk, **kwargs):
+        k_ijlk = np.atleast_3d(self.k_ilk(kwargs.get('TI_eff_ilk', 0)))[:, na]
+        wake_radius_ijlk = (k_ijlk * dw_ijlk + D_src_il[:, na, :, na] / 2)
+        return wake_radius_ijlk, k_ijlk
+
+    def wake_radius(self, D_src_il, dw_ijlk, **kwargs):
+        return self._wake_radius(D_src_il, dw_ijlk, **kwargs)[0]
 
 
 class NOJ(PropagateDownwind):
@@ -69,7 +76,7 @@ class NOJ(PropagateDownwind):
                                    turbulenceModel=turbulenceModel)
 
 
-class NOJLocalDeficit(NiayifarGaussianDeficit, AreaOverlappingFactor):
+class NOJLocalDeficit(NOJDeficit, AreaOverlappingFactor):
     """
     Largely identical to NOJDeficit(), however using local quantities for the
     inflow wind speed and turbulence intensity. The latter input is a also a new
@@ -78,36 +85,11 @@ class NOJLocalDeficit(NiayifarGaussianDeficit, AreaOverlappingFactor):
     Niayifar and Porte-Agel (2016) estbalished for the Gaussian wake model.
     The expansion rates in the Jensen and Gaussian describe the same process.
     """
-
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il', 'D_dst_ijl', 'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_eff_ilk']
 
     def __init__(self, a=[0.38, 4e-3], use_effective_ws=True):
-        AreaOverlappingFactor.__init__(self, 0.1)
         self.a = a
         self.use_effective_ws = use_effective_ws
-
-    def _calc_layout_terms(self, WS_ilk, WS_eff_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk, TI_eff_ilk, **_):
-        WS_ref_ilk = (WS_ilk, WS_eff_ilk)[self.use_effective_ws]
-        R_src_il = D_src_il / 2
-        term_denominator_ijlk = (1 + self.k_ilk(TI_eff_ilk)[:, na, :, :] * dw_ijlk / R_src_il[:, na, :, na])**2
-        term_denominator_ijlk += (term_denominator_ijlk == 0)
-        A_ol_factor_ijlk = self.overlapping_area_factor(self.wake_radius(D_src_il, dw_ijlk, TI_eff_ilk),
-                                                        dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl)
-
-        with np.warnings.catch_warnings():
-            np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
-            self.layout_factor_ijlk = WS_ref_ilk[:, na] * (dw_ijlk > 0) * (A_ol_factor_ijlk / term_denominator_ijlk)
-
-    def calc_deficit(self, WS_ilk, WS_eff_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk, ct_ilk, TI_eff_ilk, **_):
-        if not self.deficit_initalized:
-            self._calc_layout_terms(WS_ilk, WS_eff_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk, TI_eff_ilk)
-        ct_ilk = np.minimum(ct_ilk, 1)   # treat ct_ilk for np.sqrt()
-        term_numerator_ilk = (1 - np.sqrt(1 - ct_ilk))
-        return term_numerator_ilk[:, na] * self.layout_factor_ijlk
-
-    def wake_radius(self, D_src_il, dw_ijlk, TI_eff_ilk, **_):
-        wake_radius_ijlk = (self.k_ilk(TI_eff_ilk)[:, na] * dw_ijlk + D_src_il[:, na, :, na] / 2)
-        return wake_radius_ijlk
 
 
 class NOJLocal(PropagateDownwind):

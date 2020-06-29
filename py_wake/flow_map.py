@@ -245,8 +245,8 @@ class HorizontalGrid(Grid):
     def __call__(self, x_i, y_i, h_i, **_):
         # setup horizontal X,Y grid
         def f(x, N=self.resolution, ext=self.extend):
-            ext *= max(1000, (max(x) - min(x)))
-            return np.linspace(min(x) - ext, max(x) + ext, N)
+            ext *= np.max([1000, (np.max(x) - np.min(x))])
+            return np.linspace(np.min(x) - ext, np.max(x) + ext, N)
         x, y, h = self.x, self.y, self.h
         if x is None:
             x = f(x_i)

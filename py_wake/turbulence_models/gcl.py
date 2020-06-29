@@ -23,9 +23,6 @@ class GCLTurbulence(SqrMaxSum, TurbulenceModel, AreaOverlappingFactor):
     """
     args4addturb = ['D_src_il', 'dw_ijlk', 'ct_ilk', 'D_dst_ijl', 'cw_ijlk', 'wake_radius_ijlk']
 
-    def __init__(self, k=.1):
-        AreaOverlappingFactor.__init__(self, k)
-
     def calc_added_turbulence(self, dw_ijlk, D_src_il, ct_ilk, wake_radius_ijlk,
                               D_dst_ijl, cw_ijlk, **_):
         """ Calculate the added turbulence intensity at downstream distance
