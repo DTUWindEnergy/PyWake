@@ -14,7 +14,7 @@ from py_wake.deficit_models.gaussian import BastankhahGaussian, BastankhahGaussi
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.superposition_models import LinearSum
 from py_wake.tests.check_speed import timeit
-from py_wake.site._site import LocalWind
+from py_wake.site._site import LocalWind, UniformWeibullSite
 
 
 f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,
@@ -78,7 +78,7 @@ def test_uniform_local_wind(uniform_site):
     npt.assert_array_equal(lw.WS, 10)
     npt.assert_array_equal(lw.WD, wdir_lst)
     npt.assert_array_equal(lw.TI, 0.1)
-    npt.assert_array_equal(lw.P, np.array([0.035972, 0.070002, 0.086432, 0.147379]) / 30)
+    npt.assert_array_equal(lw.P, np.array([0.035972, 0.070002, 0.086432, 0.147379]) * 3)
     npt.assert_array_equal(site.elevation(x_i, y_i), 0)
 
     lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=100)
@@ -111,13 +111,13 @@ def test_uniform_weibull_local_wind(uniform_weibull_site):
     npt.assert_array_equal(lw.WD, wdir_lst)
     npt.assert_array_equal(lw.TI, 0.1)
 
-    # ref_site = UniformWeibullSite(p_wd=f, a=A, k=k, ti=0.1, shear=site.shear)
-    # lw_ref = ref_site.local_wind(x_i=x_i, y_i=y_i, h_i=100, wd=wdir_lst, ws=wsp_lst)
-    # print(lw_ref.P)
-    npt.assert_array_almost_equal(lw.P, [[6.14690773e-05, 8.55914207e-05, 1.05950962e-04],
-                                         [8.72311046e-05, 1.30862281e-04, 1.73054727e-04],
-                                         [1.17587820e-04, 1.75168689e-04, 2.29638490e-04],
-                                         [1.19999621e-04, 1.84091959e-04, 2.50831917e-04]])
+#     ref_site = UniformWeibullSite(p_wd=f, a=A, k=k, ti=0.1, shear=site.shear)
+#     lw_ref = ref_site.local_wind(x_i=x_i, y_i=y_i, h_i=100, wd=wdir_lst, ws=wsp_lst)
+#     print(lw_ref.P)
+    npt.assert_array_almost_equal(lw.P, [[0.00553222, 0.00770323, 0.00953559],
+                                         [0.0078508, 0.01177761, 0.01557493],
+                                         [0.0105829, 0.01576518, 0.02066746],
+                                         [0.01079997, 0.01656828, 0.02257487]])
 
 
 def test_complex_fixed_pos_local_wind(complex_fixed_pos_site):
@@ -134,10 +134,10 @@ def test_complex_fixed_pos_local_wind(complex_fixed_pos_site):
     npt.assert_array_equal(lw.WD, (wdir_lst + np.arange(-2, 3)[:, na]) % 360)
     npt.assert_array_equal(lw.TI, 0.1)
 
-    npt.assert_array_almost_equal(lw.P, [[6.14690773e-05, 8.55914207e-05, 1.05950962e-04],
-                                         [8.72311046e-05, 1.30862281e-04, 1.73054727e-04],
-                                         [1.17587820e-04, 1.75168689e-04, 2.29638490e-04],
-                                         [1.19999621e-04, 1.84091959e-04, 2.50831917e-04]])
+    npt.assert_array_almost_equal(lw.P, [[0.00553222, 0.00770323, 0.00953559],
+                                         [0.0078508, 0.01177761, 0.01557493],
+                                         [0.0105829, 0.01576518, 0.02066746],
+                                         [0.01079997, 0.01656828, 0.02257487]])
 
 
 def test_complex_grid_local_wind(complex_grid_site):
@@ -163,10 +163,10 @@ def test_complex_grid_local_wind(complex_grid_site):
     npt.assert_array_equal(lw.WD, (wdir_lst + np.array([-.5, 1.5])[:, na]) % 360)
     npt.assert_array_equal(lw.TI, 0.1)
 
-    npt.assert_array_almost_equal(lw.P, [[6.14690773e-05, 8.55914207e-05, 1.05950962e-04],
-                                         [8.72311046e-05, 1.30862281e-04, 1.73054727e-04],
-                                         [1.17587820e-04, 1.75168689e-04, 2.29638490e-04],
-                                         [1.19999621e-04, 1.84091959e-04, 2.50831917e-04]])
+    npt.assert_array_almost_equal(lw.P, [[0.00553222, 0.00770323, 0.00953559],
+                                         [0.0078508, 0.01177761, 0.01557493],
+                                         [0.0105829, 0.01576518, 0.02066746],
+                                         [0.01079997, 0.01656828, 0.02257487]])
 
 
 def test_wd_independent_site():

@@ -13,7 +13,7 @@ from py_wake.deficit_models.fuga import FugaDeficit, Fuga
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, IEA37SimpleBastankhahGaussianDeficit,\
     ZongGaussianDeficit, NiayifarGaussianDeficit, BastankhahGaussian, IEA37SimpleBastankhahGaussian, ZongGaussian,\
     NiayifarGaussian
-from py_wake.deficit_models.gcl import GCLDeficit, GCL, GCLLocalDeficit, GCLLocal
+from py_wake.deficit_models.gcl import GCLDeficit, GCL, GCLLocal
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models.noj import NOJDeficit, NOJ, NOJLocalDeficit, NOJLocal
 from py_wake.examples.data.iea37 import iea37_path
@@ -26,6 +26,11 @@ from py_wake.tests import npt
 from py_wake.tests.test_files import tfp
 from py_wake.turbulence_models.gcl import GCLTurbulence
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
+
+
+class GCLLocalDeficit(GCLDeficit):
+    def __init__(self):
+        GCLDeficit.__init__(self, use_effective_ws=True, use_effective_ti=True)
 
 
 def get_all_deficit_models():

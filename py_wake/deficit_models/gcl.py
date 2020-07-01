@@ -162,15 +162,29 @@ class GCLDeficit(DeficitModel):
         empirical downstream boundary conditions on the wake expansion that depend
         on the rotor thrust and the ambient turbulence conditions, respectively.
     """
-    args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_ilk']
 
-    def wake_radius(self, dw_ijlk, D_src_il, TI_ilk, ct_ilk, **_):
+    def __init__(self, use_effective_ws=False, use_effective_ti=False):
+        self.use_effective_ws = use_effective_ws
+        self.use_effective_ti = use_effective_ti
+        self.args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_ilk']
+        if use_effective_ws:
+            self.args4deficit.append('WS_eff_ilk', )
+        if use_effective_ti:
+            self.args4deficit.append('TI_eff_ilk')
+
+    def wake_radius(self, dw_ijlk, D_src_il, TI_ilk, ct_ilk, **kwargs):
+        if self.use_effective_ti:
+            TI_ilk = kwargs['TI_eff_ilk']
         with np.warnings.catch_warnings():
             # if term is 0, exp(log(0))=0 as expected for a positive factor
             np.warnings.filterwarnings('ignore', r'invalid value encountered in log')
             return get_Rw(x=dw_ijlk, R=(D_src_il / 2)[:, na, :, na], TI=TI_ilk[:, na], CT=ct_ilk[:, na])[0]
 
-    def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, TI_ilk, **_):
+    def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, TI_ilk, **kwargs):
+        if self.use_effective_ws:
+            WS_ilk = kwargs['WS_eff_ilk']
+        if self.use_effective_ti:
+            TI_ilk = kwargs['TI_eff_ilk']
         eps = 1e-10
         dw_ijlk_gt0 = np.maximum(dw_ijlk, eps)
         R_src_il = D_src_il / 2.
@@ -187,40 +201,12 @@ class GCL(PropagateDownwind):
                                    deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
 
 
-class GCLLocalDeficit(DeficitModel):
-    """
-    Description:
-        Identical to GCLDeficit with the addition of the possibility to use the
-        local wind speed at the rotor and the local TI.
-    """
-    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_eff_ilk']
-
-    def __init__(self, use_effective_ws=True):
-        self.use_effective_ws = use_effective_ws
-
-    def wake_radius(self, dw_ijlk, D_src_il, TI_eff_ilk, ct_ilk, **_):
-        with np.warnings.catch_warnings():
-            # if term is 0, exp(log(0))=0 as expected for a positive factor
-            np.warnings.filterwarnings('ignore', r'invalid value encountered in log')
-            return get_Rw(x=dw_ijlk, R=(D_src_il / 2)[:, na, :, na], TI=TI_eff_ilk[:, na], CT=ct_ilk[:, na])[0]
-
-    def calc_deficit(self, WS_ilk, WS_eff_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, TI_eff_ilk, **_):
-        WS_ref_ilk = (WS_ilk, WS_eff_ilk)[self.use_effective_ws]
-        eps = 1e-10
-        dw_ijlk_gt0 = np.maximum(dw_ijlk, eps)
-        R_src_il = D_src_il / 2.
-        dU = -get_dU(x=dw_ijlk_gt0, r=cw_ijlk, R=R_src_il[:, na, :, na],
-                     CT=ct_ilk[:, na], TI=TI_eff_ilk[:, na])
-        return WS_ref_ilk[:, na] * dU * (dw_ijlk > eps)
-
-
 class GCLLocal(PropagateDownwind):
-    def __init__(self, site, windTurbines, use_effective_ws=True,
-                 rotorAvgModel=RotorCenter(), superpositionModel=LinearSum(),
+    def __init__(self, site, windTurbines, rotorAvgModel=RotorCenter(), superpositionModel=LinearSum(),
                  deflectionModel=None, turbulenceModel=None):
 
         PropagateDownwind.__init__(self, site, windTurbines,
-                                   wake_deficitModel=GCLLocalDeficit(use_effective_ws=use_effective_ws),
+                                   wake_deficitModel=GCLDeficit(use_effective_ws=True, use_effective_ti=True),
                                    rotorAvgModel=rotorAvgModel, superpositionModel=superpositionModel,
                                    deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
 

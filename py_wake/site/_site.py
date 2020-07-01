@@ -45,7 +45,7 @@ class LocalWind(xr.Dataset):
         xr.Dataset.__init__(self, data_vars={k: v for k, v in [('WD', WD), ('WS', WS),
                                                                ('TI', TI), ('P', P)] if v is not None},
                             coords=coords)
-        self.wd_bin_size = wd_bin_size
+        self.attrs['wd_bin_size'] = wd_bin_size
 
         # set localWind.WS_ilk etc.
         for k in ['WD', 'WS', 'TI', 'P']:
@@ -140,9 +140,7 @@ class Site(ABC):
                 Probability/weight
         """
         wd, ws = self.get_defaults(wd, ws)
-        self.wd_bin_size(wd, wd_bin_size)
-        if wd_bin_size is None:
-            wd_bin_size = 1
+        wd_bin_size = self.wd_bin_size(wd, wd_bin_size)
         lw = LocalWind(x_i, y_i, h_i, wd, ws, wd_bin_size)
         return self._local_wind(lw, ws_bins)
 
@@ -239,8 +237,11 @@ class Site(ABC):
         """
 
     def wd_bin_size(self, wd, wd_bin_size=None):
+        wd = np.atleast_1d(wd)
         if wd_bin_size is not None:
             return wd_bin_size
+        elif len(wd) > 1 and len(np.unique(np.diff(wd))) == 1:
+            return wd[1] - wd[0]
         else:
             return 360 / len(np.atleast_1d(wd))
 
