@@ -2,9 +2,8 @@ from py_wake.site._site import Site, UniformWeibullSite
 import xarray as xr
 from py_wake.site.distance import StraightDistance
 import numpy as np
-from py_wake.utils.eq_distance_interpolator import EqDistRegGridInterpolator
 import warnings
-from py_wake.tests import npt
+from py_wake.utils.grid_interpolator import GridInterpolator
 
 
 class XRSite(UniformWeibullSite):
@@ -117,10 +116,10 @@ class XRSite(UniformWeibullSite):
 
         if len(ip_dims) > 0:
             try:
-                eq_interp = EqDistRegGridInterpolator([var.coords[k].data for k in ip_dims], data,
-                                                      method=self.interp_method)
+                grid_interp = GridInterpolator([var.coords[k].data for k in ip_dims], data,
+                                               method=self.interp_method)
             except ValueError as e:
-                warnings.warn("""The fast EqDistRegGridInterpolator fails (%s).
+                warnings.warn("""The fast GridInterpolator fails (%s).
                 Falling back on the slower xarray interp""" % e,
                               RuntimeWarning)
                 return var.sel_interp_all(coords, method=self.interp_method)
@@ -145,7 +144,7 @@ class XRSite(UniformWeibullSite):
             elif 'ws' in data_dims:
                 shape.append(data.shape[data_dims.index('ws')])
 
-            ip_data = eq_interp(np.array(xp).T).T
+            ip_data = grid_interp(np.array(xp).T).T
             ip_data = ip_data.reshape(shape)
         else:
             ip_data = data
