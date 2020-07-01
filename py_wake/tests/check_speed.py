@@ -27,7 +27,7 @@ def timeit(func, min_time=0, min_runs=1, verbose=False, line_profile=False, prof
                 lp.add_function(f)
             lp_wrapper = lp(func)
             t = time.time()
-            res = lp_wrapper()
+            res = lp_wrapper(*args, **kwargs)
             t = time.time() - t
             if verbose:
                 lp.print_stats()

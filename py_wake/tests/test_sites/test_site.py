@@ -192,4 +192,4 @@ def test_uniform_site_probability():
     p_wd = np.array([0.1, 0.2, 0.1, 0.2, 0.1, 0.2, 0.1])
     site = UniformSite(p_wd, ti=1)
     lw = site.local_wind(0, 0, 0, wd=np.linspace(0, 360, p_wd.size, endpoint=False), ws=12)
-    npt.assert_array_almost_equal(lw.P, p_wd / 360 * 7)
+    npt.assert_array_almost_equal(lw.P, p_wd)

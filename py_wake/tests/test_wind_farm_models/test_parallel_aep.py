@@ -39,7 +39,7 @@ def test_multiprocessing_wd():
     aep2, t_lst2 = timeit(aep_all_multiprocessing, min_runs=1)(pool, wt_x, wt_y)
     t1, t2 = np.mean(t_lst1), np.mean(t_lst2)
     print("1 CPU: %.2fs, %d CPUs: %.2fs, speedup: %d%%" % (t1, pool._processes, t2, (t1 - t2) / t1 * 100))
-    npt.assert_almost_equal(aep1, aep2)
+    npt.assert_almost_equal(aep1, aep2 / 36)
 
 
 def test_multiprocessing_wfm_xy():

@@ -15,8 +15,7 @@ class RotorAvgModel(DeficitModel):
 
     def set_wake_deficitModel(self, deficitModel):
         self.deficitModel = deficitModel
-        self.args4deficit = deficitModel.args4deficit + \
-            [a for a in self.args4rotor_avg_deficit if a not in deficitModel.args4deficit]
+        self.args4deficit = set(deficitModel.args4deficit + self.args4rotor_avg_deficit)
 
     def calc_deficit(self, D_dst_ijl, **kwargs):
         if np.all(D_dst_ijl == 0):

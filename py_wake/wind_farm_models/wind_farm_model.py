@@ -156,7 +156,7 @@ class SimulationResult(xr.Dataset):
         self['WS'] = localWind.WS
         self['TI'] = localWind.TI
         if yaw_ilk is None:
-            self['Yaw'] = xr.DataArray(0).broadcast_like(self.Power)
+            self['Yaw'] = self.Power * 0
         else:
             self['Yaw'] = xr.DataArray(yaw_ilk, dims=['wt', 'wd', 'ws'])
         self['Yaw'].attrs['Description'] = 'Yaw misalignment [deg]'

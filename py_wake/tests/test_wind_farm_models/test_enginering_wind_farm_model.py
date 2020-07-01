@@ -120,7 +120,7 @@ def test_aep():
 
     sim_res = wfm([0], [0], wd=270)
 
-    npt.assert_almost_equal(sim_res.aep().sum(), 3.35 * 24 * 365 / 360 / 1000)
+    npt.assert_almost_equal(sim_res.aep().sum(), 3.35 * 24 * 365 / 1000)
     npt.assert_almost_equal(sim_res.aep(normalize_probabilities=True).sum(), 3.35 * 24 * 365 / 1000)
 
     npt.assert_equal(sim_res.aep().data.sum(), wfm.aep([0], [0], wd=270))
@@ -179,7 +179,7 @@ def test_dAEP_2wt():
     ax1.set_title("Center line")
     for grad in [fd, cs, autograd]:
         dAEPdx = wfm.dAEPdn(0, grad)(x_, y, **kwargs)[1]
-        npt.assert_almost_equal(dAEPdx, 3.976975605364392e-06, (10, 5)[grad == fd])
+        npt.assert_almost_equal(dAEPdx / 360, 3.976975605364392e-06, (10, 5)[grad == fd])
         plot_gradients(wfm.aep(x_, y, **kwargs), dAEPdx, x_[1], grad.__name__, step=100, ax=ax1)
     y_lst = np.array([0, 1.]) * np.arange(-100, 100, 5)[:, na]
     ax2.plot(y_lst[:, 1], [wfm.aep(x, y_, **kwargs) for y_ in y_lst])
@@ -190,7 +190,7 @@ def test_dAEP_2wt():
     for grad in [fd, cs, autograd]:
         dAEPdy = wfm.dAEPdn(1, grad)(x, y_, **kwargs)[1]
         plot_gradients(wfm.aep(x, y_, **kwargs), dAEPdy, y_[1], grad.__name__, step=50, ax=ax2)
-        npt.assert_almost_equal(dAEPdy, 3.794435973860448e-05, (10, 5)[grad == fd])
+        npt.assert_almost_equal(dAEPdy / 360, 3.794435973860448e-05, (10, 5)[grad == fd])
 
     if 0:
         plt.legend()

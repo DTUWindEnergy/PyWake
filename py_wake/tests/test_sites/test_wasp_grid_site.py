@@ -48,7 +48,7 @@ def test_local_wind(site):
     npt.assert_array_equal(WS_ilk.shape, (8, 360, 23))
 
     # check probability local_wind()[-1]
-    npt.assert_almost_equal(site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=[0], ws=[10]).P_ilk,
+    npt.assert_almost_equal(site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=[0], ws=[10], wd_bin_size=1).P_ilk,
                             site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=[0], ws=[10], wd_bin_size=2).P_ilk / 2, 6)
 
 

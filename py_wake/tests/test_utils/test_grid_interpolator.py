@@ -93,7 +93,7 @@ def compare_speed():
     ws = np.arange(3, 26)
     V = np.random.rand(len(x), len(y), len(z), len(wd), len(ws))
     print(V.shape)
-    for x in [x, np.r_[x[:-1], 100]][:1]:
+    for x in [x, np.r_[x[:-1], 100]]:
         da = xr.DataArray(V, coords=[('x', x), ('y', y), ('z', z), ('wd', wd), ('ws', ws)])
         coords = xr.Dataset(coords={'wd': np.arange(360), 'ws': [9, 10], 'i': np.arange(16),
                                     'x': ('i', np.linspace(0, 9, 16)),

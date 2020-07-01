@@ -3,7 +3,9 @@ from abc import ABC, abstractmethod
 
 class DeficitModel(ABC):
     deficit_initalized = False
-    args4deficit = ['WS_ilk', 'dw_ijlk']
+
+    def __init__(self):
+        self.args4deficit = ['WS_ilk', 'dw_ijlk']
 
     def _calc_layout_terms(self, **_):
         pass
