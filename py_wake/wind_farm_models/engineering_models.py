@@ -225,7 +225,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                 add_turb_ijk = np.zeros((I, J, K))
                 for i in range(I):
                     args_i = {k: v[i][na] for k, v in args.items()}
-                    deficit_ijk[i] = self._calc_deficit(dw_ijlk=dw_ijlk[i], **args_i)[0, :, 0]
+                    deficit_ijk[i] = self._calc_deficit(dw_ijlk=dw_ijlk[i][na], **args_i)[0, :, 0]
                     if self.turbulenceModel:
                         add_turb_ijk[i] = self.turbulenceModel.calc_added_turbulence(
                             dw_ijlk=dw_ijlk[i], **args_i)[0, :, 0]

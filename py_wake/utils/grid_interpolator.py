@@ -23,7 +23,7 @@ class GridInterpolator(object):
         self.ui = ui
         self.method = method
 
-    def __call__(self, xp, method=None):
+    def __call__(self, xp, method=None, check_bounds=True):
         method = method or self.method
         if method not in ['linear', 'nearest']:
             raise ValueError('Method must be "linear" or "nearest"')
@@ -38,7 +38,7 @@ class GridInterpolator(object):
             irreg_dx = irreg_x1 - irreg_x0
             xpi[:, self.irregular_axes] = irreg_i.T + (xp[:, self.irregular_axes] - irreg_x0.T) / irreg_dx.T
 
-        if np.any(xpi < 0) or np.any(xpi + 1 > self.n[na]):
+        if check_bounds and (np.any(xpi < 0) or np.any(xpi + 1 > self.n[na])):
             raise ValueError("Outside data area")
         xpi0 = xpi.astype(int)
         xpif = xpi - xpi0

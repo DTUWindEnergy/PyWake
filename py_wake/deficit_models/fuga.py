@@ -7,6 +7,7 @@ from py_wake.superposition_models import LinearSum
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
 from py_wake.tests.test_files import tfp
+from py_wake.utils.grid_interpolator import GridInterpolator
 
 
 class FugaDeficit(DeficitModel):
@@ -15,7 +16,7 @@ class FugaDeficit(DeficitModel):
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijl', 'h_il', 'ct_ilk', 'D_src_il']
 
     def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'):
-        self.load(LUT_path)
+        self.lut_interpolator = LUTInterpolator(*self.load(LUT_path))
 
     def load(self, path):
 
@@ -55,31 +56,29 @@ class FugaDeficit(DeficitModel):
         prefix = lines[0].strip()
         nxW, nyW = map(int, lines[2:4])
         dx, dy, sigmax, sigmay = map(float, lines[4:8])  # @UnusedVariable
-        self.lo_level, self.hi_level = map(int, lines[11:13])
-        self.dsAll = ds
+        lo_level, hi_level = map(int, lines[11:13])
+        dsAll = ds
 
-        zlevels = np.arange(self.lo_level, self.hi_level + 1)
+        zlevels = np.arange(lo_level, hi_level + 1)
         mdu = [np.fromfile(path + prefix + '%04dUL.dat' % j, np.dtype('<f'), -1)
                for j in zlevels]
 
-        self.du = -np.array(mdu, dtype=np.float32).reshape((len(mdu), nyW // 2, nxW)) * factor
-        self.z0 = z0
-        self.x0 = nxW // 4
-        self.dx = dx
-        self.x = np.arange(-self.x0, nxW * 3 / 4) * dx
-        self.y = np.arange(nyW // 2) * dy
-        self.dy = dy
-        if self.lo_level == self.hi_level == 9999:
-            self.z = [zhub]
+        du = -np.array(mdu, dtype=np.float32).reshape((len(mdu), nyW // 2, nxW)) * factor
+        z0 = z0
+        x0 = nxW // 4
+        dx = dx
+        x = np.arange(-x0, nxW * 3 / 4) * dx
+        y = np.arange(nyW // 2) * dy
+        dy = dy
+        if lo_level == hi_level == 9999:
+            z = [zhub]
         else:
-            self.z = z0 * np.exp(zlevels * self.dsAll)
-
-        self.lut_interpolator = LUTInterpolator(self.x, self.y, self.z, self.du)
+            z = z0 * np.exp(zlevels * dsAll)
+        # self.grid_interplator = GridInterpolator([self.z, self.y, self.x], self.du)
+        return x, y, z, du
 
     def interpolate(self, x, y, z):
-        x = np.maximum(np.minimum(x, self.x[-1]), self.x[0])
-        y = np.maximum(np.minimum(y, self.y[-1]), self.y[0])
-        z = np.maximum(np.minimum(z, self.z[-1]), self.z[0])
+        # self.grid_interplator(np.array([zyx.flatten() for zyx in [z, y, x]]).T, check_bounds=False).reshape(x.shape)
         return self.lut_interpolator((x, y, z))
 
     def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_il, dh_ijl, D_src_il, **_):
@@ -88,9 +87,9 @@ class FugaDeficit(DeficitModel):
             ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na])  # avoid wake on itself
               )
 
-    def calc_deficit(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk, dh_ijl, h_il, ct_ilk, D_src_il, **_):
+    def calc_deficit(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk, dh_ijl, h_il, ct_ilk, D_src_il, **kwargs):
         if not self.deficit_initalized:
-            self._calc_layout_terms(dw_ijlk, hcw_ijlk, h_il, dh_ijl, D_src_il)
+            self._calc_layout_terms(dw_ijlk, hcw_ijlk, h_il, dh_ijl, D_src_il, **kwargs)
         return self.mdu_ijlk * (ct_ilk * WS_eff_ilk**2 / WS_ilk)[:, na]
 
     def wake_radius(self, D_src_il, **_):
@@ -129,6 +128,9 @@ class LUTInterpolator(object):
 
     def __call__(self, xyz):
         xp, yp, zp = xyz
+        xp = np.maximum(np.minimum(xp, self.x[-1]), self.x[0])
+        yp = np.maximum(np.minimum(yp, self.y[-1]), self.y[0])
+        zp = np.maximum(np.minimum(zp, self.z[-1]), self.z[0])
 
         def i0f(_i):
             _i0 = np.asarray(_i).astype(np.int)

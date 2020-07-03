@@ -111,28 +111,22 @@ class XRSite(UniformWeibullSite):
                     "Number of points, i(=%d), in site data variable, %s, must match number of requested points(=%d)" %
                     (len(var.i), var.name, len(coords['i'])))
             # requesting all points(wt positions) in site
-            ip_dims.remove('i')
-            ip_data_dims = ['i']
+            # ip_dims.remove('i')
+            # ip_data_dims = ['i']
 
         if len(ip_dims) > 0:
-            try:
-                grid_interp = GridInterpolator([var.coords[k].data for k in ip_dims], data,
-                                               method=self.interp_method)
-            except ValueError as e:
-                warnings.warn("""The fast GridInterpolator fails (%s).
-                Falling back on the slower xarray interp""" % e,
-                              RuntimeWarning)
-                return var.sel_interp_all(coords, method=self.interp_method)
+            grid_interp = GridInterpolator([var.coords[k].data for k in ip_dims], data,
+                                           method=self.interp_method)
 
             # get dimension of interpolation coordinates
-            I = (1, len(coords.get('x', coords.get('y', coords.get('h', [None])))))[
-                any([n in data_dims for n in 'xyh'])]
+            I = (1, len(coords.get('x', coords.get('y', coords.get('h', coords.get('i', [None]))))))[
+                any([n in data_dims for n in 'xyhi'])]
             L, K = [(1, len(coords.get(n, [None])))[indices is None and n in data_dims]
                     for n, indices in [('wd', l_indices), ('ws', k_indices)]]
 
             # gather interpolation coordinates xp with len #xyh x #wd x #ws
-            xp = [coords[n].data.repeat(L * K) for n in 'xyh' if n in ip_dims]
-            ip_data_dims = [n for n, l in [('i', ['x', 'y', 'h']), ('wd', ['wd']), ('ws', ['ws'])]
+            xp = [coords[n].data.repeat(L * K) for n in 'xyhi' if n in ip_dims]
+            ip_data_dims = [n for n, l in [('i', ['x', 'y', 'h', 'i']), ('wd', ['wd']), ('ws', ['ws'])]
                             if any([l_ in ip_dims for l_ in l])]
             shape = [l for d, l in [('i', I), ('wd', L), ('ws', K)] if d in ip_data_dims]
             if 'wd' in ip_dims:
@@ -150,8 +144,8 @@ class XRSite(UniformWeibullSite):
             ip_data = data
             ip_data_dims = []
 
-        if 'i' in var.dims:
-            ip_data_dims.insert(0, 'i')
+#         if 'i' in var.dims:
+#             ip_data_dims.insert(0, 'i')
         if l_indices is not None:
             ip_data_dims.append('wd')
             ip_data = sel(ip_data, ip_data_dims, l_indices, 'wd')
