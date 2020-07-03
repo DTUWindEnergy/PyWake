@@ -6,8 +6,10 @@ from py_wake.tests.test_files import tfp
 from py_wake import Fuga
 from py_wake.examples.data import hornsrev1
 import matplotlib.pyplot as plt
-from py_wake.deficit_models.fuga import FugaBlockage
+from py_wake.deficit_models.fuga import FugaBlockage, FugaDeficit, LUTInterpolator
 from py_wake.flow_map import HorizontalGrid
+from py_wake.tests.check_speed import timeit
+from py_wake.utils.grid_interpolator import GridInterpolator
 
 
 def test_fuga():
@@ -19,7 +21,8 @@ def test_fuga():
     path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
     site = UniformSite([1, 0, 0, 0], ti=0.075)
     wake_model = Fuga(path, site, wts)
-    res = wake_model(x=wt_x, y=wt_y, wd=[30], ws=[10])
+    res, _ = timeit(wake_model.__call__, verbose=0, line_profile=0,
+                    profile_funcs=[FugaDeficit.interpolate, LUTInterpolator.__call__, GridInterpolator.__call__])(x=wt_x, y=wt_y, wd=[30], ws=[10])
 
     npt.assert_array_almost_equal(res.WS_eff_ilk.flatten(),
                                   [10.002683492812844, 10.0, 8.413483643142389, 10.036952526815286,
@@ -46,8 +49,8 @@ def test_fuga():
         plt.plot(X[0], Z70[140, :], label="Z=70m")
         plt.plot(X[0], Z73[140, :], label="Z=73m")
         plt.plot(X[0, 100:400:10], Z70[140, 100:400:10], '.')
-        print(list(np.round(Z70[140, 100:400:10], 4)))
-        print(list(np.round(Z73[140, 100:400:10], 4)))
+        print(list(np.round(Z70.data[140, 100:400:10], 4)))
+        print(list(np.round(Z73.data[140, 100:400:10], 4)))
         plt.legend()
         plt.show()
 
