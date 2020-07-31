@@ -4,7 +4,7 @@ from py_wake.turbulence_models.turbulence_model import TurbulenceModel, SqrMaxSu
 from py_wake.utils.area_overlapping_factor import AreaOverlappingFactor
 
 
-class CrespoHernandez(SqrMaxSum, TurbulenceModel, AreaOverlappingFactor):
+class CrespoHernandez(TurbulenceModel, AreaOverlappingFactor):
     """
     Implemented according to:
     A. Crespo and J. Hernández
@@ -13,6 +13,9 @@ class CrespoHernandez(SqrMaxSum, TurbulenceModel, AreaOverlappingFactor):
 
     """
     args4addturb = ['dw_ijlk', 'cw_ijlk', 'D_src_il', 'ct_ilk', 'TI_ilk', 'D_dst_ijl', 'wake_radius_ijlk']
+
+    def __init__(self, addedTurbulenceSuperpositionModel=SqrMaxSum()):
+        TurbulenceModel.__init__(self, addedTurbulenceSuperpositionModel)
 
     def calc_added_turbulence(self, dw_ijlk, cw_ijlk, D_src_il, ct_ilk, TI_ilk, D_dst_ijl, wake_radius_ijlk, **_):
         """ Calculate the added turbulence intensity at locations specified by

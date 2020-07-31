@@ -4,6 +4,10 @@ from abc import abstractmethod
 
 class TurbulenceModel():
 
+    def __init__(self, addedTurbulenceSuperpositionModel):
+        assert isinstance(addedTurbulenceSuperpositionModel, AddedTurbulenceSuperpositionModel)
+        self.addedTurbulenceSuperpositionModel = addedTurbulenceSuperpositionModel
+
     @abstractmethod
     def calc_added_turbulence(self):
         """Calculate added turbulence intensity caused by the x'th most upstream wind turbines
@@ -21,6 +25,11 @@ class TurbulenceModel():
         add_turb_jlk : array_like
         """
 
+    def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
+        return self.addedTurbulenceSuperpositionModel.calc_effective_TI(TI_xxx, add_turb_jxxx)
+
+
+class AddedTurbulenceSuperpositionModel():
     @abstractmethod
     def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
         """Calculate effective turbulence intensity
@@ -39,16 +48,16 @@ class TurbulenceModel():
         """
 
 
-class LinearSum():
+class LinearSum(AddedTurbulenceSuperpositionModel):
     def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
         return TI_xxx + np.sum(add_turb_jxxx, 0)
 
 
-class MaxSum():
+class MaxSum(AddedTurbulenceSuperpositionModel):
     def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
         return TI_xxx + np.max(add_turb_jxxx, 0)
 
 
-class SqrMaxSum():
+class SqrMaxSum(AddedTurbulenceSuperpositionModel):
     def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
         return np.sqrt(TI_xxx**2 + np.max(add_turb_jxxx, 0)**2)
