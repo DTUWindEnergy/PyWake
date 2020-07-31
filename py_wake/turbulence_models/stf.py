@@ -3,10 +3,13 @@ import numpy as np
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel, LinearSum
 
 
-class STF2017TurbulenceModel(LinearSum, TurbulenceModel):
+class STF2017TurbulenceModel(TurbulenceModel):
     """Steen Frandsen model implemented according to IEC61400-1, 2017"""
 
     args4addturb = ['dw_ijlk', 'cw_ijlk', 'D_src_il', 'ct_ilk', 'TI_ilk']
+
+    def __init__(self, addedTurbulenceSuperpositionModel=LinearSum()):
+        TurbulenceModel.__init__(self, addedTurbulenceSuperpositionModel)
 
     def weight(self, dw_ijlk, cw_ijlk, D_src_il):
         # The weight is given by the exponential term in Eq 3.16 and accounts

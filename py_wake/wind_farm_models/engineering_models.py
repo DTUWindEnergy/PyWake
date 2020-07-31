@@ -106,7 +106,7 @@ class EngineeringWindFarmModel(WindFarmModel):
             self.blockage_deficitModel.deficit_initalized = False
 
     def _add_blockage(self, deficit, dw_ijlk, **kwargs):
-        # the split line between wake and blockage is set slightly downstream to handle
+        # the split line between wake and blockage is set slightly upstream to handle
         # numerical inaccuracy in the trigonometric functions that calculates dw_ijlk
         rotor_pos = -1e-10
         if self.blockage_deficitModel is None:
@@ -360,7 +360,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
         i_wd_l = np.arange(L)
 
         # Iterate over turbines in down wind order
-        for j in range(I):
+        for j in progressbar(range(I)):
             i_wt_l = dw_order_indices_dl[:, j]
             m = i_wt_l * L + i_wd_l  # current wt (j'th most upstream wts for all wdirs)
 

@@ -4,15 +4,7 @@ from py_wake.turbulence_models.turbulence_model import TurbulenceModel, SqrMaxSu
 from py_wake.utils.area_overlapping_factor import AreaOverlappingFactor
 
 
-class GCLTurbulence(SqrMaxSum, TurbulenceModel, AreaOverlappingFactor):
-    """G. C. Larsen model implemented according to
-
-    Pierik, J. T. G., Dekker, J. W. M., Braam, H., Bulder, B. H., Winkelaar, D.,
-    Larsen, G. C., Morfiadakis, E., Chaviaropoulos, P., Derrick, A., & Molly, J. P. (1999).
-    European wind turbine standards II (EWTS-II). In E. L. Petersen, P. Hjuler Jensen, K. Rave,
-    P. Helm, & H. Ehmann (Eds.), Wind energy for the next millennium. Proceedings (pp. 568-571).
-    James and James Science Publishers.
-    """
+class GCLTurbulence(TurbulenceModel, AreaOverlappingFactor):
     """G. C. Larsen model implemented according to
 
     Pierik, J. T. G., Dekker, J. W. M., Braam, H., Bulder, B. H., Winkelaar, D.,
@@ -22,6 +14,9 @@ class GCLTurbulence(SqrMaxSum, TurbulenceModel, AreaOverlappingFactor):
     James and James Science Publishers.
     """
     args4addturb = ['D_src_il', 'dw_ijlk', 'ct_ilk', 'D_dst_ijl', 'cw_ijlk', 'wake_radius_ijlk']
+
+    def __init__(self, addedTurbulenceSuperpositionModel=SqrMaxSum()):
+        TurbulenceModel.__init__(self, addedTurbulenceSuperpositionModel)
 
     def calc_added_turbulence(self, dw_ijlk, D_src_il, ct_ilk, wake_radius_ijlk,
                               D_dst_ijl, cw_ijlk, **_):
