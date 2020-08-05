@@ -2,7 +2,6 @@ from py_wake.site._site import Site, UniformWeibullSite
 import xarray as xr
 from py_wake.site.distance import StraightDistance
 import numpy as np
-import warnings
 from py_wake.utils.grid_interpolator import GridInterpolator
 
 
@@ -179,7 +178,7 @@ class XRSite(UniformWeibullSite):
             else:
                 return default
 
-        WS, WD, TI = [get(n, d) for n, d in [('WS', lw.ws), ('WD', lw.wd), ('TI', None)]]
+        WS, WD, TI, TI_std = [get(n, d) for n, d in [('WS', lw.ws), ('WD', lw.wd), ('TI', None), ('TI_std', None)]]
 
         if 'Speedup' in self.ds:
             WS = self.interp(self.ds.Speedup, lw.coords) * WS
@@ -197,6 +196,8 @@ class XRSite(UniformWeibullSite):
             WD = (self.interp(self.ds.Turning, lw.coords) + WD) % 360
 
         lw.set_W(WS, WD, TI, ws_bins, self.use_WS_bins)
+        lw.set_data_array(TI_std, 'TI_std', 'Standard deviation of turbulence intensity')
+
         if 'P' in self.ds:
             lw['P'] = self.interp(self.ds.P, lw.coords) / \
                 self.ds.sector_width * lw.wd_bin_size
