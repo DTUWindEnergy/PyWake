@@ -26,9 +26,10 @@ class EngineeringWindFarmModel(WindFarmModel):
     Arguments available for calc_deficit (specifiy in args4deficit):
 
     - WS_ilk: Local wind speed without wake effects
-    - TI_ilk: local turbulence intensity without wake effects
+    - TI_ilk: Local turbulence intensity without wake effects
+    - TI_std_ilk: Standard deviation of local turbulence intensity
     - WS_eff_ilk: Local wind speed with wake effects
-    - TI_eff_ilk: local turbulence intensity with wake effects
+    - TI_eff_ilk: Local turbulence intensity with wake effects
     - D_src_il: Diameter of source turbine
     - D_dst_ijl: Diameter of destination turbine
     - dw_ijlk: Downwind distance from turbine i to point/turbine j
@@ -75,6 +76,11 @@ class EngineeringWindFarmModel(WindFarmModel):
         self.args4deficit = self.rotorAvgModel.args4deficit
         if self.blockage_deficitModel:
             self.args4deficit = set(self.args4deficit) | set(self.blockage_deficitModel.args4deficit)
+        self.args4all = set(self.args4deficit)
+        if self.turbulenceModel:
+            self.args4all = self.args4all | set(self.turbulenceModel.args4addturb)
+        if self.deflectionModel:
+            self.args4all = self.args4all | set(self.deflectionModel.args4deflection)
 
     def __str__(self):
         def name(o):

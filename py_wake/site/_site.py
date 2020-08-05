@@ -48,16 +48,19 @@ class LocalWind(xr.Dataset):
         self.attrs['wd_bin_size'] = wd_bin_size
 
         # set localWind.WS_ilk etc.
-        for k in ['WD', 'WS', 'TI', 'P']:
+        for k in ['WD', 'WS', 'TI', 'P', 'TI_std']:
             setattr(self.__class__, "%s_ilk" % k, property(lambda self, k=k: self[k].ilk()))
 
+    def set_data_array(self, data_array, name, description):
+        if data_array is not None:
+            data_array.attrs.update({'Description': description})
+            self[name] = data_array
+
     def set_W(self, ws, wd, ti, ws_bins, use_WS=False):
-        def set_desc(v, description):
-            v.attrs.update({'Description': description})
-            return v
-        self['WS'] = set_desc(ws, 'Local free-stream wind speed [m/s]')
-        self['WD'] = set_desc(wd, 'Local free-stream wind direction [deg]')
-        self['TI'] = set_desc(ti, 'Local free-stream turbulence intensity')
+        for da, name, desc in [(ws, 'WS', 'Local free-stream wind speed [m/s]'),
+                               (wd, 'WD', 'Local free-stream wind direction [deg]'),
+                               (ti, 'TI', 'Local free-stream turbulence intensity')]:
+            self.set_data_array(da, name, desc)
 
         # upper and lower bounds of wind speed bins
         WS = [self.ws, self.WS][use_WS]
