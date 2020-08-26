@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 from py_wake.rotor_avg_models.rotor_avg_model import gauss_quadrature, PolarGridRotorAvg, RotorCenter, \
-    polar_gauss_quadrature, EqGridRotorAvg, GQGridRotorAvg
+    polar_gauss_quadrature, EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg
 from py_wake.tests import npt
 import numpy as np
 from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37_WindTurbines
@@ -10,7 +10,6 @@ from py_wake.wind_farm_models.engineering_models import All2AllIterative, Propag
 from py_wake.superposition_models import SquaredSum, LinearSum
 from py_wake.tests.test_deficit_models.test_deficit_models import get_all_deficit_models
 import pytest
-from py_wake.turbulence_models.gcl import GCLTurbulence
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 
 
@@ -48,7 +47,7 @@ def test_RotorGridAvg():
         npt.assert_almost_equal(sim_res.WS_eff_ilk[1, 0, 0], ref1)
 
         plt.plot([-R, R], [sim_res.WS_eff_ilk[1, 0, 0]] * 2, label=name)
-    if 0:
+    if 1:
         plt.legend()
         plt.show()
     plt.close()
@@ -109,6 +108,39 @@ def test_polar_gauss_quadrature():
                                               0.67, 0.93, -0.05, -0.25, -0.51, -0.71], 2)
     npt.assert_array_almost_equal(m.nodes_weight, [0.05, 0.09, 0.09, 0.05, 0.08, 0.14, 0.14,
                                                    0.08, 0.05, 0.09, 0.09, 0.05], 2)
+
+
+@pytest.mark.parametrize('n,x,y,w', [
+    (4, [-0.5, -0.5, 0.5, 0.5], [-0.5, 0.5, -0.5, 0.5], [0.25, 0.25, 0.25, 0.25]),
+    (7, [0.0, -0.82, 0.82, -0.41, -0.41, 0.41, 0.41],
+     [0.0, 0.0, 0.0, -0.71, 0.71, -0.71, 0.71],
+     [0.25, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12]),
+    (9, [0.0, -1.0, 1.0, 0.0, 0.0, -0.5, -0.5, 0.5, 0.5],
+     [0.0, 0.0, 0.0, -1.0, 1.0, -0.5, 0.5, -0.5, 0.5],
+     [0.17, 0.04, 0.04, 0.04, 0.04, 0.17, 0.17, 0.17, 0.17]),
+    (21, [0.0, 0.48, 0.18, -0.18, -0.48, -0.6, -0.48, -0.18, 0.18, 0.48, 0.6,
+          0.74, 0.28, -0.28, -0.74, -0.92, -0.74, -0.28, 0.28, 0.74, 0.92],
+        [0.0, 0.35, 0.57, 0.57, 0.35, 0.0, -0.35, -0.57, -0.57, -0.35,
+         -0.0, 0.54, 0.87, 0.87, 0.54, 0.0, -0.54, -0.87, -0.87, -0.54, -0.0],
+        [0.11, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
+         0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04])])
+def test_CGIRotorAvg(n, x, y, w):
+    m = CGIRotorAvg(n)
+
+    if 0:
+        for v in [m.nodes_x, m.nodes_y, m.nodes_weight]:
+            print(np.round(v, 2).tolist())
+        plt.scatter(m.nodes_x, m.nodes_y, c=m.nodes_weight)
+        plt.axis('equal')
+        plt.gca().add_artist(plt.Circle((0, 0), 1, fill=False))
+        plt.ylim([-1, 1])
+        plt.show()
+
+    assert (len(m.nodes_weight) == len(m.nodes_x) == len(m.nodes_y) == n)
+    npt.assert_almost_equal(m.nodes_weight.sum(), 1)
+    npt.assert_array_almost_equal(m.nodes_x, x, 2)
+    npt.assert_array_almost_equal(m.nodes_y, y, 2)
+    npt.assert_array_almost_equal(m.nodes_weight, w, 2)
 
 
 @pytest.mark.parametrize('WFM', [All2AllIterative, PropagateDownwind])
