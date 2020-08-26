@@ -112,6 +112,37 @@ class PolarGridRotorAvg(GridRotorAvg):
         self.nodes_weight = nodes_weight
 
 
+class CGIRotorAvg(GridRotorAvg):
+    """Circular Gauss Integration"""
+
+    def __init__(self, n):
+        """Circular Gauss Integration
+
+        Parameters
+        ----------
+        n : {4, 7, 9, 21}
+            Number of points.
+        """
+        pm = np.array([[-1, -1, 1], [-1, 1, 1], [1, -1, 1], [1, 1, 1]])
+        nodes_x, nodes_y, nodes_weight = {
+            # 1: np.array([[0, 0, .5], [-1, 0, 1 / 8], [1, 0, 1 / 8], [0, -1, 1 / 8], [0, 1, 1 / 8]]),
+            4: pm * [0.5, 0.5, 1 / 4],
+            # 3: np.r_[[[0, 0, 1 / 2], [-1, 0, 1 / 12], [1, 0, 1 / 12]], pm * [1 / 2, np.sqrt(3) / 2, 1 / 12]],
+            7: np.r_[[[0, 0, 1 / 4], [-np.sqrt(2 / 3), 0, 1 / 8], [np.sqrt(2 / 3), 0, 1 / 8]],
+                     pm * [np.sqrt(1 / 6), np.sqrt(1 / 2), 1 / 8]],
+            9: np.r_[[[0, 0, 1 / 6], [-1, 0, 1 / 24], [1, 0, 1 / 24], [0, -1, 1 / 24], [0, 1, 1 / 24]],
+                     pm * [1 / 2, 1 / 2, 1 / 6]],
+            21: np.r_[[[0, 0, 1 / 9]],
+                      [[np.sqrt((6 - np.sqrt(6)) / 10) * np.cos(2 * np.pi * k / 10),
+                        np.sqrt((6 - np.sqrt(6)) / 10) * np.sin(2 * np.pi * k / 10),
+                        (16 + np.sqrt(6)) / 360] for k in range(1, 11)],
+                      [[np.sqrt((6 + np.sqrt(6)) / 10) * np.cos(2 * np.pi * k / 10),
+                        np.sqrt((6 + np.sqrt(6)) / 10) * np.sin(2 * np.pi * k / 10),
+                        (16 - np.sqrt(6)) / 360] for k in range(1, 11)]]
+        }[n].T
+        GridRotorAvg.__init__(self, nodes_x, nodes_y, nodes_weight=nodes_weight)
+
+
 def gauss_quadrature(n_x, n_y):
     nodes_x, nodes_x_weight = np.polynomial.legendre.leggauss(n_x)
     nodes_y, nodes_y_weight = np.polynomial.legendre.leggauss(n_y)
