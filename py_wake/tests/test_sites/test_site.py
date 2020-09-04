@@ -4,6 +4,8 @@ from py_wake.tests import npt
 import pytest
 from py_wake.site.shear import PowerShear
 import matplotlib.pyplot as plt
+from py_wake.examples.data.iea37._iea37 import IEA37Site
+from py_wake.site.xrsite import XRSite
 
 f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,
      0.086432, 0.117705, 0.151576, 0.147379, 0.10012, 0.05166]
@@ -107,6 +109,15 @@ def test_plot_wd_distribution(site):
     plt.close()
 
 
+def test_plot_wd_distribution_uniformSite():
+    site = IEA37Site(16)
+
+    p1 = site.plot_wd_distribution(n_wd=12, ax=plt)
+    if 0:
+        plt.show()
+    plt.close()
+
+
 def test_plot_wd_distribution_with_ws_levels(site):
     p = site.plot_wd_distribution(n_wd=12, ws_bins=[0, 5, 10, 15, 20, 25])
     # print(np.round(p, 4).tolist())
@@ -123,8 +134,35 @@ def test_plot_wd_distribution_with_ws_levels(site):
                                       [0.0103, 0.0386, 0.0369, 0.0127, 0.0015],
                                       [0.0092, 0.0231, 0.0152, 0.0038, 0.0004]], 4)
 
+    if 1:
+        plt.show()
+    plt.close()
+
+
+def test_plot_wd_distribution_with_ws_levels_xr(site):
+    import xarray as xr
+    ds = xr.Dataset(
+        data_vars={'Sector_frequency': ('wd', f), 'Weibull_A': ('wd', A), 'Weibull_k': ('wd', k)},
+        coords={'wd': np.linspace(0, 360, len(f), endpoint=False)})
+    site2 = XRSite(ds, shear=PowerShear(h_ref=100, alpha=.2), interp_method='nearest')
+
+    p = site2.plot_wd_distribution(n_wd=12, ws_bins=[0, 5, 10, 15, 20, 25])
     if 0:
         plt.show()
+    # print(np.round(p.values, 4).tolist())
+    npt.assert_array_almost_equal(p, [[0.0075, 0.0179, 0.0091, 0.0014, 0.0001],
+                                      [0.0069, 0.0188, 0.0115, 0.0022, 0.0001],
+                                      [0.0098, 0.025, 0.0142, 0.0025, 0.0001],
+                                      [0.0109, 0.0339, 0.0214, 0.0036, 0.0001],
+                                      [0.0114, 0.0411, 0.0271, 0.004, 0.0001],
+                                      [0.0108, 0.0324, 0.0185, 0.0026, 0.0001],
+                                      [0.0147, 0.0434, 0.0247, 0.0035, 0.0001],
+                                      [0.0164, 0.0524, 0.0389, 0.0092, 0.0007],
+                                      [0.0185, 0.0595, 0.0524, 0.0184, 0.0026],
+                                      [0.0153, 0.0564, 0.054, 0.0191, 0.0024],
+                                      [0.0103, 0.0386, 0.0369, 0.0127, 0.0015],
+                                      [0.0092, 0.0231, 0.0152, 0.0038, 0.0004]], 4)
+
     plt.close()
 
 
