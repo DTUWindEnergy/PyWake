@@ -14,7 +14,9 @@ class XRSite(UniformWeibullSite):
         self.distance = distance
         Site.__init__(self, distance)
 
-        assert 'TI' in ds
+        if 'ws' not in ds.dims:
+            ds.update({'ws': self.default_ws})
+
         if 'wd' in ds and len(np.atleast_1d(ds.wd)) > 1:
             wd = ds.coords['wd']
             sector_widths = np.diff(wd)

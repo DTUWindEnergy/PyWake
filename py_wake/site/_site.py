@@ -387,8 +387,9 @@ class Site(ABC):
         if 'i' in p.dims:
             p = p.squeeze('i')
 
-        if ws_bins is None:
-            p = p.squeeze('ws')
+        if ws_bins is None or 'ws' not in p.dims:
+            if 'ws' in p.dims:
+                p = p.squeeze('ws')
             ax.bar(theta, p.data, width=np.deg2rad(wd_bin_size), bottom=0.0)
         else:
             p = p.T
