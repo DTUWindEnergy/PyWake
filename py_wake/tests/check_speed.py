@@ -19,7 +19,7 @@ register_matplotlib_converters()
 def timeit(func, min_time=0, min_runs=1, verbose=False, line_profile=False, profile_funcs=[]):
     @functools.wraps(func)
     def newfunc(*args, **kwargs):
-        if line_profile:
+        if line_profile and getattr(sys, 'gettrace')() is None:
             from line_profiler import LineProfiler
             lp = LineProfiler()
             lp.timer_unit = 1e-6

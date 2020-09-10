@@ -117,7 +117,7 @@ class EngineeringWindFarmModel(WindFarmModel):
         rotor_pos = -1e-10
         if self.blockage_deficitModel is None:
             deficit *= (dw_ijlk > rotor_pos)
-        elif self.blockage_deficitModel != self:
+        elif self.blockage_deficitModel != self.wake_deficitModel:
             # downstream wake deficit + upstream blockage
             deficit = ((dw_ijlk > rotor_pos) * deficit +
                        (dw_ijlk <= rotor_pos) * self.blockage_deficitModel.calc_deficit(dw_ijlk=dw_ijlk, **kwargs))
