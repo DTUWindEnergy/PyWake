@@ -33,11 +33,10 @@ class FugaDeficit(DeficitModel):
             if os.path.getsize(path + 'CaseData.bin') == 187:
                 zeta0 = struct.unpack('d', fid.read(8))[0]
             else:
-                with open(path + 'CaseData.bin', 'rb') as fid2:
-                    info = fid2.read(127).decode()
-
-                zeta0 = float(info[info.index('Zeta0'):].replace("Zeta0=", ""))
-                # zeta0 = float(path[path.index('Zeta0'):].replace("Zeta0=", "").replace("/", ""))
+                #                 with open(path + 'CaseData.bin', 'rb') as fid2:
+                #                     info = fid2.read(127).decode()
+                #                 zeta0 = float(info[info.index('Zeta0'):].replace("Zeta0=", ""))
+                zeta0 = float(path[path.index('Zeta0'):].replace("Zeta0=", "").replace("/", ""))
 
         def psim(zeta):
             return self.ams * zeta
