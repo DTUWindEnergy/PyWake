@@ -366,7 +366,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
         i_wd_l = np.arange(L)
 
         # Iterate over turbines in down wind order
-        for j in progressbar(range(I)):
+        for j in progressbar(range(I), self.verbose):
             i_wt_l = dw_order_indices_dl[:, j]
             m = i_wt_l * L + i_wd_l  # current wt (j'th most upstream wts for all wdirs)
 
