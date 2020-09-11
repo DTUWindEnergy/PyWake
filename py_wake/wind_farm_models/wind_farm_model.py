@@ -16,8 +16,9 @@ class WindFarmModel(ABC):
         assert isinstance(windTurbines, WindTurbines)
         self.site = site
         self.windTurbines = windTurbines
+        self.verbose = False
 
-    def __call__(self, x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None):
+    def __call__(self, x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None, verbose=False):
         """Run the wind farm simulation
 
         Parameters
@@ -40,6 +41,7 @@ class WindFarmModel(ABC):
         SimulationResult
         """
         assert len(x) == len(y)
+        self.verbose = verbose
         type, h, _ = self.windTurbines.get_defaults(len(x), type, h)
 
         if len(x) == 0:
