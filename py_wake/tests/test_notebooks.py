@@ -23,6 +23,7 @@ def test_notebooks(notebook):
     try:
         default_resolution = Grid.default_resolution
         Grid.default_resolution = 100
+        plt.rcParams.update({'figure.max_open_warning': 0})
         notebook.check_code()
         notebook.check_links()
         notebook.remove_empty_end_cell()
@@ -33,3 +34,4 @@ def test_notebooks(notebook):
     finally:
         Grid.default_resolution = default_resolution
         plt.close()
+        plt.rcParams.update({'figure.max_open_warning': 20})

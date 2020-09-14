@@ -1,29 +1,35 @@
-import numpy as np
-import matplotlib
+from copy import copy
+import os
 import shutil
-from py_wake.flow_map import HorizontalGrid
-matplotlib.use('agg')
+import sys
+
+import matplotlib
+import matplotlib.style
+from matplotlib.ticker import MaxNLocator
+from scipy.interpolate import interp1d
+
+import matplotlib as mpl
 import matplotlib.pyplot as plt
-from py_wake.wind_turbines import OneTypeWindTurbines
-from py_wake import NOJ
+import numpy as np
 from py_wake import BastankhahGaussian
-from py_wake.site import UniformSite
+from py_wake import NOJ
+from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site
 from py_wake.examples.data.hornsrev1 import wt_x as wt_x_hr
 from py_wake.examples.data.hornsrev1 import wt_y as wt_y_hr
-from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site
-from data.ecn_wieringermeer import wt_x as wt_x_w
-from data.ecn_wieringermeer import wt_y as wt_y_w
-from data.ecn_wieringermeer import N80
-from data.lillgrund import wt_x as wt_x_l
-from data.lillgrund import wt_y as wt_y_l
-from data.lillgrund import SWT2p3_93_65, LillgrundSite
-from copy import copy
-from matplotlib.ticker import MaxNLocator
-import os
-import sys
-import matplotlib.style
-import matplotlib as mpl
-from scipy.interpolate import interp1d
+from py_wake.flow_map import HorizontalGrid
+from py_wake.site import UniformSite
+from py_wake.validation.ecn_wieringermeer import N80
+from py_wake.validation.ecn_wieringermeer import wt_x as wt_x_w
+from py_wake.validation.ecn_wieringermeer import wt_y as wt_y_w
+from py_wake.validation.lillgrund import SWT2p3_93_65, LillgrundSite
+from py_wake.validation.lillgrund import wt_x as wt_x_l
+from py_wake.validation.lillgrund import wt_y as wt_y_l
+from py_wake.validation.validation_lib import integrate_velocity_deficit_arc, sigma_hornsrev, GaussianFilter
+from py_wake.wind_turbines import OneTypeWindTurbines
+from py_wake.validation import validation_lib
+matplotlib.use('agg')
+
+data_path = os.path.dirname(validation_lib.__file__) + '/data/'   # path to reference data
 
 
 def p(ws):
@@ -55,114 +61,6 @@ def NOJ_k_from_location(location):
     else:
         print('Location', location, 'is undefined. Choose onshore of offshore.')
     return k
-
-
-def seq(start, stop, step=1):
-    n = int(round((stop - start) / float(step)))
-    if n > 1:
-        return([start + step * i for i in range(n + 1)])
-    else:
-        return([start, stop])
-
-
-def gauss(mu, sigma, x):
-    return (1.0 / (sigma * np.sqrt(2 * np.pi))) * np.exp(- (x - mu) ** 2 / (2.0 * sigma ** 2))
-
-
-def sigmaVarDist(x, y, xref, yref):
-    dist = np.hypot(x - xref, y - yref)
-    sigma = np.hypot(0.00035 * dist + 2.1, 2.5)
-    return sigma
-
-
-def GaussianFilter(y, wd, nwdGA, sigma):
-    # Gaussian filter for cyclic data, i.e. as function of wind direction
-    # y is a vector and a function of wd
-    # It is assumed that the spacing in wd is uniform
-    # yGA is the returned filtered y
-    # nwdGA is the amount of points that are used for the smoothing
-    wdDelta = wd[1] - wd[0]
-    # wdGArel is the smoothing operator
-    wdGArel = seq(- nwdGA * wdDelta, nwdGA * wdDelta, wdDelta)
-    ny = len(y)
-    nwd = len(wd)
-    if(ny != nwd):
-        print('###############################################################')
-        print('ERROR: length of wd does not correspond with length of y')
-        print('###############################################################')
-        sys.exit()
-    yGA = np.zeros((1, ny))
-    int_gauss = 0
-    if(nwd * wdDelta == 360):
-        # Full wind rose
-        i1 = 0
-        i2 = nwd
-    else:
-        # Partial wind rose: cannot GA the first and last wind directions
-        i1 = nwdGA
-        i2 = nwd - nwdGA
-    for i in range(i1, i2):
-        j = 0
-        int_gauss = 0
-        for wdrel in wdGArel:
-            wdrelcor = wd[i] + wdrel
-            if (wdrelcor) < 0:
-                wdrelcor = wdrelcor + 360.0
-            elif (wdrelcor) > 359.999:
-                wdrelcor = wdrelcor - 360.0
-            int_gauss = int_gauss + gauss(0, sigma, wdrel)
-            yGA[0, i] = yGA[0, i] + y[wd == wdrelcor] * gauss(0, sigma, wdrel)
-            j = j + 1
-        yGA[0, i] = yGA[0, i] / int_gauss
-    return yGA
-
-
-def sigma_hornsrev(method, wt_x, wt_y, sigma_cnst=5.0):
-    # A general standard deviation (std) is used to Gaussian average results of Power
-    # for the Horns Rev 1 wind farm.
-    # Three methods can be used:
-    if method == 'constant':
-        # Constant sigma of 5 deg
-        sigma = np.zeros((80))
-        sigma[:] = sigma_cnst
-    elif method == 'Gaumond':
-        # Gaumond et el. (2013): DOI: 10.1002/we.1625
-        # Fitted a std per row using the power deficit at WT 2 from Fuga.
-        sigma = np.zeros((10, 8))
-        sigma[:, 0] = 7.4
-        sigma[:, 1] = 7.0
-        sigma[:, 2] = 6.2
-        sigma[:, 3] = 5.8
-        sigma[:, 4] = 5.4
-        sigma[:, 5] = 5.0
-        sigma[:, 6] = 4.5
-        sigma[:, 7] = 4.8
-        sigma = sigma.flatten()
-    elif method == 'vanderLaan':
-        # van der Laan et al. (2014): DOI: 10.1002/we.1804
-        # Using empirical data to define a std based on the distance between
-        # a wt and the location where the reference wind direction was measured (WT G2)
-        sigma = np.zeros((80))
-        WTref = 7  # WT G2
-        for iAD in range(80):
-            sigma[iAD] = sigmaVarDist(wt_x[iAD], wt_y[iAD], wt_x[int(WTref - 1)], wt_y[int(WTref - 1)])
-    return sigma
-
-
-def integrate_velocity_deficit_arc(wd, U, R, U0):
-    # Integrate velocity deficit
-    # Input: velocity deficit defined on an arc
-    #        as a function of the relative wd
-    # Output: Estimate of a projected stream-wise
-    #         velocity deficit, normalized by U0*Ly
-    UInt = 0
-    wd = wd / 180.0 * np.pi
-    Ly = 0
-    for i in range(len(wd) - 1):
-        dy = R * (np.sin(wd[i + 1]) - np.sin(wd[i]))
-        Ly = Ly + dy
-        UInt = UInt + (1 - U[i] / U0) * dy
-    return UInt / Ly
 
 
 def deficitPlotSingleWakeCases(SingleWakecases, site, linewidth, cLES, cRANS, colors):
@@ -220,34 +118,34 @@ def deficitPlotSingleWakeCases(SingleWakecases, site, linewidth, cLES, cRANS, co
                 xDownlabel = str(case['xDown'][j]).replace('.', 'p')
             # References, based on field measurements
             if case['name'] == 'Wieringermeer-West' and j == 1:
-                data = np.genfromtxt('data/' + case['name'] + '_data_' + xDownlabel + 'D.dat')
+                data = np.genfromtxt(data_path + case['name'] + '_data_' + xDownlabel + 'D.dat')
                 ldata = ax[j].errorbar(data[:, 0] - 315, data[:, 1] / case['U0'], yerr=data[:, 2] / case['U0'] /
                                        np.sqrt(data[:, 3]), color='k', elinewidth=1.0, linewidth=0, marker='o', zorder=0, markersize=4)
                 fdata = interp1d(data[:, 0] - 315, data[:, 1])
                 Udef[j, 0] = integrate_velocity_deficit_arc(wds, fdata(wds), case['xDown'][j], case['U0'])
             elif case['name'] == 'Wieringermeer-East' and j == 0:
-                data = np.genfromtxt('data/' + case['name'] + '_data_' + xDownlabel + 'D.dat')
+                data = np.genfromtxt(data_path + case['name'] + '_data_' + xDownlabel + 'D.dat')
                 ldata = ax[j].errorbar(data[:, 0] - 31, data[:, 1] / case['U0'], yerr=data[:, 2] / case['U0'] /
                                        np.sqrt(data[:, 3]), color='k', elinewidth=1.0, linewidth=0, marker='o', zorder=0, markersize=4)
                 fdata = interp1d(data[:, 0] - 31, data[:, 1])
                 Udef[j, 0] = integrate_velocity_deficit_arc(wds, fdata(wds), case['xDown'][j], case['U0'])
             elif case['name'] == 'Nibe':
-                # No standard deviation of the 10 min. available.
-                data = np.genfromtxt('data/' + case['name'] + '_data_' + xDownlabel + 'D.dat')
+                    # No standard deviation of the 10 min. available.
+                data = np.genfromtxt(data_path + case['name'] + '_data_' + xDownlabel + 'D.dat')
                 ldata = ax[j].scatter(data[:, 0], data[:, 1], color='k', marker='o', zorder=0, s=10)
                 fdata = interp1d(data[:, 0], data[:, 1])
                 Udef[j, 0] = integrate_velocity_deficit_arc(wds, fdata(wds) * case['U0'], case['xDown'][j], case['U0'])
             elif case['name'] == 'Nordtank-500' and j < 2:
-                data = np.genfromtxt('data/' + case['name'] + '_data_' + xDownlabel + 'D.dat')
+                data = np.genfromtxt(data_path + case['name'] + '_data_' + xDownlabel + 'D.dat')
                 ldata = ax[j].errorbar(data[:, 0], data[:, 2], yerr=data[:, 3] / np.sqrt(74.0),
                                        color='k', elinewidth=1.0, linewidth=0, marker='o', zorder=0, markersize=4)
-            # LES, based on EllipSys3D AD
-            LES = np.genfromtxt('data/' + case['name'] + '_LES_' + xDownlabel + 'D.dat')
+                # LES, based on EllipSys3D AD
+            LES = np.genfromtxt(data_path + case['name'] + '_LES_' + xDownlabel + 'D.dat')
             # Shaded area represent the standard error of the mean
             lLES = ax[j].fill_between(LES[:, 0], LES[:, 1] - LES[:, 2] / np.sqrt(LES[:, 3]),
                                       LES[:, 1] + LES[:, 2] / np.sqrt(LES[:, 3]), color=cLES, alpha=0.5)
             # RANS,  based on EllipSys3D AD k-epsilon-fP
-            RANS = np.genfromtxt('data/' + case['name'] + '_RANS_' + xDownlabel + 'D.dat')
+            RANS = np.genfromtxt(data_path + case['name'] + '_RANS_' + xDownlabel + 'D.dat')
             lRANS, = ax[j].plot(RANS[:, 0], RANS[:, 1], color=cRANS, linewidth=linewidth)
             for k in range(len(wakemodels)):
                 l1, = ax[j].plot(wds, wake_ws[k, :, j] / case['U0'], color=colors[k], linewidth=linewidth)
@@ -380,8 +278,8 @@ def deficitPlotWFCases(WFcases, linewidth, cLES, cRANS, colors):
             lines = []
             linesGA = []
             if plot['name'] == 'WFeff':
-                data = np.genfromtxt('data/' + case['name'] + '_WFdata_' + plot['name'] + '.dat', skip_header=True)
-                RANS = np.genfromtxt('data/' + case['name'] + '_RANS_' + plot['name'] + '.dat', skip_header=True)
+                data = np.genfromtxt(data_path + case['name'] + '_WFdata_' + plot['name'] + '.dat', skip_header=True)
+                RANS = np.genfromtxt(data_path + case['name'] + '_RANS_' + plot['name'] + '.dat', skip_header=True)
                 fig = plt.figure(figsize=(9, 6))
                 rect = [0.1, 0.1, 0.8, 0.7]
                 ax_polar = fig.add_axes(rect, polar=True)
@@ -456,9 +354,9 @@ def deficitPlotWFCases(WFcases, linewidth, cLES, cRANS, colors):
                 f.close()
             else:
                 wd = plot['wd']
-                data = np.genfromtxt('data/' + case['name'] + '_WFdata_wd' +
+                data = np.genfromtxt(data_path + case['name'] + '_WFdata_wd' +
                                      str(int(wd)) + '_' + plot['name'] + '.dat', skip_header=True)
-                RANS = np.genfromtxt('data/' + case['name'] + '_RANS_wd' +
+                RANS = np.genfromtxt(data_path + case['name'] + '_RANS_wd' +
                                      str(int(wd)) + '_' + plot['name'] + '.dat', skip_header=True)
                 fig, ax = plt.subplots(1, 1, sharey=False, figsize=(9, 4))
                 ax_layout = fig.add_axes([0.7, 0.3, 0.25, 0.25], frameon=True)
