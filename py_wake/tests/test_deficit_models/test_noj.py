@@ -7,7 +7,7 @@ from py_wake.flow_map import HorizontalGrid
 from py_wake.wind_turbines import WindTurbines
 from py_wake.wind_farm_models.engineering_models import All2AllIterative
 from py_wake.deficit_models.noj import NOJDeficit
-from py_wake.superposition_models import LinearSum
+from py_wake.superposition_models import LinearSum, WeightedSum
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 
 # Two turbines, 0: Nibe-A, 1:Ct=0
@@ -84,3 +84,10 @@ def test_NOJLocal_6_turbines_in_row():
     np.testing.assert_array_almost_equal(
         WS_eff_ilk[1:, 0, 0], [5.62453869, 5.25806829, 5.64808912, 6.07792364,
                                6.44549094])
+
+
+def test_NOJConvection():
+    site = UniformSite([1], 0.1)
+    wfm = NOJ(site, NibeA0, superpositionModel=WeightedSum())
+    with pytest.raises(NotImplementedError):
+        wfm([0, 100], [0, 100])
