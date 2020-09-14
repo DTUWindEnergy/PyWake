@@ -8,8 +8,10 @@ from py_wake.flow_map import Grid
 
 
 def get_notebooks():
+    def get(path):
+        return [Notebook(path + f) for f in [f for f in os.listdir(path) if f.endswith('.ipynb')]]
     path = os.path.dirname(py_wake.__file__) + "/../docs/notebooks/"
-    return [Notebook(path + f) for f in [f for f in os.listdir(path) if f.endswith('.ipynb')]]
+    return get(path) + get(path + "exercises/")
 
 
 @pytest.mark.parametrize("notebook", get_notebooks())
