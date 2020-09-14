@@ -45,6 +45,9 @@ class NOJDeficit(NiayifarGaussianDeficit, AreaOverlappingFactor):
     def wake_radius(self, D_src_il, dw_ijlk, **kwargs):
         return self._wake_radius(D_src_il, dw_ijlk, **kwargs)[0]
 
+    def calc_deficit_convection(self, WS_ilk, WS_eff_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **kwargs):
+        raise NotImplementedError("calc_deficit_convection not implemented for NOJ")
+
 
 class NOJ(PropagateDownwind):
     def __init__(self, site, windTurbines, rotorAvgModel=RotorCenter(),

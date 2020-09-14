@@ -45,6 +45,9 @@ Contents:
         notebooks/EngineeringWindFarmModels
         notebooks/RunWindFarmSimulation
         notebooks/Optimization
+        notebooks/exercises/CombineModels
+        notebooks/exercises/improve_layout
+        
         
    
     .. toctree::
