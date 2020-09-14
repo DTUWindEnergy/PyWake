@@ -2,6 +2,7 @@
 omit = 
 	py_wake/tests/*
 	py_wake/examples/data/*
+	py_wake/validation/*
     tmp/*
 [report]
 fail_under = 100
