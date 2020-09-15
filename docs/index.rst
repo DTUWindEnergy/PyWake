@@ -46,7 +46,7 @@ Contents:
         notebooks/RunWindFarmSimulation
         notebooks/Optimization
         notebooks/exercises/CombineModels
-        notebooks/exercises/improve_layout
+        notebooks/exercises/Improve_layout
         
         
    
