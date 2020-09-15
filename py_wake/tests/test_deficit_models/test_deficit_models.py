@@ -206,6 +206,22 @@ def test_wake_radius(deficitModel, wake_radius_ref):
     wfm = PropagateDownwind(site, windTurbines, wake_deficitModel=deficitModel, turbulenceModel=GCLTurbulence())
     wfm(x=[0, 500], y=[0, 0], wd=[30], ws=[10])
 
+    if 0:
+        sim_res = wfm([0], [0], wd=[270], ws=10)
+        sim_res.flow_map(HorizontalGrid(x=np.arange(-100, 1500, 10))).WS_eff.plot()
+        x = np.arange(0, 1500, 10)
+        wr = deficitModel.wake_radius(
+            D_src_il=np.reshape([130], (1, 1)),
+            dw_ijlk=np.reshape(x, (1, len(x), 1, 1)),
+            ct_ilk=sim_res.CT.values,
+            TI_ilk=np.reshape(sim_res.TI.values, (1, 1, 1)),
+            TI_eff_ilk=sim_res.TI_eff.values)[0, :, 0, 0]
+        plt.title(deficitModel.__class__.__name__)
+        plt.plot(x, wr)
+        plt.plot(x, -wr)
+        plt.axis('equal')
+        plt.show()
+
 
 def test_wake_radius_not_implemented():
     site = IEA37Site(16)

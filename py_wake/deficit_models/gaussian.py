@@ -152,7 +152,7 @@ class IEA37SimpleBastankhahGaussianDeficit(BastankhahGaussianDeficit):
 
     Equivalent to BastankhahGaussian for beta=1/sqrt(8) ~ ct=0.9637188
     """
-    args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
+    args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'WS_eff_ilk']
     args4update = ['ct_ilk']
 
     def __init__(self, ):
