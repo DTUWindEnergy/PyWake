@@ -91,9 +91,9 @@ class FugaDeficit(DeficitModel):
             self._calc_layout_terms(dw_ijlk, hcw_ijlk, h_il, dh_ijl, D_src_il, **kwargs)
         return self.mdu_ijlk * (ct_ilk * WS_eff_ilk**2 / WS_ilk)[:, na]
 
-    def wake_radius(self, D_src_il, **_):
+    def wake_radius(self, D_src_il, dw_ijlk, **_):
         # Set at twice the source radius for now
-        return D_src_il[:, na, :, na]
+        return np.zeros_like(dw_ijlk) + D_src_il[:, na, :, na]
 
 
 class LUTInterpolator(object):

@@ -229,9 +229,18 @@ class EngineeringWindFarmModel(WindFarmModel):
                 # one wt at the time to avoid memory problems
                 deficit_ijk = np.zeros((I, J, K))
                 add_turb_ijk = np.zeros((I, J, K))
+                uc_ijk = np.zeros((I, J, K))
+                sigma_sqr_ijk = np.zeros((I, J, K))
                 for i in range(I):
                     args_i = {k: v[i][na] for k, v in args.items()}
-                    deficit_ijk[i] = self._calc_deficit(dw_ijlk=dw_ijlk[i][na], **args_i)[0, :, 0]
+                    if isinstance(self.superpositionModel, WeightedSum):
+                        deficit, uc, sigma_sqr = self._calc_deficit_convection(dw_ijlk=dw_ijlk[i][na], **args_i)
+                        deficit_ijk[i] = deficit[0, :, 0]
+                        uc_ijk[i] = uc[0, :, 0]
+                        sigma_sqr_ijk[i] = sigma_sqr[0, :, 0]
+                    else:
+                        deficit_ijk[i] = self._calc_deficit(dw_ijlk=dw_ijlk[i][na], **args_i)[0, :, 0]
+
                     if self.turbulenceModel:
                         add_turb_ijk[i] = self.turbulenceModel.calc_added_turbulence(
                             dw_ijlk=dw_ijlk[i], **args_i)[0, :, 0]

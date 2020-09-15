@@ -7,13 +7,13 @@ from py_wake.tests import npt
 from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y
 from py_wake.tests.test_files.fuga import LUT_path_2MW_z0_0_03
 from py_wake.flow_map import HorizontalGrid
-from py_wake.wind_farm_models.engineering_models import All2AllIterative
+from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind
 from py_wake.deficit_models.noj import NOJDeficit
-from py_wake.superposition_models import SquaredSum
+from py_wake.superposition_models import SquaredSum, WeightedSum
 from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
 from py_wake.turbulence_models.stf import STF2005TurbulenceModel
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
-from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian
+from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit
 from numpy import newaxis as na
 import matplotlib.pyplot as plt
 from py_wake.utils.gradients import autograd, cs, fd, plot_gradients
@@ -98,14 +98,15 @@ def test_str():
     assert str(wf_model) == "All2AllIterative(EngineeringWindFarmModel, NOJDeficit-wake, SelfSimilarityDeficit-blockage, RotorCenter-rotor-average, SquaredSum-superposition, JimenezWakeDeflection-deflection, STF2005TurbulenceModel-turbulence)"
 
 
-@pytest.mark.parametrize('deflectionModel', [(None),
-                                             (JimenezWakeDeflection())
-                                             ])
-def test_huge_flow_map(deflectionModel):
+@pytest.mark.parametrize('wake_deficitModel,deflectionModel,superpositionModel',
+                         [(NOJDeficit(), None, SquaredSum()),
+                          (IEA37SimpleBastankhahGaussianDeficit(), JimenezWakeDeflection(), WeightedSum())])
+def test_huge_flow_map(wake_deficitModel, deflectionModel, superpositionModel):
     site = IEA37Site(16)
     windTurbines = IEA37_WindTurbines()
-    wake_model = NOJ(site, windTurbines, deflectionModel=deflectionModel,
-                     turbulenceModel=STF2005TurbulenceModel())
+    wake_model = PropagateDownwind(site, windTurbines, wake_deficitModel=wake_deficitModel,
+                                   superpositionModel=superpositionModel, deflectionModel=deflectionModel,
+                                   turbulenceModel=STF2005TurbulenceModel())
     n_wt = 2
     flow_map = wake_model(*site.initial_position[:n_wt].T, wd=0).flow_map(HorizontalGrid(resolution=1000))
     # check that deficit matrix > 10MB (i.e. it enters the memory saving loop)
