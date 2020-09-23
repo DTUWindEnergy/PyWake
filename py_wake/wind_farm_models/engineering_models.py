@@ -59,7 +59,6 @@ class EngineeringWindFarmModel(WindFarmModel):
         self.site = site
         self.windTurbines = windTurbines
         self.wake_deficitModel = wake_deficitModel
-        rotorAvgModel.set_wake_deficitModel(wake_deficitModel)
         self.rotorAvgModel = rotorAvgModel
 
         self.superpositionModel = superpositionModel
@@ -73,7 +72,8 @@ class EngineeringWindFarmModel(WindFarmModel):
         # Torque from Wind, Milano, Italy, jun 2018, p. 10.
         self.deficit_initalized = False
 
-        self.args4deficit = self.rotorAvgModel.args4deficit
+        self.args4deficit = self.wake_deficitModel.args4deficit
+        self.args4deficit = set(self.args4deficit) | set(self.rotorAvgModel.args4rotor_avg_deficit)
         if self.blockage_deficitModel:
             self.args4deficit = set(self.args4deficit) | set(self.blockage_deficitModel.args4deficit)
         self.args4all = set(self.args4deficit)
@@ -100,7 +100,7 @@ class EngineeringWindFarmModel(WindFarmModel):
 
     def _init_deficit(self, **kwargs):
         """Calculate layout dependent wake (and blockage) deficit terms"""
-        self.rotorAvgModel._calc_layout_terms(**kwargs)
+        self.rotorAvgModel._calc_layout_terms(self.wake_deficitModel, **kwargs)
         self.wake_deficitModel.deficit_initalized = True
         if self.blockage_deficitModel:
             self.blockage_deficitModel._calc_layout_terms(**kwargs)
@@ -125,12 +125,13 @@ class EngineeringWindFarmModel(WindFarmModel):
 
     def _calc_deficit(self, dw_ijlk, **kwargs):
         """Calculate wake (and blockage) deficit"""
-        deficit = self.rotorAvgModel.calc_deficit(dw_ijlk=dw_ijlk, **kwargs)
+        deficit = self.rotorAvgModel.calc_deficit(self.wake_deficitModel, dw_ijlk=dw_ijlk, **kwargs)
         return self._add_blockage(deficit, dw_ijlk, **kwargs)
 
     def _calc_deficit_convection(self, dw_ijlk, **kwargs):
         """Calculate wake convection deficit (and blockage)"""
-        deficit, uc, sigma_sqr = self.rotorAvgModel.calc_deficit_convection(dw_ijlk=dw_ijlk, **kwargs)
+        deficit, uc, sigma_sqr = self.rotorAvgModel.calc_deficit_convection(
+            self.wake_deficitModel, dw_ijlk=dw_ijlk, **kwargs)
         deficit = self._add_blockage(deficit, dw_ijlk)
         return deficit, uc, sigma_sqr
 
@@ -320,9 +321,10 @@ class PropagateDownwind(EngineeringWindFarmModel):
             WindTurbines object representing the wake generating wind turbines
         wake_deficitModel : DeficitModel
             Model describing the wake(downstream) deficit
-        rotorAvgModel : RotorAvgModel
+        rotorAvgModel : RotorAvgModel, optional
             Model defining one or more points at the down stream rotors to
-            calculate the rotor average wind speeds from
+            calculate the rotor average wind speeds from.
+            Default is RotorCenter, i.e. one point at rotor center
         superpositionModel : SuperpositionModel
             Model defining how deficits sum up
         deflectionModel : DeflectionModel

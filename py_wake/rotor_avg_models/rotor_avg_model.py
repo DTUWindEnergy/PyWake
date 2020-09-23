@@ -13,17 +13,15 @@ class RotorAvgModel(DeficitModel):
     """
     args4rotor_avg_deficit = ['hcw_ijlk', 'dh_ijl', 'D_dst_ijl']
 
-    def set_wake_deficitModel(self, deficitModel):
+    def calc_deficit(self, deficitModel, D_dst_ijl, **kwargs):
         self.deficitModel = deficitModel
-        self.args4deficit = set(deficitModel.args4deficit + self.args4rotor_avg_deficit)
-
-    def calc_deficit(self, D_dst_ijl, **kwargs):
         if np.all(D_dst_ijl == 0):
             return self.deficitModel.calc_deficit(D_dst_ijl=D_dst_ijl, **kwargs)
         else:
             return self._calc_rotor_avg_deficit(D_dst_ijl=D_dst_ijl, **kwargs)
 
-    def calc_deficit_convection(self, D_dst_ijl, **kwargs):
+    def calc_deficit_convection(self, deficitModel, D_dst_ijl, **kwargs):
+        self.deficitModel = deficitModel
         return self.deficitModel.calc_deficit_convection(D_dst_ijl=D_dst_ijl, **kwargs)
 
     @abstractmethod
@@ -42,8 +40,8 @@ class RotorCenter(RotorAvgModel):
     def _calc_rotor_avg_deficit(self, **kwargs):
         return self.deficitModel.calc_deficit(**kwargs)
 
-    def _calc_layout_terms(self, **kwargs):
-        self.deficitModel._calc_layout_terms(**kwargs)
+    def _calc_layout_terms(self, deficitModel, **kwargs):
+        deficitModel._calc_layout_terms(**kwargs)
 
 
 class GridRotorAvg(RotorAvgModel):
@@ -61,10 +59,10 @@ class GridRotorAvg(RotorAvgModel):
         hcw_ijlkp = hcw_ijlk[..., na] + R_dst_ijl[:, :, :, na, na] * self.nodes_x[na, na, na, na, :]
         dh_ijlp = dh_ijl[..., na] + R_dst_ijl[:, :, :, na] * self.nodes_y[na, na, na, :]
         new_kwargs = {'dh_ijl': dh_ijlp, 'hcw_ijlk': hcw_ijlkp, 'D_dst_ijl': D_dst_ijl[..., na]}
-        if 'cw_ijlk' in self.args4deficit:
+        if 'cw_ijlk' in self.deficitModel.args4deficit:
             cw_ijlkp = np.sqrt(hcw_ijlkp**2 + dh_ijlp[:, :, :, na]**2)
             new_kwargs['cw_ijlk'] = cw_ijlkp
-        if 'D_dst_ijl' in self.args4deficit:
+        if 'D_dst_ijl' in self.deficitModel.args4deficit:
             new_kwargs['D_dst_ijl'] = D_dst_ijl
 
         new_kwargs.update({k: v[..., na] for k, v in kwargs.items() if k not in new_kwargs})
@@ -81,7 +79,8 @@ class GridRotorAvg(RotorAvgModel):
             return np.mean(deficit_ijlkp, -1)
         return np.sum(self.nodes_weight[na, na, na, na, :] * deficit_ijlkp, -1)
 
-    def _calc_layout_terms(self, **kwargs):
+    def _calc_layout_terms(self, deficitModel, **kwargs):
+        self.deficitModel = deficitModel
         self.deficitModel._calc_layout_terms(**self._update_kwargs(**kwargs))
 
 

@@ -47,7 +47,7 @@ def test_RotorGridAvg():
         npt.assert_almost_equal(sim_res.WS_eff_ilk[1, 0, 0], ref1)
 
         plt.plot([-R, R], [sim_res.WS_eff_ilk[1, 0, 0]] * 2, label=name)
-    if 1:
+    if 0:
         plt.legend()
         plt.show()
     plt.close()

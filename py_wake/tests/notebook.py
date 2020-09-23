@@ -112,7 +112,7 @@ class Notebook():
             label, url = link.groups()
             # print(label)
             # print(url)
-            if url.startswith('attachment') or url.startswith("#"):
+            if url.startswith('attachment') or '#' in url:
                 continue
             if url.startswith("../_static"):
                 assert os.path.isfile(os.path.join(os.path.dirname(self.filename), url))
