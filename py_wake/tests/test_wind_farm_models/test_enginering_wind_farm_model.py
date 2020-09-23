@@ -229,3 +229,15 @@ def test_deficit_symmetry(wake_deficitModel, blockage_deficitModel):
 
     power = wfm([0, 0, 500, 500], [0, 500, 0, 500], wd=[0], ws=[8]).power_ilk[:, 0, 0]
     npt.assert_array_almost_equal(power[:2], power[2:])
+
+
+def test_double_wind_farm_model():
+    """Check that a new wind farm model does not change results of previous"""
+    site = IEA37Site(16)
+    x, y = site.initial_position.T
+    windTurbines = IEA37_WindTurbines()
+    wfm = PropagateDownwind(site, windTurbines, wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit())
+    aep_ref = wfm(x, y).aep().sum()
+    PropagateDownwind(site, windTurbines, wake_deficitModel=NoWakeDeficit())
+    aep = wfm(x, y).aep().sum()
+    npt.assert_array_equal(aep, aep_ref)
