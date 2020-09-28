@@ -241,3 +241,16 @@ def test_double_wind_farm_model():
     PropagateDownwind(site, windTurbines, wake_deficitModel=NoWakeDeficit())
     aep = wfm(x, y).aep().sum()
     npt.assert_array_equal(aep, aep_ref)
+
+
+def test_double_wind_farm_model_All2AllIterative():
+    """Check that a new wind farm model does not change results of previous"""
+    site = IEA37Site(64)
+    x, y = site.initial_position.T
+    x, y = wt_x, wt_y
+    windTurbines = IEA37_WindTurbines()
+    wfm = All2AllIterative(site, windTurbines, wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit())
+    aep_ref = wfm(x, y).aep().sum()
+    All2AllIterative(site, windTurbines, wake_deficitModel=NoWakeDeficit())(x, y)
+    aep = wfm(x, y).aep().sum()
+    npt.assert_array_equal(aep, aep_ref)

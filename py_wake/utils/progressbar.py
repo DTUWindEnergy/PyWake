@@ -1,11 +1,8 @@
 
 def progressbar(it, show=True):
     if show and len(it) > 1:
-        try:
-            from tqdm import tqdm
-            return tqdm(it)
-        except Exception:
-            return it
+        from tqdm import tqdm
+        return tqdm(it)
     else:
         return it
 
