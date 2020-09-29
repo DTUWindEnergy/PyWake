@@ -103,7 +103,8 @@ class EngineeringWindFarmModel(WindFarmModel):
         self.rotorAvgModel._calc_layout_terms(self.wake_deficitModel, **kwargs)
         self.wake_deficitModel.deficit_initalized = True
         if self.blockage_deficitModel:
-            self.blockage_deficitModel._calc_layout_terms(**kwargs)
+            if self.blockage_deficitModel != self.wake_deficitModel:
+                self.blockage_deficitModel._calc_layout_terms(**kwargs)
             self.blockage_deficitModel.deficit_initalized = True
 
     def _reset_deficit(self):
