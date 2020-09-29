@@ -17,9 +17,7 @@ from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37
 from numpy import newaxis as na
 import matplotlib.pyplot as plt
 from py_wake.utils.gradients import autograd, cs, fd, plot_gradients
-from py_wake.tests.check_speed import timeit
 from py_wake.deficit_models.fuga import FugaDeficit
-from py_wake.tests.test_files import tfp
 from py_wake.superposition_models import LinearSum
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 
@@ -53,7 +51,8 @@ def test_wec():
     Z_wec2 = flow_map_wec2.WS_eff_xylk[:, :, 0, 0]
 
     if 0:
-        import matplotlib.pyplot as plt
+        print(list(np.round(Z_wec1[140, 100:400:10].values, 4)))
+        print(list(np.round(Z_wec2[140, 100:400:10].values, 4)))
 
         flow_map_wec1.plot_wake_map(levels=np.arange(6, 10.5, .1), plot_colorbar=False)
         plt.plot(X[0], Y[140])
@@ -74,16 +73,14 @@ def test_wec():
 
     npt.assert_array_almost_equal(
         Z_wec1[140, 100:400:10],
-        [10.0547, 10.0519, 10.0718, 10.0093, 9.6786, 7.8589, 6.8539, 9.2199,
-         9.9837, 10.036, 10.0796, 10.0469, 10.0439, 9.1866, 7.2552, 9.1518,
-         10.0449, 10.0261, 10.0353, 9.9256, 9.319, 8.0062, 6.789, 8.3578,
-         9.9393, 10.0332, 10.0191, 10.0186, 10.0191, 10.0139], 4)
+        [10.0467, 10.0473, 10.0699, 10.0093, 9.6786, 7.8589, 6.8539, 9.2199, 9.9837, 10.036, 10.0796,
+         10.0469, 10.0439, 9.1866, 7.2552, 9.1518, 10.0449, 10.0261, 10.0353, 9.9256, 9.319, 8.0062,
+         6.789, 8.3578, 9.9393, 10.0332, 10.0183, 10.0186, 10.0191, 10.0139], 4)
     npt.assert_array_almost_equal(
         Z_wec2[140, 100:400:10],
-        [10.0297, 9.9626, 9.7579, 9.2434, 8.2318, 7.008, 6.7039, 7.7303, 9.0101,
-         9.6877, 9.9068, 9.7497, 9.1127, 7.9505, 7.26, 7.9551, 9.2104, 9.7458,
-         9.6637, 9.1425, 8.2403, 7.1034, 6.5109, 7.2764, 8.7653, 9.7139, 9.9718,
-         10.01, 10.0252, 10.0357], 4)
+        [10.0297, 9.9626, 9.7579, 9.2434, 8.2318, 7.008, 6.7039, 7.7303, 9.0101, 9.6877, 9.9068, 9.7497,
+         9.1127, 7.9505, 7.26, 7.9551, 9.2104, 9.7458, 9.6637, 9.1425, 8.2403, 7.1034, 6.5109, 7.2764,
+         8.7653, 9.7139, 9.9718, 10.01, 10.0252, 10.0357], 4)
 
 
 def test_str():

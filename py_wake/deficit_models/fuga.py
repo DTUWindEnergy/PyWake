@@ -74,6 +74,13 @@ class FugaDeficit(DeficitModel):
         else:
             z = z0 * np.exp(zlevels * dsAll)
         # self.grid_interplator = GridInterpolator([self.z, self.y, self.x], self.du)
+
+        n = 250
+        du[:, :, :n] = du[:, :, n][:, :, na] * np.arange(n) / n
+        du[:, :, -n:] = du[:, :, -n][:, :, na] * np.arange(n)[::-1] / n
+        n = 50
+        du[:, -n:, :] = du[:, -n, :][:, na, :] * np.arange(n)[::-1][na, :, na] / n
+
         return x, y, z, du
 
     def interpolate(self, x, y, z):
@@ -129,7 +136,7 @@ class LUTInterpolator(object):
         xp, yp, zp = xyz
         xp = np.maximum(np.minimum(xp, self.x[-1]), self.x[0])
         yp = np.maximum(np.minimum(yp, self.y[-1]), self.y[0])
-        zp = np.maximum(np.minimum(zp, self.z[-1]), self.z[0])
+        # zp = np.maximum(np.minimum(zp, self.z[-1]), self.z[0])
 
         def i0f(_i):
             _i0 = np.asarray(_i).astype(np.int)
