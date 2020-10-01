@@ -139,7 +139,7 @@ class XRSite(UniformWeibullSite):
             elif 'ws' in data_dims:
                 shape.append(data.shape[data_dims.index('ws')])
 
-            ip_data = grid_interp(np.array(xp).T).T
+            ip_data = grid_interp(np.array(xp).T)
             ip_data = ip_data.reshape(shape)
         else:
             ip_data = data

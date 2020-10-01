@@ -57,7 +57,15 @@ def test_grid_interpolator_2d():
 def test_grid_interpolator_2d_plus_1d():
     eq = GridInterpolator([[5, 10, 15], [200, 300, 400, 500]], np.arange(12).repeat(2).reshape(3, 4, 2))
     x = [[i, 200] for i in np.arange(5, 16)]
-    npt.assert_array_almost_equal(eq(x).sum(0), np.linspace(0, 8, 11) * 2)
+    npt.assert_array_almost_equal(eq(x).sum(1), np.linspace(0, 8, 11) * 2)
+    npt.assert_array_equal(eq(x).shape, (11, 2))
+
+
+def test_grid_interpolator_2d_plus_2d():
+    eq = GridInterpolator([[5, 10, 15], [200, 300, 400, 500]], np.arange(12).repeat(10).reshape(3, 4, 2, 5))
+    x = [[i, 200] for i in np.arange(5, 16)]
+    npt.assert_array_almost_equal(eq(x).sum((1, 2)), np.linspace(0, 8, 11) * 10)
+    npt.assert_array_equal(eq(x).shape, (11, 2, 5))
 
 
 def test_grid_interpolator_non_regular():
