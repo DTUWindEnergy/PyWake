@@ -14,7 +14,7 @@ from py_wake.deficit_models.gaussian import BastankhahGaussian, BastankhahGaussi
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.superposition_models import LinearSum
 from py_wake.tests.check_speed import timeit
-from py_wake.site._site import LocalWind, UniformWeibullSite
+from py_wake.site._site import LocalWind
 
 
 f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,

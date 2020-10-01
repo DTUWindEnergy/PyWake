@@ -48,7 +48,7 @@ class GridInterpolator(object):
         indexes = (self.ui.T[:, :, na] + xpi0.T[:, na])
 
         indexes = np.minimum(indexes, (self.n - 1)[:, na, na])
-        v = self.V[tuple(indexes)].T
+        v = np.moveaxis(self.V[tuple(indexes)], [0, 1], [-2, -1])
 
         xpif1 = 1 - xpif
         # w = np.product([xpif10_.T[ui] for xpif10_, ui in zip(np.array([xpif1, xpif]).T, self.ui.T)], 0).T # slower
@@ -60,6 +60,6 @@ class GridInterpolator(object):
             else:
                 return np.r_[mul_weight(weights * xpif1[:, i], i + 1), mul_weight(weights * xpif[:, i], i + 1)]
 
-        w = mul_weight(1, 0).reshape(-1, xpif.shape[0]).T
+        w = mul_weight(1, 0).reshape(-1, xpif.shape[0])
 
-        return (w * v).sum(-1)
+        return np.moveaxis((w * v).sum(-2), -1, 0)
