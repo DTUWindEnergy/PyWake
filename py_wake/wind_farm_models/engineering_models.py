@@ -7,9 +7,9 @@ from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.deflection_models.deflection_model import DeflectionModel
 from py_wake.utils.gradients import use_autograd_in, autograd
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter, RotorAvgModel
-from py_wake.utils.progressbar import progressbar
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel
 from py_wake.deficit_models.deficit_model import ConvectionDeficitModel
+from tqdm import tqdm
 
 
 class EngineeringWindFarmModel(WindFarmModel):
@@ -187,7 +187,7 @@ class EngineeringWindFarmModel(WindFarmModel):
         WS_eff_jlk = np.zeros((len(x_j), L, K))
         TI_eff_jlk = np.zeros((len(x_j), L, K))
 
-        for l in progressbar(range(L)):
+        for l in tqdm(range(L), disable=L <= 1, desc='Calculate flow map', unit='wd'):
 
             dw_ijl, hcw_ijl, dh_ijl, _ = self.site.distances(wt_x_i, wt_y_i, wt_h_i, x_j, y_j, h_j,
                                                              wd_il=sim_res_data.WD.ilk((I, L, K))[:, l:l + 1, :].mean(2))
@@ -233,7 +233,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                 add_turb_ijk = np.zeros((I, J, K))
                 uc_ijk = np.zeros((I, J, K))
                 sigma_sqr_ijk = np.zeros((I, J, K))
-                for i in range(I):
+                for i in tqdm(range(I), desc="Calculate flow map for wd=%d" % l, unit='wt'):
                     args_i = {k: v[i][na] for k, v in args.items()}
                     if isinstance(self.superpositionModel, WeightedSum):
                         deficit, uc, sigma_sqr = self._calc_deficit_convection(dw_ijlk=dw_ijlk[i][na], **args_i)
@@ -259,10 +259,10 @@ class EngineeringWindFarmModel(WindFarmModel):
 
             l_ = [l, 0][lw_j.WS_ilk.shape[1] == 1]
             if isinstance(self.superpositionModel, WeightedSum):
-                cw_ijk, hcw_ijk, dh_ijk = np.hypot(dh_ijl[..., na], hcw_ijlk)[
-                    :, :, l], hcw_ijlk[:, :, l], dh_ijl[:, :, l, na]
+                cw_ijk = np.hypot(dh_ijl[..., na], hcw_ijlk)[:, :, l_]
+                hcw_ijk, dh_ijk = hcw_ijlk[:, :, l_], dh_ijl[:, :, l_, na]
                 WS_eff_jlk[:, l] = self.superpositionModel.calc_effective_WS(
-                    lw_j.WS_ilk[:, l], deficit_ijk, uc_ijk, sigma_sqr_ijk, cw_ijk, hcw_ijk, dh_ijk)
+                    lw_j.WS_ilk[:, l_], deficit_ijk, uc_ijk, sigma_sqr_ijk, cw_ijk, hcw_ijk, dh_ijk)
             else:
                 WS_eff_jlk[:, l] = self.superpositionModel.calc_effective_WS(lw_j.WS_ilk[:, l_], deficit_ijk)
 
@@ -378,7 +378,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
         i_wd_l = np.arange(L)
 
         # Iterate over turbines in down wind order
-        for j in progressbar(range(I), self.verbose):
+        for j in tqdm(range(I), disable=I <= 1 or not self.verbose, desc="Calculate flow interaction", unit="wt"):
             i_wt_l = dw_order_indices_dl[:, j]
             m = i_wt_l * L + i_wd_l  # current wt (j'th most upstream wts for all wdirs)
 
@@ -542,7 +542,7 @@ class All2AllIterative(EngineeringWindFarmModel):
                 }
 
         # Iterate until convergence
-        for j in range(I):
+        for j in tqdm(range(I), disable=I <= 1 or not self.verbose, desc="Calculate flow interaction", unit="wt"):
 
             ct_ilk, power_ilk = self.windTurbines._ct_power(WS_eff_ilk, type_i)
             args['ct_ilk'] = ct_ilk
