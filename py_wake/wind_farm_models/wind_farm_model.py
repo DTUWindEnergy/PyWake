@@ -10,13 +10,13 @@ from numpy import newaxis as na
 
 class WindFarmModel(ABC):
     """Base class for RANS and engineering flow models"""
+    verbose = True
 
     def __init__(self, site, windTurbines):
         assert isinstance(site, Site)
         assert isinstance(windTurbines, WindTurbines)
         self.site = site
         self.windTurbines = windTurbines
-        self.verbose = False
 
     def __call__(self, x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None, verbose=False):
         """Run the wind farm simulation

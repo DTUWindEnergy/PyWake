@@ -105,10 +105,10 @@ def test_huge_flow_map(wake_deficitModel, deflectionModel, superpositionModel):
                                    superpositionModel=superpositionModel, deflectionModel=deflectionModel,
                                    turbulenceModel=STF2005TurbulenceModel())
     n_wt = 2
-    flow_map = wake_model(*site.initial_position[:n_wt].T, wd=0).flow_map(HorizontalGrid(resolution=1000))
+    flow_map = wake_model(*site.initial_position[:n_wt].T, wd=[0, 90]).flow_map(HorizontalGrid(resolution=1000))
     # check that deficit matrix > 10MB (i.e. it enters the memory saving loop)
     assert (np.prod(flow_map.WS_eff_xylk.shape) * n_wt * 8 / 1024**2) > 10
-    assert flow_map.WS_eff_xylk.shape == (1000, 1000, 1, 1)
+    assert flow_map.WS_eff_xylk.shape == (1000, 1000, 2, 1)
 
 
 def test_aep():
