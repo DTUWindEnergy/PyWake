@@ -129,18 +129,18 @@ class FlowMap(FlowBox):
             z = self.simulationResult.windFarmModel.site.elevation(x, y)
             c = ax.contourf(self.X, self.Y + z, np.reshape(data.isel(x=0), self.X.shape), levels=levels, cmap=cmap)
             if plot_colorbar:
-                plt.colorbar(c, cmap=cmap, label=clabel)
+                plt.colorbar(c, cmap=cmap, label=clabel, ax=ax)
             # plot terrain
             y = np.arange(y.min(), y.max())
             x = np.zeros_like(y) + self.plane[1]
             z = self.simulationResult.windFarmModel.site.elevation(x, y)
-            plt.plot(y, z, 'k')
+            ax.plot(y, z, 'k')
         else:
             # xarray gives strange levels
             # c = data.isel(h=0).plot(levels=levels, cmap=cmap, ax=ax, add_colorbar=plot_colorbar)
             c = ax.contourf(self.X, self.Y, data.isel(h=0).data, levels=levels, cmap=cmap)
             if plot_colorbar:
-                plt.colorbar(c, label=clabel)
+                plt.colorbar(c, label=clabel, ax=ax)
 
         if plot_windturbines:
             self.plot_windturbines(ax=ax)
