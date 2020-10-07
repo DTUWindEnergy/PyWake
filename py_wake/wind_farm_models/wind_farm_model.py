@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABC
-from py_wake.site._site import Site
+from py_wake.site._site import Site, UniformSite
 from py_wake.wind_turbines import WindTurbines
 import numpy as np
 from py_wake.flow_map import FlowMap, HorizontalGrid, FlowBox, YZGrid, Grid
@@ -45,7 +45,7 @@ class WindFarmModel(ABC):
         type, h, _ = self.windTurbines.get_defaults(len(x), type, h)
 
         if len(x) == 0:
-            lw = self.site.local_wind(x_i=[0], y_i=[0], h_i=[100], wd=wd, ws=ws)
+            lw = UniformSite([1], 0.1).local_wind(x_i=[0], y_i=[0], h_i=[100], wd=wd, ws=ws)
             z = xr.DataArray(np.zeros((1, len(lw.wd), len(lw.ws))), coords=[('wt', [0]), ('wd', lw.wd), ('ws', lw.ws)])
             return SimulationResult(self, lw, [0], yaw_ilk, z, z, z, z)
         res = self.calc_wt_interaction(x_i=x, y_i=y, h_i=h, type_i=type, yaw_ilk=yaw_ilk, wd=wd, ws=ws)

@@ -33,7 +33,7 @@ class LocalWind(xr.Dataset):
         P : array_like
             Probability/weight
         """
-        coords = {'wd': wd, 'ws': ws, }
+        coords = {'wd': wd, 'ws': np.atleast_1d(ws)}
         assert len(np.atleast_1d(x_i)) == len(np.atleast_1d(y_i))
         n_i = max(len(np.atleast_1d(x_i)), len(np.atleast_1d(h_i)))
         coords['i'] = np.arange(n_i)
