@@ -39,7 +39,12 @@ class GridInterpolator(object):
             xpi[:, self.irregular_axes] = irreg_i.T + (xp[:, self.irregular_axes] - irreg_x0.T) / irreg_dx.T
 
         if check_bounds and (np.any(xpi < 0) or np.any(xpi + 1 > self.n[na])):
-            raise ValueError("Outside data area")
+            if -xpi.min() > (xpi + 1 - self.n[na]).max():
+                point, dimension = np.unravel_index(xpi.argmin(), np.atleast_2d(xpi).shape)
+            else:
+                point, dimension = np.unravel_index(((xpi + 1 - self.n[na])).argmax(), np.atleast_2d(xpi).shape)
+            raise ValueError("Point %d, dimension %d with value %f is outside range %f-%f" %
+                             (point, dimension, np.atleast_2d(xp)[point, dimension], self.x[dimension][0], self.x[dimension][-1]))
         xpi0 = xpi.astype(int)
         xpif = xpi - xpi0
         if method == 'nearest':
