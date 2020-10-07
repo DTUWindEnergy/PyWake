@@ -20,12 +20,20 @@ def test_grid_interpolator_wrong_method():
 
 
 def test_grid_interpolator_outside_area():
-    with pytest.raises(ValueError, match='Outside data area'):
+    with pytest.raises(ValueError, match='Point 0, dimension 0 with value 9.900000 is outside range 10.000000-30.000000'):
         GridInterpolator([[10, 20, 30]], [1, 2, 3])(9.9)
-    with pytest.raises(ValueError, match='Outside data area'):
+
+    with pytest.raises(ValueError, match='Point 0, dimension 0 with value 30.100000 is outside range 10.000000-30.000000'):
         GridInterpolator([[10, 20, 30]], [1, 2, 3])(30.1)
-    with pytest.raises(ValueError, match="Outside data area"):
+
+    with pytest.raises(ValueError, match='Point 1, dimension 0 with value 30.100000 is outside range 10.000000-30.000000'):
+        GridInterpolator([[10, 20, 30]], [1, 2, 3])([[20], [30.1]])
+
+    with pytest.raises(ValueError, match='Point 0, dimension 1 with value 300.100000 is outside range 200.000000-300.000000'):
         GridInterpolator([[5, 10, 15], [200, 300]], np.arange(6).reshape(3, 2))([(5, 300.1)])
+
+    with pytest.raises(ValueError, match='Point 1, dimension 0 with value 4.800000 is outside range 5.000000-15.000000'):
+        GridInterpolator([[5, 10, 15], [200, 300]], np.arange(6).reshape(3, 2))([(5, 199.9), (4.8, 200), (5, 301)])
 
 
 def test_grid_interpolator_2d():
