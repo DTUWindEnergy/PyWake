@@ -6,10 +6,12 @@ from py_wake.tests.test_files import tfp
 from py_wake import Fuga
 from py_wake.examples.data import hornsrev1
 import matplotlib.pyplot as plt
-from py_wake.deficit_models.fuga import FugaBlockage, FugaDeficit, LUTInterpolator
+from py_wake.deficit_models.fuga import FugaBlockage, FugaDeficit, LUTInterpolator, FugaUtils
 from py_wake.flow_map import HorizontalGrid
 from py_wake.tests.check_speed import timeit
 from py_wake.utils.grid_interpolator import GridInterpolator
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind
+import pytest
 
 
 def test_fuga():
@@ -144,7 +146,7 @@ def test_fuga_new_format():
          9.2867, 7.5714, 6.4451, 8.3276, 9.9976, 10.0251, 10.0264, 10.023, 10.0154, 9.9996], 4)
 
 
-def test_fuga_assymptic():
+def test_fuga_table_edges():
 
     wts = HornsrevV80()
     path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
@@ -156,7 +158,7 @@ def test_fuga_assymptic():
     flow_map_cw = fuga([0], [0], wd=270, ws=10).flow_map(HorizontalGrid([0], np.arange(-20 * D, 20 * D)))
     flow_map = fuga([0], [0], wd=270, ws=10).flow_map(HorizontalGrid(np.arange(-150, 400) * D, np.arange(-20, 21) * D))
 
-    if 0:
+    if 1:
         plt.plot(flow_map_dw.x / D, flow_map_dw.WS_eff.squeeze())
         plt.grid()
         plt.ylim([9.9, 10.1])
@@ -171,6 +173,46 @@ def test_fuga_assymptic():
 
     npt.assert_array_equal(flow_map.WS_eff.squeeze()[[0, -1], :], 10)
     npt.assert_array_equal(flow_map.WS_eff.squeeze()[:, [0, -1]], 10)
+
+
+def test_fuga_wriggles():
+    wts = HornsrevV80()
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
+    site = hornsrev1.Hornsrev1Site()
+    fuga = PropagateDownwind(site, wts, FugaDeficit(path, remove_wriggles=True))
+
+    D = 80
+    flow_map_cw = fuga([0], [0], wd=270, ws=10).flow_map(HorizontalGrid([0], np.arange(-20 * D, 20 * D)))
+
+    y = np.linspace(-5 * D, 5 * D, 100)
+
+    dw_lst = range(10)
+    flow_map_cw_lst = np.array([fuga([0], [0], wd=270, ws=10).flow_map(HorizontalGrid([dw * D], y)).WS_eff.squeeze()
+                                for dw in dw_lst])
+
+    if 1:
+        for flow_map_cw, dw in zip(flow_map_cw_lst, dw_lst):
+            plt.plot(y, flow_map_cw, label="%dD" % dw)
+        plt.xlabel('y [m]')
+        plt.ylabel('ws [m/s')
+        plt.ylim([9.9, 10.1])
+        plt.grid()
+        plt.legend(loc=1)
+        plt.show()
+    assert np.all(flow_map_cw_lst > 0)
+
+
+def test_fuga_utils_mismatch():
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
+    with pytest.raises(ValueError, match="Mismatch between CaseData.bin and 2MW_FIT_input.par: low_level 102!=155"):
+        FugaUtils(path)
+
+
+def test_mirror():
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
+    fuga_utils = FugaUtils(path, on_mismatch='input_par')
+    npt.assert_array_almost_equal(fuga_utils.mirror([0, 1, 3]), [3, 1, 0, 1, 3])
+    npt.assert_array_almost_equal(fuga_utils.mirror([0, 1, 3], anti_symmetric=True), [-3, -1, 0, 1, 3])
 
 
 # def cmp_fuga_with_colonel():
