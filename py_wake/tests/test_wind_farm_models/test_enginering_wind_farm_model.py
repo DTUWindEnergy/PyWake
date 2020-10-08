@@ -20,6 +20,8 @@ from py_wake.utils.gradients import autograd, cs, fd, plot_gradients
 from py_wake.deficit_models.fuga import FugaDeficit
 from py_wake.superposition_models import LinearSum
 from py_wake.deficit_models.no_wake import NoWakeDeficit
+from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
+WindFarmModel.verbose = False
 
 
 def test_wake_model():
@@ -251,3 +253,19 @@ def test_double_wind_farm_model_All2AllIterative():
     All2AllIterative(site, windTurbines, wake_deficitModel=NoWakeDeficit())(x, y)
     aep = wfm(x, y).aep().sum()
     npt.assert_array_equal(aep, aep_ref)
+
+
+def test_huge_farm():
+    site = UniformSite([1], ti=0)
+    windTurbines = IEA37_WindTurbines()
+    wfm = PropagateDownwind(site, windTurbines, NoWakeDeficit())
+    N = 200
+    x = np.arange(N) * windTurbines.diameter(0) * 4
+
+    import tracemalloc
+    tracemalloc.start()
+    wfm(x, x * 0, ws=10)
+    current, peak = tracemalloc.get_traced_memory()  # @UnusedVariable
+    peak /= 1024**2
+    assert peak < 800
+    tracemalloc.stop()

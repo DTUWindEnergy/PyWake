@@ -134,7 +134,7 @@ def test_plot_wd_distribution_with_ws_levels(site):
                                       [0.0103, 0.0386, 0.0369, 0.0127, 0.0015],
                                       [0.0092, 0.0231, 0.0152, 0.0038, 0.0004]], 4)
 
-    if 1:
+    if 0:
         plt.show()
     plt.close()
 
