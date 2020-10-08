@@ -8,80 +8,130 @@ from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2A
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
 from py_wake.tests.test_files import tfp
 from py_wake.utils.grid_interpolator import GridInterpolator
+from pathlib import Path
 
 
-class FugaDeficit(DeficitModel):
-    ams = 5
-    invL = 0
-    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijl', 'h_il', 'ct_ilk', 'D_src_il']
+class FugaUtils():
+    def __init__(self, path, on_mismatch='raise'):
+        """
+        Parameters
+        ----------
+        path : string
+            Path to folder containing 'CaseData.bin', input parameter file (*.par) and loop-up tables
+        on_mismatch : {'raise', 'casedata','input_par'}
+            Determines how to handle mismatch between info from CaseData.in and input.par.
+            If 'raise' a ValueError exception is raised in case of mismatch\n
+            If 'casedata', the values from CaseData.bin is used\n
+            If 'input_par' the values from the input parameter file (*.par) is used
+        """
+        self.path = path
 
-    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'):
-        self.lut_interpolator = LUTInterpolator(*self.load(LUT_path))
-
-    def load(self, path):
-
-        with open(path + 'CaseData.bin', 'rb') as fid:
+        with open(self.path + 'CaseData.bin', 'rb') as fid:
             case_name = struct.unpack('127s', fid.read(127))[0]  # @UnusedVariable
-            r = struct.unpack('d', fid.read(8))[0]  # @UnusedVariable
-            zhub = struct.unpack('d', fid.read(8))[0]
-            lo_level = struct.unpack('I', fid.read(4))[0]  # @UnusedVariable
-            hi_level = struct.unpack('I', fid.read(4))[0]  # @UnusedVariable
-            z0 = struct.unpack('d', fid.read(8))[0]
+            self.r = struct.unpack('d', fid.read(8))[0]  # @UnusedVariable
+            self.zHub = struct.unpack('d', fid.read(8))[0]
+            self.low_level = struct.unpack('I', fid.read(4))[0]
+            self.high_level = struct.unpack('I', fid.read(4))[0]
+            self.z0 = struct.unpack('d', fid.read(8))[0]
             zi = struct.unpack('d', fid.read(8))[0]  # @UnusedVariable
-            ds = struct.unpack('d', fid.read(8))[0]
-            closure = struct.unpack('I', fid.read(4))[0]  # @UnusedVariable
-            if os.path.getsize(path + 'CaseData.bin') == 187:
-                zeta0 = struct.unpack('d', fid.read(8))[0]
+            self.ds = struct.unpack('d', fid.read(8))[0]
+            closure = struct.unpack('I', fid.read(4))[0]
+            if os.path.getsize(self.path + 'CaseData.bin') == 187:
+                self.zeta0 = struct.unpack('d', fid.read(8))[0]
             else:
                 #                 with open(path + 'CaseData.bin', 'rb') as fid2:
                 #                     info = fid2.read(127).decode()
                 #                 zeta0 = float(info[info.index('Zeta0'):].replace("Zeta0=", ""))
-                zeta0 = float(path[path.index('Zeta0'):].replace("Zeta0=", "").replace("/", ""))
+                if 'Zeta0' in self.path:
+                    self.zeta0 = float(self.path[self.path.index('Zeta0'):].replace("Zeta0=", "").replace("/", ""))
+
+        f = [f for f in os.listdir(self.path) if f.endswith('.par')][0]
+        lines = Path(self.path + f).read_text().split("\n")
+
+        self.prefix = lines[0].strip()
+        self.nx, self.ny = map(int, lines[2:4])
+        self.dx, self.dy = map(float, lines[4:6])  # @UnusedVariable
+        self.sigmax, self.sigmay = map(float, lines[6:8])  # @UnusedVariable
+
+        def set_Value(n, v):
+            if on_mismatch == 'raise' and getattr(self, n) != v:
+                raise ValueError("Mismatch between CaseData.bin and %s: %s %s!=%s" % (f, n, getattr(self, n), v))
+            elif on_mismatch == 'input_par':
+                setattr(self, n, v)
+
+        set_Value('low_level', int(lines[11]))
+        set_Value('high_level', int(lines[12]))
+        set_Value('z0', float(lines[8]))  # roughness level
+        set_Value('zHub', float(lines[10]))  # hub height
+        self.nx0 = self.nx // 4
+        self.ny0 = self.ny // 2
+
+        self.x = np.arange(-self.nx0, self.nx * 3 / 4) * self.dx  # rotor is located 1/4 downstream
+        self.y = np.arange(self.ny // 2) * self.dy
+        self.zlevels = np.arange(self.low_level, self.high_level + 1)
+
+        if self.low_level == self.high_level == 9999:
+            self.z = [self.zHub]
+        else:
+            self.z = self.z0 * np.exp(self.zlevels * self.ds)
+
+    def mirror(self, x, anti_symmetric=False):
+        x = np.asarray(x)
+        return np.concatenate([((1, -1)[anti_symmetric]) * x[::-1], x[1:]])
+
+    def load_luts(self, UVLT=['UL', 'UT', 'VL', 'VT'], zlevels=None):
+        return np.array([[np.fromfile(self.path + self.prefix + '%04d%s.dat' % (j, uvlt), np.dtype('<f'), -1)
+                          for j in (zlevels or self.zlevels)] for uvlt in UVLT])
+
+
+class FugaDeficit(DeficitModel, FugaUtils):
+    ams = 5
+    invL = 0
+    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijl', 'h_il', 'ct_ilk', 'D_src_il']
+
+    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/', remove_wriggles=False):
+        """
+        Parameters
+        ----------
+        LUT_path : str
+            Path to folder containing 'CaseData.bin', input parameter file (*.par) and loop-up tables
+        remove_wriggles : bool
+            The current Fuga loop-up tables have significan wriggles.
+            If True, all deficit values after the first zero crossing (when going from the center line
+            and out in the lateral direction) is set to zero.
+            This means that all speed-up regions are also removed
+        """
+
+        FugaUtils.__init__(self, LUT_path, on_mismatch='input_par')
+        self.remove_wriggles = remove_wriggles
+        self.lut_interpolator = LUTInterpolator(*self.load())
+
+    def load(self):
 
         def psim(zeta):
             return self.ams * zeta
 
-        if not zeta0 >= 0:  # pragma: no cover
+        if not self.zeta0 >= 0:  # pragma: no cover
             # See Colonel.u2b.psim
             raise NotImplementedError
-        factor = 1 / (1 - (psim(zhub * self.invL) - psim(zeta0)) / np.log(zhub / z0))
+        factor = 1 / (1 - (psim(self.zHub * self.invL) - psim(self.zeta0)) / np.log(self.zHub / self.z0))
 
-        f = [f for f in os.listdir(path) if f.endswith("input.par") or f.endswith('inputfile.par')][0]
-        # z0_zi_zeta0 = os.path.split(os.path.dirname(path))[1]
-        # z0, zi, zeta0 = re.match('Z0=(\d+.\d+)Zi=(\d+)Zeta0=(\d+.\d+E\+\d+)', z0_zi_zeta0).groups()
+        mdu = self.load_luts(['UL'])[0]
 
-        with open(path + f) as fid:
-            lines = fid.readlines()
-        prefix = lines[0].strip()
-        nxW, nyW = map(int, lines[2:4])
-        dx, dy, sigmax, sigmay = map(float, lines[4:8])  # @UnusedVariable
-        lo_level, hi_level = map(int, lines[11:13])
-        dsAll = ds
+        du = -np.array(mdu, dtype=np.float32).reshape((len(mdu), self.ny // 2, self.nx)) * factor
 
-        zlevels = np.arange(lo_level, hi_level + 1)
-        mdu = [np.fromfile(path + prefix + '%04dUL.dat' % j, np.dtype('<f'), -1)
-               for j in zlevels]
+        if self.remove_wriggles:
+            # remove all positive and negative deficits after first zero crossing in lateral direction
+            du *= (np.cumsum(du < 0, 1) == 0)
 
-        du = -np.array(mdu, dtype=np.float32).reshape((len(mdu), nyW // 2, nxW)) * factor
-        z0 = z0
-        x0 = nxW // 4
-        dx = dx
-        x = np.arange(-x0, nxW * 3 / 4) * dx
-        y = np.arange(nyW // 2) * dy
-        dy = dy
-        if lo_level == hi_level == 9999:
-            z = [zhub]
-        else:
-            z = z0 * np.exp(zlevels * dsAll)
-        # self.grid_interplator = GridInterpolator([self.z, self.y, self.x], self.du)
-
+        # smooth edges to zero
         n = 250
         du[:, :, :n] = du[:, :, n][:, :, na] * np.arange(n) / n
         du[:, :, -n:] = du[:, :, -n][:, :, na] * np.arange(n)[::-1] / n
         n = 50
         du[:, -n:, :] = du[:, -n, :][:, na, :] * np.arange(n)[::-1][na, :, na] / n
 
-        return x, y, z, du
+        return self.x, self.y, self.z, du
 
     def interpolate(self, x, y, z):
         # self.grid_interplator(np.array([zyx.flatten() for zyx in [z, y, x]]).T, check_bounds=False).reshape(x.shape)
@@ -176,7 +226,7 @@ class LUTInterpolator(object):
 
 class Fuga(PropagateDownwind):
     def __init__(self, LUT_path, site, windTurbines,
-                 rotorAvgModel=RotorCenter(), deflectionModel=None, turbulenceModel=None):
+                 rotorAvgModel=RotorCenter(), deflectionModel=None, turbulenceModel=None, remove_wriggles=False):
         """
         Parameters
         ----------
@@ -196,7 +246,7 @@ class Fuga(PropagateDownwind):
             Model describing the amount of added turbulence in the wake
         """
         PropagateDownwind.__init__(self, site, windTurbines,
-                                   wake_deficitModel=FugaDeficit(LUT_path),
+                                   wake_deficitModel=FugaDeficit(LUT_path, remove_wriggles=remove_wriggles),
                                    rotorAvgModel=rotorAvgModel, superpositionModel=LinearSum(),
                                    deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
 
@@ -204,7 +254,7 @@ class Fuga(PropagateDownwind):
 class FugaBlockage(All2AllIterative):
     def __init__(self, LUT_path, site, windTurbines,
                  rotorAvgModel=RotorCenter(),
-                 deflectionModel=None, turbulenceModel=None, convergence_tolerance=1e-6):
+                 deflectionModel=None, turbulenceModel=None, convergence_tolerance=1e-6, remove_wriggles=False):
         """
         Parameters
         ----------
@@ -223,11 +273,11 @@ class FugaBlockage(All2AllIterative):
         turbulenceModel : TurbulenceModel
             Model describing the amount of added turbulence in the wake
         """
-        fuga_deficit = FugaDeficit(LUT_path)
+        fuga_deficit = FugaDeficit(LUT_path, remove_wriggles=remove_wriggles)
         All2AllIterative.__init__(self, site, windTurbines, wake_deficitModel=fuga_deficit,
                                   rotorAvgModel=rotorAvgModel, superpositionModel=LinearSum(),
-                                  blockage_deficitModel=fuga_deficit, turbulenceModel=turbulenceModel,
-                                  convergence_tolerance=convergence_tolerance)
+                                  deflectionModel=deflectionModel, blockage_deficitModel=fuga_deficit,
+                                  turbulenceModel=turbulenceModel, convergence_tolerance=convergence_tolerance)
 
 
 def main():
