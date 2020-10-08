@@ -187,7 +187,7 @@ class EngineeringWindFarmModel(WindFarmModel):
         WS_eff_jlk = np.zeros((len(x_j), L, K))
         TI_eff_jlk = np.zeros((len(x_j), L, K))
 
-        for l in tqdm(range(L), disable=L <= 1, desc='Calculate flow map', unit='wd'):
+        for l in tqdm(range(L), disable=L <= 1 or not self.verbose, desc='Calculate flow map', unit='wd'):
 
             dw_ijl, hcw_ijl, dh_ijl, _ = self.site.distances(wt_x_i, wt_y_i, wt_h_i, x_j, y_j, h_j,
                                                              wd_il=sim_res_data.WD.ilk((I, L, K))[:, l:l + 1, :].mean(2))
@@ -233,7 +233,8 @@ class EngineeringWindFarmModel(WindFarmModel):
                 add_turb_ijk = np.zeros((I, J, K))
                 uc_ijk = np.zeros((I, J, K))
                 sigma_sqr_ijk = np.zeros((I, J, K))
-                for i in tqdm(range(I), desc="Calculate flow map for wd=%d" % l, unit='wt'):
+                for i in tqdm(range(I), disable=I <= 1 or not self.verbose,
+                              desc="Calculate flow map for wd=%d" % l, unit='wt'):
                     args_i = {k: v[i][na] for k, v in args.items()}
                     if isinstance(self.superpositionModel, WeightedSum):
                         deficit, uc, sigma_sqr = self._calc_deficit_convection(dw_ijlk=dw_ijlk[i][na], **args_i)
@@ -373,7 +374,15 @@ class PropagateDownwind(EngineeringWindFarmModel):
         if self.turbulenceModel:
             add_turb_nk = np.zeros((I * I * L, K))
 
-        dw_n, hcw_n, cw_n, dh_n = [a.flatten() for a in [dw_iil, hcw_iil, cw_iil, dh_iil]]
+        def iil2n(iil):
+            if isinstance(iil, np.ndarray):
+                iil.resize(I * I * L)
+                return iil
+            else:
+                # In case of autograd array box
+                return iil.flatten()
+
+        dw_n, hcw_n, dh_n = [iil2n(a) for a in [dw_iil, hcw_iil, dh_iil]]
 
         i_wd_l = np.arange(L)
 
