@@ -25,9 +25,6 @@ class ilk():
             return np.broadcast_to(v, shape)
 
 
-xr.register_dataarray_accessor("ilk")(ilk)
-
-
 class interp_all():
     def __init__(self, dataArray):
         self.dataArray = dataArray
@@ -35,9 +32,6 @@ class interp_all():
     def __call__(self, dataArray2, **kwargs):
         interp_coords = {d: dataArray2[d] for d in self.dataArray.dims if d in dataArray2}
         return self.dataArray.interp(**interp_coords, **kwargs)
-
-
-xr.register_dataarray_accessor("interp_all")(interp_all)
 
 
 class sel_interp_all():
@@ -57,4 +51,7 @@ class sel_interp_all():
         return da.interp(**interp_coords, method=method, kwargs=kwargs)
 
 
-xr.register_dataarray_accessor("sel_interp_all")(sel_interp_all)
+if not hasattr(xr.DataArray(), 'ilk'):
+    xr.register_dataarray_accessor("ilk")(ilk)
+    xr.register_dataarray_accessor("interp_all")(interp_all)
+    xr.register_dataarray_accessor("sel_interp_all")(sel_interp_all)
