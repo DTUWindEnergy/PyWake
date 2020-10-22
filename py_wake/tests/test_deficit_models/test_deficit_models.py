@@ -25,7 +25,9 @@ from py_wake.superposition_models import SquaredSum, WeightedSum
 from py_wake.tests import npt
 from py_wake.tests.test_files import tfp
 from py_wake.turbulence_models.gcl import GCLTurbulence
-from py_wake.wind_farm_models.engineering_models import PropagateDownwind
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
+from py_wake.turbulence_models.stf import STF2017TurbulenceModel
+from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 
 
 class GCLLocalDeficit(GCLDeficit):
@@ -380,3 +382,13 @@ def test_IEA37_ex16_windFarmModel(windFarmModel, aep_ref):
 
     npt.assert_almost_equal(aep_MW_l.sum(), aep_ref[0], 5)
     npt.assert_array_almost_equal(aep_MW_l, aep_ref[1], 5)
+
+
+@pytest.mark.parametrize('deficitModel', get_all_deficit_models())
+def test_own_deficit_is_zero(deficitModel):
+    site = Hornsrev1Site()
+    windTurbines = IEA37_WindTurbines()
+    wf_model = All2AllIterative(site, windTurbines, wake_deficitModel=deficitModel,
+                                turbulenceModel=STF2017TurbulenceModel())
+    sim_res = wf_model([0], [0])
+    npt.assert_array_equal(sim_res.WS_eff, sim_res.WS.broadcast_like(sim_res.WS_eff))

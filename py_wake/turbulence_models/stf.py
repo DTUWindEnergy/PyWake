@@ -26,7 +26,7 @@ class STF2017TurbulenceModel(TurbulenceModel):
             theta = np.arctan2(cw_ijlk, dw_ijlk) * 180.0 / np.pi
 
         # weights_jl = np.where(theta < 3 * theta_w, np.exp(-(theta / theta_w)**2), 0)
-        weights_ijlk = np.where(theta < theta_w, np.exp(-(theta / theta_w)**2), 0)
+        weights_ijlk = np.where(theta < theta_w, np.exp(-(theta / theta_w)**2), 0) * (dw_ijlk > 1e-10)
         return weights_ijlk
 
     def calc_added_turbulence(self, dw_ijlk, cw_ijlk, D_src_il, ct_ilk, TI_ilk, **_):
