@@ -1,7 +1,7 @@
 import pytest
 
 import numpy as np
-from py_wake import NOJ
+from py_wake import NOJ, turbulence_models
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.examples.data.iea37._iea37 import IEA37Site
@@ -13,13 +13,30 @@ from py_wake.superposition_models import SquaredSum
 from py_wake.tests import npt
 from py_wake.tests.test_deficit_models.test_noj import NibeA0
 from py_wake.turbulence_models.stf import STF2005TurbulenceModel, STF2017TurbulenceModel
-from py_wake.turbulence_models.turbulence_model import MaxSum
+from py_wake.turbulence_models.turbulence_model import MaxSum, TurbulenceModel
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.turbulence_models.gcl import GCLTurbulence
 import matplotlib.pyplot as plt
 from py_wake.turbulence_models.crespo import CrespoHernandez
-from py_wake.deficit_models.gaussian import BastankhahGaussian
+from py_wake.deficit_models.gaussian import BastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit
 import xarray as xr
+import os
+import pkgutil
+import inspect
+from py_wake.examples.data.hornsrev1 import Hornsrev1Site
+
+
+def get_all_turbulence_models():
+    all_turbulence_modules = []
+    for loader, module_name, _ in pkgutil.walk_packages([os.path.dirname(turbulence_models.__file__)]):
+
+        _module = loader.find_module(module_name).load_module(module_name)
+        for n in dir(_module):
+            v = _module.__dict__[n]
+            if inspect.isclass(v) and issubclass(v, TurbulenceModel) and \
+                    v not in [TurbulenceModel]:
+                all_turbulence_modules.append(v())
+    return all_turbulence_modules
 
 
 @pytest.mark.parametrize('turbulence_model,ref_ti', [
@@ -122,3 +139,13 @@ def test_superposition_model_indices():
         TI_eff_ilk = sim_res.flow_map(HorizontalGrid(x=[0], y=y_i, h=50)).TI_eff_xylk[:, 0]
 
         npt.assert_array_almost_equal(TI_eff_ilk, ref_TI_eff_ilk)
+
+
+@pytest.mark.parametrize('turbulenceModel', get_all_turbulence_models())
+def test_own_turbulence_is_zero(turbulenceModel):
+    site = Hornsrev1Site()
+    windTurbines = IEA37_WindTurbines()
+    wf_model = All2AllIterative(site, windTurbines, wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
+                                turbulenceModel=turbulenceModel)
+    sim_res = wf_model([0], [0])
+    npt.assert_array_equal(sim_res.TI_eff, sim_res.TI.broadcast_like(sim_res.TI_eff))
