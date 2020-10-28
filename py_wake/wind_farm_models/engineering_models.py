@@ -246,7 +246,7 @@ class EngineeringWindFarmModel(WindFarmModel):
 
                     if self.turbulenceModel:
                         add_turb_ijk[i] = self.turbulenceModel.calc_added_turbulence(
-                            dw_ijlk=dw_ijlk[i], **args_i)[0, :, 0]
+                            dw_ijlk=dw_ijlk[i][na], **args_i)[0, :, 0]
             else:
                 if isinstance(self.superpositionModel, WeightedSum):
                     deficit, uc, sigma_sqr = self._calc_deficit_convection(dw_ijlk=dw_ijlk, **args)
