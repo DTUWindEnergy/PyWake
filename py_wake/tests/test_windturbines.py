@@ -104,9 +104,32 @@ def test_gradients():
 
 def test_plot_yz():
     wt = IEA37_WindTurbines()
-    wt.plot_yz([0, 300])
+    yaw_lst = np.array([-30, 0, 30])
+    for wd in 0, 45, 90:
+        plt.figure()
+        wt.plot_yz(yaw_lst * 20, wd=wd, yaw=yaw_lst)
+        for i, yaw in enumerate(yaw_lst):
+            plt.plot([], 'gray', label="WT %d yaw: %d deg" % (i, yaw))
+        plt.legend()
+        plt.title("WD: %s" % wd)
     if 0:
         plt.show()
+    plt.close()
+
+
+def test_plot_yz2_types():
+    wt = WindTurbines.from_WindTurbines([IEA37_WindTurbines(), V80()])
+    yaw_lst = np.array([-30, 0, 30])
+    for wd in 0, 45, 90:
+        plt.figure()
+        wt.plot_yz(yaw_lst * 20, types=[0, 1, 0], wd=wd, yaw=yaw_lst)
+        for i, yaw in enumerate(yaw_lst):
+            plt.plot([], 'gray', label="WT %d yaw: %d deg" % (i, yaw))
+        plt.legend()
+        plt.title("WD: %s" % wd)
+    if 0:
+        plt.show()
+    plt.close()
 
 
 def test_set_gradients():

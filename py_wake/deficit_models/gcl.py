@@ -195,20 +195,22 @@ class GCLDeficit(DeficitModel):
 
 class GCL(PropagateDownwind):
     def __init__(self, site, windTurbines, rotorAvgModel=RotorCenter(), superpositionModel=LinearSum(),
-                 deflectionModel=None, turbulenceModel=None):
+                 deflectionModel=None, turbulenceModel=None, groundModel=None):
         PropagateDownwind.__init__(self, site, windTurbines, wake_deficitModel=GCLDeficit(),
                                    rotorAvgModel=rotorAvgModel, superpositionModel=superpositionModel,
-                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
+                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel,
+                                   groundModel=groundModel)
 
 
 class GCLLocal(PropagateDownwind):
     def __init__(self, site, windTurbines, rotorAvgModel=RotorCenter(), superpositionModel=LinearSum(),
-                 deflectionModel=None, turbulenceModel=None):
+                 deflectionModel=None, turbulenceModel=None, groundModel=None):
 
         PropagateDownwind.__init__(self, site, windTurbines,
                                    wake_deficitModel=GCLDeficit(use_effective_ws=True, use_effective_ti=True),
                                    rotorAvgModel=rotorAvgModel, superpositionModel=superpositionModel,
-                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
+                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel,
+                                   groundModel=groundModel)
 
 
 def main():

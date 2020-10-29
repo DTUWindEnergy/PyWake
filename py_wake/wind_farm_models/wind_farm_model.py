@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABC
-from py_wake.site._site import Site, UniformSite
+from py_wake.site._site import Site, UniformSite, UniformWeibullSite
 from py_wake.wind_turbines import WindTurbines
 import numpy as np
 from py_wake.flow_map import FlowMap, HorizontalGrid, FlowBox, YZGrid, Grid
@@ -35,6 +35,9 @@ class WindFarmModel(ABC):
             Wind direction(s)
         ws : int, float or array_like
             Wind speed(s)
+        yaw_ilk : array_like or None, optional
+            Yaw misalignement of turbine(i) for wind direction(l) and wind speed (k)\n
+            Positive is counter-clockwise when seen from above
 
         Returns
         -------
@@ -102,6 +105,9 @@ class WindFarmModel(ABC):
         type_i : array_like or None, optional
             Wind turbine types\n
             If None, default, the first type is used (type=0)
+        yaw_ilk : array_like or None, optional
+            Yaw misalignement [deg] of turbine(i) for wind direction(l) and wind speed (k)\n
+            Positive is counter-clockwise when seen from above
         wd : int, float, array_like or None
             Wind directions(s)\n
             If None, default, the wake is calculated for site.default_wd

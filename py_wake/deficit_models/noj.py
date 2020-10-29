@@ -52,7 +52,8 @@ class NOJDeficit(NiayifarGaussianDeficit, AreaOverlappingFactor):
 class NOJ(PropagateDownwind):
     def __init__(self, site, windTurbines, rotorAvgModel=RotorCenter(),
                  k=.1, superpositionModel=SquaredSum(),
-                 deflectionModel=None, turbulenceModel=None):
+                 deflectionModel=None, turbulenceModel=None,
+                 groundModel=None):
         """
         Parameters
         ----------
@@ -76,7 +77,8 @@ class NOJ(PropagateDownwind):
                                    rotorAvgModel=rotorAvgModel,
                                    superpositionModel=superpositionModel,
                                    deflectionModel=deflectionModel,
-                                   turbulenceModel=turbulenceModel)
+                                   turbulenceModel=turbulenceModel,
+                                   groundModel=groundModel)
 
 
 class NOJLocalDeficit(NOJDeficit, AreaOverlappingFactor):

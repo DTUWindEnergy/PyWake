@@ -2,6 +2,7 @@ import numpy as np
 import xml.etree.ElementTree as ET
 from scipy.interpolate.fitpack2 import UnivariateSpline
 from autograd.core import defvjp, primitive
+from matplotlib.patches import Ellipse
 
 
 class WindTurbines():
@@ -243,7 +244,7 @@ class WindTurbines():
         ax.legend(loc=1)
         ax.axis('equal')
 
-    def plot_yz(self, y, z=None, types=None, wd=None, yaw=0, ax=None):
+    def plot_yz(self, y, z=None, h=None, types=None, wd=270, yaw=0, ax=None):
         """Plot wind farm layout in yz-plane including type name and diameter
 
         Parameters
@@ -263,7 +264,13 @@ class WindTurbines():
         if z is None:
             z = np.zeros_like(y)
         if types is None:
-            types = np.zeros_like(y)
+            types = np.zeros_like(y).astype(int)
+        else:
+            types = (np.zeros_like(y) + types).astype(int)  # ensure same length as x
+        if h is None:
+            h = np.zeros_like(y) + self.hub_height(types)
+        else:
+            h = np.zeros_like(y) + h
 
         if ax is None:
             ax = plt.gca()
@@ -271,12 +278,11 @@ class WindTurbines():
         colors = ['gray', 'k', 'r', 'g', 'k'] * 5
 
         from matplotlib.patches import Circle
-        types = (np.zeros_like(y) + types).astype(int)  # ensure same length as x
 
         yaw = np.zeros_like(y) + yaw
         for i, (y_, z_, h_, d, t, yaw_) in enumerate(
-                zip(y, z, self.hub_height(types), self.diameter(types), types, yaw)):
-            circle = Circle((y_, h_ + z_), d / 2, ec=colors[t], fc="None")
+                zip(y, z, h, self.diameter(types), types, yaw)):
+            circle = Ellipse((y_, h_ + z_), d * np.sin(np.deg2rad(wd - yaw_)), d, ec=colors[t], fc="None")
             ax.add_artist(circle)
             plt.plot([y_, y_], [z_, z_ + h_], 'k')
             plt.plot(y_, h_, 'None')
@@ -284,7 +290,7 @@ class WindTurbines():
         for t, m, c in zip(np.unique(types), markers, colors):
             ax.plot([], [], '2', color=c, label=self._names[int(t)])
 
-        for i, (y_, z_, h_, d) in enumerate(zip(y, z, self.hub_height(types), self.diameter(types))):
+        for i, (y_, z_, h_, d) in enumerate(zip(y, z, h, self.diameter(types))):
             ax.annotate(i, (y_ + d / 2, z_ + h_ + d / 2), fontsize=7)
         ax.legend(loc=1)
         ax.axis('equal')

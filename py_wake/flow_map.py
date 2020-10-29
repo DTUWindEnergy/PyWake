@@ -129,7 +129,7 @@ class FlowMap(FlowBox):
             z = self.simulationResult.windFarmModel.site.elevation(x, y)
             c = ax.contourf(self.X, self.Y + z, np.reshape(data.isel(x=0), self.X.shape), levels=levels, cmap=cmap)
             if plot_colorbar:
-                plt.colorbar(c, cmap=cmap, label=clabel, ax=ax)
+                plt.colorbar(c, label=clabel, ax=ax)
             # plot terrain
             y = np.arange(y.min(), y.max())
             x = np.zeros_like(y) + self.plane[1]
@@ -151,9 +151,10 @@ class FlowMap(FlowBox):
         fm = self.windFarmModel
         yaw = self.simulationResult.Yaw.sel(wd=self.wd[0]).mean(['ws']).data
         if self.plane[0] == "YZ":
-            x_i, y_i = self.simulationResult.x, self.simulationResult.y
+            x_i, y_i = self.simulationResult.x.values, self.simulationResult.y.values
+            h_i = self.simulationResult.h.values
             z_i = self.simulationResult.windFarmModel.site.elevation(x_i, y_i)
-            fm.windTurbines.plot_yz(y_i, z_i, wd=self.wd, yaw=yaw, ax=ax)
+            fm.windTurbines.plot_yz(y_i, z_i, h_i, wd=self.wd, yaw=yaw, ax=ax)
         else:  # self.plane[0] == "XY":
             fm.windTurbines.plot_xy(self.simulationResult.x, self.simulationResult.y, self.simulationResult.type.data,
                                     wd=self.wd, yaw=yaw, ax=ax)

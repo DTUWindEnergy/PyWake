@@ -23,7 +23,7 @@ def test_GCL_ex80():
         windTurbines.plot(x, y)
         plt.show()
 
-    sim_res = timeit(wfm.__call__, line_profile=0, profile_funcs=[get_dU], verbose=1)(x, y, ws=np.arange(10, 15))[0]
+    sim_res = timeit(wfm.__call__, line_profile=0, profile_funcs=[get_dU], verbose=0)(x, y, ws=np.arange(10, 15))[0]
 
     # test that the result is equal to previuos runs (no evidens that  these number are correct)
     aep_ref = 1055.956615887197
