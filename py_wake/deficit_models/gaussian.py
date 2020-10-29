@@ -69,7 +69,7 @@ class BastankhahGaussian(PropagateDownwind):
 
     def __init__(self, site, windTurbines, k=0.0324555,
                  rotorAvgModel=RotorCenter(), superpositionModel=SquaredSum(),
-                 deflectionModel=None, turbulenceModel=None):
+                 deflectionModel=None, turbulenceModel=None, groundModel=None):
         """
         Parameters
         ----------
@@ -92,7 +92,8 @@ class BastankhahGaussian(PropagateDownwind):
         """
         PropagateDownwind.__init__(self, site, windTurbines, wake_deficitModel=BastankhahGaussianDeficit(k=k),
                                    rotorAvgModel=rotorAvgModel, superpositionModel=superpositionModel,
-                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
+                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel,
+                                   groundModel=groundModel)
 
 
 class NiayifarGaussianDeficit(BastankhahGaussianDeficit):
@@ -126,7 +127,7 @@ class NiayifarGaussianDeficit(BastankhahGaussianDeficit):
 
 class NiayifarGaussian(PropagateDownwind):
     def __init__(self, site, windTurbines, a=[0.38, 4e-3], superpositionModel=SquaredSum(),
-                 deflectionModel=None, turbulenceModel=None):
+                 deflectionModel=None, turbulenceModel=None, groundModel=None):
         """
         Parameters
         ----------
@@ -143,7 +144,7 @@ class NiayifarGaussian(PropagateDownwind):
         """
         PropagateDownwind.__init__(self, site, windTurbines, wake_deficitModel=NiayifarGaussianDeficit(a=a),
                                    superpositionModel=superpositionModel, deflectionModel=deflectionModel,
-                                   turbulenceModel=turbulenceModel)
+                                   turbulenceModel=turbulenceModel, groundModel=groundModel)
 
 
 class IEA37SimpleBastankhahGaussianDeficit(BastankhahGaussianDeficit):
@@ -177,7 +178,7 @@ class IEA37SimpleBastankhahGaussian(PropagateDownwind):
 
     def __init__(self, site, windTurbines,
                  rotorAvgModel=RotorCenter(), superpositionModel=SquaredSum(),
-                 deflectionModel=None, turbulenceModel=None):
+                 deflectionModel=None, turbulenceModel=None, groundModel=None):
         """
         Parameters
         ----------
@@ -199,7 +200,7 @@ class IEA37SimpleBastankhahGaussian(PropagateDownwind):
         PropagateDownwind.__init__(self, site, windTurbines,
                                    wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
                                    rotorAvgModel=rotorAvgModel, superpositionModel=superpositionModel,
-                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
+                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel, groundModel=groundModel)
 
 
 class ZongGaussianDeficit(NiayifarGaussianDeficit):
@@ -288,7 +289,7 @@ class ZongGaussianDeficit(NiayifarGaussianDeficit):
 
 class ZongGaussian(PropagateDownwind):
     def __init__(self, site, windTurbines, a=[0.38, 4e-3], superpositionModel=SquaredSum(),
-                 deflectionModel=None, turbulenceModel=None):
+                 deflectionModel=None, turbulenceModel=None, groundModel=None):
         """
         Parameters
         ----------
@@ -305,7 +306,7 @@ class ZongGaussian(PropagateDownwind):
         """
         PropagateDownwind.__init__(self, site, windTurbines, wake_deficitModel=ZongGaussianDeficit(a=a),
                                    superpositionModel=superpositionModel, deflectionModel=deflectionModel,
-                                   turbulenceModel=turbulenceModel)
+                                   turbulenceModel=turbulenceModel, groundModel=groundModel)
 
 
 def main():
