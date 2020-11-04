@@ -19,13 +19,21 @@ class Mirror(GroundModel):
     """
     args4deficit = ['dh_ijl', 'h_il', 'hcw_ijlk']
 
-    def __call__(self, calc_deficit, **kwargs):
+    def _calc(self, calc_deficit, **kwargs):
         dh_ijl_mirror = 2 * kwargs['h_il'][:, na] + kwargs['dh_ijl']
         cw_ijlk_mirror = None
         if 'cw_ijlk' in kwargs:
-            cw_ijlk_mirror = np.sqrt(dh_ijl_mirror[..., na]**2, kwargs['hcw_ijlk']**2)
-        deficit_ijlk = np.sum([calc_deficit(**kwargs),
-                               calc_deficit(dh_ijl=dh_ijl_mirror,
-                                            cw_ijlk=cw_ijlk_mirror,
-                                            **{k: v for k, v in kwargs.items() if k not in ['dh_ijl', 'cw_ijlk']})], 0)
-        return deficit_ijlk * ((kwargs['h_il'][:, na] + kwargs['dh_ijl'])[..., na] > 0)  # remove deficit below ground
+            cw_ijlk_mirror = np.sqrt(dh_ijl_mirror[..., na]**2 + kwargs['hcw_ijlk']**2)
+        above_ground = ((kwargs['h_il'][:, na] + kwargs['dh_ijl'])[..., na] > 0)
+        return np.array([calc_deficit(**kwargs),
+                         calc_deficit(dh_ijl=dh_ijl_mirror,
+                                      cw_ijlk=cw_ijlk_mirror,
+                                      **{k: v for k, v in kwargs.items() if k not in ['dh_ijl', 'cw_ijlk']})]) * above_ground[na]
+
+    def __call__(self, calc_deficit, **kwargs):
+        return np.sum(self._calc(calc_deficit, **kwargs), 0)
+
+
+class MirrorSquaredSum(Mirror):
+    def __call__(self, calc_deficit, **kwargs):
+        return np.sqrt(np.sum(self._calc(calc_deficit, **kwargs)**2, 0))

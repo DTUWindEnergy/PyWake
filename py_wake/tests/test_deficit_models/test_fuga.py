@@ -158,7 +158,7 @@ def test_fuga_table_edges():
     flow_map_cw = fuga([0], [0], wd=270, ws=10).flow_map(HorizontalGrid([0], np.arange(-20 * D, 20 * D)))
     flow_map = fuga([0], [0], wd=270, ws=10).flow_map(HorizontalGrid(np.arange(-150, 400) * D, np.arange(-20, 21) * D))
 
-    if 1:
+    if 0:
         plt.plot(flow_map_dw.x / D, flow_map_dw.WS_eff.squeeze())
         plt.grid()
         plt.ylim([9.9, 10.1])
@@ -190,7 +190,7 @@ def test_fuga_wriggles():
     flow_map_cw_lst = np.array([fuga([0], [0], wd=270, ws=10).flow_map(HorizontalGrid([dw * D], y)).WS_eff.squeeze()
                                 for dw in dw_lst])
 
-    if 1:
+    if 0:
         for flow_map_cw, dw in zip(flow_map_cw_lst, dw_lst):
             plt.plot(y, flow_map_cw, label="%dD" % dw)
         plt.xlabel('y [m]')
