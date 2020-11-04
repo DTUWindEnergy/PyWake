@@ -37,3 +37,7 @@ def test_notebooks(notebook):
         Grid.default_resolution = default_resolution
         plt.close()
         plt.rcParams.update({'figure.max_open_warning': 20})
+
+
+if __name__ == '__main__':
+    print("\n".join([f.filename for f in get_notebooks()]))
