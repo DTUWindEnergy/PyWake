@@ -81,7 +81,7 @@ class FugaUtils():
         return np.concatenate([((1, -1)[anti_symmetric]) * x[::-1], x[1:]])
 
     def load_luts(self, UVLT=['UL', 'UT', 'VL', 'VT'], zlevels=None):
-        return np.array([[np.fromfile(self.path / (self.prefix + '%04d%s.dat' % (j, uvlt)), np.dtype('<f'), -1)
+        return np.array([[np.fromfile(str(self.path / (self.prefix + '%04d%s.dat' % (j, uvlt))), np.dtype('<f'), -1)
                           for j in (zlevels or self.zlevels)] for uvlt in UVLT])
 
 
