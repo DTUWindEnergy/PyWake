@@ -24,9 +24,9 @@ class FugaUtils():
             If 'casedata', the values from CaseData.bin is used\n
             If 'input_par' the values from the input parameter file (*.par) is used
         """
-        self.path = path
+        self.path = Path(path)
 
-        with open(self.path + 'CaseData.bin', 'rb') as fid:
+        with open(self.path / 'CaseData.bin', 'rb') as fid:
             case_name = struct.unpack('127s', fid.read(127))[0]  # @UnusedVariable
             self.r = struct.unpack('d', fid.read(8))[0]  # @UnusedVariable
             self.zHub = struct.unpack('d', fid.read(8))[0]
@@ -36,17 +36,18 @@ class FugaUtils():
             zi = struct.unpack('d', fid.read(8))[0]  # @UnusedVariable
             self.ds = struct.unpack('d', fid.read(8))[0]
             closure = struct.unpack('I', fid.read(4))[0]
-            if os.path.getsize(self.path + 'CaseData.bin') == 187:
+            if os.path.getsize(self.path / 'CaseData.bin') == 187:
                 self.zeta0 = struct.unpack('d', fid.read(8))[0]
             else:
                 #                 with open(path + 'CaseData.bin', 'rb') as fid2:
                 #                     info = fid2.read(127).decode()
                 #                 zeta0 = float(info[info.index('Zeta0'):].replace("Zeta0=", ""))
-                if 'Zeta0' in self.path:
-                    self.zeta0 = float(self.path[self.path.index('Zeta0'):].replace("Zeta0=", "").replace("/", ""))
+                if 'Zeta0' in self.path.name:
+                    self.zeta0 = float(self.path.name[self.path.name.index(
+                        'Zeta0'):].replace("Zeta0=", "").replace("/", ""))
 
         f = [f for f in os.listdir(self.path) if f.endswith('.par')][0]
-        lines = Path(self.path + f).read_text().split("\n")
+        lines = (self.path / f).read_text().split("\n")
 
         self.prefix = lines[0].strip()
         self.nx, self.ny = map(int, lines[2:4])
@@ -80,7 +81,7 @@ class FugaUtils():
         return np.concatenate([((1, -1)[anti_symmetric]) * x[::-1], x[1:]])
 
     def load_luts(self, UVLT=['UL', 'UT', 'VL', 'VT'], zlevels=None):
-        return np.array([[np.fromfile(self.path + self.prefix + '%04d%s.dat' % (j, uvlt), np.dtype('<f'), -1)
+        return np.array([[np.fromfile(self.path / (self.prefix + '%04d%s.dat' % (j, uvlt)), np.dtype('<f'), -1)
                           for j in (zlevels or self.zlevels)] for uvlt in UVLT])
 
 
