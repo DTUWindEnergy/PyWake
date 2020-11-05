@@ -1,4 +1,4 @@
-from py_wake.site._site import UniformWeibullSite, LocalWind
+from py_wake.site._site import UniformWeibullSite
 import numpy as np
 import xarray as xr
 import pickle

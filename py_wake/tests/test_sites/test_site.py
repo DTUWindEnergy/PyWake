@@ -101,7 +101,7 @@ def test_plot_wd_distribution(site):
     plt.figure()
     p2 = site.plot_wd_distribution(n_wd=360)
     npt.assert_array_almost_equal(np.array(p2)[::30] * 30, f, 4)
-    UniformWeibullSite(f, A, k, ti, 'spline').plot_wd_distribution(n_wd=360)
+    # UniformWeibullSite(f, A, k, ti, 'spline').plot_wd_distribution(n_wd=360)
     UniformWeibullSite(f, A, k, ti, 'linear').plot_wd_distribution(n_wd=360)
 
     if 0:

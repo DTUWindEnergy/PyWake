@@ -99,7 +99,7 @@ class Hornsrev1Site(UniformWeibullSite):
              9.584007, 10.51499, 11.39895, 11.68746, 11.63732, 10.08803]
         k = [2.392578, 2.447266, 2.412109, 2.591797, 2.755859, 2.595703,
              2.583984, 2.548828, 2.470703, 2.607422, 2.626953, 2.326172]
-        UniformWeibullSite.__init__(self, f, a, k, .1)
+        UniformWeibullSite.__init__(self, np.array(f) / np.sum(f), a, k, .1)
         self.initial_position = np.array([wt_x, wt_y]).T
 
 
