@@ -19,7 +19,7 @@ def _test_wts_wtg(wts_wtg):
     npt.assert_array_equal(wts_wtg.power(np.array([0, 3, 5, 9, 18, 26]),
                                          type_i=0), np.array([0, 0, 154000, 996000, 2000000, 0]))
     npt.assert_array_equal(wts_wtg.ct(np.array([1, 4, 7, 9, 17, 27]), type_i=0),
-                           np.array([0, 0.818, 0.805, 0.807, 0.167, 0]))
+                           np.array([0.052, 0.818, 0.805, 0.807, 0.167, 0.052]))
 
     assert(wts_wtg.name(types=1) == 'NEG-Micon 2750/92 (2750 kW)')
     assert(wts_wtg.diameter(types=1) == 92)
@@ -27,7 +27,7 @@ def _test_wts_wtg(wts_wtg):
     npt.assert_array_equal(wts_wtg.power(np.array([0, 3, 5, 9, 18, 26]),
                                          type_i=1), np.array([0, 0, 185000, 1326000, 2748000, 0]))
     npt.assert_array_equal(wts_wtg.ct(np.array([1, 4, 7, 9, 17, 27]), type_i=1),
-                           np.array([0, 0.871, 0.841, 0.797, 0.175, 0]))
+                           np.array([.059, 0.871, 0.841, 0.797, 0.175, 0.059]))
 
 
 def test_from_WAsP_wtg():

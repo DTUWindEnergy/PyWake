@@ -317,7 +317,7 @@ class WindTurbines():
                             power_unit='w')
 
     @staticmethod
-    def from_WAsP_wtg(wtg_file, power_unit='W'):
+    def from_WAsP_wtg(wtg_file, mode=0, power_unit='W'):
         """ Parse the one/multiple .wtg file(s) (xml) to initilize an
         WindTurbines object.
 
@@ -330,8 +330,7 @@ class WindTurbines():
         -------
         an object of WindTurbines.
 
-        Note: it is assumed that the power_unit inside multiple .wtg files
-        is the same, i.e., power_unit.
+        Note: it is assumed that the power_unit inside multiple .wtg files is the same, i.e., power_unit.
         """
         if not isinstance(wtg_file, list):
             wtg_file_list = [wtg_file]
@@ -343,19 +342,28 @@ class WindTurbines():
         hub_heights = []
         ct_funcs = []
         power_funcs = []
-
-        for wtg_file in wtg_file_list:
+        densities = []
+        mode = np.zeros(len(wtg_file_list), dtype=int) + mode
+        char_data_tables = []
+        cut_ins = []
+        cut_outs = []
+        for wtg_file, m in zip(wtg_file_list, mode):
             tree = ET.parse(wtg_file)
             root = tree.getroot()
             # Reading data from wtg_file
             name = root.attrib['Description']
             diameter = np.float(root.attrib['RotorDiameter'])
             hub_height = np.float(root.find('SuggestedHeights').find('Height').text)
-            ws_cutin = np.float(root.find('PerformanceTable').find('StartStopStrategy').attrib['LowSpeedCutIn'])
-            ws_cutout = np.float(root.find('PerformanceTable').find('StartStopStrategy').attrib['HighSpeedCutOut'])
+
+            perftab = list(root.iter('PerformanceTable'))[m]
+            density = np.float(perftab.attrib['AirDensity'])
+            ws_cutin = np.float(perftab.find('StartStopStrategy').attrib['LowSpeedCutIn'])
+            ws_cutout = np.float(perftab.find('StartStopStrategy').attrib['HighSpeedCutOut'])
+            cut_ins.append(ws_cutin)
+            cut_outs.append(ws_cutout)
 
             i_point = 0
-            for DataPoint in root.iter('DataPoint'):
+            for DataPoint in perftab.iter('DataPoint'):
                 i_point = i_point + 1
                 ws = np.float(DataPoint.attrib['WindSpeed'])
                 Ct = np.float(DataPoint.attrib['ThrustCoEfficient'])
@@ -364,21 +372,28 @@ class WindTurbines():
                     dt = np.array([[ws, Ct, power]])
                 else:
                     dt = np.append(dt, np.array([[ws, Ct, power]]), axis=0)
+            ct_idle = dt[-1, 1]
+            eps = 1e-8
 
-            rated_power = np.max(dt[:, 2])
-            ws = dt[:, 0]
-            ct = dt[:, 1]
-            power = dt[:, 2]
+            ws = np.r_[0, ws_cutin - eps, dt[:, 0], ws_cutout + eps, 100]
+            ct = np.r_[ct_idle, ct_idle, dt[:, 1], ct_idle, ct_idle]
+            power = np.r_[0, 0, dt[:, 2], 0, 0]
 
             names.append(name)
             diameters.append(diameter)
             hub_heights.append(hub_height)
-            ct_funcs.append(Interp(ws, ct, left=0, right=0))
-            power_funcs.append(Interp(ws, power, left=0, right=0))
 
-        return WindTurbines(names=names, diameters=diameters,
-                            hub_heights=hub_heights, ct_funcs=ct_funcs,
-                            power_funcs=power_funcs, power_unit=power_unit)
+            ct_funcs.append(Interp(ws, ct))
+            power_funcs.append(Interp(ws, power))
+            char_data_tables.append(np.array([ws, ct, power]).T)
+
+        wts = WindTurbines(names=names, diameters=diameters,
+                           hub_heights=hub_heights, ct_funcs=ct_funcs,
+                           power_funcs=power_funcs, power_unit=power_unit)
+        wts.upct_tables = char_data_tables
+        wts.cut_in = cut_ins
+        wts.cut_out = cut_outs
+        return wts
 
 
 class OneTypeWindTurbines(WindTurbines):
