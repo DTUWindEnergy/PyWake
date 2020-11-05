@@ -9,7 +9,8 @@ class GridInterpolator(object):
         self.x = x
         self.n = np.array([len(x) for x in x])
         self.x0 = np.array([x[0] for x in x])
-        self.dx = np.array([x[1] - x[0] for x in x])
+        dx = np.array([x[min(1, len(x) - 1)] - x[0] for x in x])
+        self.dx = np.where(dx == 0, 1, dx)
         self.irregular_axes = np.where([np.allclose(np.diff(x), dx) is False for dx, x in zip(self.dx, x)])[0]
         for i in self.irregular_axes:
             self.x[i] = np.r_[self.x[i], self.x[i][-1] + 1]
@@ -20,7 +21,9 @@ class GridInterpolator(object):
         for _ in range(len(x) - 1):
             ui = np.array([(np.r_[ui, 0], np.r_[ui, 1]) for ui in ui])
             ui = ui.reshape((ui.shape[0] * ui.shape[1], ui.shape[2]))
+        ui[:, dx == 0] = 0
         self.ui = ui
+
         self.method = method
 
     def __call__(self, xp, method=None, check_bounds=True):

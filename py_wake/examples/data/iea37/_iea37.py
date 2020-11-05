@@ -23,11 +23,8 @@ class IEA37Site(UniformSite):
             read_iea37_windfarm, read_iea37_windrose
 
         _, wsp, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
-        self.initial_position = np.array(
-            read_iea37_windfarm(iea37_path +
-                                'iea37-ex%d.yaml' % n_wt)[:2]).T
-
         UniformSite.__init__(self, freq, ti, ws=wsp)
+        self.initial_position = np.array(read_iea37_windfarm(iea37_path + 'iea37-ex%d.yaml' % n_wt)[:2]).T
 
 
 class IEA37AEPCalc():

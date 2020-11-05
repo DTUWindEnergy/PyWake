@@ -169,6 +169,24 @@ def test_complex_grid_local_wind(complex_grid_site):
                                          [0.01079997, 0.01656828, 0.02257487]])
 
 
+def test_wrong_height():
+    ti = 0.1
+    ds = xr.Dataset(
+        data_vars={'Speedup': (['x', 'y', 'h'], np.arange(.8, 1.4, .1).reshape((3, 2, 1))),
+                   'Sector_frequency': ('wd', f), 'Weibull_A': ('wd', A), 'Weibull_k': ('wd', k), 'TI': ti},
+        coords={'x': [0, 5, 10], 'y': [0, 5], 'h': [100], 'wd': np.linspace(0, 360, len(f), endpoint=False)})
+    site = XRSite(ds, shear=PowerShear(h_ref=100, alpha=.2), interp_method='linear')
+
+    y = np.arange(5)
+    x = y * 2
+    X, Y = np.meshgrid(x, y)
+    x_i, y_i = X.flatten(), Y.flatten()
+
+    wdir_lst = np.arange(0, 360, 90)
+    wsp_lst = np.arange(3, 6)
+    lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=100, wd=wdir_lst, ws=wsp_lst)
+
+
 def test_wd_independent_site():
     ti = 0.1
     ds = xr.Dataset(
@@ -283,6 +301,7 @@ def test_neighbour_farm_speed():
 
 
 @pytest.mark.parametrize('h,wd,ws,h_i,wd_l,ws_k', [
+    ([110], range(5, 25), [9, 10, 11], 110, [11.5, 12.5], [9.8, 10.2]),
     ([100, 110, 120], range(360), [9.8], 110, range(360), [9.8]),
     ([100, 110, 120], range(5, 25), [9.8], 110, range(10, 20), [9.8]),
     ([100, 110, 120], range(5, 25), [9, 10, 11], 110, range(10, 20), [10]),
@@ -292,7 +311,7 @@ def test_neighbour_farm_speed():
     ([100, 110, 120], range(5, 25), [9, 10, 11], 110, range(10, 20), [9.8, 10.2]),
     ([100, 110, 120], range(5, 25), [9, 10, 11], 110, [11.5, 12.5], [10]),
     ([100, 110, 120], range(5, 25), [9, 10, 11], 110, [11.5, 12.5], [10]),
-    ([100, 110, 120], range(5, 25), [9, 10, 11], 110, [11.5, 12.5], [9.8, 10.2]),
+    ([100, 110, 120], range(5, 25), [9, 10, 11], 110, [11.5, 12.5], [9.8, 10.2])
 ])
 def test_interp(h, wd, ws, h_i, wd_l, ws_k):
     ds = xr.Dataset({
@@ -323,11 +342,13 @@ def test_interp(h, wd, ws, h_i, wd_l, ws_k):
     )
     site = XRSite(ds)
     lw = LocalWind(x_i=[25, 50], y_i=[225, 250], h_i=h_i, wd=wd_l, ws=ws_k, wd_bin_size=1)
+
     for n in ['XYHLK', 'XYHL', 'XYHK', 'K', 'L', 'KL', 'XY', 'H', 'XYH', 'XYL', 'XYK', 'I', 'IL', 'IK', 'ILK']:
         ip1 = site.interp(site.ds[n], lw.coords)
         ip2 = ds[n].sel_interp_all(lw.coords)
         npt.assert_array_equal(ip1.shape, ip2.shape)
-        npt.assert_array_almost_equal(ip1.data, ip2.data)
+        if not np.isnan(ip2).sum():
+            npt.assert_array_almost_equal(ip1.data, ip2.data)
 
 
 def test_interp_special_cases():
