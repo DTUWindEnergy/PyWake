@@ -229,7 +229,7 @@ class WindTurbines():
             if wd is None or len(np.atleast_1d(wd)) > 1:
                 circle = Circle((x_, y_), d / 2, ec=colors[t], fc="None")
                 ax.add_artist(circle)
-                plt.plot(x_, y_, 'None', )
+                ax.plot(x_, y_, 'None', )
             else:
                 for wd_ in np.atleast_1d(wd):
                     c, s = np.cos(np.deg2rad(90 + wd_ - yaw_)), np.sin(np.deg2rad(90 + wd_ - yaw_))
