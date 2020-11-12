@@ -284,8 +284,8 @@ class WindTurbines():
                 zip(y, z, h, self.diameter(types), types, yaw)):
             circle = Ellipse((y_, h_ + z_), d * np.sin(np.deg2rad(wd - yaw_)), d, ec=colors[t], fc="None")
             ax.add_artist(circle)
-            plt.plot([y_, y_], [z_, z_ + h_], 'k')
-            plt.plot(y_, h_, 'None')
+            ax.plot([y_, y_], [z_, z_ + h_], 'k')
+            ax.plot(y_, h_, 'None')
 
         for t, m, c in zip(np.unique(types), markers, colors):
             ax.plot([], [], '2', color=c, label=self._names[int(t)])
