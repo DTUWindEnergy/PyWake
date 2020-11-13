@@ -4,7 +4,7 @@ from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake import NOJ, Fuga
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
-from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y
+from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y, wt9_x, wt9_y
 from py_wake.tests.test_files.fuga import LUT_path_2MW_z0_0_03
 from py_wake.flow_map import HorizontalGrid
 from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind
@@ -269,3 +269,23 @@ def test_huge_farm():
     peak /= 1024**2
     assert peak < 800
     tracemalloc.stop()
+
+
+def test_aep_wind_atlas_method():
+    site = Hornsrev1Site()
+
+    wt = IEA37_WindTurbines()
+    wfm = IEA37SimpleBastankhahGaussian(site, wt)
+    x, y = [0], [0]
+    wd = np.arange(360)
+    aep_lps = wfm(x, y, wd=wd, ws=np.arange(3, 27)).aep(linear_power_segments=True)
+    aep = wfm(x, y, wd=wd, ws=np.r_[3, np.arange(3.5, 27)]).aep()
+    if 0:
+        plt.plot(aep_lps.ws, np.cumsum(aep_lps.sum(['wt', 'wd'])), '.-', label='Linear power segments')
+        plt.plot(aep.ws, np.cumsum(aep.sum(['wt', 'wd'])), '.-', label='Constant power segments')
+        plt.ylabel('Cumulated AEP [GWh]')
+        plt.xlabel('Wind speed [m/s]')
+        plt.legend()
+        plt.show()
+    npt.assert_almost_equal(aep_lps.sum(), 16.73490444)
+    npt.assert_almost_equal(aep.sum(), 16.69320343)
