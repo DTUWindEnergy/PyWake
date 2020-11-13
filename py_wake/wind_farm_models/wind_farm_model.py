@@ -4,7 +4,7 @@ from py_wake.wind_turbines import WindTurbines
 import numpy as np
 from py_wake.flow_map import FlowMap, HorizontalGrid, FlowBox, YZGrid, Grid
 import xarray as xr
-from py_wake.utils import xarray_utils  # register ilk function @UnusedImport
+from py_wake.utils import xarray_utils, weibull  # register ilk function @UnusedImport
 from numpy import newaxis as na
 
 
@@ -159,10 +159,10 @@ class SimulationResult(xr.Dataset):
                                 ('CT', ct_ilk, 'Thrust coefficient'),
                             ]},
                             coords=coords)
-        self['P'] = localWind.P
-        self['WD'] = localWind.WD
-        self['WS'] = localWind.WS
-        self['TI'] = localWind.TI
+        for n in localWind:
+            if n not in ['ws_lower', 'ws_upper']:
+                self[n] = localWind[n]
+
         if yaw_ilk is None:
             self['Yaw'] = self.Power * 0
         else:
@@ -194,7 +194,8 @@ class SimulationResult(xr.Dataset):
          """
         return self.aep(normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss).ilk()
 
-    def aep(self, normalize_probabilities=False, with_wake_loss=True):
+    def aep(self, normalize_probabilities=False, with_wake_loss=True,
+            hours_pr_year=24 * 365, linear_power_segments=False):
         """Anual Energy Production (sum of all wind turbines, directions and speeds) in GWh.
 
         See aep_ilk
@@ -209,7 +210,28 @@ class SimulationResult(xr.Dataset):
         else:
             power_ilk = self.windFarmModel.windTurbines.power(self.WS.ilk(self.Power.shape), self.type)
 
-        return xr.DataArray(power_ilk * self.P.ilk() / norm * 24 * 365 * 1e-9,
+        if linear_power_segments:
+            s = "The linear_power_segments method "
+            assert all([n in self for n in ['Weibull_A', 'Weibull_k', 'Sector_frequency']]),\
+                s + "requires a site with weibull information"
+            assert normalize_probabilities is False, \
+                s + "cannot be combined with normalize_probabilities"
+            assert np.all(self.Power.isel(ws=0) == 0) and np.all(self.Power.isel(ws=-1) == 0),\
+                s + "requires first wind speed to have no power (just below cut-in)"
+            assert np.all(self.Power.isel(ws=-1) == 0),\
+                s + "requires last wind speed to have no power (just above cut-out)"
+            weighted_power = weibull.WeightedPower(
+                self.ws.values,
+                self.Power.ilk(),
+                self.Weibull_A.ilk(),
+                self.Weibull_k.ilk())
+            aep = weighted_power * self.Sector_frequency.ilk() * hours_pr_year * 1e-9
+            ws = (self.ws.values[1:] + self.ws.values[:-1]) / 2
+            return xr.DataArray(aep, [('wt', self.wt), ('wd', self.wd), ('ws', ws)])
+        else:
+            weighted_power = power_ilk * self.P.ilk() / norm
+
+        return xr.DataArray(weighted_power * hours_pr_year * 1e-9,
                             self.Power.coords,
                             name='AEP [GWh]',
                             attrs={'Description': 'Annual energy production [GWh]'})
