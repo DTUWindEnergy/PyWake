@@ -6,14 +6,11 @@ import matplotlib.pyplot as plt
 from py_wake.flow_map import YZGrid
 import numpy as np
 from py_wake.tests import npt
-from py_wake.wind_turbines import WindTurbines, OneTypeWindTurbines
+from py_wake.wind_turbines import WindTurbines
 from py_wake.superposition_models import LinearSum, SquaredSum
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 import pytest
-from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, IEA37SimpleBastankhahGaussianDeficit,\
-    ZongGaussianDeficit, NiayifarGaussianDeficit
-from py_wake.deficit_models.fuga import FugaDeficit
-from py_wake.deficit_models.gcl import GCLDeficit
+from py_wake.deficit_models.gaussian import ZongGaussianDeficit
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.ground_models.ground_models import MirrorSquaredSum
 
@@ -42,7 +39,6 @@ def test_Mirror_NOJ():
         plt.legend()
         plt.show()
     plt.close()
-    print(res)
     npt.assert_array_equal(res, ref)
 
 

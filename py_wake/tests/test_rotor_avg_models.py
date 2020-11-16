@@ -13,7 +13,7 @@ import pytest
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 
 
-def test_RotorGridAvg():
+def test_RotorGridAvg_deficit():
     site = IEA37Site(16)
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
@@ -47,6 +47,49 @@ def test_RotorGridAvg():
         npt.assert_almost_equal(sim_res.WS_eff_ilk[1, 0, 0], ref1)
 
         plt.plot([-R, R], [sim_res.WS_eff_ilk[1, 0, 0]] * 2, label=name)
+    if 0:
+        plt.legend()
+        plt.show()
+    plt.close()
+
+
+def test_RotorGridAvg_ti():
+    site = IEA37Site(16)
+    x, y = site.initial_position.T
+    windTurbines = IEA37_WindTurbines()
+    wfm = IEA37SimpleBastankhahGaussian(site,
+                                        windTurbines,
+                                        turbulenceModel=STF2017TurbulenceModel())
+    flow_map = wfm([0, 500], [0, 0], wd=270, ws=10).flow_map(HorizontalGrid(x=[500], y=np.arange(-100, 100)))
+    plt.plot(flow_map.Y[:, 0], flow_map.TI_eff_xylk[:, 0, 0, 0])
+    R = windTurbines.diameter() / 2
+
+    for name, rotorAvgModel, ref1 in [
+            ('RotorCenter', RotorCenter(), 0.22292190804089568),
+            ('RotorGrid2', EqGridRotorAvg(2), 0.21135016790319944),
+            ('RotorGrid3', EqGridRotorAvg(3), 0.20618819397725846),
+            ('RotorGrid4', EqGridRotorAvg(4), 0.20324660406762962),
+            ('RotorGrid100', EqGridRotorAvg(100), 0.1989725533174574),
+            ('RotorGQGrid_4,3', GQGridRotorAvg(4, 3), 0.19874837617113356)]:
+
+        # test with PropagateDownwind
+        wfm = IEA37SimpleBastankhahGaussian(site,
+                                            windTurbines,
+                                            rotorAvgModel=rotorAvgModel,
+                                            turbulenceModel=STF2017TurbulenceModel())
+        sim_res = wfm([0, 500], [0, 0], wd=270, ws=10)
+        npt.assert_almost_equal(sim_res.TI_eff_ilk[1, 0, 0], ref1)
+
+        # test with All2AllIterative
+        wfm = All2AllIterative(site, windTurbines,
+                               IEA37SimpleBastankhahGaussianDeficit(),
+                               rotorAvgModel=rotorAvgModel,
+                               superpositionModel=SquaredSum(),
+                               turbulenceModel=STF2017TurbulenceModel())
+        sim_res = wfm([0, 500], [0, 0], wd=270, ws=10)
+        npt.assert_almost_equal(sim_res.TI_eff_ilk[1, 0, 0], ref1)
+
+        plt.plot([-R, R], [sim_res.TI_eff_ilk[1, 0, 0]] * 2, label=name)
     if 0:
         plt.legend()
         plt.show()
