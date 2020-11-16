@@ -1,10 +1,8 @@
-from py_wake.deficit_models.deficit_model import DeficitModel
 import numpy as np
-from abc import abstractmethod
 from numpy import newaxis as na
 
 
-class RotorAvgModel(DeficitModel):
+class RotorAvgModel():
     """Wrap a DeficitModel.
     The RotorAvgModel
     - add an extra dimension (one or more points covering the downstream rotors)
@@ -13,22 +11,19 @@ class RotorAvgModel(DeficitModel):
     """
     args4rotor_avg_deficit = ['hcw_ijlk', 'dh_ijl', 'D_dst_ijl']
 
-    def calc_deficit(self, deficitModel, D_dst_ijl, **kwargs):
-        self.deficitModel = deficitModel
-        if np.all(D_dst_ijl == 0):
-            return self.deficitModel.calc_deficit(D_dst_ijl=D_dst_ijl, **kwargs)
-        else:
-            return self._calc_rotor_avg_deficit(D_dst_ijl=D_dst_ijl, **kwargs)
-
     def calc_deficit_convection(self, deficitModel, D_dst_ijl, **kwargs):
         self.deficitModel = deficitModel
         return self.deficitModel.calc_deficit_convection(D_dst_ijl=D_dst_ijl, **kwargs)
 
-    @abstractmethod
-    def _calc_rotor_avg_deficit(self):
-        """Similar to calc_deficit, but with an extra point dimension to calculate the
-        rotor average wind speed as a weighted average of a number of points instead of
-        only the rotor center"""
+    def __call__(self, func, D_dst_ijl, **kwargs):
+        # add extra dimension, p, with 40 points distributed over the destination rotors
+        kwargs = self._update_kwargs(D_dst_ijl=D_dst_ijl, **kwargs)
+
+        values_ijlkp = func(**kwargs)
+        # Calculate weighted sum of deficit over the destination rotors
+        if self.nodes_weight is None:
+            return np.mean(values_ijlkp, -1)
+        return np.sum(self.nodes_weight[na, na, na, na, :] * values_ijlkp, -1)
 
 
 class RotorCenter(RotorAvgModel):
@@ -37,8 +32,8 @@ class RotorCenter(RotorAvgModel):
     nodes_y = [0]
     nodes_weight = [1]
 
-    def _calc_rotor_avg_deficit(self, **kwargs):
-        return self.deficitModel.calc_deficit(**kwargs)
+    def __call__(self, func, **kwargs):
+        return func(**kwargs)
 
     def _calc_layout_terms(self, deficitModel, **kwargs):
         deficitModel._calc_layout_terms(**kwargs)
@@ -59,25 +54,12 @@ class GridRotorAvg(RotorAvgModel):
         hcw_ijlkp = hcw_ijlk[..., na] + R_dst_ijl[:, :, :, na, na] * self.nodes_x[na, na, na, na, :]
         dh_ijlp = dh_ijl[..., na] + R_dst_ijl[:, :, :, na] * self.nodes_y[na, na, na, :]
         new_kwargs = {'dh_ijl': dh_ijlp, 'hcw_ijlk': hcw_ijlkp, 'D_dst_ijl': D_dst_ijl[..., na]}
-        if 'cw_ijlk' in self.deficitModel.args4deficit:
-            cw_ijlkp = np.sqrt(hcw_ijlkp**2 + dh_ijlp[:, :, :, na]**2)
-            new_kwargs['cw_ijlk'] = cw_ijlkp
-        if 'D_dst_ijl' in self.deficitModel.args4deficit:
-            new_kwargs['D_dst_ijl'] = D_dst_ijl
+
+        new_kwargs['cw_ijlk'] = np.sqrt(hcw_ijlkp**2 + dh_ijlp[:, :, :, na]**2)
+        new_kwargs['D_dst_ijl'] = D_dst_ijl
 
         new_kwargs.update({k: v[..., na] for k, v in kwargs.items() if k not in new_kwargs})
         return new_kwargs
-
-    def _calc_rotor_avg_deficit(self, **kwargs):
-
-        # add extra dimension, p, with 40 points distributed over the destination rotors
-        kwargs = self._update_kwargs(**kwargs)
-
-        deficit_ijlkp = self.deficitModel.calc_deficit(**kwargs)
-        # Calculate weighted sum of deficit over the destination rotors
-        if self.nodes_weight is None:
-            return np.mean(deficit_ijlkp, -1)
-        return np.sum(self.nodes_weight[na, na, na, na, :] * deficit_ijlkp, -1)
 
     def _calc_layout_terms(self, deficitModel, **kwargs):
         self.deficitModel = deficitModel
