@@ -32,7 +32,7 @@ class FlowMap(FlowBox):
             Y = Y[:, :, na]
             H = np.reshape(localWind_j.h.data, X.shape)
         elif plane[0] == 'YZ':
-            H = Y.T[na, :, :]
+            H = Y.T[:, na, :]
             Y = X.T[:, na, :]
             X = np.reshape(localWind_j.x.data, Y.shape)
         else:
@@ -46,7 +46,9 @@ class FlowMap(FlowBox):
         if plane[0] == "YZ":
             # set flowMap.WS_xylk etc.
             for k in ['WS_eff', 'TI_eff', 'WS', 'WD', 'TI', 'P']:
-                setattr(self.__class__, "%s_xylk" % k, property(lambda self, k=k: self[k].isel(x=0)))
+                self[k] = self[k].transpose('h', 'y', ...)
+                setattr(self.__class__, "%s_xylk" % k,
+                        property(lambda self, k=k: self[k].isel(x=0).transpose('y', 'h', ...)))
 
         self.plane = plane
 
@@ -129,7 +131,7 @@ class FlowMap(FlowBox):
             y = self.X[0]
             x = np.zeros_like(y) + self.plane[1]
             z = self.simulationResult.windFarmModel.site.elevation(x, y)
-            c = ax.contourf(self.X, self.Y + z, np.reshape(data.isel(x=0), self.X.shape), levels=levels, cmap=cmap)
+            c = ax.contourf(self.X, self.Y + z, data.isel(x=0), levels=levels, cmap=cmap)
             if plot_colorbar:
                 plt.colorbar(c, label=clabel, ax=ax)
             # plot terrain
@@ -315,4 +317,4 @@ class YZGrid(Grid):
 
         Y, Z = np.meshgrid(y, z)
         X = np.zeros_like(Y) + x
-        return Y, Z, X.flatten(), Y.flatten(), Z.flatten()
+        return Y, Z, X.T.flatten(), Y.T.flatten(), Z.T.flatten()

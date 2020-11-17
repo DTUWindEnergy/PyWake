@@ -77,6 +77,26 @@ def test_YZGrid_plot_wake_map_perpendicular():
     plt.close()
 
 
+def test_YZGrid_variables():
+    site = IEA37Site(16)
+    x, y = [0], [0]
+    windTurbines = IEA37_WindTurbines()
+
+    wf_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
+    sim_res = wf_model(x, y)
+
+    fm = sim_res.flow_map(grid=YZGrid(x=100, y=None, resolution=100, extend=.1), wd=270, ws=None)
+    fm.WS_eff.plot()
+    plt.plot(fm.y[::10], fm.y[::10] * 0 + 110, '.')
+
+    if 0:
+        print(np.round(fm.WS_eff.interp(h=110)[::10].squeeze().values, 4))
+        plt.show()
+    plt.close()
+    npt.assert_array_almost_equal(fm.WS_eff.interp(h=110)[::10].squeeze(),
+                                  [9.1461, 8.4157, 7.3239, 6.058, 5.022, 4.6455, 5.1019, 6.182, 7.446, 8.506], 4)
+
+
 def test_YZGrid_plot_wake_map_parallel():
     site = IEA37Site(16)
     x, y = site.initial_position.T
