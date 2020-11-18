@@ -68,6 +68,16 @@ def complex_grid_site():
     return XRSite(ds, shear=PowerShear(h_ref=100, alpha=.2), interp_method='linear')
 
 
+@pytest.fixture
+def complex_ws_site():
+    ti = 0.1
+    ds = xr.Dataset(
+        data_vars={'Speedup': (['ws'], np.arange(.8, 1.4, .1)),
+                   'Sector_frequency': ('wd', f), 'Weibull_A': ('wd', A), 'Weibull_k': ('wd', k), 'TI': ti},
+        coords={'ws': [1.5, 4, 6, 8, 10, 12], 'wd': np.linspace(0, 360, len(f), endpoint=False)})
+    return XRSite(ds, shear=PowerShear(h_ref=100, alpha=.2), interp_method='linear')
+
+
 def test_uniform_local_wind(uniform_site):
     site = uniform_site
     x_i = y_i = np.arange(5)
@@ -212,6 +222,17 @@ def test_elevation():
         coords={'x': [0, 5, 10], 'y': [0, 5]})
     site = XRSite(ds)
     npt.assert_array_almost_equal(site.elevation([2.5, 7.5], [2.5, 2.5]), [0.95, 1.15])
+
+
+def test_plot_wd_distribution(complex_ws_site):
+    res = complex_ws_site.plot_wd_distribution()
+    ref = [0.0315, 0.0327, 0.0427, 0.0558, 0.0638, 0.0572, 0.0716, 0.0882,
+           0.0997, 0.0928, 0.0664, 0.0419]
+    if 0:
+        print(np.round(res.squeeze().values, 4))
+        plt.show()
+    plt.close()
+    npt.assert_array_almost_equal(res.squeeze(), ref, 4)
 
 
 def test_cyclic_interpolation(uniform_site):

@@ -62,6 +62,7 @@ def test_shear(site):
     if 0:
         plt.plot(ws, z, '.-')
         plt.show()
+    plt.close()
 
     # linear interpolation
     npt.assert_array_almost_equal(ws, [6.240589, np.mean([6.240589, 8.932919]), 8.932919])
@@ -252,7 +253,6 @@ def test_elevation(site):
 
 
 def test_plot_map(site):
-    import matplotlib.pyplot as plt
     with pytest.raises(AttributeError, match="missing not found in dataset. Available data variables are:\nflow_inc,"):
         site.plot_map('missing')
 
@@ -280,6 +280,7 @@ def test_elevation_outside_map(site):
     if 0:
         plt.legend()
         plt.show()
+    plt.close()
 
 
 def test_plot_ws_distribution(site):
@@ -295,17 +296,19 @@ def test_plot_ws_distribution(site):
                                                  0.0013, 0.0003, 0.0, 0.0, 0.0], 4)
     npt.assert_array_almost_equal(p2[-1, ::30], [0.0001, 0.0036, 0.0047, 0.0033, 0.0014,
                                                  0.0004, 0.0001, 0.0, 0.0, 0.0], 4)
+    plt.close()
 
 
 def test_plot_wd_distribution(site):
     x, y = site.initial_position[0]
     p = site.plot_wd_distribution(x=x, y=y, h=70, n_wd=12, ax=plt)
     # print(np.round(p, 3).tolist())
-    npt.assert_array_almost_equal(p, [0.052, 0.043, 0.058, 0.085, 0.089, 0.061,
-                                      0.047, 0.083, 0.153, 0.152, 0.108, 0.068], 3)
 
     if 0:
         plt.show()
+    plt.close()
+    npt.assert_array_almost_equal(p, [0.052, 0.043, 0.058, 0.085, 0.089, 0.061,
+                                      0.047, 0.083, 0.153, 0.152, 0.108, 0.068], 3)
 
 
 def test_plot_wd_distribution_with_ws_levels(site):
@@ -326,6 +329,7 @@ def test_plot_wd_distribution_with_ws_levels(site):
                                       [0.048, 0.074, 0.026, 0.003, 0.0],
                                       [0.044, 0.046, 0.015, 0.002, 0.0],
                                       [0.041, 0.023, 0.003, 0.0, 0.0]], 3)
+    plt.close()
 
 
 def test_additional_input():
