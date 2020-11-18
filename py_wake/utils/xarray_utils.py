@@ -51,7 +51,7 @@ class sel_interp_all():
         return da.interp(**interp_coords, method=method, kwargs=kwargs)
 
 
-if not hasattr(xr.DataArray(), 'ilk'):
+if not hasattr(xr.DataArray(None), 'ilk'):
     xr.register_dataarray_accessor("ilk")(ilk)
     xr.register_dataarray_accessor("interp_all")(interp_all)
     xr.register_dataarray_accessor("sel_interp_all")(sel_interp_all)
