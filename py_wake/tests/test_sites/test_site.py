@@ -57,7 +57,7 @@ def test_elevation(site):
 
 
 def test_missing_interp_method():
-    with pytest.raises(NotImplementedError, match="interp_method=missing_method not implemented"):
+    with pytest.raises(AssertionError, match='interp_method "missing_method" not implemented. Must be "linear" or "nearest"'):
         site = UniformWeibullSite([1], [10], [2], .75, interp_method='missing_method')
 
 

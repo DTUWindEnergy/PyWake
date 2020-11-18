@@ -10,12 +10,14 @@ class XRSite(Site):
     use_WS_bins = False
 
     def __init__(self, ds, initial_position=None, interp_method='linear', shear=None, distance=StraightDistance(),
-                 default_ws=np.arange(3, 26)):
-        if interp_method not in ['linear', 'nearest']:
-            raise NotImplementedError('interp_method=%s not implemented' % interp_method)
+                 default_ws=np.arange(3, 26), bounds='check'):
+        assert interp_method in [
+            'linear', 'nearest'], 'interp_method "%s" not implemented. Must be "linear" or "nearest"' % interp_method
+        assert bounds in ['check', 'limit', 'ignore'], 'bounds must be "check", "limit" or "ignore"'
 
         self.interp_method = interp_method
         self.shear = shear
+        self.bounds = bounds
 
         Site.__init__(self, distance)
         self.default_ws = default_ws
@@ -127,7 +129,7 @@ class XRSite(Site):
 
         if len(ip_dims) > 0:
             grid_interp = GridInterpolator([var.coords[k].data for k in ip_dims], data,
-                                           method=self.interp_method)
+                                           method=self.interp_method, bounds=self.bounds)
 
             # get dimension of interpolation coordinates
             I = (1, len(coords.get('x', coords.get('y', coords.get('h', coords.get('i', [None]))))))[
