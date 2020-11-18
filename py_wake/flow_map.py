@@ -27,6 +27,8 @@ class FlowMap(FlowBox):
     def __init__(self, simulationResult, X, Y, localWind_j, WS_eff_jlk, TI_eff_jlk, plane):
         self.X = X
         self.Y = Y
+        self.plane = plane
+
         if plane[0] == 'XY':
             X = X[:, :, na]
             Y = Y[:, :, na]
@@ -49,8 +51,6 @@ class FlowMap(FlowBox):
                 self[k] = self[k].transpose('h', 'y', ...)
                 setattr(self.__class__, "%s_xylk" % k,
                         property(lambda self, k=k: self[k].isel(x=0).transpose('y', 'h', ...)))
-
-        self.plane = plane
 
     @property
     def XY(self):
