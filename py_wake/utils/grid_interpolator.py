@@ -5,8 +5,26 @@ from py_wake.tests import npt
 
 class GridInterpolator(object):
     # Faster than scipy.interpolate.interpolate.RegularGridInterpolator
-    def __init__(self, x, V, method='linear'):
+    def __init__(self, x, V, method='linear', bounds='check'):
+        """
+        Parameters
+        ----------
+        x : list of array_like
+            Interpolation coordinates
+        V : array_like
+            Interpolation data (more dimensions than coordinates is possible)
+        method : {'linear' or 'nearest} or None
+            Overrides self.method
+        bounds : {'check', 'limit', 'ignore'}
+            Specifies how bounds is handled:\n
+            - 'check': bounds check is performed. An error is raised if interpolation point outside area
+            - 'limit': interpolation points are forced inside the area
+            - 'ignore': Faster option with no check. Use this option if data is guaranteed to be inside the area
+        """
         self.x = x
+        self.V = V
+        self.bounds = bounds
+        self.method = method
         self.n = np.array([len(x) for x in x])
         self.x0 = np.array([x[0] for x in x])
         dx = np.array([x[min(1, len(x) - 1)] - x[0] for x in x])
@@ -24,12 +42,22 @@ class GridInterpolator(object):
         ui[:, dx == 0] = 0
         self.ui = ui
 
-        self.method = method
+    def __call__(self, xp, method=None, bounds=None):
+        """Interpolate points
 
-    def __call__(self, xp, method=None, check_bounds=True):
+        Parameters
+        ----------
+        xp : array_like
+            Interpolation points, shape=(n_points, interpolation_dimensions)
+        method : {'linear' or 'nearest} or None
+            Overrides self.method if not None
+        bounds : {'check', 'limit', 'ignore'} or None
+            Overrides self.bounds if not None
+        """
         method = method or self.method
-        if method not in ['linear', 'nearest']:
-            raise ValueError('Method must be "linear" or "nearest"')
+        bounds = bounds or self.bounds
+        assert method in ['linear', 'nearest'], 'method must be "linear" or "nearest"'
+        assert bounds in ['check', 'limit', 'ignore'], 'bounds must be "check", "limit" or "ignore"'
         xp = np.asarray(xp)
         xpi = (xp - self.x0) / self.dx
         if len(self.irregular_axes):
@@ -41,13 +69,15 @@ class GridInterpolator(object):
             irreg_dx = irreg_x1 - irreg_x0
             xpi[:, self.irregular_axes] = irreg_i.T + (xp[:, self.irregular_axes] - irreg_x0.T) / irreg_dx.T
 
-        if check_bounds and (np.any(xpi < 0) or np.any(xpi + 1 > self.n[na])):
+        if bounds == 'check' and (np.any(xpi < 0) or np.any(xpi + 1 > self.n[na])):
             if -xpi.min() > (xpi + 1 - self.n[na]).max():
                 point, dimension = np.unravel_index(xpi.argmin(), np.atleast_2d(xpi).shape)
             else:
                 point, dimension = np.unravel_index(((xpi + 1 - self.n[na])).argmax(), np.atleast_2d(xpi).shape)
             raise ValueError("Point %d, dimension %d with value %f is outside range %f-%f" %
                              (point, dimension, np.atleast_2d(xp)[point, dimension], self.x[dimension][0], self.x[dimension][-1]))
+        if bounds == 'limit':
+            xpi = np.minimum(np.maximum(xpi, 0), self.n - 1)
         xpi0 = xpi.astype(int)
         xpif = xpi - xpi0
         if method == 'nearest':
