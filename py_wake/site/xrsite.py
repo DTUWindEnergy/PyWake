@@ -24,6 +24,8 @@ class XRSite(Site):
 
         if 'ws' not in ds.dims:
             ds.update({'ws': self.default_ws})
+        else:
+            self.default_ws = ds.ws
 
         if 'wd' in ds and len(np.atleast_1d(ds.wd)) > 1:
             wd = ds.coords['wd']
@@ -222,6 +224,9 @@ class XRSite(Site):
         lw.set_data_array(TI_std, 'TI_std', 'Standard deviation of turbulence intensity')
 
         if 'P' in self.ds:
+            if 'ws' in self.ds.P.dims and 'ws' in lw.coords and \
+                    (self.ds.P.ws.shape != lw.coords['ws'].shape or np.any(self.ds.P.ws.values != lw.coords['ws'].values)):
+                raise ValueError("Cannot interpolate ws-dependent P to other set of ws")
             lw['P'] = self.interp(self.ds.P, lw.coords) / \
                 self.ds.sector_width * lw.wd_bin_size
         else:
