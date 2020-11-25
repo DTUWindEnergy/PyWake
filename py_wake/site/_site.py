@@ -358,11 +358,11 @@ class Site(ABC):
 
         if ws_bins is None:
             if any(['ws' in v.dims for v in self.ds.data_vars.values()]):
-                _ws_bins = self.ds.ws[[0, -1]].values
+                lw = self.local_wind(x_i=x, y_i=y, h_i=h, wd=np.arange(360), wd_bin_size=1)
+                lw['P'] = lw.P.sum('ws')
             else:
-                _ws_bins = [0, 200]
-            lw = self.local_wind(x_i=x, y_i=y, h_i=h, wd=np.arange(360),
-                                 ws=[np.mean(_ws_bins)], ws_bins=_ws_bins, wd_bin_size=1)
+                lw = self.local_wind(x_i=x, y_i=y, h_i=h, wd=np.arange(360),
+                                     ws=[100], ws_bins=[0, 200], wd_bin_size=1)
         else:
             if not hasattr(ws_bins, '__len__'):
                 ws_bins = np.linspace(0, 30, ws_bins)

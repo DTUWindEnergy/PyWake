@@ -15,6 +15,7 @@ from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.superposition_models import LinearSum
 from py_wake.tests.check_speed import timeit
 from py_wake.site._site import LocalWind
+from py_wake.utils import weibull
 
 
 f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,
@@ -71,9 +72,10 @@ def complex_grid_site():
 @pytest.fixture
 def complex_ws_site():
     ti = 0.1
+    P = weibull.cdf(np.array([3, 5, 7, 9, 11, 13]), 10, 2) - weibull.cdf(np.array([0, 3, 5, 7, 9, 11]), 10, 2)
     ds = xr.Dataset(
         data_vars={'Speedup': (['ws'], np.arange(.8, 1.4, .1)),
-                   'Sector_frequency': ('wd', f), 'Weibull_A': ('wd', A), 'Weibull_k': ('wd', k), 'TI': ti},
+                   'P': (('wd', 'ws'), P[na, :] * np.array(f)[:, na]), 'TI': ti},
         coords={'ws': [1.5, 4, 6, 8, 10, 12], 'wd': np.linspace(0, 360, len(f), endpoint=False)})
     return XRSite(ds, shear=PowerShear(h_ref=100, alpha=.2), interp_method='linear')
 
@@ -226,13 +228,17 @@ def test_elevation():
 
 def test_plot_wd_distribution(complex_ws_site):
     res = complex_ws_site.plot_wd_distribution()
-    ref = [0.0315, 0.0327, 0.0427, 0.0558, 0.0638, 0.0572, 0.0716, 0.0882,
-           0.0997, 0.0928, 0.0664, 0.0419]
+    ref = [0.0312, 0.0332, 0.043, 0.0568, 0.0648, 0.0567, 0.0718, 0.0967, 0.1199, 0.1154, 0.0809, 0.045]
     if 0:
-        print(np.round(res.squeeze().values, 4))
+        print(np.round(res.squeeze().values, 4).tolist())
         plt.show()
     plt.close()
     npt.assert_array_almost_equal(res.squeeze(), ref, 4)
+
+
+def test_local_wind_P_diff_ws(complex_ws_site):
+    with pytest.raises(ValueError, match='Cannot interpolate ws-dependent P to other set of ws'):
+        complex_ws_site.local_wind([0], [0], 100, wd=np.arange(360), ws=10)
 
 
 def test_cyclic_interpolation(uniform_site):
