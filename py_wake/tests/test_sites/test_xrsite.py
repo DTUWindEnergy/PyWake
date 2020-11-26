@@ -237,8 +237,13 @@ def test_plot_wd_distribution(complex_ws_site):
 
 
 def test_local_wind_P_diff_ws(complex_ws_site):
-    with pytest.raises(ValueError, match='Cannot interpolate ws-dependent P to other set of ws'):
-        complex_ws_site.local_wind([0], [0], 100, wd=np.arange(360), ws=10)
+    with pytest.raises(ValueError, match='Cannot interpolate ws-dependent P to other range of ws'):
+        complex_ws_site.local_wind([0], [0], 100, wd=np.arange(360), ws=9)
+
+
+def test_local_wind_P_same_ws(complex_ws_site):
+    complex_ws_site.local_wind([0], [0], 100, wd=np.arange(360), ws=10)
+    complex_ws_site.local_wind([0], [0], 100, wd=np.arange(360), ws=[8, 10])
 
 
 def test_cyclic_interpolation(uniform_site):
