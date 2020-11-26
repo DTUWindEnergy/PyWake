@@ -224,9 +224,14 @@ class XRSite(Site):
         lw.set_data_array(TI_std, 'TI_std', 'Standard deviation of turbulence intensity')
 
         if 'P' in self.ds:
-            if 'ws' in self.ds.P.dims and 'ws' in lw.coords and \
-                    (self.ds.P.ws.shape != lw.coords['ws'].shape or np.any(self.ds.P.ws.values != lw.coords['ws'].values)):
-                raise ValueError("Cannot interpolate ws-dependent P to other set of ws")
+            if ('ws' in self.ds.P.dims and 'ws' in lw.coords):
+                d_ws = self.ds.P.ws.values
+                c_ws = lw.coords['ws'].values
+                i = np.searchsorted(d_ws, c_ws[0])
+                if (np.any([ws not in d_ws for ws in c_ws]) or  # check all coordinate ws in data ws
+                    len(d_ws[i:i + len(c_ws)]) != len(c_ws) or  # check subset has same length
+                        np.any(d_ws[i:i + len(c_ws)] != c_ws)):  # check subset are equal
+                    raise ValueError("Cannot interpolate ws-dependent P to other range of ws")
             lw['P'] = self.interp(self.ds.P, lw.coords) / \
                 self.ds.sector_width * lw.wd_bin_size
         else:
