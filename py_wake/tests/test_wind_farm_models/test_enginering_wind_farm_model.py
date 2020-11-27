@@ -21,6 +21,7 @@ from py_wake.deficit_models.fuga import FugaDeficit
 from py_wake.superposition_models import LinearSum
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
+from py_wake.wind_turbines import WindTurbines
 WindFarmModel.verbose = False
 
 
@@ -145,6 +146,18 @@ def test_two_wt_aep():
     # same for normalized propabilities
     npt.assert_almost_equal(sim_res1.aep(normalize_probabilities=True).sum() * 2,
                             sim_res2.aep(normalize_probabilities=True).sum())
+
+
+def test_aep_mixed_type():
+    site = UniformSite([1], ti=0)
+    wt = WindTurbines.from_WindTurbines([IEA37_WindTurbines(), IEA37_WindTurbines()])
+
+    wfm = NOJ(site, wt)
+
+    sim_res = wfm([0, 500], [0, 0], type=[0, 1], wd=270)
+
+    npt.assert_almost_equal(sim_res.aep(with_wake_loss=False).sum(),
+                            2 * wfm([0], [0], wd=270).aep(with_wake_loss=False).sum())
 
 
 def test_All2AllIterativeDeflection():

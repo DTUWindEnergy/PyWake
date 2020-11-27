@@ -208,7 +208,7 @@ class SimulationResult(xr.Dataset):
             power_ilk = self.Power.ilk()
 
         else:
-            power_ilk = self.windFarmModel.windTurbines.power(self.WS.ilk(self.Power.shape), self.type)
+            power_ilk = self.windFarmModel.windTurbines.power(self.WS.ilk(self.Power.shape), self.type.values)
 
         if linear_power_segments:
             s = "The linear_power_segments method "
