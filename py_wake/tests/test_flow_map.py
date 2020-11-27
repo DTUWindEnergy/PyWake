@@ -1,4 +1,4 @@
-from py_wake.flow_map import HorizontalGrid, YZGrid
+from py_wake.flow_map import HorizontalGrid, YZGrid, Grid, Points
 from py_wake.tests import npt
 import matplotlib.pyplot as plt
 import numpy as np
@@ -167,6 +167,21 @@ def test_YZGrid_terrain_parallel():
     npt.assert_array_almost_equal(fm.WS_eff_xylk[:, 0, 0, 0],
                                   [6.68, 6.27, 5.26, 5.65, 4.98, 4.36, 4.39, 7.41, 7.07, 7.17, 7.26, 7.32, 5.58,
                                    11.21, 11.87, 11.96, 10.34, 9.95, 10.0, 10.0], 2)
+
+
+def test_Points():
+    site = IEA37Site(16)
+    x, y = site.initial_position.T
+    windTurbines = IEA37_WindTurbines()
+
+    wf_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
+    sim_res = wf_model(x, y)
+
+    flow_map = sim_res.flow_map(Points(x, y, x * 0 + windTurbines.hub_height()), wd=0, ws=None)
+    if 0:
+        flow_map.WS_eff.plot()
+        plt.show()
+    plt.close()
 
 
 def test_not_implemented_plane():

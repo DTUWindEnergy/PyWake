@@ -2,7 +2,7 @@ from abc import abstractmethod, ABC
 from py_wake.site._site import Site, UniformSite, UniformWeibullSite
 from py_wake.wind_turbines import WindTurbines
 import numpy as np
-from py_wake.flow_map import FlowMap, HorizontalGrid, FlowBox, YZGrid, Grid
+from py_wake.flow_map import FlowMap, HorizontalGrid, FlowBox, YZGrid, Grid, Points
 import xarray as xr
 from py_wake.utils import xarray_utils, weibull  # register ilk function @UnusedImport
 from numpy import newaxis as na
@@ -268,8 +268,10 @@ class SimulationResult(xr.Dataset):
         if isinstance(grid, Grid):
             if isinstance(grid, HorizontalGrid):
                 plane = "XY", self.h
-            elif isinstance(grid, YZGrid):
+            if isinstance(grid, YZGrid):
                 plane = 'YZ', grid.x
+            if isinstance(grid, Points):
+                plane = 'xyz', None
             grid = grid(x_i=self.x, y_i=self.y, h_i=self.h,
                         d_i=self.windFarmModel.windTurbines.diameter(self.type))
         else:
