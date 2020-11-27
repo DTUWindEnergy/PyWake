@@ -11,10 +11,19 @@ class FlowBox(xr.Dataset):
         self.windFarmModel = self.simulationResult.windFarmModel
         lw_j = localWind_j
         wd, ws = lw_j.wd, lw_j.ws
-        coords = {'x': X[0, :, 0], 'y': Y[:, 0, 0], 'h': H[0, 0, :], 'wd': wd, 'ws': ws}
+
+        if X is None and Y is None and H is None:
+            coords = localWind_j.coords
+            X = localWind_j.i
+        else:
+            coords = {'x': X[0, :, 0], 'y': Y[:, 0, 0], 'h': H[0, 0, :], 'wd': wd, 'ws': ws}
 
         def get_da(arr_jlk):
-            return xr.DataArray(arr_jlk.reshape(X.shape + (len(wd), len(ws))), coords, dims=['y', 'x', 'h', 'wd', 'ws'])
+            if len(X.shape) == 1:
+                return xr.DataArray(arr_jlk.reshape(X.shape + (len(wd), len(ws))), coords, dims=['i', 'wd', 'ws'])
+            else:
+                return xr.DataArray(arr_jlk.reshape(X.shape + (len(wd), len(ws))),
+                                    coords, dims=['y', 'x', 'h', 'wd', 'ws'])
         JLK = WS_eff_jlk.shape
         xr.Dataset.__init__(self, data_vars={k: get_da(v) for k, v in [
             ('WS_eff', WS_eff_jlk), ('TI_eff', TI_eff_jlk),
@@ -37,6 +46,10 @@ class FlowMap(FlowBox):
             H = Y.T[:, na, :]
             Y = X.T[:, na, :]
             X = np.reshape(localWind_j.x.data, Y.shape)
+        elif plane[0] == 'xyz':
+            X = None
+            Y = None
+            H = None
         else:
             raise NotImplementedError()
         FlowBox.__init__(self, simulationResult, X, Y, H, localWind_j, WS_eff_jlk, TI_eff_jlk)
@@ -318,3 +331,14 @@ class YZGrid(Grid):
         Y, Z = np.meshgrid(y, z)
         X = np.zeros_like(Y) + x
         return Y, Z, X.T.flatten(), Y.T.flatten(), Z.T.flatten()
+
+
+class Points(Grid):
+    def __init__(self, x, y, h):
+        assert len(x) == len(y) == len(h)
+        self.x = x
+        self.y = y
+        self.h = h
+
+    def __call__(self, **_):
+        return None, None, self.x, self.y, self.h
