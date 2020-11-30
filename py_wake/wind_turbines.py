@@ -123,7 +123,8 @@ class WindTurbines():
         t = np.unique(type_i)  # .astype(int)
         if len(t) > 1:
             if type_i.shape != ws_i.shape:
-                type_i = (np.zeros(ws_i.shape[0]) + type_i).astype(int)
+                type_i = (np.zeros(ws_i.shape[0]) + type_i)
+            type_i = type_i.astype(int)
             CT = np.array([self.ct_funcs[t](ws) for t, ws in zip(type_i, ws_i)])
             P = np.array([self.power_funcs[t](ws) for t, ws in zip(type_i, ws_i)])
             return CT, P
