@@ -27,6 +27,15 @@ k = [2.392578, 2.447266, 2.412109, 2.591797, 2.755859, 2.595703,
 ti = .1
 
 
+@pytest.fixture(autouse=True)
+def close_plots():
+    yield
+    try:
+        plt.close()
+    except Exception:
+        pass
+
+
 @pytest.fixture
 def uniform_site():
     ti = 0.1
