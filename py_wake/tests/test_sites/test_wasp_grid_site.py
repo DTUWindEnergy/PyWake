@@ -16,6 +16,15 @@ from py_wake.tests.check_speed import timeit
 import matplotlib.pyplot as plt
 
 
+@pytest.fixture(autouse=True)
+def close_plots():
+    yield
+    try:
+        plt.close()
+    except Exception:
+        pass
+
+
 @pytest.fixture
 def site():
     return ParqueFicticioSite()
