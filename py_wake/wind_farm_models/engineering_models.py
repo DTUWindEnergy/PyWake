@@ -281,7 +281,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                 WS_eff_jlk[:, l] = self.superpositionModel.calc_effective_WS(lw_j.WS_ilk[:, l_], deficit_ijk)
 
             if self.turbulenceModel:
-                l_ = [l, 0][lw_j.WS_ilk.shape[1] == 1]
+                l_ = [l, 0][lw_j.TI_ilk.shape[1] == 1]
                 TI_eff_jlk[:, l] = self.turbulenceModel.calc_effective_TI(lw_j.TI_ilk[:, l_], add_turb_ijk)
         return lw_j, WS_eff_jlk, TI_eff_jlk
 
