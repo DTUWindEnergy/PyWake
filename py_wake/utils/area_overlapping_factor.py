@@ -43,7 +43,7 @@ class AreaOverlappingFactor():
 
         The calculation formula can be found in Eq. (A1) of :
         [Ref] Feng J, Shen WZ, Solving the wind farm layout optimization
-        problem using Random search algorithm, Reneable Energy 78 (2015)
+        problem using Random search algorithm, Renewable Energy 78 (2015)
         182-192
         Note that however there are typos in Equation (A1), '2' before alpha
         and beta should be 1.

@@ -129,7 +129,7 @@ class WindTurbines():
             P = np.array([self.power_funcs[t](ws) for t, ws in zip(type_i, ws_i)])
             return CT, P
         else:
-            return self.ct_funcs[t[0]](ws_i), self.power_funcs[t[0]](ws_i)
+            return self.ct_funcs[int(t[0])](ws_i), self.power_funcs[int(t[0])](ws_i)
 
     def set_gradient_funcs(self, power_grad_funcs, ct_grad_funcs):
         def add_grad(f_lst, df_lst):
