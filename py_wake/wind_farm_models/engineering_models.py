@@ -272,10 +272,9 @@ class EngineeringWindFarmModel(WindFarmModel):
                     add_turb_ijk = self.turbulenceModel.calc_added_turbulence(dw_ijlk=dw_ijlk, **args)[:, :, 0]
 
             l_ = [l, 0][lw_j.WS_ilk.shape[1] == 1]
-            assert lw_j.WS_ilk.shape[1] == dh_ijl.shape[2] == hcw_ijlk.shape[2]
             if isinstance(self.superpositionModel, WeightedSum):
-                cw_ijk = np.hypot(dh_ijl[..., na], hcw_ijlk)[:, :, l_]
-                hcw_ijk, dh_ijk = hcw_ijlk[:, :, l_], dh_ijl[:, :, l_, na]
+                cw_ijk = np.hypot(dh_ijl[..., na], hcw_ijlk)[:, :, 0]
+                hcw_ijk, dh_ijk = hcw_ijlk[:, :, 0], dh_ijl[:, :, 0, na]
                 WS_eff_jlk[:, l] = self.superpositionModel.calc_effective_WS(
                     lw_j.WS_ilk[:, l_], deficit_ijk, uc_ijk, sigma_sqr_ijk, cw_ijk, hcw_ijk, dh_ijk)
             else:
