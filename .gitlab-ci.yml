@@ -33,23 +33,30 @@ test_PyWake_windows:  # name the job what we like
 
 # ===== Trigger PyWakePark pipeline =====
 trigger_pywake_park_test:
-  stage: deploy
-  script:
-    - "curl -X POST -F token=873f41e7914664e3b2359b40890265 -F ref=master https://gitlab.windenergy.dtu.dk/api/v4/projects/1145/trigger/pipeline"
-  tags:  # only runners with this tag can do the job [3]
-  - python
-  only:  # only run for these branches
-  - master
+  stage: test
+  variables:
+    TRIGGER_BRANCH: $CI_COMMIT_REF_NAME
+  trigger:
+    project: TOPFARM/cuttingedge/pywake/pywake_park
+    strategy: depend
+  only:
+    - schedules
 
 
+
+# ===== Trigger PyWakeEllipSys pipeline =====
 trigger_pywake_ellipsys_test:
-  stage: deploy
-  script:
-    - "curl -X POST -F token=7fdf8e11ba829f21ec39ea5193d3d4 -F ref=master https://gitlab.windenergy.dtu.dk/api/v4/projects/1576/trigger/pipeline"
-  tags:  # only runners with this tag can do the job [3]
-  - python
-  only:  # only run for these branches
-  - master
+  stage: test
+  variables:
+    TRIGGER_BRANCH: $CI_COMMIT_REF_NAME
+  trigger:
+    project: TOPFARM/cuttingedge/pywake/pywake_ellipsys
+    strategy: depend
+  only:
+    - schedules
+
+
+
 
 # ===== build documentation =====
 pages:  # "pages" is a job specifically for GitLab pages [1]
