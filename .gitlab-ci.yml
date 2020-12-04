@@ -31,6 +31,26 @@ test_PyWake_windows:  # name the job what we like
   tags:  # tag for shared runner on windows machine
   - ANMH_old
 
+# ===== Trigger PyWakePark pipeline =====
+trigger_pywake_park_test:
+  stage: deploy
+  script:
+    - "curl -X POST -F token=873f41e7914664e3b2359b40890265 -F ref=master https://gitlab.windenergy.dtu.dk/api/v4/projects/1145/trigger/pipeline"
+  tags:  # only runners with this tag can do the job [3]
+  - python
+  only:  # only run for these branches
+  - master
+
+
+trigger_pywake_ellipsys_test:
+  stage: deploy
+  script:
+    - "curl -X POST -F token=7fdf8e11ba829f21ec39ea5193d3d4 -F ref=master https://gitlab.windenergy.dtu.dk/api/v4/projects/1576/trigger/pipeline"
+  tags:  # only runners with this tag can do the job [3]
+  - python
+  only:  # only run for these branches
+  - master
+
 # ===== build documentation =====
 pages:  # "pages" is a job specifically for GitLab pages [1]
   stage:  # build, test, deploy defined by default [2]
