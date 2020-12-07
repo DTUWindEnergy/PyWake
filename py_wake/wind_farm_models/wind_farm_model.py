@@ -133,12 +133,13 @@ class WindFarmModel(ABC):
 
 class SimulationResult(xr.Dataset):
     """Simulation result returned when calling a WindFarmModel object"""
-    __slots__ = ('windFarmModel', )
+    __slots__ = ('windFarmModel', 'localWind')
 
     def __init__(self, windFarmModel, localWind, type_i, yaw_ilk,
                  WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk):
         self.windFarmModel = windFarmModel
         lw = localWind
+        self.localWind = localWind
         n_wt = len(lw.i)
 
         coords = {k: (k, v, {'Description': d}) for k, v, d in [
@@ -160,8 +161,8 @@ class SimulationResult(xr.Dataset):
                             ]},
                             coords=coords)
         for n in localWind:
-            if n not in ['ws_lower', 'ws_upper']:
-                self[n] = localWind[n]
+            self[n] = localWind[n]
+        self.attrs.update(localWind.attrs)
 
         if yaw_ilk is None:
             self['Yaw'] = self.Power * 0
