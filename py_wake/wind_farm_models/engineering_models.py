@@ -86,7 +86,10 @@ class EngineeringWindFarmModel(WindFarmModel):
             self.args4deficit = set(self.args4deficit) | set(self.groundModel.args4deficit)
         self.args4all = set(self.args4deficit)
         if self.turbulenceModel:
-            self.args4addturb = set(self.turbulenceModel.args4addturb) | set(self.rotorAvgModel.args4rotor_avg_deficit)
+            if self.turbulenceModel.rotorAvgModel is None:
+                self.turbulenceModel.rotorAvgModel = rotorAvgModel
+            self.args4addturb = set(self.turbulenceModel.args4addturb) | set(
+                self.turbulenceModel.rotorAvgModel.args4rotor_avg_deficit)
             self.args4all = self.args4all | set(self.turbulenceModel.args4addturb)
         if self.deflectionModel:
             self.args4all = self.args4all | set(self.deflectionModel.args4deflection)
@@ -494,8 +497,8 @@ class PropagateDownwind(EngineeringWindFarmModel):
                                  if k != "dw_ijlk"}
 
                     # Calculate added turbulence
-                    add_turb_nk[n_dw] = self.rotorAvgModel(self.turbulenceModel.calc_added_turbulence,
-                                                           dw_ijlk=dw_ijlk, **turb_args)
+                    add_turb_nk[n_dw] = self.turbulenceModel.rotorAvgModel(self.turbulenceModel.calc_added_turbulence,
+                                                                           dw_ijlk=dw_ijlk, **turb_args)
 
         WS_eff_jlk, power_jlk, ct_jlk = np.array(WS_eff_mk), np.array(power_jlk), np.array(ct_jlk)
 
@@ -596,7 +599,7 @@ class All2AllIterative(EngineeringWindFarmModel):
             # Calculate effective wind speed
             WS_eff_ilk = self.superpositionModel.calc_effective_WS(lw.WS_ilk, deficit_iilk)
             if self.turbulenceModel:
-                add_turb_ijlk = self.rotorAvgModel(self.turbulenceModel.calc_added_turbulence, **args)
+                add_turb_ijlk = self.turbulenceModel.rotorAvgModel(self.turbulenceModel.calc_added_turbulence, **args)
                 TI_eff_ilk = self.turbulenceModel.calc_effective_TI(lw.TI_ilk, add_turb_ijlk)
 
             # Check if converged

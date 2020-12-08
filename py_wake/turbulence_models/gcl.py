@@ -15,8 +15,8 @@ class GCLTurbulence(TurbulenceModel, AreaOverlappingFactor):
     """
     args4addturb = ['D_src_il', 'dw_ijlk', 'ct_ilk', 'D_dst_ijl', 'cw_ijlk', 'wake_radius_ijlk']
 
-    def __init__(self, addedTurbulenceSuperpositionModel=SqrMaxSum()):
-        TurbulenceModel.__init__(self, addedTurbulenceSuperpositionModel)
+    def __init__(self, addedTurbulenceSuperpositionModel=SqrMaxSum(), **kwargs):
+        TurbulenceModel.__init__(self, addedTurbulenceSuperpositionModel, **kwargs)
 
     def calc_added_turbulence(self, dw_ijlk, D_src_il, ct_ilk, wake_radius_ijlk,
                               D_dst_ijl, cw_ijlk, **_):

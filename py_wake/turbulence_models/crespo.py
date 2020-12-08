@@ -14,8 +14,8 @@ class CrespoHernandez(TurbulenceModel, AreaOverlappingFactor):
     """
     args4addturb = ['dw_ijlk', 'cw_ijlk', 'D_src_il', 'ct_ilk', 'TI_ilk', 'D_dst_ijl', 'wake_radius_ijlk']
 
-    def __init__(self, addedTurbulenceSuperpositionModel=SqrMaxSum()):
-        TurbulenceModel.__init__(self, addedTurbulenceSuperpositionModel)
+    def __init__(self, addedTurbulenceSuperpositionModel=SqrMaxSum(), **kwargs):
+        TurbulenceModel.__init__(self, addedTurbulenceSuperpositionModel, **kwargs)
 
     def calc_added_turbulence(self, dw_ijlk, cw_ijlk, D_src_il, ct_ilk, TI_ilk, D_dst_ijl, wake_radius_ijlk, **_):
         """ Calculate the added turbulence intensity at locations specified by
