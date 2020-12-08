@@ -4,9 +4,10 @@ from abc import abstractmethod
 
 class TurbulenceModel():
 
-    def __init__(self, addedTurbulenceSuperpositionModel):
+    def __init__(self, addedTurbulenceSuperpositionModel, rotorAvgModel=None):
         assert isinstance(addedTurbulenceSuperpositionModel, AddedTurbulenceSuperpositionModel)
         self.addedTurbulenceSuperpositionModel = addedTurbulenceSuperpositionModel
+        self.rotorAvgModel = rotorAvgModel
 
     @abstractmethod
     def calc_added_turbulence(self):

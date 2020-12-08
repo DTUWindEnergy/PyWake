@@ -28,6 +28,7 @@ from py_wake.turbulence_models.gcl import GCLTurbulence
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site
+from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
 
 
 class GCLLocalDeficit(GCLDeficit):
@@ -229,9 +230,9 @@ def test_wake_radius_not_implemented():
     site = IEA37Site(16)
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
-    wfm = PropagateDownwind(site, windTurbines, wake_deficitModel=NoWakeDeficit(),
+    wfm = PropagateDownwind(site, windTurbines, wake_deficitModel=SelfSimilarityDeficit(),
                             turbulenceModel=GCLTurbulence())
-    with pytest.raises(NotImplementedError, match="wake_radius not implemented for NoWakeDeficit"):
+    with pytest.raises(NotImplementedError, match="wake_radius not implemented for SelfSimilarityDeficit"):
         wfm(x, y)
 
 

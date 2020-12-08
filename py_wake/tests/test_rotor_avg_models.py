@@ -29,7 +29,11 @@ def test_RotorGridAvg_deficit():
             ('RotorGrid3', EqGridRotorAvg(3), 7.633415167369133),
             ('RotorGrid4', EqGridRotorAvg(4), 7.710215921858325),
             ('RotorGrid100', EqGridRotorAvg(100), 7.820762402628349),
-            ('RotorGQGrid_4,3', GQGridRotorAvg(4, 3), 7.826105012683896)]:
+            ('RotorGQGrid_4,3', GQGridRotorAvg(4, 3), 7.826105012683896),
+            ('RotorCGI4', CGIRotorAvg(4), 7.848406907726826),
+            ('RotorCGI4', CGIRotorAvg(7), 7.819900693605533),
+            ('RotorCGI4', CGIRotorAvg(9), 7.82149363932618),
+            ('RotorCGI4', CGIRotorAvg(21), 7.821558905416136)]:
 
         # test with PropagateDownwind
         wfm = IEA37SimpleBastankhahGaussian(site,
