@@ -1,5 +1,10 @@
 image: dtuwindenergy/topfarm2:latest
 
+stages:
+  - test
+  - test_plugins
+  - deploy
+
 # ===== TEST PyWake debian=====
 test_PyWake:  # name the job what we like
   stage:  # build, test, deploy defined by default [2]
@@ -33,7 +38,7 @@ test_PyWake_windows:  # name the job what we like
 
 # ===== Trigger PyWakePark pipeline =====
 trigger_pywake_park_test:
-  stage: test
+  stage: test_plugins
   variables:
     TRIGGER_BRANCH: $CI_COMMIT_REF_NAME
   trigger:
@@ -46,7 +51,7 @@ trigger_pywake_park_test:
 
 # ===== Trigger PyWakeEllipSys pipeline =====
 trigger_pywake_ellipsys_test:
-  stage: test
+  stage: test_plugins
   variables:
     TRIGGER_BRANCH: $CI_COMMIT_REF_NAME
   trigger:
