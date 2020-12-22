@@ -3,6 +3,9 @@ from abc import ABC, abstractmethod
 
 
 class SuperpositionModel(ABC):
+    def __init__(self):
+        pass
+
     @abstractmethod
     def calc_effective_WS(self, WS_xxx, deficit_jxxx):
         """Calculate effective wind speed

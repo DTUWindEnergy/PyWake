@@ -101,6 +101,13 @@ except ModuleNotFoundError:
             return line
 
         lines = [fix(l) for l in code.split("\n")]
+
+        # import * only allowed at module level
+        # So extract and remove from code lines
+        module_imports = [l for l in lines if l.startswith('from') and l.endswith('import *')]
+        for l in module_imports:
+            lines.remove(l)
+
         if len(lines) == 1 and lines[0] == '':
             return
         try:
@@ -108,7 +115,12 @@ except ModuleNotFoundError:
 
             with contextlib.redirect_stdout(StringIO()):
                 with contextlib.redirect_stderr(StringIO()):
-                    exec("def test():\n    " + "\n    ".join(lines) + "\ntest()", {}, {})
+                    # execute module level imports (stored in l dict) and use a locals in execution of code
+                    g, l = {}, {}
+                    exec("\n".join(module_imports), g, l)
+
+                    code_str = "def test():\n    " + "\n    ".join(lines) + "\ntest()"
+                    exec(code_str, l, {})
                     plt.close()
         except Exception as e:
             raise type(e)("Code error in %s\n%s\n" % (self.filename, str(e))).with_traceback(sys.exc_info()[2])

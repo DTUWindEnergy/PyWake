@@ -29,9 +29,10 @@ class AreaOverlappingFactor():
             return wake_radius_ijlk > cw_ijlk
         else:
             if wake_radius_ijlk.ndim == 5:
-                return self._cal_overlapping_area_factor(wake_radius_ijlk[..., 0],
-                                                         (D_dst_ijl[..., na] / 2),
-                                                         np.abs(cw_ijlk[..., 0]))[..., na]
+                return self._cal_overlapping_area_factor(
+                    np.broadcast_to(wake_radius_ijlk, cw_ijlk.shape),
+                    np.broadcast_to(D_dst_ijl[..., na, na] / 2, cw_ijlk.shape),
+                    np.abs(cw_ijlk))
             else:
                 return self._cal_overlapping_area_factor(wake_radius_ijlk,
                                                          (D_dst_ijl[..., na] / 2),

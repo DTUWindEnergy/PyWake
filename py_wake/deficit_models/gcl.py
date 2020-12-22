@@ -1,5 +1,5 @@
 import numpy as np
-from py_wake.deficit_models.deficit_model import DeficitModel
+from py_wake.deficit_models.deficit_model import WakeDeficitModel
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.superposition_models import LinearSum
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
@@ -146,7 +146,7 @@ def get_dU(x, r, R, CT, TI):
     return dU
 
 
-class GCLDeficit(DeficitModel):
+class GCLDeficit(WakeDeficitModel):
     """
     Implemented according to:
             Larsen, G. C. (2009). A simple stationary semi-analytical wake model.
@@ -217,7 +217,7 @@ def main():
     if __name__ == '__main__':
         from py_wake.examples.data.iea37._iea37 import IEA37Site
         from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
-        from py_wake.turbulence_models.gcl import GCLTurbulence
+        from py_wake.turbulence_models import GCLTurbulence
         import matplotlib.pyplot as plt
 
         # setup site, turbines and wind farm model

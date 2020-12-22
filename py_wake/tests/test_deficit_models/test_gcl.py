@@ -6,7 +6,6 @@ from py_wake.tests import npt
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.tests.check_speed import timeit
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80
-from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 
 
 def test_GCL_ex80():

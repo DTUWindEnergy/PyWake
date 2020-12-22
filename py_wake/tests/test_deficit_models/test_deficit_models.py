@@ -1,53 +1,32 @@
-from builtins import issubclass
-import inspect
-import os
-import pkgutil
-
 import pytest
 
 import matplotlib.pyplot as plt
 import numpy as np
-from py_wake import deficit_models
-from py_wake.deficit_models.deficit_model import DeficitModel, ConvectionDeficitModel
+from py_wake.deficit_models.deficit_model import DeficitModel
 from py_wake.deficit_models.fuga import FugaDeficit, Fuga
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, IEA37SimpleBastankhahGaussianDeficit,\
     ZongGaussianDeficit, NiayifarGaussianDeficit, BastankhahGaussian, IEA37SimpleBastankhahGaussian, ZongGaussian,\
     NiayifarGaussian
 from py_wake.deficit_models.gcl import GCLDeficit, GCL, GCLLocal
-from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models.noj import NOJDeficit, NOJ, NOJLocalDeficit, NOJLocal
+from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
+from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windfarm
 from py_wake.flow_map import HorizontalGrid
-from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel
 from py_wake.superposition_models import SquaredSum, WeightedSum
 from py_wake.tests import npt
 from py_wake.tests.test_files import tfp
-from py_wake.turbulence_models.gcl import GCLTurbulence
-from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
+from py_wake.turbulence_models.gcl_turb import GCLTurbulence
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
-from py_wake.examples.data.hornsrev1 import Hornsrev1Site
-from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
+from py_wake.utils.get_models import get_models
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 
 
 class GCLLocalDeficit(GCLDeficit):
     def __init__(self):
         GCLDeficit.__init__(self, use_effective_ws=True, use_effective_ti=True)
-
-
-def get_all_deficit_models():
-
-    all_deficit_modules = []
-    for loader, module_name, _ in pkgutil.walk_packages([os.path.dirname(deficit_models.__file__)]):
-
-        _module = loader.find_module(module_name).load_module(module_name)
-        for n in dir(_module):
-            v = _module.__dict__[n]
-            if inspect.isclass(v) and issubclass(v, DeficitModel) and \
-                    v not in [DeficitModel, ConvectionDeficitModel] and not issubclass(v, RotorAvgModel):
-                all_deficit_modules.append(v())
-    return all_deficit_modules
 
 
 @pytest.mark.parametrize(
@@ -385,11 +364,11 @@ def test_IEA37_ex16_windFarmModel(windFarmModel, aep_ref):
     npt.assert_array_almost_equal(aep_MW_l, aep_ref[1], 5)
 
 
-@pytest.mark.parametrize('deficitModel', get_all_deficit_models())
-def test_own_deficit_is_zero(deficitModel):
-    site = Hornsrev1Site()
-    windTurbines = IEA37_WindTurbines()
-    wf_model = All2AllIterative(site, windTurbines, wake_deficitModel=deficitModel,
-                                turbulenceModel=STF2017TurbulenceModel())
-    sim_res = wf_model([0], [0])
-    npt.assert_array_equal(sim_res.WS_eff, sim_res.WS.broadcast_like(sim_res.WS_eff))
+def test_own_deficit_is_zero():
+    for deficitModel in get_models(DeficitModel):
+        site = Hornsrev1Site()
+        windTurbines = IEA37_WindTurbines()
+        wf_model = All2AllIterative(site, windTurbines, wake_deficitModel=deficitModel(),
+                                    turbulenceModel=STF2017TurbulenceModel())
+        sim_res = wf_model([0], [0])
+        npt.assert_array_equal(sim_res.WS_eff, sim_res.WS.broadcast_like(sim_res.WS_eff))

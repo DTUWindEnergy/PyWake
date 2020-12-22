@@ -31,14 +31,9 @@ def integrate_velocity_deficit_arc(wd, U, R, U0):
     #        as a function of the relative wd
     # Output: Estimate of a projected stream-wise
     #         velocity deficit, normalized by U0*Ly
-    UInt = 0
     wd = wd / 180.0 * np.pi
-    Ly = 0
-    for i in range(len(wd) - 1):
-        dy = R * (np.sin(wd[i + 1]) - np.sin(wd[i]))
-        Ly = Ly + dy
-        UInt = UInt + (1 - U[i] / U0) * dy
-    return UInt / Ly
+    dy = R * (np.sin(wd[1:]) - np.sin(wd[:-1]))
+    return np.sum((1 - U[:-1] / U0) * dy) / np.sum(dy)
 
 
 def uniqueIndexes(l):
@@ -76,6 +71,44 @@ def sigmaVarDist(x, y, xref, yref):
     return sigma
 
 
+# def GaussianFilter(y, wd, nwdGA, sigma):
+#     # Gaussian filter for cyclic data, i.e. as function of wind direction
+#     # y is a vector and a function of wd
+#     # It is assumed that the spacing in wd is uniform
+#     # yGA is the returned filtered y
+#     # nwdGA is the amount of points that are used for the smoothing
+#     wdDelta = wd[1] - wd[0]
+#     # wdGArel is the smoothing operator
+#     wdGArel = seq(- nwdGA * wdDelta, nwdGA * wdDelta, wdDelta)
+#     ny = len(y)
+#     nwd = len(wd)
+#     assert ny == nwd, 'length of wd does not correspond with length of y'
+#     yGA = np.zeros((1, ny))
+#     int_gauss = 0
+#     if(nwd * wdDelta == 360):
+#         # Full wind rose
+#         i1 = 0
+#         i2 = nwd
+#     else:
+#         # Partial wind rose: cannot GA the first and last wind directions
+#         i1 = nwdGA
+#         i2 = nwd - nwdGA
+#     for i in range(i1, i2):
+#         j = 0
+#         int_gauss = 0
+#         for wdrel in wdGArel:
+#             wdrelcor = wd[i] + wdrel
+#             if (wdrelcor) < 0:
+#                 wdrelcor = wdrelcor + 360.0
+#             elif (wdrelcor) > 359.999:
+#                 wdrelcor = wdrelcor - 360.0
+#             int_gauss = int_gauss + gauss(0, sigma, wdrel)
+#             yGA[0, i] = yGA[0, i] + y[wd == wdrelcor] * gauss(0, sigma, wdrel)
+#             j = j + 1
+#         yGA[0, i] = yGA[0, i] / int_gauss
+#     return yGA
+
+
 def GaussianFilter(y, wd, nwdGA, sigma):
     # Gaussian filter for cyclic data, i.e. as function of wind direction
     # y is a vector and a function of wd
@@ -84,16 +117,11 @@ def GaussianFilter(y, wd, nwdGA, sigma):
     # nwdGA is the amount of points that are used for the smoothing
     wdDelta = wd[1] - wd[0]
     # wdGArel is the smoothing operator
-    wdGArel = seq(- nwdGA * wdDelta, nwdGA * wdDelta, wdDelta)
+    wdGArel = np.arange(-nwdGA, nwdGA + 1) * wdDelta  # seq(- nwdGA * wdDelta, nwdGA * wdDelta, wdDelta)
     ny = len(y)
     nwd = len(wd)
-    if(ny != nwd):
-        print('###############################################################')
-        print('ERROR: length of wd does not correspond with length of y')
-        print('###############################################################')
-        sys.exit()
+    assert ny == nwd, 'length of wd does not correspond with length of y'
     yGA = np.zeros((1, ny))
-    int_gauss = 0
     if(nwd * wdDelta == 360):
         # Full wind rose
         i1 = 0
@@ -102,19 +130,11 @@ def GaussianFilter(y, wd, nwdGA, sigma):
         # Partial wind rose: cannot GA the first and last wind directions
         i1 = nwdGA
         i2 = nwd - nwdGA
-    for i in range(i1, i2):
-        j = 0
-        int_gauss = 0
-        for wdrel in wdGArel:
-            wdrelcor = wd[i] + wdrel
-            if (wdrelcor) < 0:
-                wdrelcor = wdrelcor + 360.0
-            elif (wdrelcor) > 359.999:
-                wdrelcor = wdrelcor - 360.0
-            int_gauss = int_gauss + gauss(0, sigma, wdrel)
-            yGA[0, i] = yGA[0, i] + y[wd == wdrelcor] * gauss(0, sigma, wdrel)
-            j = j + 1
-        yGA[0, i] = yGA[0, i] / int_gauss
+
+    gauss_arr = gauss(0, sigma, wdGArel)
+    for i, wdrelcor_arr in zip(range(i1, i2), (wd[range(i1, i2), na] + wdGArel) % 360):
+        yGA[:, i] = np.sum(y[np.searchsorted(wd, wdrelcor_arr)] * gauss_arr)
+    yGA[0, :] = yGA[0, :] / gauss_arr.sum()
     return yGA
 
 
@@ -320,7 +340,7 @@ def plot_single_wake(swc_out, lw=lw):
     for case in swc_out.keys():
         jj = len(swc_out[case]['xDown'])
         color = cm.tab10(np.linspace(0, 1, len(swc_out[case]['deficit_models'])))
-        plt.figure()
+
         fig, ax = plt.subplots(1, jj, sharey=False, figsize=(5 * jj, 5))
         fig.suptitle(case)
         handles, labels = [], []

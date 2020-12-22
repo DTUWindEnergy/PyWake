@@ -80,11 +80,11 @@ class SWT2p3_93_65(OneTypeWindTurbines):
 
 
 class LillgrundSite(UniformWeibullSite):
-    def __init__(self):
+    def __init__(self, ti=0.1):
         f = [5.55, 5.13, 5.32, 7.63, 9.39, 7.14, 8.93, 12.22, 14.44, 13.66, 5.87, 4.72]
         a = [9.42] * 12
         k = [2.41] * 12
-        UniformWeibullSite.__init__(self, f, a, k, .1)
+        UniformWeibullSite.__init__(self, f, a, k, ti)
         self.initial_position = np.array([wt_x, wt_y]).T
 
 
