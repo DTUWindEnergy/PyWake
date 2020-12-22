@@ -99,7 +99,7 @@ class PolarGridRotorAvg(GridRotorAvg):
 class CGIRotorAvg(GridRotorAvg):
     """Circular Gauss Integration"""
 
-    def __init__(self, n):
+    def __init__(self, n=7):
         """Circular Gauss Integration
 
         Parameters
