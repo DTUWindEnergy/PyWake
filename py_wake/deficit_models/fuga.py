@@ -2,7 +2,7 @@ import os
 import struct
 from numpy import newaxis as na
 import numpy as np
-from py_wake.deficit_models.deficit_model import DeficitModel
+from py_wake.deficit_models.deficit_model import DeficitModel, WakeDeficitModel, BlockageDeficitModel
 from py_wake.superposition_models import LinearSum
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
@@ -86,7 +86,7 @@ class FugaUtils():
         return luts.reshape((len(UVLT), len(zlevels or self.zlevels), self.ny // 2, self.nx))
 
 
-class FugaDeficit(DeficitModel, FugaUtils):
+class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
     ams = 5
     invL = 0
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijl', 'h_il', 'ct_ilk', 'D_src_il']

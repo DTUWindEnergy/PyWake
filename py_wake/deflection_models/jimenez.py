@@ -23,7 +23,8 @@ class JimenezWakeDeflection(DeflectionModel):
         nominator_ijxl = (1 + (self.beta / D_src_il)[:, na, na, :] * dw_ijxl)**2
         alpha = denominator_ilk[:, na, na] / nominator_ijxl[..., na]
         deflection_ijlk = np.trapz(np.sin(alpha), dw_ijxl[..., na], axis=2)
-        return dw_ijl[..., na], hcw_ijl[..., na] + deflection_ijlk
+        self.hcw_ijlk = hcw_ijl[..., na] + deflection_ijlk
+        return dw_ijl[..., na], self.hcw_ijlk
 
 
 def main():

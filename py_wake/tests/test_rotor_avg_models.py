@@ -8,9 +8,10 @@ from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37
 from py_wake.flow_map import HorizontalGrid
 from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind
 from py_wake.superposition_models import SquaredSum, LinearSum
-from py_wake.tests.test_deficit_models.test_deficit_models import get_all_deficit_models
 import pytest
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
+from py_wake.utils.get_models import get_models
+from py_wake.deficit_models.deficit_model import DeficitModel
 
 
 def test_RotorGridAvg_deficit():
@@ -191,19 +192,19 @@ def test_CGIRotorAvg(n, x, y, w):
 
 
 @pytest.mark.parametrize('WFM', [All2AllIterative, PropagateDownwind])
-@pytest.mark.parametrize('deficitModel', get_all_deficit_models())
-def test_with_all_deficit_models(WFM, deficitModel):
+def test_with_all_deficit_models(WFM):
     site = IEA37Site(16)
     windTurbines = IEA37_WindTurbines()
+    for deficitModel in get_models(DeficitModel):
 
-    wfm = WFM(site, windTurbines, wake_deficitModel=deficitModel,
-              rotorAvgModel=RotorCenter(),
-              superpositionModel=LinearSum(),
-              deflectionModel=None, turbulenceModel=STF2017TurbulenceModel())
+        wfm = WFM(site, windTurbines, wake_deficitModel=deficitModel(),
+                  rotorAvgModel=RotorCenter(),
+                  superpositionModel=LinearSum(),
+                  deflectionModel=None, turbulenceModel=STF2017TurbulenceModel())
 
-    wfm2 = WFM(site, windTurbines, wake_deficitModel=deficitModel,
-               rotorAvgModel=EqGridRotorAvg(1),
-               superpositionModel=LinearSum(),
-               deflectionModel=None, turbulenceModel=STF2017TurbulenceModel())
-    kwargs = {'x': [0, 0, 500, 500], 'y': [0, 500, 0, 500], 'wd': [0], 'ws': [8]}
-    npt.assert_equal(wfm.aep(**kwargs), wfm2.aep(**kwargs))
+        wfm2 = WFM(site, windTurbines, wake_deficitModel=deficitModel(),
+                   rotorAvgModel=EqGridRotorAvg(1),
+                   superpositionModel=LinearSum(),
+                   deflectionModel=None, turbulenceModel=STF2017TurbulenceModel())
+        kwargs = {'x': [0, 0, 500, 500], 'y': [0, 500, 0, 500], 'wd': [0], 'ws': [8]}
+        npt.assert_equal(wfm.aep(**kwargs), wfm2.aep(**kwargs))

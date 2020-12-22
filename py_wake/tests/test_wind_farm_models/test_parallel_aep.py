@@ -8,15 +8,18 @@ from py_wake.wind_turbines import WindTurbines
 from py_wake.examples.data import wtg_path
 
 
-wt = WindTurbines.from_WAsP_wtg(wtg_path + "Vestas-V80.wtg")
-site = Hornsrev1Site()
-wf_model = IEA37SimpleBastankhahGaussian(site, wt)
+def get_wfm():
+    wt = WindTurbines.from_WAsP_wtg(wtg_path + "Vestas-V80.wtg")
+    site = Hornsrev1Site()
+    return IEA37SimpleBastankhahGaussian(site, wt)
+
+
 wd_lst = np.arange(0, 360, 10)
 
 
 def aep_wd(args):
     x, y, wd = args
-    return wf_model(x, y, wd=wd, ws=None).aep().sum()
+    return get_wfm()(x, y, wd=wd, ws=None).aep().sum()
 
 
 def aep_all_multiprocessing(pool, x, y):
@@ -30,7 +33,7 @@ def aep_wfm_xy(args):
 
 def aep_xy(args):
     x, y = args
-    return wf_model(x, y, wd=wd_lst).aep().sum()
+    return get_wfm()(x, y, wd=wd_lst).aep().sum()
 
 
 def test_multiprocessing_wd():
@@ -44,7 +47,7 @@ def test_multiprocessing_wd():
 
 def test_multiprocessing_wfm_xy():
     pool = multiprocessing.Pool(2)
-    arg_lst = [(wf_model, np.array(wt_x) + i, wt_y) for i in range(4)]
+    arg_lst = [(get_wfm(), np.array(wt_x) + i, wt_y) for i in range(4)]
     aep1, t_lst1 = timeit(lambda arg_lst: [aep_wfm_xy(arg) for arg in arg_lst], min_time=0, min_runs=1)(arg_lst)
     aep2, t_lst2 = timeit(lambda arg_lst: pool.map(aep_wfm_xy, arg_lst), min_time=0, min_runs=1)(arg_lst)
     t1, t2 = np.mean(t_lst1), np.mean(t_lst2)

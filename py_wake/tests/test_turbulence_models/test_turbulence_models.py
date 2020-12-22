@@ -15,7 +15,7 @@ from py_wake.tests.test_deficit_models.test_noj import NibeA0
 from py_wake.turbulence_models.stf import STF2005TurbulenceModel, STF2017TurbulenceModel
 from py_wake.turbulence_models.turbulence_model import MaxSum, TurbulenceModel
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
-from py_wake.turbulence_models.gcl import GCLTurbulence
+from py_wake.turbulence_models.gcl_turb import GCLTurbulence
 import matplotlib.pyplot as plt
 from py_wake.turbulence_models.crespo import CrespoHernandez
 from py_wake.deficit_models.gaussian import BastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit,\

@@ -43,7 +43,15 @@ class DeficitModel(ABC):
         raise NotImplementedError("wake_radius not implemented for %s" % self.__class__.__name__)
 
 
-class ConvectionDeficitModel(DeficitModel):
+class BlockageDeficitModel(DeficitModel):
+    pass
+
+
+class WakeDeficitModel(DeficitModel):
+    pass
+
+
+class ConvectionDeficitModel(WakeDeficitModel):
 
     @abstractmethod
     def calc_deficit_convection(self):

@@ -1,10 +1,10 @@
 import numpy as np
 from numpy import newaxis as na
-from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models.no_wake import NoWakeDeficit
+from py_wake.deficit_models import BlockageDeficitModel
 
 
-class SelfSimilarityDeficit(DeficitModel):
+class SelfSimilarityDeficit(BlockageDeficitModel):
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
     def __init__(self, lambda_=0.587, eta=1.32):

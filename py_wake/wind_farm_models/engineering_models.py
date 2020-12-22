@@ -61,8 +61,6 @@ class EngineeringWindFarmModel(WindFarmModel):
             assert isinstance(wake_deficitModel, ConvectionDeficitModel)
             assert rotorAvgModel.__class__ is RotorCenter, "Multiple rotor average points not implemented for WeightedSum"
         assert 'TI_eff_ilk' not in wake_deficitModel.args4deficit or turbulenceModel  # TI_eff requires a turbulence model
-        self.site = site
-        self.windTurbines = windTurbines
         self.wake_deficitModel = wake_deficitModel
         self.rotorAvgModel = rotorAvgModel
 

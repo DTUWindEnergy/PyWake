@@ -11,6 +11,9 @@ class RotorAvgModel():
     """
     args4rotor_avg_deficit = ['hcw_ijlk', 'dh_ijl', 'D_dst_ijl']
 
+    def __init__(self):
+        pass
+
     def calc_deficit_convection(self, deficitModel, D_dst_ijl, **kwargs):
         self.deficitModel = deficitModel
         return self.deficitModel.calc_deficit_convection(D_dst_ijl=D_dst_ijl, **kwargs)

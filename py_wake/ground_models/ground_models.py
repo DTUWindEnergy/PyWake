@@ -3,7 +3,8 @@ from numpy import newaxis as na
 
 
 class GroundModel():
-    pass
+    def __init__(self):
+        pass
 
 
 class NoGround(GroundModel):
