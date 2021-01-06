@@ -4,6 +4,8 @@ from py_wake.deficit_models import WakeDeficitModel
 
 
 class NoWakeDeficit(WakeDeficitModel):
+    args4deficit = ['WS_ilk']
+
     def calc_deficit(self, WS_ilk, dw_ijlk, **_):
         return (WS_ilk)[:, na] * (dw_ijlk > 0) * 0
 

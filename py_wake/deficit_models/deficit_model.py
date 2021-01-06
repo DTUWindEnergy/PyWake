@@ -4,9 +4,6 @@ from abc import ABC, abstractmethod
 class DeficitModel(ABC):
     deficit_initalized = False
 
-    def __init__(self):
-        self.args4deficit = ['WS_ilk', 'dw_ijlk']
-
     def _calc_layout_terms(self, **_):
         pass
 
@@ -44,7 +41,15 @@ class DeficitModel(ABC):
 
 
 class BlockageDeficitModel(DeficitModel):
-    pass
+    def __init__(self, upstream_only=False):
+        self.upstream_only = upstream_only
+
+    def calc_blockage_deficit(self, dw_ijlk, **kwargs):
+        deficit_ijlk = self.calc_deficit(dw_ijlk=dw_ijlk, **kwargs)
+        if self.upstream_only:
+            rotor_pos = -1e-10
+            deficit_ijlk *= (dw_ijlk < rotor_pos)
+        return deficit_ijlk
 
 
 class WakeDeficitModel(DeficitModel):

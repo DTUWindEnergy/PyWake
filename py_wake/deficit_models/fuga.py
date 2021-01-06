@@ -103,7 +103,7 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
             and out in the lateral direction) is set to zero.
             This means that all speed-up regions are also removed
         """
-
+        BlockageDeficitModel.__init__(self, upstream_only=True)
         FugaUtils.__init__(self, LUT_path, on_mismatch='input_par')
         self.remove_wriggles = remove_wriggles
         self.lut_interpolator = LUTInterpolator(*self.load())

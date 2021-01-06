@@ -131,7 +131,7 @@ class EngineeringWindFarmModel(WindFarmModel):
         elif self.blockage_deficitModel != self.wake_deficitModel:
             # downstream wake deficit + upstream blockage
             deficit = ((dw_ijlk > rotor_pos) * deficit +
-                       (dw_ijlk <= rotor_pos) * self.blockage_deficitModel.calc_deficit(dw_ijlk=dw_ijlk, **kwargs))
+                       self.blockage_deficitModel.calc_blockage_deficit(dw_ijlk=dw_ijlk, **kwargs))
         return deficit
 
     def _calc_deficit(self, dw_ijlk, **kwargs):
@@ -239,7 +239,7 @@ class EngineeringWindFarmModel(WindFarmModel):
             arg_funcs['wake_radius_ijlk'] = lambda: self.wake_deficitModel.wake_radius(dw_ijlk=dw_ijlk, **args)
             if self.turbulenceModel:
                 args.update({k: arg_funcs[k]() for k in self.turbulenceModel.args4addturb
-                             if k not in self.args4deficit})
+                             if k not in self.args4deficit and k != 'dw_ijlk'})
 
             if I * J * K * 8 / 1024**2 > 10:
                 # one wt at the time to avoid memory problems

@@ -8,6 +8,8 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
     def __init__(self, lambda_=0.587, eta=1.32):
+        BlockageDeficitModel.__init__(self)
+
         self.lambda_ = lambda_
         self.eta = eta
 

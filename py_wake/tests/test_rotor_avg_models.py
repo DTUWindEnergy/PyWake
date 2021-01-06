@@ -6,12 +6,14 @@ import numpy as np
 from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37_WindTurbines
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit
 from py_wake.flow_map import HorizontalGrid
-from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind
+from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind, EngineeringWindFarmModel
 from py_wake.superposition_models import SquaredSum, LinearSum
 import pytest
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.utils.get_models import get_models
 from py_wake.deficit_models.deficit_model import DeficitModel
+
+EngineeringWindFarmModel.verbose = False
 
 
 def test_RotorGridAvg_deficit():
