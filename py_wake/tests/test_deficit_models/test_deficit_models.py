@@ -2,7 +2,7 @@ import pytest
 
 import matplotlib.pyplot as plt
 import numpy as np
-from py_wake.deficit_models.deficit_model import DeficitModel
+from py_wake.deficit_models.deficit_model import DeficitModel, WakeDeficitModel, BlockageDeficitModel
 from py_wake.deficit_models.fuga import FugaDeficit, Fuga
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, IEA37SimpleBastankhahGaussianDeficit,\
     ZongGaussianDeficit, NiayifarGaussianDeficit, BastankhahGaussian, IEA37SimpleBastankhahGaussian, ZongGaussian,\
@@ -14,7 +14,7 @@ from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windfarm
-from py_wake.flow_map import HorizontalGrid
+from py_wake.flow_map import HorizontalGrid, XYGrid
 from py_wake.superposition_models import SquaredSum, WeightedSum
 from py_wake.tests import npt
 from py_wake.tests.test_files import tfp
@@ -372,3 +372,34 @@ def test_own_deficit_is_zero():
                                     turbulenceModel=STF2017TurbulenceModel())
         sim_res = wf_model([0], [0])
         npt.assert_array_equal(sim_res.WS_eff, sim_res.WS.broadcast_like(sim_res.WS_eff))
+
+
+@pytest.mark.parametrize('upstream_only,ref', [(False, [[9, 9, 9],  # -1 upstream
+                                                        [7, 7, 7]]),  # - (1+2) downstream
+                                               (True, [[9, 9, 9],  # -1 upstream
+                                                       [8, 8, 8]])])  # -2 downstream
+def test_wake_blockage_split(upstream_only, ref):
+    class MyWakeModel(WakeDeficitModel):
+        args4deficit = []
+
+        def calc_deficit(self, dw_ijlk, **kwargs):
+            return np.ones_like(dw_ijlk) * 2
+
+    class MyBlockageModel(BlockageDeficitModel):
+        args4deficit = []
+
+        def calc_deficit(self, dw_ijlk, **kwargs):
+            return np.ones_like(dw_ijlk)
+
+    site = Hornsrev1Site()
+    windTurbines = IEA37_WindTurbines()
+    wf_model = All2AllIterative(site, windTurbines, wake_deficitModel=MyWakeModel(),
+                                blockage_deficitModel=MyBlockageModel(upstream_only=upstream_only))
+    sim_res = wf_model([0], [0], ws=10, wd=270)
+    fm = sim_res.flow_map(XYGrid(x=[-100, 100], y=[-100, 0, 100]))
+    if 0:
+        sim_res.flow_map().plot_wake_map()
+        print(fm.WS_eff.values.squeeze().T)
+        plt.show()
+
+    npt.assert_array_equal(fm.WS_eff.values.squeeze().T, ref)
