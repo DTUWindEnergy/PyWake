@@ -1,4 +1,4 @@
-from py_wake.flow_map import HorizontalGrid, YZGrid, Grid, Points
+from py_wake.flow_map import HorizontalGrid, YZGrid, Grid, Points, XYGrid
 from py_wake.tests import npt
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,6 +7,7 @@ from py_wake.site.distance import StraightDistance
 from py_wake.examples.data.iea37 import IEA37Site, IEA37_WindTurbines
 from py_wake import IEA37SimpleBastankhahGaussian
 import pytest
+from py_wake.deflection_models.jimenez import JimenezWakeDeflection
 
 
 def test_power_xylk():
@@ -205,3 +206,29 @@ def test_FlowBox():
     wf_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
     sim_res = wf_model(x, y)
     flow_box = sim_res.flow_box(x=np.arange(0, 100, 10), y=np.arange(0, 100, 10), h=np.arange(0, 100, 10))
+
+
+def test_min_ws_eff_line():
+
+    site = IEA37Site(16)
+    x, y = [0, 600, 1200], [0, 0, 0]  # site.initial_position[:2].T
+    windTurbines = IEA37_WindTurbines()
+    D = windTurbines.diameter()
+    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines, deflectionModel=JimenezWakeDeflection())
+
+    yaw_ilk = np.reshape([-30, 30, 0], (3, 1, 1))
+
+    plt.figure(figsize=(14, 3))
+    fm = wfm(x, y, yaw_ilk=yaw_ilk, wd=270, ws=10).flow_map(
+        XYGrid(x=np.arange(-100, 2000, 10), y=np.arange(-500, 500, 10)))
+    min_ws_line = fm.min_WS_eff()
+
+    if 0:
+        fm.plot_wake_map()
+        min_ws_line.plot()
+        print(np.round(min_ws_line[::10], 2))
+        plt.show()
+    npt.assert_array_almost_equal(min_ws_line[::10],
+                                  [np.nan, np.nan, 11.6, 21.64, 30.42, 38.17, 45.09, 51.27,
+                                   -8.65, -18.66, -27.51, -35.37, -42.38, -48.58, -1.09, -1.34,
+                                   -1.59, -1.83, -2.07, -2.31, -2.56], 2)

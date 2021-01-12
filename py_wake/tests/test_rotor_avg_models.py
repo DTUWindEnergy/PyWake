@@ -10,8 +10,9 @@ from py_wake.wind_farm_models.engineering_models import All2AllIterative, Propag
 from py_wake.superposition_models import SquaredSum, LinearSum
 import pytest
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
-from py_wake.utils.get_models import get_models
+
 from py_wake.deficit_models.deficit_model import DeficitModel
+from py_wake.utils.model_utils import get_models
 
 EngineeringWindFarmModel.verbose = False
 

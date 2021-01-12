@@ -1,95 +1,18 @@
-import os
-import struct
 from numpy import newaxis as na
+
 import numpy as np
-from py_wake.deficit_models.deficit_model import DeficitModel, WakeDeficitModel, BlockageDeficitModel
-from py_wake.superposition_models import LinearSum
-from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
+from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
+from py_wake.superposition_models import LinearSum
 from py_wake.tests.test_files import tfp
-from py_wake.utils.grid_interpolator import GridInterpolator
-from pathlib import Path
-
-
-class FugaUtils():
-    def __init__(self, path, on_mismatch='raise'):
-        """
-        Parameters
-        ----------
-        path : string
-            Path to folder containing 'CaseData.bin', input parameter file (*.par) and loop-up tables
-        on_mismatch : {'raise', 'casedata','input_par'}
-            Determines how to handle mismatch between info from CaseData.in and input.par.
-            If 'raise' a ValueError exception is raised in case of mismatch\n
-            If 'casedata', the values from CaseData.bin is used\n
-            If 'input_par' the values from the input parameter file (*.par) is used
-        """
-        self.path = Path(path)
-
-        with open(self.path / 'CaseData.bin', 'rb') as fid:
-            case_name = struct.unpack('127s', fid.read(127))[0]  # @UnusedVariable
-            self.r = struct.unpack('d', fid.read(8))[0]  # @UnusedVariable
-            self.zHub = struct.unpack('d', fid.read(8))[0]
-            self.low_level = struct.unpack('I', fid.read(4))[0]
-            self.high_level = struct.unpack('I', fid.read(4))[0]
-            self.z0 = struct.unpack('d', fid.read(8))[0]
-            zi = struct.unpack('d', fid.read(8))[0]  # @UnusedVariable
-            self.ds = struct.unpack('d', fid.read(8))[0]
-            closure = struct.unpack('I', fid.read(4))[0]
-            if os.path.getsize(self.path / 'CaseData.bin') == 187:
-                self.zeta0 = struct.unpack('d', fid.read(8))[0]
-            else:
-                #                 with open(path + 'CaseData.bin', 'rb') as fid2:
-                #                     info = fid2.read(127).decode()
-                #                 zeta0 = float(info[info.index('Zeta0'):].replace("Zeta0=", ""))
-                if 'Zeta0' in self.path.name:
-                    self.zeta0 = float(self.path.name[self.path.name.index(
-                        'Zeta0'):].replace("Zeta0=", "").replace("/", ""))
-
-        f = [f for f in os.listdir(self.path) if f.endswith('.par')][0]
-        lines = (self.path / f).read_text().split("\n")
-
-        self.prefix = lines[0].strip()
-        self.nx, self.ny = map(int, lines[2:4])
-        self.dx, self.dy = map(float, lines[4:6])  # @UnusedVariable
-        self.sigmax, self.sigmay = map(float, lines[6:8])  # @UnusedVariable
-
-        def set_Value(n, v):
-            if on_mismatch == 'raise' and getattr(self, n) != v:
-                raise ValueError("Mismatch between CaseData.bin and %s: %s %s!=%s" % (f, n, getattr(self, n), v))
-            elif on_mismatch == 'input_par':
-                setattr(self, n, v)
-
-        set_Value('low_level', int(lines[11]))
-        set_Value('high_level', int(lines[12]))
-        set_Value('z0', float(lines[8]))  # roughness level
-        set_Value('zHub', float(lines[10]))  # hub height
-        self.nx0 = self.nx // 4
-        self.ny0 = self.ny // 2
-
-        self.x = np.arange(-self.nx0, self.nx * 3 / 4) * self.dx  # rotor is located 1/4 downstream
-        self.y = np.arange(self.ny // 2) * self.dy
-        self.zlevels = np.arange(self.low_level, self.high_level + 1)
-
-        if self.low_level == self.high_level == 9999:
-            self.z = [self.zHub]
-        else:
-            self.z = self.z0 * np.exp(self.zlevels * self.ds)
-
-    def mirror(self, x, anti_symmetric=False):
-        x = np.asarray(x)
-        return np.concatenate([((1, -1)[anti_symmetric]) * x[::-1], x[1:]])
-
-    def load_luts(self, UVLT=['UL', 'UT', 'VL', 'VT'], zlevels=None):
-        luts = np.array([[np.fromfile(str(self.path / (self.prefix + '%04d%s.dat' % (j, uvlt))), np.dtype('<f'), -1)
-                          for j in (zlevels or self.zlevels)] for uvlt in UVLT]).astype(np.float)
-        return luts.reshape((len(UVLT), len(zlevels or self.zlevels), self.ny // 2, self.nx))
+from py_wake.utils.fuga_utils import FugaUtils
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 
 
 class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
     ams = 5
     invL = 0
-    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijl', 'h_il', 'ct_ilk', 'D_src_il']
+    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijlk', 'h_il', 'ct_ilk', 'D_src_il']
 
     def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/', remove_wriggles=False):
         """
@@ -108,19 +31,20 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
         self.remove_wriggles = remove_wriggles
         self.lut_interpolator = LUTInterpolator(*self.load())
 
-    def load(self):
-
+    def zeta0_factor(self):
         def psim(zeta):
             return self.ams * zeta
 
         if not self.zeta0 >= 0:  # pragma: no cover
             # See Colonel.u2b.psim
             raise NotImplementedError
-        factor = 1 / (1 - (psim(self.zHub * self.invL) - psim(self.zeta0)) / np.log(self.zHub / self.z0))
+        return 1 / (1 - (psim(self.zHub * self.invL) - psim(self.zeta0)) / np.log(self.zHub / self.z0))
 
-        mdu = self.load_luts(['UL'])[0]
+    def load(self):
 
-        du = -np.array(mdu, dtype=np.float32).reshape((len(mdu), self.ny // 2, self.nx)) * factor
+        mdUL = self.load_luts(['UL'])[0]
+
+        du = -np.array(mdUL, dtype=np.float32) * self.zeta0_factor()
 
         if self.remove_wriggles:
             # remove all positive and negative deficits after first zero crossing in lateral direction
@@ -139,20 +63,59 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
         # self.grid_interplator(np.array([zyx.flatten() for zyx in [z, y, x]]).T, check_bounds=False).reshape(x.shape)
         return self.lut_interpolator((x, y, z))
 
-    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_il, dh_ijl, D_src_il, **_):
+    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_il, dh_ijlk, D_src_il, **_):
 
-        self.mdu_ijlk = self.interpolate(dw_ijlk, np.abs(hcw_ijlk), (h_il[:, na] + dh_ijl)[:, :, :, na]) * \
+        self.mdu_ijlk = self.interpolate(dw_ijlk, np.abs(hcw_ijlk), (h_il[:, na, :, na] + dh_ijlk)) * \
             ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na])  # avoid wake on itself
               )
 
-    def calc_deficit(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk, dh_ijl, h_il, ct_ilk, D_src_il, **kwargs):
+    def calc_deficit(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk, dh_ijlk, h_il, ct_ilk, D_src_il, **kwargs):
         if not self.deficit_initalized:
-            self._calc_layout_terms(dw_ijlk, hcw_ijlk, h_il, dh_ijl, D_src_il, **kwargs)
+            self._calc_layout_terms(dw_ijlk, hcw_ijlk, h_il, dh_ijlk, D_src_il, **kwargs)
         return self.mdu_ijlk * (ct_ilk * WS_eff_ilk**2 / WS_ilk)[:, na]
 
     def wake_radius(self, D_src_il, dw_ijlk, **_):
         # Set at twice the source radius for now
         return np.zeros_like(dw_ijlk) + D_src_il[:, na, :, na]
+
+
+class FugaYawDeficit(FugaDeficit):
+    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijlk', 'h_il', 'ct_ilk', 'D_src_il', 'yaw_ilk']
+
+    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/', remove_wriggles=False):
+        """
+        Parameters
+        ----------
+        LUT_path : str
+            Path to folder containing 'CaseData.bin', input parameter file (*.par) and loop-up tables
+        remove_wriggles : bool
+            The current Fuga loop-up tables have significan wriggles.
+            If True, all deficit values after the first zero crossing (when going from the center line
+            and out in the lateral direction) is set to zero.
+            This means that all speed-up regions are also removed
+        """
+
+        FugaUtils.__init__(self, LUT_path, on_mismatch='input_par')
+        self.remove_wriggles = remove_wriggles
+        x, y, z, dUL = self.load()
+
+        mdUT = self.load_luts(['UT'])[0]
+        dUT = np.array(mdUT, dtype=np.float32) * self.zeta0_factor()
+        dU = np.concatenate([dUL[:, :, :, na], dUT[:, :, :, na]], 3)
+        self.lut_interpolator = LUTInterpolator(x, y, z, dU)
+
+    def calc_deficit_downwind(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk,
+                              dh_ijlk, h_il, ct_ilk, D_src_il, yaw_ilk, **_):
+
+        mdUL_ijlk, mdUT_ijlk = np.moveaxis(self.interpolate(
+            dw_ijlk, np.abs(hcw_ijlk), (h_il[:, na, :, na] + dh_ijlk)), -1, 0)
+        mdUT_ijlk[hcw_ijlk < 0] *= -1  # UT is antisymmetric
+        mdu_ijlk = (mdUL_ijlk * np.cos(yaw_ilk)[:, na] +
+                    mdUT_ijlk * np.sin(yaw_ilk)[:, na])
+
+        mdu_ijlk *= ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na]))  # avoid wake on itself
+
+        return mdu_ijlk * (ct_ilk * WS_eff_ilk**2 / WS_ilk)[:, na]
 
 
 class LUTInterpolator(object):
@@ -165,7 +128,7 @@ class LUTInterpolator(object):
         self.nx = nx = len(x)
         self.ny = ny = len(y)
         self.nz = nz = len(z)
-        assert V.shape == (nz, ny, nx)
+        assert V.shape[:3] == (nz, ny, nx)
         self.dx, self.dy = [xy[1] - xy[0] for xy in [x, y]]
 
         self.x0 = x[0]
@@ -182,7 +145,12 @@ class LUTInterpolator(object):
                               Ve[1:, :-1, :-1],
                               Ve[1:, :-1, 1:],
                               Ve[1:, 1:, :-1],
-                              Ve[1:, 1:, 1:]]).reshape((8, nz * ny * nx))
+                              Ve[1:, 1:, 1:]])
+        if V.shape == (nz, ny, nx, 2):
+            # Both UL and UT
+            self.V000 = self.V000.reshape((8, nz * ny * nx, 2))
+        else:
+            self.V000 = self.V000.reshape((8, nz * ny * nx))
 
     def __call__(self, xyz):
         xp, yp, zp = xyz
@@ -203,7 +171,11 @@ class LUTInterpolator(object):
         nx, ny = self.nx, self.ny
 
         v000, v001, v010, v011, v100, v101, v110, v111 = self.V000[:, zi0 * nx * ny + yi0 * nx + xi0]
-
+        if len(self.V000.shape) == 3:
+            # Both UL and UT
+            xif = xif[:, :, :, :, na]
+            yif = yif[:, :, :, :, na]
+            zif = zif[:, :, :, :, na]
         v_00 = v000 + (v100 - v000) * zif
         v_01 = v001 + (v101 - v001) * zif
         v_10 = v010 + (v110 - v010) * zif

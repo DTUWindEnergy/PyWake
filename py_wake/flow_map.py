@@ -1,6 +1,8 @@
 import numpy as np
 import xarray as xr
 from numpy import newaxis as na
+from scipy.interpolate.fitpack2 import InterpolatedUnivariateSpline
+import matplotlib.pyplot as plt
 
 
 class FlowBox(xr.Dataset):
@@ -225,6 +227,53 @@ class FlowMap(FlowBox):
                       plot_windturbines=plot_windturbines, ax=ax)
 
         return c
+
+    def min_WS_eff(self, x=None, h=None):
+        if x is None:
+            x = self.x
+        if h is None:
+            h = self.h[0].item()
+        WS_eff = self.WS_eff.sel_interp_all(xr.Dataset(coords={'x': x, 'h': h}))
+        y = WS_eff.y.values
+
+        def get_min(y, v):
+            i = np.argmin(v)
+            s = slice(i - 3, i + 4)
+            if len(v[s]) < 7 or len(np.unique(v[s])) == 1:
+                return np.nan
+#             import matplotlib.pyplot as plt
+#             plt.plot(y, v)
+#             y_ = np.linspace(y[s][0], y[s][-1], 100)
+#             plt.plot(y_, InterpolatedUnivariateSpline(y[s], v[s])(y_))
+#             plt.axvline(np.interp(0, InterpolatedUnivariateSpline(y[s], v[s]).derivative()(y[s]), y[s]))
+#             plt.axvline(0, color='k')
+#             plt.show()
+            return np.interp(0, InterpolatedUnivariateSpline(y[s], v[s]).derivative()(y[s]), y[s])
+
+        y_min_ws = [get_min(y, ws) for ws in WS_eff.squeeze(['ws', 'wd']).T.values]
+        return xr.DataArray(y_min_ws, coords={'x': x, 'h': h}, dims='x')
+
+    def plot_deflection_grid(self, normalize_with=1, ax=None):
+        assert self.windFarmModel.deflectionModel is not None
+        assert len(self.simulationResult.wt) == 1
+        assert len(self.simulationResult.ws) == 1
+        assert len(self.simulationResult.wd) == 1
+        x, y = self.x, self.y
+        y = y[::len(y) // 10]
+
+        X, Y = np.meshgrid(x, y)
+
+        from py_wake.utils.model_utils import get_model_input
+        kwargs = get_model_input(self.windFarmModel, X.flatten(), Y.flatten(), ws=self.ws, wd=self.wd,
+                                 yaw_ilk=self.simulationResult.Yaw.ilk())
+        dw, hcw, dh = self.windFarmModel.deflectionModel.calc_deflection(**kwargs)
+        Yp = -hcw[0, :, 0, 0].reshape(X.shape)
+        ax = ax or plt.gca()
+        X, Y, Yp = [v / normalize_with for v in [X, Y, Yp]]
+        # ax.plot(X[255, :], Y[255, :], 'grey', lw=3)
+        for x, y, yp in zip(X, Y, Yp):
+            ax.plot(x, y, 'grey', lw=1, zorder=-32)
+            ax.plot(x, yp, 'k', lw=1)
 
 
 class Grid():

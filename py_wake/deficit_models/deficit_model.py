@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+import numpy as np
+from numpy import newaxis as na
 
 
 class DeficitModel(ABC):
@@ -23,6 +25,14 @@ class DeficitModel(ABC):
         -------
         deficit_jlk : array_like
         """
+
+    def calc_deficit_downwind(self, yaw_ilk, **kwargs):
+        if np.any(yaw_ilk != 0):
+            deficit_normal = self.calc_deficit(yaw_ilk=yaw_ilk, **kwargs)
+            return deficit_normal
+            return np.cos(yaw_ilk[:, na]) * deficit_normal
+        else:
+            return self.calc_deficit(yaw_ilk=yaw_ilk, **kwargs)
 
     def wake_radius(self, dw_ijlk, **_):
         """Calculates the radius of the wake of the i'th turbine

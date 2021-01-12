@@ -20,8 +20,8 @@ from py_wake.tests import npt
 from py_wake.tests.test_files import tfp
 from py_wake.turbulence_models.gcl_turb import GCLTurbulence
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
-from py_wake.utils.get_models import get_models
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
+from py_wake.utils.model_utils import get_models
 
 
 class GCLLocalDeficit(GCLDeficit):
