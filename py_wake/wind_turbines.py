@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 from scipy.interpolate.fitpack2 import UnivariateSpline
 from autograd.core import defvjp, primitive
 from matplotlib.patches import Ellipse
+from inspect import signature
 
 
 class WindTurbines():
@@ -29,11 +30,15 @@ class WindTurbines():
         self._names = np.array(names)
         self._diameters = np.array(diameters)
         self._hub_heights = np.array(hub_heights)
-        self.ct_funcs = ct_funcs
+
+        def add_yaw_model(func_lst, yaw_model):
+            return [(f, yaw_model(f))[len(signature(f).parameters) == 1] for f in func_lst]
+        self.ct_funcs = add_yaw_model(ct_funcs, CTYawModel)
+        power_funcs = add_yaw_model(power_funcs, YawModel)
+
         assert len(names) == len(diameters) == len(hub_heights) == len(ct_funcs) == len(power_funcs)
         power_scale = {'w': 1, 'kw': 1e3, 'mw': 1e6, 'gw': 1e9}[power_unit.lower()]
         if power_scale != 1:
-            self.power_funcs = list([lambda ws, f=f: f(ws) * power_scale for f in power_funcs])
             self.power_funcs = list([PowerScaler(f, power_scale) for f in power_funcs])
         else:
             self.power_funcs = power_funcs
@@ -56,7 +61,7 @@ class WindTurbines():
         """
         return self._info(self._names, types)
 
-    def power(self, ws_i, type_i=0):
+    def power(self, ws_i, type_i=0, yaw_i=0):
         """Power in watt
 
         Parameters
@@ -72,9 +77,9 @@ class WindTurbines():
         power : array_like
             Power production for the specified wind turbine type(s) and wind speed
         """
-        return self._ct_power(np.atleast_1d(ws_i), type_i)[1]
+        return self._ct_power(np.atleast_1d(ws_i), type_i, yaw_i=yaw_i)[1]
 
-    def ct(self, ws_i, type_i=0):
+    def ct(self, ws_i, type_i=0, yaw_i=0):
         """Thrust coefficient
 
         Parameters
@@ -89,7 +94,7 @@ class WindTurbines():
         ct : array_like
             Thrust coefficient for the specified wind turbine type(s) and wind speed
         """
-        return self._ct_power(ws_i, type_i)[0]
+        return self._ct_power(ws_i, type_i, yaw_i=yaw_i)[0]
 
     def types(self):
         return np.arange(len(self._names))
@@ -118,27 +123,30 @@ class WindTurbines():
             d_i = np.zeros(N) + d_i
         return np.asarray(type_i), np.asarray(h_i), np.asarray(d_i)
 
-    def _ct_power(self, ws_i, type_i=0):
+    def _ct_power(self, ws_i, type_i=0, yaw_i=0):
         ws_i = np.asarray(ws_i)
         t = np.unique(type_i)  # .astype(int)
         if len(t) > 1:
             if type_i.shape != ws_i.shape:
                 type_i = (np.zeros(ws_i.shape[0]) + type_i)
+            if np.asarray(yaw_i).shape != ws_i.shape:
+                yaw_i = (np.zeros(ws_i.shape[0]) + yaw_i)
             type_i = type_i.astype(int)
-            CT = np.array([self.ct_funcs[t](ws) for t, ws in zip(type_i, ws_i)])
-            P = np.array([self.power_funcs[t](ws) for t, ws in zip(type_i, ws_i)])
+            CT = np.array([self.ct_funcs[t](ws, yaw) for t, ws, yaw in zip(type_i, ws_i, yaw_i)])
+            P = np.array([self.power_funcs[t](ws, yaw) for t, ws, yaw in zip(type_i, ws_i, yaw_i)])
             return CT, P
         else:
-            return self.ct_funcs[int(t[0])](ws_i), self.power_funcs[int(t[0])](ws_i)
+            return self.ct_funcs[int(t[0])](ws_i, yaw_i), self.power_funcs[int(t[0])](ws_i, yaw_i)
 
     def set_gradient_funcs(self, power_grad_funcs, ct_grad_funcs):
         def add_grad(f_lst, df_lst):
             for i, f in enumerate(f_lst):
                 @primitive
-                def wrap(wsp, f=f):
-                    return f(wsp)
+                def wrap(wsp, yaw, f=f):
+                    return f(wsp, yaw)
 
-                defvjp(wrap, lambda ans, wsp, df_lst=df_lst, i=i: lambda g, df_lst=df_lst, i=i: g * df_lst[i](wsp))
+                defvjp(wrap, lambda ans, wsp, yaw, df_lst=df_lst, i=i:
+                       lambda g, df_lst=df_lst, i=i: g * df_lst[i](wsp))
                 f_lst[i] = wrap
 
         add_grad(self.power_funcs, power_grad_funcs)
@@ -158,7 +166,7 @@ class WindTurbines():
             """
             # make curve tabular
             ws = np.arange(0, 100, .001)
-            curve = func(ws)
+            curve = func(ws, yaw=0)
 
             # smoothen curve to avoid spline oscillations around steps (especially around cut out)
             n, e = 99, 3
@@ -179,10 +187,11 @@ class WindTurbines():
             for spline in spline_lst:
 
                 @primitive
-                def f(ws):
+                def f(ws, yaw=0):
+                    assert np.all(yaw == 0), "Gradients of yaw not implemented"
                     return spline(ws)
 
-                def f_vjp(ans, ws):
+                def f_vjp(ans, ws, yaw=0):
                     def gr(g):
                         return g * spline.derivative()(ws)
                     return gr
@@ -429,9 +438,14 @@ class OneTypeWindTurbines(WindTurbines):
 
     @staticmethod
     def from_tabular(name, diameter, hub_height, ws, power, ct, power_unit):
+        def power_func(u):
+            return np.interp(u, ws, power)
+
+        def ct_func(u):
+            return np.interp(u, ws, ct)
         return OneTypeWindTurbines(name=name, diameter=diameter, hub_height=hub_height,
-                                   ct_func=lambda u, ws=ws, ct=ct: np.interp(u, ws, ct),
-                                   power_func=lambda u, ws=ws, power=power: np.interp(u, ws, power),
+                                   ct_func=ct_func,
+                                   power_func=power_func,
                                    power_unit=power_unit)
 
     def set_gradient_funcs(self, power_grad_funcs, ct_grad_funcs):
@@ -443,8 +457,25 @@ class PowerScaler():
         self.f = f
         self.power_scale = power_scale
 
-    def __call__(self, ws):
-        return self.f(ws) * self.power_scale
+    def __call__(self, ws, yaw):
+        return self.f(ws, yaw) * self.power_scale
+
+
+class YawModel():
+    def __init__(self, func):
+        self.func = func
+
+    def __call__(self, ws, yaw):
+        return self.func(np.cos(yaw) * ws)
+
+
+class CTYawModel(YawModel):
+    def __call__(self, ws, yaw):
+        # ct_n = ct_curve(cos(yaw)*ws)*cos^2(yaw)
+        # mapping to downwind deficit, i.e. ct_x = ct_n*cos(yaw) = ct_curve(cos(yaw)*ws)*cos^3(yaw),
+        # handled in deficit model
+        co = np.cos(yaw)
+        return self.func(co * ws) * co**2
 
 
 class Interp(object):

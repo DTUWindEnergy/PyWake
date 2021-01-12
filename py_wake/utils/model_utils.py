@@ -16,6 +16,7 @@ from py_wake.ground_models import GroundModel
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.ground_models.ground_models import NoGround
 import numpy as np
+from numpy import newaxis as na
 
 exclude_dict = {
     WindFarmModel: ([EngineeringWindFarmModel], [], PropagateDownwind),
@@ -109,6 +110,24 @@ def get_signature(cls, kwargs={}, indent_level=0):
         return "%s(%s%s)" % (cls.__name__, join_str[1:], arg_str)
     else:
         return "%s(%s)" % (cls.__name__, arg_str)
+
+
+def get_model_input(wfm, x, y, ws=10, wd=270, yaw_ilk=[[[0]]]):
+    ws, wd = [np.atleast_1d(v) for v in [ws, wd]]
+    x, y = map(np.asarray, [x, y])
+    dw_ijl, hcw_ijl, dh_ijl, dw_ind = wfm.site.distances(src_x_i=[0], src_y_i=[0], src_h_i=[0],
+                                                         dst_x_j=x, dst_y_j=y, dst_h_j=x * 0,
+                                                         wd_il=wd[na])
+    sim_res = wfm([0], [0], ws=ws, wd=wd, yaw_ilk=yaw_ilk)
+
+    args = {'dw_ijl': dw_ijl, 'hcw_ijl': hcw_ijl, 'dh_ijl': dh_ijl,
+            'D_src_il': np.atleast_1d(wfm.windTurbines.diameter())[na]}
+    args.update({k: sim_res[n].ilk() for k, n in [('yaw_ilk', 'Yaw'),
+                                                  ('WS_ilk', 'WS'),
+                                                  ('WS_eff_ilk', 'WS_eff'),
+                                                  ('ct_ilk', 'CT')]})
+    args['yaw_ilk'] = np.deg2rad(args['yaw_ilk'])
+    return args
 
 
 def main():

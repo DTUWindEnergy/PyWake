@@ -6,8 +6,8 @@ from py_wake.tests.test_files import tfp
 from py_wake import Fuga
 from py_wake.examples.data import hornsrev1
 import matplotlib.pyplot as plt
-from py_wake.deficit_models.fuga import FugaBlockage, FugaDeficit, LUTInterpolator, FugaUtils
-from py_wake.flow_map import HorizontalGrid
+from py_wake.deficit_models.fuga import FugaBlockage, FugaDeficit, LUTInterpolator, FugaUtils, FugaYawDeficit
+from py_wake.flow_map import HorizontalGrid, XYGrid
 from py_wake.tests.check_speed import timeit
 from py_wake.utils.grid_interpolator import GridInterpolator
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
@@ -146,6 +146,35 @@ def test_fuga_new_format():
          9.2867, 7.5714, 6.4451, 8.3276, 9.9976, 10.0251, 10.0264, 10.023, 10.0154, 9.9996], 4)
 
 
+def test_fuga_downwind():
+    wts = HornsrevV80()
+
+    path = tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0'
+    site = UniformSite([1, 0, 0, 0], ti=0.075)
+    wfm_UL = Fuga(path, site, wts)
+
+    wfm_ULT = PropagateDownwind(site, wts, FugaYawDeficit(path))
+
+    (ax1, ax2), (ax3, ax4) = plt.subplots(2, 2)[1]
+
+    def plot(wfm, yaw, ax, min_ws):
+        levels = np.arange(6.5, 10.5, .5)
+        sim_res = wfm([0], [0], wd=270, ws=10, yaw_ilk=[[[yaw]]])
+        fm = sim_res.flow_map(XYGrid(x=np.arange(-100, 500, 5)))
+        npt.assert_almost_equal(fm.WS_eff.min(), min_ws)
+        fm.plot_wake_map(ax=ax, levels=levels)
+        fm.min_WS_eff(fm.x, 70).plot(ax=ax, color='r')
+        plt.axhline(0, color='k')
+    plot(wfm_UL, 0, ax1, 6.89020003)
+    plot(wfm_UL, 30, ax2, 7.62747285)
+    plot(wfm_ULT, 0, ax3, 6.89020003)
+    plot(wfm_ULT, 30, ax4, 7.94525864)
+
+    if 0:
+        plt.show()
+    plt.close()
+
+
 def test_fuga_table_edges():
 
     wts = HornsrevV80()
@@ -213,6 +242,20 @@ def test_mirror():
     fuga_utils = FugaUtils(path, on_mismatch='input_par')
     npt.assert_array_almost_equal(fuga_utils.mirror([0, 1, 3]), [3, 1, 0, 1, 3])
     npt.assert_array_almost_equal(fuga_utils.mirror([0, 1, 3], anti_symmetric=True), [-3, -1, 0, 1, 3])
+
+
+def test_lut_exists():
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
+    fuga_utils = FugaUtils(path, on_mismatch='input_par')
+    assert fuga_utils.lut_exists() == {'UL'}
+    assert fuga_utils.lut_exists([154]) == set([])
+    assert fuga_utils.lut_exists([155]) == {'UL'}
+
+    path = tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/'
+    fuga_utils = FugaUtils(path, on_mismatch='input_par')
+    assert fuga_utils.lut_exists() == {'UL', 'UT', 'VL', 'VT'}
+    assert fuga_utils.lut_exists([154]) == set([])
+    assert fuga_utils.lut_exists([9999]) == {'UL', 'UT', 'VL', 'VT'}
 
 
 # def cmp_fuga_with_colonel():

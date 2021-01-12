@@ -48,6 +48,7 @@ Contents:
         notebooks/exercises/CombineModels
         notebooks/exercises/Validation
         notebooks/exercises/Improve_layout
+        notebooks/exercises/WakeDeflection
         
         
    

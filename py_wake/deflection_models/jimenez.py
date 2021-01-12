@@ -15,7 +15,7 @@ class JimenezWakeDeflection(DeflectionModel):
         self.beta = beta
         self.N = N
 
-    def calc_deflection(self, dw_ijl, hcw_ijl, D_src_il, yaw_ilk, ct_ilk, **kwargs):
+    def calc_deflection(self, dw_ijl, hcw_ijl, dh_ijl, D_src_il, yaw_ilk, ct_ilk, **kwargs):
         dw_lst = (np.logspace(0, 1.1, self.N) - 1) / (10**1.1 - 1)
         dw_ijxl = dw_ijl[:, :, na] * dw_lst[na, na, :, na]
 
@@ -24,7 +24,7 @@ class JimenezWakeDeflection(DeflectionModel):
         alpha = denominator_ilk[:, na, na] / nominator_ijxl[..., na]
         deflection_ijlk = np.trapz(np.sin(alpha), dw_ijxl[..., na], axis=2)
         self.hcw_ijlk = hcw_ijl[..., na] + deflection_ijlk
-        return dw_ijl[..., na], self.hcw_ijlk
+        return dw_ijl[..., na], self.hcw_ijlk, dh_ijl[..., na]
 
 
 def main():

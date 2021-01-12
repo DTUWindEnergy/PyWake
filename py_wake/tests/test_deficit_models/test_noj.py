@@ -24,8 +24,9 @@ def test_NOJ_Nibe_result():
     x_i = [0, 0, 0]
     y_i = [0, -40, -100]
     h_i = [50, 50, 50]
-    wake_model = All2AllIterative(site, NibeA0, wake_deficitModel=NOJDeficit(), superpositionModel=LinearSum())
-    WS_eff_ilk = wake_model.calc_wt_interaction(x_i, y_i, h_i, [0, 1, 1], 0.0, 8.1)[0]
+    wfm = All2AllIterative(site, NibeA0, wake_deficitModel=NOJDeficit(), superpositionModel=LinearSum())
+    wfm.verbose = False
+    WS_eff_ilk = wfm.calc_wt_interaction(x_i, y_i, h_i, [0, 1, 1], 0.0, 8.1)[0]
     npt.assert_array_almost_equal(WS_eff_ilk[:, 0, 0], [8.1, 4.35, 5.7])
 
 
@@ -54,9 +55,10 @@ def test_NOJ_two_turbines_in_row(wdir, x, y):
 
     windTurbines = NibeA0
     site = UniformSite([1], 0.1)
-    wake_model = NOJ(site, windTurbines)
+    wfm = NOJ(site, windTurbines)
+    wfm.verbose = False
     h_i = [50, 50, 50]
-    WS_eff_ilk = wake_model.calc_wt_interaction(x, y, h_i, [0, 0, 0], wdir, 8.1)[0]
+    WS_eff_ilk = wfm.calc_wt_interaction(x, y, h_i, [0, 0, 0], wdir, 8.1)[0]
     ws_wt3 = 8.1 - np.hypot(8.1 * 2 / 3 * (20 / 26)**2, 8.1 * 2 / 3 * (20 / 30)**2)
     npt.assert_array_almost_equal(WS_eff_ilk[:, 0, 0], [8.1, 4.35, ws_wt3])
 
@@ -67,8 +69,9 @@ def test_NOJ_6_turbines_in_row():
     y = - np.arange(n_wt) * 40 * 2
 
     site = UniformSite([1], 0.1)
-    wake_model = NOJ(site, NibeA0)
-    WS_eff_ilk = wake_model.calc_wt_interaction(x, y, [50] * n_wt, [0] * n_wt, 0.0, 11.0)[0]
+    wfm = NOJ(site, NibeA0)
+    wfm.verbose = False
+    WS_eff_ilk = wfm.calc_wt_interaction(x, y, [50] * n_wt, [0] * n_wt, 0.0, 11.0)[0]
     np.testing.assert_array_almost_equal(
         WS_eff_ilk[1:, 0, 0], 11 - np.sqrt(np.cumsum(((11 * 2 / 3 * 20**2)**2) / (20 + 8 * np.arange(1, 6))**4)))
 
@@ -79,8 +82,9 @@ def test_NOJLocal_6_turbines_in_row():
     y = - np.arange(n_wt) * 40 * 2
 
     site = UniformSite([1], 0.1)
-    wake_model = NOJLocal(site, NibeA0, turbulenceModel=STF2017TurbulenceModel())
-    WS_eff_ilk = wake_model.calc_wt_interaction(x, y, [50] * n_wt, [0] * n_wt, 0.0, 11.0)[0]
+    wfm = NOJLocal(site, NibeA0, turbulenceModel=STF2017TurbulenceModel())
+    wfm.verbose = False
+    WS_eff_ilk = wfm.calc_wt_interaction(x, y, [50] * n_wt, [0] * n_wt, 0.0, 11.0)[0]
     np.testing.assert_array_almost_equal(
         WS_eff_ilk[1:, 0, 0], [5.62453869, 5.25806829, 5.64808912, 6.07792364,
                                6.44549094])

@@ -9,7 +9,7 @@ class RotorAvgModel():
     - Call the wrapped DeficitModel to calculate the deficit at all points
     - Compute a (weighted) mean of the deficit values covering the downstream rotors
     """
-    args4rotor_avg_deficit = ['hcw_ijlk', 'dh_ijl', 'D_dst_ijl']
+    args4rotor_avg_deficit = ['hcw_ijlk', 'dh_ijlk', 'D_dst_ijl']
 
     def __init__(self):
         pass
@@ -51,14 +51,14 @@ class GridRotorAvg(RotorAvgModel):
         if nodes_weight is not None:
             self.nodes_weight = np.asarray(nodes_weight)
 
-    def _update_kwargs(self, hcw_ijlk, dh_ijl, D_dst_ijl, **kwargs):
+    def _update_kwargs(self, hcw_ijlk, dh_ijlk, D_dst_ijl, **kwargs):
         # add extra dimension, p, with 40 points distributed over the destination rotors
         R_dst_ijl = D_dst_ijl / 2
         hcw_ijlkp = hcw_ijlk[..., na] + R_dst_ijl[:, :, :, na, na] * self.nodes_x[na, na, na, na, :]
-        dh_ijlp = dh_ijl[..., na] + R_dst_ijl[:, :, :, na] * self.nodes_y[na, na, na, :]
-        new_kwargs = {'dh_ijl': dh_ijlp, 'hcw_ijlk': hcw_ijlkp, 'D_dst_ijl': D_dst_ijl[..., na]}
+        dh_ijlkp = dh_ijlk[..., na] + R_dst_ijl[:, :, :, na, na] * self.nodes_y[na, na, na, na, :]
+        new_kwargs = {'dh_ijlk': dh_ijlkp, 'hcw_ijlk': hcw_ijlkp, 'D_dst_ijl': D_dst_ijl[..., na]}
 
-        new_kwargs['cw_ijlk'] = np.sqrt(hcw_ijlkp**2 + dh_ijlp[:, :, :, na]**2)
+        new_kwargs['cw_ijlk'] = np.sqrt(hcw_ijlkp**2 + dh_ijlkp**2)
         new_kwargs['D_dst_ijl'] = D_dst_ijl
 
         new_kwargs.update({k: v[..., na] for k, v in kwargs.items() if k not in new_kwargs})
