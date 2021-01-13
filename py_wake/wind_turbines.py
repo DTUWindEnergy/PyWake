@@ -465,17 +465,17 @@ class YawModel():
     def __init__(self, func):
         self.func = func
 
-    def __call__(self, ws, yaw):
-        return self.func(np.cos(yaw) * ws)
+    def __call__(self, ws, yaw=0):
+        return self.func(np.cos(yaw) * np.asarray(ws))
 
 
 class CTYawModel(YawModel):
-    def __call__(self, ws, yaw):
+    def __call__(self, ws, yaw=0):
         # ct_n = ct_curve(cos(yaw)*ws)*cos^2(yaw)
         # mapping to downwind deficit, i.e. ct_x = ct_n*cos(yaw) = ct_curve(cos(yaw)*ws)*cos^3(yaw),
         # handled in deficit model
         co = np.cos(yaw)
-        return self.func(co * ws) * co**2
+        return self.func(co * np.asarray(ws)) * co**2
 
 
 class Interp(object):
