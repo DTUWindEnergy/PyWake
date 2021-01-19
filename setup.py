@@ -3,11 +3,16 @@
 Setup file for PyWake
 """
 import os
-from git_utils import write_vers
 from setuptools import setup, find_packages
+import pkg_resources
 
 repo = os.path.dirname(__file__)
-version = write_vers(vers_file='py_wake/__init__.py', repo=repo, skip_chars=1)
+try:
+    from git_utils import write_vers
+    version = write_vers(vers_file='py_wake/__init__.py', repo=repo, skip_chars=1)
+except Exception:
+    version = '999'
+
 
 try:
     from pypandoc import convert_file
@@ -28,7 +33,7 @@ setup(name='py_wake',
       author_email='mmpe@dtu.dk',
       license='MIT',
       packages=find_packages(),
-          package_data={
+      package_data={
           'py_wake': ['examples/data/iea37/*.yaml',
                       'tests/test_files/fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/*.*'],
       },
@@ -37,15 +42,17 @@ setup(name='py_wake',
           'numpy',  # for numerical calculations
           'xarray',  # for WaspGridSite data storage
           'autograd',  # gradient calculation
-          'pytest',  # for testing
-          'pytest-cov',  # for calculating coverage
           'pyyaml',  # for reading yaml files
           'scipy',  # constraints
           'tqdm', # progressbar
-          'sphinx',  # generating documentation
-          'sphinx_rtd_theme',  # docs theme
-          'ipywidgets',  # notebook widgets
-          'line_profiler', # to check speed
-          
+          'ipywidgets',  # notebook widgets          
       ],
+      extras_require={
+        'test': [
+            'pytest',  # for testing
+            'pytest-cov',  # for calculating coverage
+            'sphinx',  # generating documentation
+            'sphinx_rtd_theme',  # docs theme
+            'line_profiler', # to check speed
+        ]},      
       zip_safe=True)
