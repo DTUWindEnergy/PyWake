@@ -48,9 +48,9 @@ class WindFarmModel(ABC):
         type, h, _ = self.windTurbines.get_defaults(len(x), type, h)
 
         if len(x) == 0:
-            lw = UniformSite([1], 0.1).local_wind(x_i=[0], y_i=[0], h_i=[100], wd=wd, ws=ws)
-            z = xr.DataArray(np.zeros((1, len(lw.wd), len(lw.ws))), coords=[('wt', [0]), ('wd', lw.wd), ('ws', lw.ws)])
-            return SimulationResult(self, lw, [0], yaw_ilk, z, z, z, z)
+            lw = UniformSite([1], 0.1).local_wind(x_i=[], y_i=[], h_i=[], wd=wd, ws=ws)
+            z = xr.DataArray(np.zeros((0, len(lw.wd), len(lw.ws))), coords=[('wt', []), ('wd', lw.wd), ('ws', lw.ws)])
+            return SimulationResult(self, lw, [], yaw_ilk, z, z, z, z)
         res = self.calc_wt_interaction(x_i=x, y_i=y, h_i=h, type_i=type, yaw_ilk=yaw_ilk, wd=wd, ws=ws)
         WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, localWind = res
         return SimulationResult(self, localWind=localWind,

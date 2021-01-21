@@ -11,18 +11,19 @@ from py_wake.site.distance import TerrainFollowingDistance, StraightDistance, Te
 import math
 from py_wake import NOJ
 from py_wake.wind_turbines import OneTypeWindTurbines
-from py_wake.flow_map import HorizontalGrid
-from py_wake.tests.check_speed import timeit
 import matplotlib.pyplot as plt
+from py_wake.site.xrsite import XRSite
 
 
 @pytest.fixture(autouse=True)
 def close_plots():
-    yield
     try:
-        plt.close()
-    except Exception:
-        pass
+        yield
+    finally:
+        try:
+            plt.close()
+        except Exception:
+            pass
 
 
 @pytest.fixture
@@ -38,10 +39,10 @@ def site2():
 
 
 def test_WaspGridSiteDistanceClass(site):
-    wgs = WaspGridSite(site._ds, distance=TerrainFollowingDistance(distance_resolution=2000))
+    wgs = XRSite(site.ds, distance=TerrainFollowingDistance(distance_resolution=2000))
     assert wgs.distance.distance_resolution == 2000
     assert wgs.distance.__call__.__func__ == TerrainFollowingDistance().__call__.__func__
-    wgs = WaspGridSite(site._ds, distance=StraightDistance())
+    wgs = XRSite(site.ds, distance=StraightDistance())
     assert wgs.distance.__call__.__func__ == StraightDistance().__call__.__func__
 
 
@@ -62,7 +63,7 @@ def test_local_wind(site):
 
 
 def test_shear(site):
-    npt.assert_array_almost_equal(site._ds['spd'].sel(x=262878, y=6504714, sec=1), [.6240589, .8932919])
+    npt.assert_array_almost_equal(site.ds['Speedup'].sel(x=262878, y=6504714, wd=0), [.6240589, .8932919])
     x = [262878.0001] * 3
     y = [6504714.0001] * 3
     z = [30, 115, 200]
@@ -133,9 +134,10 @@ def test_wasp_resources_grid_point(site):
     wt = OneTypeWindTurbines.from_tabular(name="NEG-Micon 2750/92 (2750 kW)", diameter=92, hub_height=70,
                                           ws=wt_u, ct=wt_ct, power=wt_p, power_unit='kw')
 
-    A_lst, k_lst, f_lst, spd_lst, orog_trn_lst, flow_inc_lst, tke_lst = [site.interp_funcs[n](
-        (x, y, 30, range(0, 360, 30))) for n in ['A', 'k', 'f', 'spd', 'orog_trn', 'flow_inc', 'tke']]
-    f_lst = f_lst * 360 / 12
+    lw = site.local_wind(x, y, 30, wd=range(0, 360, 30))
+    A_lst, k_lst, f_lst, spd_lst, orog_trn_lst, flow_inc_lst, tke_lst = [
+        site.interp(site.ds[n], lw.coords).sel(i=0).values
+        for n in ['Weibull_A', 'Weibull_k', 'Sector_frequency', 'Speedup', 'Turning', 'flow_inc', 'tke']]
     pdf_lst = [lambda x, A=A, k=k: k / A * (x / A)**(k - 1) * np.exp(-(x / A)**k) * (x[1] - x[0])
                for A, k in zip(A_lst, k_lst)]
 #     cdf_lst = [lambda x, A=A, k=k: 1 - np.exp(-(x / A) ** k) for A, k in zip(A_lst, k_lst)]
@@ -237,11 +239,6 @@ def test_speed_up_using_pickle():
     npt.assert_array_less(time_w_pkl * 10, time_wo_pkl)
 
 
-def test_interp_funcs_initialization_missing_key(site):
-    site = ParqueFicticioSite(distance=TerrainFollowingDistance2())
-    site.interp_funcs_initialization(['missing'])
-
-
 def test_one_layer():
     site = WaspGridSite.from_wasp_grd(os.path.dirname(one_layer.__file__) + "/", speedup_using_pickle=False)
 
@@ -262,24 +259,17 @@ def test_elevation(site):
 
 
 def test_plot_map(site):
-    with pytest.raises(AttributeError, match="missing not found in dataset. Available data variables are:\nflow_inc,"):
-        site.plot_map('missing')
-
-    with pytest.raises(AttributeError, match=r"Sector None not found. Available sectors are: \[ 1"):
-        site.plot_map('ws_mean')
-    with pytest.raises(AttributeError, match="Height missing for 'ws_mean'"):
-        site.plot_map('ws_mean', sector=1)
-
-    site.plot_map('elev')
+    site.ds.Elevation.plot()
     plt.figure()
-    site.plot_map('ws_mean', 80, sector=1)
+    site.ds.ws_mean.sel(h=200, wd=0).plot()
     if 0:
         plt.show()
     plt.close()
 
 
 def test_elevation_outside_map(site):
-    site.plot_map('elev')
+
+    site.ds.Elevation.plot()
     x = np.linspace(262500, 265500, 500)
     y = x * 0 + 6505450
     plt.plot(x, y, '--', label='Terrain line')
@@ -343,11 +333,12 @@ def test_plot_wd_distribution_with_ws_levels(site):
 
 def test_additional_input():
     site = ParqueFicticioSite()
-    wgs = WaspGridSite(site._ds, distance=TerrainFollowingDistance(distance_resolution=2000))
-    wgs.interp_funcs_initialization(['ws_mean'])
+
     x, y = site.initial_position.T
     h = 70 * np.ones_like(x)
-    ws_mean, = wgs.interpolate(['ws_mean'], x, y, h)
+
+    lw = site.local_wind(x, y, h)
+    ws_mean = site.interp(site.ds.ws_mean, lw.coords)
     npt.assert_array_almost_equal(ws_mean[0, :50],
                                   np.array([4.77080802, 4.77216214, 4.77351626, 4.77487037, 4.77622449,
                                             4.77757861, 4.77893273, 4.78028685, 4.78164097, 4.78299508,
@@ -359,37 +350,6 @@ def test_additional_input():
                                             5.10998066, 5.16969047, 5.22940029, 5.28911011, 5.34881993,
                                             5.40852975, 5.46823957, 5.52794939, 5.5876592, 5.64736902,
                                             5.70707884, 5.76678866, 5.82649848, 5.8862083, 5.94591812]))
-
-
-def test_interpolation_speed():
-    import xarray as xr
-    da = xr.DataArray(np.sin(0.3 * np.arange(20).reshape(5, 4)),
-                      [('x', np.arange(5)),
-                       ('y', [0.1, 0.2, 0.3, 0.4])])
-    x = xr.DataArray([0.5, 1.5, 2.5], dims='z')
-    y = xr.DataArray([0.15, 0.25, 0.35], dims='z')
-    da.interp(x=x, y=y)
-
-    site = ParqueFicticioSite()
-    x, y = site.initial_position.T
-    X, Y, x_j, y_j, h_j = HorizontalGrid()(x, y, 70)
-    wd = [270]  # site.default_wd
-    ws = site.default_ws
-    res1, t_lst = timeit(site.interp_funcs['A'])((x_j, y_j, h_j, x_j * 0 + 270))
-    print(res1.shape)
-    res2, t_lst = timeit(lambda x, y, z, sec:
-                         site._ds.A.interp(x=xr.DataArray(x, dims='z'),
-                                           y=xr.DataArray(y, dims='z'),
-                                           z=xr.DataArray(z, dims='z'),
-                                           sec=xr.DataArray(sec, dims='z')).data)(x_j, y_j, h_j, x_j * 0 + 10)
-    npt.assert_array_almost_equal(res1, res2)
-    if 0:
-        c = plt.contourf(X, Y, res1.reshape(X.shape))
-        plt.colorbar(c)
-        plt.figure()
-        c = plt.contourf(X, Y, res2.reshape(X.shape))
-        plt.colorbar(c)
-        plt.show()
 
 
 if __name__ == '__main__':

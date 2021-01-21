@@ -1,7 +1,7 @@
 import xarray as xr
 from py_wake.site.distance import StraightDistance
 import numpy as np
-from py_wake.utils.grid_interpolator import GridInterpolator
+from py_wake.utils.grid_interpolator import GridInterpolator, EqDistRegGrid2DInterpolator
 from py_wake.site._site import Site
 from py_wake.utils import weibull
 
@@ -46,6 +46,10 @@ class XRSite(Site):
         if 'wd' in ds and ds.wd[-1] != 360 and 360 - ds.wd[-1] == sector_width:
             ds = xr.concat([ds, ds.sel(wd=0)], 'wd', data_vars='minimal')
             ds.update({'wd': np.r_[ds.wd[:-1], 360]})
+        if 'Elevation' in ds:
+            self.elevation_interpolator = EqDistRegGrid2DInterpolator(ds.x.values,
+                                                                      ds.y.values,
+                                                                      ds.Elevation.values)
 
         self.ds = ds
 
@@ -76,9 +80,8 @@ class XRSite(Site):
         return site
 
     def elevation(self, x_i, y_i):
-        if 'Elevation' in self.ds:
-            return self.ds.Elevation.interp(x=xr.DataArray(x_i, dims='z'), y=xr.DataArray(y_i, dims='z'),
-                                            method=self.interp_method, kwargs={'bounds_error': True})
+        if hasattr(self, "elevation_interpolator"):
+            return self.elevation_interpolator(x_i, y_i, mode='valid')
         else:
             return x_i * 0
 
