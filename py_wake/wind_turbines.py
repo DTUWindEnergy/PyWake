@@ -252,7 +252,7 @@ class WindTurbines():
             # ax.plot(np.asarray(x)[types == t], np.asarray(y)[types == t], '%sk' % m, label=self._names[int(t)])
             ax.plot([], [], '2', color=colors[t], label=self._names[int(t)])
 
-        for i, (x_, y_, d) in enumerate(zip(x, y, self.diameter(types))):
+        for i, (x_, y_, d) in enumerate(zip(x, y, D)):
             ax.annotate(i, (x_ + d / 2, y_ + d / 2), fontsize=7)
         ax.legend(loc=1)
         ax.axis('equal')

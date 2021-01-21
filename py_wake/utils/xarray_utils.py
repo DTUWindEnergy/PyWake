@@ -2,6 +2,8 @@ from numpy import newaxis as na
 
 import numpy as np
 import xarray as xr
+from xarray.plot.plot import _PlotMethods
+import warnings
 
 
 class ilk():
@@ -51,7 +53,22 @@ class sel_interp_all():
         return da.interp(**interp_coords, method=method, kwargs=kwargs)
 
 
+class plot_xy_map():
+    def __init__(self, dataArray):
+        self.dataArray = dataArray
+
+    def __call__(self, **kwargs):
+        if ('x' in self.dataArray.coords and 'y' in self.dataArray.coords and 'x' not in kwargs and
+
+                self.dataArray.squeeze().shape == (len(np.atleast_1d(self.dataArray.x)), len(np.atleast_1d(self.dataArray.y)))):
+            kwargs['x'] = 'x'
+        _PlotMethods(self.dataArray)(**kwargs)
+
+
 if not hasattr(xr.DataArray(None), 'ilk'):
     xr.register_dataarray_accessor("ilk")(ilk)
     xr.register_dataarray_accessor("interp_all")(interp_all)
     xr.register_dataarray_accessor("sel_interp_all")(sel_interp_all)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        xr.register_dataarray_accessor('plot')(plot_xy_map)

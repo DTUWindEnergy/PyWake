@@ -1,4 +1,3 @@
-from py_wake.site._site import UniformWeibullSite
 import numpy as np
 import xarray as xr
 import pickle
@@ -6,14 +5,12 @@ import os
 import glob
 from _collections import defaultdict
 import re
-from scipy.interpolate.interpolate import RegularGridInterpolator
 import copy
-from numpy import newaxis as na
 from py_wake.site.distance import TerrainFollowingDistance
-from builtins import AttributeError
+from py_wake.site.xrsite import XRSite
 
 
-class WaspGridSite(UniformWeibullSite):
+class WaspGridSite(XRSite):
     """Site with non-uniform (different wind at different locations, e.g. complex non-flat terrain)
     weibull distributed wind speed. Data obtained from WAsP grid files"""
 
@@ -29,132 +26,19 @@ class WaspGridSite(UniformWeibullSite):
             if valid, terrain elevation outside grid area is NAN
             if extrapolate, the terrain elevation at the grid border is returned outside the grid area
         """
-        self._ds = ds
-        self.mode = mode
-        self.interp_funcs = {}
-        self.interp_funcs_initialization()
-        self.elevation_interpolator = EqDistRegGrid2DInterpolator(self._ds.coords['x'].data,
-                                                                  self._ds.coords['y'].data,
-                                                                  self._ds['elev'].data)
-        self.TI_data_exist = 'tke' in self.interp_funcs.keys()
-        super().__init__(p_wd=np.nanmean(self._ds['f'].data, (0, 1, 2)),
-                         a=np.nanmean(self._ds['A'].data, (0, 1, 2)),
-                         k=np.nanmean(self._ds['k'].data, (0, 1, 2)),
-                         ti=0)
-        self.distance = distance
+        self.use_WS_bins = True
+        ds = ds.rename(A="Weibull_A", k="Weibull_k", f="Sector_frequency", spd='Speedup',
+                       orog_trn='Turning',
+                       elev='Elevation', sec='wd', z='h')
+        ds = ds.assign_coords(wd=(ds.wd - 1) * (360 / len(ds.wd)))
+        ds = ds.isel(x=np.where(~np.all(np.isnan(ds.Elevation), 1))[0],
+                     y=np.where(~np.all(np.isnan(ds.Elevation), 0))[0])
+        super().__init__(ds, distance=distance)
 
     def _local_wind(self, localWind, ws_bins=None):
-
-        lw = localWind
-
-        # TODO: delete?
-        self.wd = lw.wd
-
-        WS = xr.DataArray(lw.ws, coords=[('ws', lw.ws)])
-        WD = xr.DataArray(lw.wd, coords=[('wd', lw.wd)])
-
-        if self.TI_data_exist:
-            speed_up, turning, TI = [xr.DataArray(v, coords=[('i', lw.i), ('wd', lw.wd)])
-                                     for v in self.interpolate(['spd', 'orog_trn', 'tke'], lw.x, lw.y, lw.h, lw.wd, lw.ws)]
-            TI = TI * (.75 + 3.8 / WS)
-        else:  # pragma: no cover
-            raise Exception("Not tested")
-            speed_up, turning = self.interpolate(['spd', 'orog_trn'], lw.x, lw.y, lw.h, lw.wd, lw.ws)
-
-        WS = speed_up * WS
-        turning = turning.fillna(0)
-        lw.set_W(WS, WD, TI, ws_bins, use_WS=True)
-        lw['P'] = self.probability(lw)
-
-        lw['WD'] = turning + WD
-
+        lw = super()._local_wind(localWind.copy(), ws_bins)
+        lw['TI'] = self.interp(self.ds.tke, lw.coords) * (.75 + 3.8 / lw.ws)
         return lw
-
-    def probability(self, localWind):
-        """See Site.probability
-        """
-        lw = localWind
-        Weibull_A, Weibull_k, freq = \
-            [xr.DataArray(v, coords=[('i', lw.i), ('wd', lw.wd)])
-             for v in self.interpolate(['A', 'k', 'f'], lw.x, lw.y, lw.h, lw.wd)]
-
-        P_wd = freq * lw.wd_bin_size
-
-        P = self.weibull_weight(lw, Weibull_A, Weibull_k) * P_wd
-        return P
-
-    def elevation(self, x_i, y_i):
-        return self.elevation_interpolator(x_i, y_i, self.mode)
-
-    def interp_funcs_initialization(self,
-                                    interp_keys=['A', 'k', 'f', 'tke', 'spd', 'orog_trn', 'flow_inc', 'elev']):
-        """ Initialize interpolating functions using RegularGridInterpolator
-        for specified variables defined in interp_keys.
-        """
-
-        interp_funcs = {}
-
-        for key in interp_keys:
-            try:
-                dr = self._ds.data_vars[key]
-            except KeyError:
-                print('Warning! {0} is not included in the current'.format(key) +
-                      ' WindResourceGrid object.\n')
-                continue
-
-            coords = []
-
-            data = dr.data
-            for dim in dr.dims:
-                # change sector index into wind direction (deg)
-                if dim == 'sec':
-                    num_sec = len(dr.coords[dim].data)   # number of sectors
-                    coords.append(
-                        np.linspace(0, 360, num_sec + 1))
-                    data = np.concatenate((data, data[:, :, :, :1]), axis=3)
-                elif dim == 'z' and len(dr.coords[dim].data) == 1:
-                    # special treatment for only one layer of data
-                    height = dr.coords[dim].data[0]
-                    coords.append(np.array([height - 1.0, height + 1.0]))
-                    data = np.concatenate((data, data), axis=2)
-                else:
-                    coords.append(dr.coords[dim].data)
-
-            interp_funcs[key] = RegularGridInterpolator(
-                coords,
-                data, bounds_error=False)
-
-        self.interp_funcs.update(interp_funcs)
-
-    def interpolate(self, keys, x_i, y_i, h_i, wd=None, ws=None):
-        if wd is None:
-            wd = self.default_wd
-        if ws is None:
-            ws = self.default_ws
-        wd, ws = np.asarray(wd), np.asarray(ws)
-        x_il, y_il, h_il = [np.repeat([np.asarray(v)], len(wd), 0).T for v in [x_i, y_i, h_i]]
-        wd_il = np.repeat([wd], len(np.atleast_1d(x_i)), 0)
-        return [self.interp_funcs[n]((x_il, y_il, h_il, wd_il)) for n in np.asarray(keys)]
-
-    def plot_map(self, data_name, height=None, sector=None, xlim=[None, None], ylim=[None, None], ax=None):
-        if ax is None:
-            import matplotlib.pyplot as plt
-            ax = plt.gca()
-        if data_name not in self._ds:
-            raise AttributeError("%s not found in dataset. Available data variables are:\n%s" %
-                                 (data_name, ",".join(list(self._ds.data_vars.keys()))))
-        data = self._ds[data_name].sel(x=slice(*xlim), y=slice(*ylim))
-        if 'sec' in data.coords:
-            if sector not in data.coords['sec'].values:
-                raise AttributeError("Sector %s not found. Available sectors are: %s" %
-                                     (sector, data.coords['sec'].values))
-            data = data.sel(sec=sector)
-        if 'z' in data.coords:
-            if height is None:
-                raise AttributeError("Height missing for '%s'" % data_name)
-            data = data.interp(z=height)
-        data.plot(x='x', y='y', ax=ax)
-        ax.axis('equal')
 
     @classmethod
     def from_wasp_grd(cls, path, globstr='*.grd', speedup_using_pickle=True,
@@ -372,7 +256,7 @@ def load_wasp_grd(path, globstr='*.grd', speedup_using_pickle=True):
 
     #############
     # change the frequency from per sector to per deg
-    ds['f'].data = ds['f'].data * len(ds['f']['sec'].data) / 360.0
+    # ds['f'].data = ds['f'].data * len(ds['f']['sec'].data) / 360.0
 
 #         #############
 #         # note WAsP denotes unavailable values using very large numbers, here
@@ -391,63 +275,17 @@ def load_wasp_grd(path, globstr='*.grd', speedup_using_pickle=True):
     return ds
 
 
-class EqDistRegGrid2DInterpolator():
-    def __init__(self, x, y, Z):
-        self.x = x
-        self.y = y
-        self.Z = Z
-        self.dx, self.dy = [xy[1] - xy[0] for xy in [x, y]]
-        self.x0 = x[0]
-        self.y0 = y[0]
-        xi_valid = np.where(np.any(~np.isnan(self.Z), 1))[0]
-        yi_valid = np.where(np.any(~np.isnan(self.Z), 0))[0]
-        self.xi_valid_min, self.xi_valid_max = xi_valid[0], xi_valid[-1]
-        self.yi_valid_min, self.yi_valid_max = yi_valid[0], yi_valid[-1]
-
-    def __call__(self, x, y, mode='valid'):
-        xp, yp = x, y
-        xi = (xp - self.x0) / self.dx
-        xif, xi0 = np.modf(xi)
-        xi0 = xi0.astype(np.int)
-
-        yi = (yp - self.y0) / self.dy
-        yif, yi0 = np.modf(yi)
-        yi0 = yi0.astype(np.int)
-        if mode == 'extrapolate':
-            xif[xi0 < self.xi_valid_min] = 0
-            xif[xi0 > self.xi_valid_max - 2] = 1
-            yif[yi0 < self.yi_valid_min] = 0
-            yif[yi0 > self.yi_valid_max - 2] = 1
-            xi0 = np.minimum(np.maximum(xi0, self.xi_valid_min), self.xi_valid_max - 2)
-            yi0 = np.minimum(np.maximum(yi0, self.yi_valid_min), self.yi_valid_max - 2)
-        xi1 = xi0 + 1
-        yi1 = yi0 + 1
-        valid = (xif >= 0) & (yif >= 0) & (xi1 < len(self.x)) & (yi1 < len(self.y))
-        z = np.empty_like(xp) + np.nan
-        xi0, xi1, xif, yi0, yi1, yif = [v[valid] for v in [xi0, xi1, xif, yi0, yi1, yif]]
-        z00 = self.Z[xi0, yi0]
-        z10 = self.Z[xi1, yi0]
-        z01 = self.Z[xi0, yi1]
-        z11 = self.Z[xi1, yi1]
-        z0 = z00 + (z10 - z00) * xif
-        z1 = z01 + (z11 - z01) * xif
-        z[valid] = z0 + (z1 - z0) * yif
-        return z
-
-
 def main():
     if __name__ == '__main__':
         from py_wake.examples.data.ParqueFicticio import ParqueFicticio_path
         import matplotlib.pyplot as plt
         site = WaspGridSite.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=False)
-        x, y = site._ds.coords['x'].data, site._ds.coords['y'].data,
+        x, y = site.ds.x.values, site.ds.y.values
         Y, X = np.meshgrid(y, x)
 
         # plot elevation
-        Z = site.elevation(X.flatten(), Y.flatten()).reshape(X.shape)
         ax1, ax2 = plt.subplots(1, 2)[1]
-        c = ax1.contourf(X, Y, Z, 100)
-        plt.colorbar(c)
+        site.ds.Elevation.plot(ax=ax1, levels=100)
         i, j = 15, 12
         ax1.plot(X[:, j], Y[:, j], 'r')
         ax1.axis('equal')
@@ -455,26 +293,21 @@ def main():
         ax2.plot(X[:, j], Z, 'r')
 
         # plot wind speed
-        Z = site.local_wind(X.flatten(), Y.flatten(), h_i=70, ws=[10], wd=[0]).WS_ilk.reshape(X.shape)
         ax1, ax2 = plt.subplots(1, 2)[1]
-        c = ax1.contourf(X, Y, Z, 100)
-        plt.colorbar(c)
+        WS = (site.ds.ws * site.ds.Speedup).sel(ws=10, wd=0).interp(h=70)
+        WS.plot(ax=ax1, levels=100)
         i, j = 15, 12
         ax1.plot(X[:, j], Y[:, j], 'r')
         ax1.axis('equal')
+        ax2.plot(X[:, j], WS[:, j], 'r')
 
-        ax2.plot(X[:, j], Z[:, j], 'r')
-
+        # plot shear
         z = np.arange(35, 200, 1)
-        u_z = site.local_wind([x[i]] * len(z), y_i=[y[i]] * len(z),
-                              h_i=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
-        Z = site.elevation_interpolator(X[i], Y[i], mode='extrapolate')
-
-        site.local_wind([263655.0], [6506601.0], h_i=70, wd=[0]).WS_ilk[0, 0]
-        site.local_wind([263655.0], [6506601.0], h_i=70, ws=[10]).WD_ilk[0, :, 0]
-
+        u_z = site.local_wind([x[i]] * len(z), y_i=[y[i]] * len(z), h_i=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
         plt.figure()
         plt.plot(u_z, z)
+        plt.xlabel('Wind speed [m/s]')
+        plt.ylabel('Height [m]')
         plt.show()
 
 

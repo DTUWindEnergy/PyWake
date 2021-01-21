@@ -8,6 +8,7 @@ from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
 from py_wake import NOJ
 from py_wake.examples.data.ParqueFicticio import ParqueFicticioSite
 from py_wake.flow_map import HorizontalGrid
+import matplotlib.pyplot as plt
 
 
 class FlatSite(UniformSite):
@@ -238,7 +239,7 @@ def test_distances_ri():
 
 def test_distance2_outside_map_WestEast():
     site = ParqueFicticioSiteTerrainFollowingDistance2()
-    site.plot_map('elev')
+
     x = np.arange(-1500, 1000, 500) + 264777
     h = x * 0
     y = h + 6505450
@@ -247,6 +248,7 @@ def test_distance2_outside_map_WestEast():
                         dst_x_j=x, dst_y_j=y, dst_h_j=h * 0, wd_il=[270])[0]
 
     if 0:
+        site.ds.Elevation.plot()
         plt.plot(x, y, '.-', label='Terrain line')
         plt.plot(x, y + site.elevation(x, y))
         plt.legend()
@@ -257,10 +259,6 @@ def test_distance2_outside_map_WestEast():
 
 def test_distance2_outside_map_NorthSouth():
     site = ParqueFicticioSiteTerrainFollowingDistance2()
-
-    import matplotlib.pyplot as plt
-
-    site.plot_map('elev')
     y = np.arange(-1500, 1000, 500) + 6506613.0
     h = y * 0
     x = h + 264200
@@ -269,6 +267,7 @@ def test_distance2_outside_map_NorthSouth():
                         dst_x_j=x, dst_y_j=y, dst_h_j=h * 0, wd_il=[180])[0]
 
     if 0:
+        site.ds.Elevation.plot()
         plt.plot(x, y, '.-', label='Terrain line')
         plt.plot(x + site.elevation(x, y), y)
         plt.legend()

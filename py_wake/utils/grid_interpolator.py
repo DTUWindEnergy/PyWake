@@ -1,6 +1,5 @@
 import numpy as np
 from numpy import newaxis as na
-from py_wake.tests import npt
 
 
 class GridInterpolator(object):
@@ -101,3 +100,47 @@ class GridInterpolator(object):
         w = mul_weight(1, 0).reshape(-1, xpif.shape[0])
 
         return np.moveaxis((w * v).sum(-2), -1, 0)
+
+
+class EqDistRegGrid2DInterpolator():
+    def __init__(self, x, y, Z):
+        self.x = x
+        self.y = y
+        self.Z = Z
+        self.dx, self.dy = [xy[1] - xy[0] for xy in [x, y]]
+        self.x0 = x[0]
+        self.y0 = y[0]
+        xi_valid = np.where(np.any(~np.isnan(self.Z), 1))[0]
+        yi_valid = np.where(np.any(~np.isnan(self.Z), 0))[0]
+        self.xi_valid_min, self.xi_valid_max = xi_valid[0], xi_valid[-1]
+        self.yi_valid_min, self.yi_valid_max = yi_valid[0], yi_valid[-1]
+
+    def __call__(self, x, y, mode='valid'):
+        xp, yp = x, y
+        xi = (xp - self.x0) / self.dx
+        xif, xi0 = np.modf(xi)
+        xi0 = xi0.astype(np.int)
+
+        yi = (yp - self.y0) / self.dy
+        yif, yi0 = np.modf(yi)
+        yi0 = yi0.astype(np.int)
+        if mode == 'extrapolate':
+            xif[xi0 < self.xi_valid_min] = 0
+            xif[xi0 > self.xi_valid_max - 2] = 1
+            yif[yi0 < self.yi_valid_min] = 0
+            yif[yi0 > self.yi_valid_max - 2] = 1
+            xi0 = np.minimum(np.maximum(xi0, self.xi_valid_min), self.xi_valid_max - 2)
+            yi0 = np.minimum(np.maximum(yi0, self.yi_valid_min), self.yi_valid_max - 2)
+        xi1 = xi0 + 1
+        yi1 = yi0 + 1
+        valid = (xif >= 0) & (yif >= 0) & (xi1 < len(self.x)) & (yi1 < len(self.y))
+        z = np.empty_like(xp) + np.nan
+        xi0, xi1, xif, yi0, yi1, yif = [v[valid] for v in [xi0, xi1, xif, yi0, yi1, yif]]
+        z00 = self.Z[xi0, yi0]
+        z10 = self.Z[xi1, yi0]
+        z01 = self.Z[xi0, yi1]
+        z11 = self.Z[xi1, yi1]
+        z0 = z00 + (z10 - z00) * xif
+        z1 = z01 + (z11 - z01) * xif
+        z[valid] = z0 + (z1 - z0) * yif
+        return z
