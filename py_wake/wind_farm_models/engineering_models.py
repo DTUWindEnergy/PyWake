@@ -126,26 +126,28 @@ class EngineeringWindFarmModel(WindFarmModel):
         # the split line between wake and blockage is set slightly upstream to handle
         # numerical inaccuracy in the trigonometric functions that calculates dw_ijlk
         rotor_pos = -1e-10
+        blockage = np.zeros_like(deficit)
         if self.blockage_deficitModel is None:
             deficit *= (dw_ijlk > rotor_pos)
-        elif self.blockage_deficitModel != self.wake_deficitModel:
-            # downstream wake deficit + upstream blockage
-            deficit = ((dw_ijlk > rotor_pos) * deficit +
-                       self.blockage_deficitModel.calc_blockage_deficit(dw_ijlk=dw_ijlk, **kwargs))
-        return deficit
+        elif (self.blockage_deficitModel != self.wake_deficitModel):
+            blockage = self.groundModel(lambda **kwargs: self.rotorAvgModel(self.blockage_deficitModel.calc_blockage_deficit, **kwargs),
+                                        dw_ijlk=dw_ijlk, **kwargs)
+            deficit *= (dw_ijlk > rotor_pos)
+        return deficit, blockage
 
     def _calc_deficit(self, dw_ijlk, **kwargs):
         """Calculate wake (and blockage) deficit"""
         deficit = self.groundModel(lambda **kwargs: self.rotorAvgModel(self.wake_deficitModel.calc_deficit_downwind, **kwargs),
                                    dw_ijlk=dw_ijlk, **kwargs)
-        return self._add_blockage(deficit, dw_ijlk, **kwargs)
+        deficit, blockage = self._add_blockage(deficit, dw_ijlk, **kwargs)
+        return deficit + blockage
 
     def _calc_deficit_convection(self, dw_ijlk, **kwargs):
         """Calculate wake convection deficit (and blockage)"""
         deficit, uc, sigma_sqr = self.rotorAvgModel.calc_deficit_convection(
             self.wake_deficitModel, dw_ijlk=dw_ijlk, **kwargs)
-        deficit = self._add_blockage(deficit, dw_ijlk)
-        return deficit, uc, sigma_sqr
+        deficit, blockage = self._add_blockage(deficit, dw_ijlk, **kwargs)
+        return deficit, uc, sigma_sqr, blockage
 
     def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=0, wd=None, ws=None, yaw_ilk=None):
         """See WindFarmModel.calc_wt_interaction"""
@@ -249,7 +251,8 @@ class EngineeringWindFarmModel(WindFarmModel):
                               desc="Calculate flow map for wd=%d" % l, unit='wt'):
                     args_i = {k: v[i][na] for k, v in args.items()}
                     if isinstance(self.superpositionModel, WeightedSum):
-                        deficit, uc, sigma_sqr = self._calc_deficit_convection(dw_ijlk=dw_ijlk[i][na], **args_i)
+                        deficit, uc, sigma_sqr, blockage = self._calc_deficit_convection(
+                            dw_ijlk=dw_ijlk[i][na], **args_i)
                         deficit_ijk[i] = deficit[0, :, 0]
                         uc_ijk[i] = uc[0, :, 0]
                         sigma_sqr_ijk[i] = sigma_sqr[0, :, 0]
@@ -261,7 +264,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                             dw_ijlk=dw_ijlk[i][na], **args_i)[0, :, 0]
             else:
                 if isinstance(self.superpositionModel, WeightedSum):
-                    deficit, uc, sigma_sqr = self._calc_deficit_convection(dw_ijlk=dw_ijlk, **args)
+                    deficit, uc, sigma_sqr, blockage = self._calc_deficit_convection(dw_ijlk=dw_ijlk, **args)
                     deficit_ijk = deficit[:, :, 0]
                     uc_ijk = uc[:, :, 0]
                     sigma_sqr_ijk = sigma_sqr[:, :, 0]
@@ -474,8 +477,9 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
                 # Calculate deficit
                 if isinstance(self.superpositionModel, WeightedSum):
-                    deficit, uc, sigma_sqr = self._calc_deficit_convection(dw_ijlk=dw_ijlk, **args)
+                    deficit, uc, sigma_sqr, blockage = self._calc_deficit_convection(dw_ijlk=dw_ijlk, **args)
                     # deficit_nk.append(deficit[0])
+                    deficit += blockage
                     uc_nk.append(uc[0])
                     sigma_sqr_nk.append(sigma_sqr[0])
                 else:
@@ -588,10 +592,23 @@ class All2AllIterative(EngineeringWindFarmModel):
                     args['wake_radius_ijlk'] = self.wake_deficitModel.wake_radius(**args)
 
             # Calculate deficit
-            deficit_iilk = self._calc_deficit(**args)
+            if isinstance(self.superpositionModel, WeightedSum):
+                deficit_iilk, uc_iilk, sigmasqr_iilk, blockage_iilk = self._calc_deficit_convection(**args)
+            else:
+                deficit_iilk = self._calc_deficit(**args)
 
             # Calculate effective wind speed
-            WS_eff_ilk = self.superpositionModel.calc_effective_WS(lw.WS_ilk, deficit_iilk)
+            if isinstance(self.superpositionModel, WeightedSum):
+                WS_eff_ilk = self.superpositionModel.calc_effective_WS(lw.WS_ilk, deficit_iilk,
+                                                                       uc_iilk, sigmasqr_iilk,
+                                                                       args['cw_ijlk'],
+                                                                       args['hcw_ijlk'],
+                                                                       dh_iil[..., na])
+                # Add blockage as linear effect
+                WS_eff_ilk -= np.sum(blockage_iilk, 0)
+            else:
+                WS_eff_ilk = self.superpositionModel.calc_effective_WS(lw.WS_ilk, deficit_iilk)
+
             if self.turbulenceModel:
                 add_turb_ijlk = self.turbulenceModel.rotorAvgModel(self.turbulenceModel.calc_added_turbulence, **args)
                 TI_eff_ilk = self.turbulenceModel.calc_effective_TI(lw.TI_ilk, add_turb_ijlk)
@@ -613,7 +630,9 @@ def main():
     if __name__ == '__main__':
         from py_wake.examples.data.iea37 import IEA37Site, IEA37_WindTurbines
         from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
-
+        from py_wake.deficit_models.gaussian import ZongGaussianDeficit
+        from py_wake.turbulence_models.stf import STF2017TurbulenceModel
+        from py_wake.flow_map import XYGrid
         import matplotlib.pyplot as plt
 
         site = IEA37Site(16)
@@ -630,9 +649,19 @@ def main():
         noj_ss = All2AllIterative(site, windTurbines, wake_deficitModel=NOJDeficit(), superpositionModel=SquaredSum(),
                                   blockage_deficitModel=SelfSimilarityDeficit())
 
-        for wm in [noj, noj_ss]:
+        # Zong convection superposition
+        zongp_ss = PropagateDownwind(site, windTurbines, wake_deficitModel=ZongGaussianDeficit(), superpositionModel=WeightedSum(),
+                                     turbulenceModel=STF2017TurbulenceModel())
+
+        # Zong convection superposition
+        zong_ss = All2AllIterative(site, windTurbines, wake_deficitModel=ZongGaussianDeficit(), superpositionModel=WeightedSum(),
+                                   blockage_deficitModel=SelfSimilarityDeficit(), turbulenceModel=STF2017TurbulenceModel())
+
+        for wm in [noj, noj_ss, zongp_ss, zong_ss]:
+            sim = wm(x=x, y=y, wd=[30], ws=[9])
             plt.figure()
-            wm(x=x, y=y, wd=[30], ws=[9]).flow_map().plot_wake_map()
+            sim.flow_map(XYGrid(resolution=200)).plot_wake_map()
+            plt.title(' AEP: %.3f GWh' % sim.aep().sum())
         plt.show()
 
 

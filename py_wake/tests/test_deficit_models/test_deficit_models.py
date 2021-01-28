@@ -10,6 +10,7 @@ from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, IEA37Simp
 from py_wake.deficit_models.gcl import GCLDeficit, GCL, GCLLocal
 from py_wake.deficit_models.noj import NOJDeficit, NOJ, NOJLocalDeficit, NOJLocal
 from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
+from py_wake.deficit_models import VortexDipole
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
@@ -218,21 +219,21 @@ def test_wake_radius_not_implemented():
 @pytest.mark.parametrize(
     'deficitModel,aep_ref',
     # test that the result is equal to last run (no evidens that  these number are correct)
-    [(BastankhahGaussianDeficit(), (338848.4232271521,
-                                    [8618.62236, 7615.23967, 10959.13371, 13390.20853, 19094.25425,
-                                     24176.7654, 37790.11624, 38710.80165, 21718.92835, 12368.03698,
-                                     14319.69596, 30618.7735, 63588.46932, 16969.44073, 11749.49412,
-                                     7160.44246])),
+    [(BastankhahGaussianDeficit(), (346412.82243950944,
+                                    [8835.30563, 7877.90062, 11079.66832, 13565.65235, 19469.4846,
+                                     24493.53897, 38205.75284, 40045.9948, 22264.97018, 12662.90784,
+                                     14650.96535, 31289.90349, 65276.92307, 17341.39229, 12021.3049,
+                                     7331.15717])),
      (ZongGaussianDeficit(),
-      (336631.72472958744, [8459.16014, 7605.17823, 11029.97614, 13381.64219, 18550.00538,
-                            24161.2984, 38034.40047, 38659.656, 21317.08356, 12322.54712,
-                            14244.59289, 30532.23574, 62590.49112, 16921.48005, 11687.87109,
-                            7134.10623])),
+      (342944.4057168523, [8674.44232, 7806.22033, 11114.78804, 13549.48197, 18895.50866,
+                           24464.34244, 38326.85532, 39681.61999, 21859.59465, 12590.25899,
+                           14530.24656, 31158.81189, 63812.14454, 17268.73912, 11922.25359,
+                           7289.09731])),
      (NiayifarGaussianDeficit(),
-      (342508.81971496233, [8689.19059, 7822.04451, 11019.98716, 13481.81082, 19141.69434,
-                            24342.15843, 37999.95572, 39762.05958, 21896.76029, 12703.77497,
-                            14218.12659, 30742.83051, 64629.25874, 17038.19522, 11666.15515,
-                            7354.81709])),
+      (349044.6891842835, [8888.36909, 8025.38191, 11134.3202, 13643.08009, 19503.25093,
+                           24633.33906, 38394.20758, 40795.69138, 22398.69011, 12972.04355,
+                           14504.45911, 31328.69308, 66049.04782, 17362.89014, 11901.09465,
+                           7510.13048])),
 
      ])
 def test_IEA37_ex16_convection(deficitModel, aep_ref):
@@ -259,11 +260,11 @@ def test_IEA37_ex16_convection(deficitModel, aep_ref):
     'deficitModel,ref',
     # test that the result is equal to last run (no evidens that  these number are correct)
     [(BastankhahGaussianDeficit(),
-      [3.25, 5.43, 7.66, 8.15, 7.48, 6.45, 5.69, 5.7, 6.38, 7.15, 7.54, 7.49, 7.27, 7.16, 7.28, 7.61, 8.04]),
+      [0.17, 3.55, 7.61, 8.12, 7.58, 6.63, 5.93, 6.04, 6.65, 7.35, 7.69, 7.65, 7.54, 7.45, 7.55, 7.84, 8.19]),
      (ZongGaussianDeficit(),
-      [6.22, 6.97, 7.91, 8.16, 7.5, 6.3, 5.35, 5.4, 6.32, 7.29, 7.67, 7.51, 7.17, 7., 7.14, 7.55, 8.05]),
+      [6.34, 7.05, 7.9, 8.15, 7.45, 6.19, 5.21, 5.26, 6.38, 7.32, 7.7, 7.54, 7.34, 7.18, 7.32, 7.69, 8.14]),
      (NiayifarGaussianDeficit(),
-      [3.29, 5.45, 7.67, 8.15, 7.49, 6.47, 5.72, 5.72, 6.4, 7.17, 7.55, 7.5, 7.29, 7.17, 7.29, 7.62, 8.05]),
+      [0.17, 3.55, 7.61, 8.12, 7.58, 6.63, 5.93, 6.04, 6.65, 7.35, 7.69, 7.65, 7.55, 7.45, 7.56, 7.84, 8.19]),
      ])
 def test_deficitModel_wake_map_convection(deficitModel, ref):
     site = IEA37Site(16)
@@ -272,6 +273,46 @@ def test_deficitModel_wake_map_convection(deficitModel, ref):
 
     wf_model = PropagateDownwind(site, windTurbines, wake_deficitModel=deficitModel, superpositionModel=WeightedSum(),
                                  turbulenceModel=GCLTurbulence())
+
+    x_j = np.linspace(-1500, 1500, 200)
+    y_j = np.linspace(-1500, 1500, 100)
+
+    flow_map = wf_model(x, y, wd=0, ws=9).flow_map(HorizontalGrid(x_j, y_j))
+    X, Y = flow_map.X, flow_map.Y
+    Z = flow_map.WS_eff_xylk[:, :, 0, 0]
+
+    mean_ref = [3.2, 4.9, 8., 8.2, 7.9, 7.4, 7., 7., 7.4, 7.9, 8.1, 8.1, 8., 7.8, 7.9, 8.1, 8.4]
+
+    if 0:
+        flow_map.plot_wake_map()
+        plt.plot(X[49, 100:133:2], Y[49, 100:133:2], '.-')
+        windTurbines.plot(x, y)
+        plt.figure()
+        plt.plot(Z[49, 100:133:2], label='Actual')
+        plt.plot(ref, label='Reference')
+        plt.plot(mean_ref, label='Mean ref')
+        plt.legend()
+        plt.show()
+
+    # check that ref is reasonable
+    npt.assert_allclose(ref[2:], mean_ref[2:], atol=2.6)
+
+    npt.assert_array_almost_equal(Z[49, 100:133:2], ref, 2)
+
+
+@pytest.mark.parametrize(
+    'deficitModel,ref',
+    # test that the result is equal to last run (no evidens that  these number are correct)
+    [(ZongGaussianDeficit(),
+      [6.34, 7.05, 7.9, 8.15, 7.45, 6.19, 5.21, 5.26, 6.38, 7.32, 7.7, 7.54, 7.34, 7.18, 7.32, 7.69, 8.14])
+     ])
+def test_deficitModel_wake_map_convection_all2all(deficitModel, ref):
+    site = IEA37Site(16)
+    x, y = site.initial_position.T
+    windTurbines = IEA37_WindTurbines()
+
+    wf_model = All2AllIterative(site, windTurbines, wake_deficitModel=deficitModel, superpositionModel=WeightedSum(),
+                                blockage_deficitModel=VortexDipole(), turbulenceModel=STF2017TurbulenceModel())
 
     x_j = np.linspace(-1500, 1500, 200)
     y_j = np.linspace(-1500, 1500, 100)
