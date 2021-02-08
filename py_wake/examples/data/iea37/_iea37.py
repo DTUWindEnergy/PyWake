@@ -16,14 +16,14 @@ class IEA37_WindTurbines(OneTypeWindTurbines):
 
 
 class IEA37Site(UniformSite):
-    def __init__(self, n_wt, ti=.075):
+    def __init__(self, n_wt, ti=.075, shear=None):
         assert n_wt in [9, 16, 36, 64]
 
         from py_wake.examples.data.iea37.iea37_reader import \
             read_iea37_windfarm, read_iea37_windrose
 
         _, wsp, freq = read_iea37_windrose(iea37_path + "iea37-windrose.yaml")
-        UniformSite.__init__(self, freq, ti, ws=wsp)
+        UniformSite.__init__(self, freq, ti, ws=wsp, shear=shear)
         self.initial_position = np.array(read_iea37_windfarm(iea37_path + 'iea37-ex%d.yaml' % n_wt)[:2]).T
 
 

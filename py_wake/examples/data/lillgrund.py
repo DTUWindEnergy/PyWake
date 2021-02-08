@@ -90,11 +90,11 @@ LillgrundSWT23 = SWT23
 
 
 class LillgrundSite(UniformWeibullSite):
-    def __init__(self):
+    def __init__(self, shear=None):
         f = [3.8, 4.5, 0.4, 2.8, 8.3, 7.5, 9.9, 14.8, 14.3, 17.0, 12.6, 4.1]
         a = [4.5, 4.7, 3.0, 7.2, 8.8, 8.2, 8.4, 9.5, 9.2, 9.9, 10.3, 6.7]
         k = [1.69, 1.78, 1.82, 1.70, 1.97, 2.49, 2.72, 2.70, 2.88, 3.34, 2.84, 2.23]
-        UniformWeibullSite.__init__(self, f, a, k, .1)
+        UniformWeibullSite.__init__(self, f, a, k, .1, shear=shear)
         self.initial_position = np.array([wt_x, wt_y]).T
 
 
