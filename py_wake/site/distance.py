@@ -337,7 +337,7 @@ class TerrainFollowingDistance2():
         x_rotated_il = x_i[:, na] * cos_wd_il + y_i[:, na] * sin_wd_il
         y_rotated_il = y_i[:, na] * cos_wd_il - x_i[:, na] * sin_wd_il
 
-        downwind_order_il = np.argsort(x_rotated_il, 0).astype(np.int)
+        downwind_order_il = np.argsort(x_rotated_il, 0).astype(int)
 
         dist_down_iil = dx_ii[:, :, na] * cos_wd_il[:, na, :] + dy_ii[:, :, na] * sin_wd_il[:, na, :]
         dy_rotated_iil = dy_ii[:, :, na] * cos_wd_il[:, na, :] - dx_ii[:, :, na] * sin_wd_il[:, na, :]

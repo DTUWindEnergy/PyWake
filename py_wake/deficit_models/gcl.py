@@ -123,7 +123,7 @@ def get_dU(x, r, R, CT, TI):
         Wake velocity deficit at a location
     """
 
-    CT = np.maximum(CT, np.finfo(np.float).eps)
+    CT = np.maximum(CT, np.finfo(float).eps)
     Area = np.pi * R * R
     Rw, xx0, c1 = get_Rw(x, R, TI, CT)
     c1s = c1 * c1

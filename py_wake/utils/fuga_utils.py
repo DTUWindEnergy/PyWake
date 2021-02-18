@@ -91,5 +91,5 @@ class FugaUtils():
 
     def load_luts(self, UVLT=['UL', 'UT', 'VL', 'VT'], zlevels=None):
         luts = np.array([[np.fromfile(str(self.path / (self.prefix + '%04d%s.dat' % (j, uvlt))), np.dtype('<f'), -1)
-                          for j in (zlevels or self.zlevels)] for uvlt in UVLT]).astype(np.float)
+                          for j in (zlevels or self.zlevels)] for uvlt in UVLT]).astype(float)
         return luts.reshape((len(UVLT), len(zlevels or self.zlevels), self.ny // 2, self.nx))

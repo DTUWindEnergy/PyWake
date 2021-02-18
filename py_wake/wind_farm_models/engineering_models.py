@@ -175,7 +175,7 @@ class EngineeringWindFarmModel(WindFarmModel):
 
         # add eps to avoid non-differentiable 0
         if 'autograd' in np.__name__:
-            eps = 2 * np.finfo(np.float).eps ** 2
+            eps = 2 * np.finfo(float).eps ** 2
         else:
             eps = 0
         cw_iil = np.sqrt(hcw_iil**2 + dh_iil**2 + eps)
@@ -374,7 +374,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
         dh_nk = []
 
         def ilk2mk(x_ilk):
-            return np.broadcast_to(x_ilk.astype(np.float), (I, L, K)).reshape((I * L, K))
+            return np.broadcast_to(x_ilk.astype(float), (I, L, K)).reshape((I * L, K))
 
         indices = np.arange(I * I * L).reshape((I, I, L))
         TI_mk = ilk2mk(lw.TI_ilk)

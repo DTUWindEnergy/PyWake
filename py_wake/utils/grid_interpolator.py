@@ -119,11 +119,11 @@ class EqDistRegGrid2DInterpolator():
         xp, yp = x, y
         xi = (xp - self.x0) / self.dx
         xif, xi0 = np.modf(xi)
-        xi0 = xi0.astype(np.int)
+        xi0 = xi0.astype(int)
 
         yi = (yp - self.y0) / self.dy
         yif, yi0 = np.modf(yi)
-        yi0 = yi0.astype(np.int)
+        yi0 = yi0.astype(int)
         if mode == 'extrapolate':
             xif[xi0 < self.xi_valid_min] = 0
             xif[xi0 > self.xi_valid_max - 2] = 1

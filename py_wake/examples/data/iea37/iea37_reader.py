@@ -31,7 +31,7 @@ def read_iea37_windturbine(filename):
 
     def ct(wsp):
         wsp = np.asarray(wsp)
-        ct = np.zeros_like(wsp, dtype=np.float)
+        ct = np.zeros_like(wsp, dtype=float)
         ct[(wsp >= wsp_cut_in) & (wsp <= wsp_cut_out)] = constant_ct
         return ct
 

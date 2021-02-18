@@ -179,7 +179,7 @@ def test_dAEP_2wt():
     x, y = iea37_site.initial_position[np.array([0, 2, 5, 8, 14])].T
 
     # plot 2 wt case
-    x, y = np.array([[0, 130 * 4], [0, 0]], dtype=np.float)
+    x, y = np.array([[0, 130 * 4], [0, 0]], dtype=float)
     x_lst = np.array([0., 1.]) * np.arange(1, 600, 10)[:, na]
     kwargs = {'ws': [10], 'wd': [270]}
 

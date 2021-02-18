@@ -10,7 +10,7 @@ from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit
 from py_wake.superposition_models import SquaredSum
 from py_wake.rotor_avg_models import RotorCenter
-
+import xarray as xr
 
 # -----------------------------------------------------
 # Default values
@@ -339,7 +339,7 @@ def plot_single_wake(swc_out, lw=lw):
     '''
     for case in swc_out.keys():
         jj = len(swc_out[case]['xDown'])
-        color = cm.tab10(np.linspace(0, 1, len(swc_out[case]['deficit_models'])))
+        color = cm.tab10(np.linspace(0, 1, len(swc_out[case]['deficit_models'])))  # @UndefinedVariable
 
         fig, ax = plt.subplots(1, jj, sharey=False, figsize=(5 * jj, 5))
         fig.suptitle(case)
@@ -396,7 +396,7 @@ def plotbar_single_wake(swc_out, cLES=cLES, cRANS=cRANS):
     names = []
     subnames = []
     lines = []
-    color = cm.tab10(np.linspace(0, 1, len(swc_out[case]['deficit_models'])))
+    color = cm.tab10(np.linspace(0, 1, len(swc_out[case]['deficit_models'])))  # @UndefinedVariable
     i = 0
     ymax = 0
     for case in swc_out.keys():

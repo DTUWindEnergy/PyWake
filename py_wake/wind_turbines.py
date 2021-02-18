@@ -366,22 +366,22 @@ class WindTurbines():
             root = tree.getroot()
             # Reading data from wtg_file
             name = root.attrib['Description']
-            diameter = np.float(root.attrib['RotorDiameter'])
-            hub_height = np.float(root.find('SuggestedHeights').find('Height').text)
+            diameter = float(root.attrib['RotorDiameter'])
+            hub_height = float(root.find('SuggestedHeights').find('Height').text)
 
             perftab = list(root.iter('PerformanceTable'))[m]
-            density = np.float(perftab.attrib['AirDensity'])
-            ws_cutin = np.float(perftab.find('StartStopStrategy').attrib['LowSpeedCutIn'])
-            ws_cutout = np.float(perftab.find('StartStopStrategy').attrib['HighSpeedCutOut'])
+            density = float(perftab.attrib['AirDensity'])
+            ws_cutin = float(perftab.find('StartStopStrategy').attrib['LowSpeedCutIn'])
+            ws_cutout = float(perftab.find('StartStopStrategy').attrib['HighSpeedCutOut'])
             cut_ins.append(ws_cutin)
             cut_outs.append(ws_cutout)
 
             i_point = 0
             for DataPoint in perftab.iter('DataPoint'):
                 i_point = i_point + 1
-                ws = np.float(DataPoint.attrib['WindSpeed'])
-                Ct = np.float(DataPoint.attrib['ThrustCoEfficient'])
-                power = np.float(DataPoint.attrib['PowerOutput'])
+                ws = float(DataPoint.attrib['WindSpeed'])
+                Ct = float(DataPoint.attrib['ThrustCoEfficient'])
+                power = float(DataPoint.attrib['PowerOutput'])
                 if i_point == 1:
                     dt = np.array([[ws, Ct, power]])
                 else:
@@ -498,7 +498,7 @@ class Interp(object):
 def cube_power(ws_cut_in=3, ws_cut_out=25, ws_rated=12, power_rated=5000):
     def power_func(ws):
         ws = np.asarray(ws)
-        power = np.zeros_like(ws, dtype=np.float)
+        power = np.zeros_like(ws, dtype=float)
         m = (ws >= ws_cut_in) & (ws < ws_rated)
         power[m] = power_rated * ((ws[m] - ws_cut_in) / (ws_rated - ws_cut_in))**3
         power[(ws >= ws_rated) & (ws <= ws_cut_out)] = power_rated
@@ -510,7 +510,7 @@ def dummy_thrust(ws_cut_in=3, ws_cut_out=25, ws_rated=12, ct_rated=8 / 9):
     # temporary thrust curve fix
     def ct_func(ws):
         ws = np.asarray(ws)
-        ct = np.zeros_like(ws, dtype=np.float)
+        ct = np.zeros_like(ws, dtype=float)
         if ct_rated > 0:
             # ct = np.ones_like(ct)*ct_rated
             m = (ws >= ws_cut_in) & (ws < ws_rated)
