@@ -135,7 +135,7 @@ def load_wasp_grd(path, globstr='*.grd', speedup_using_pickle=True):
             yl, yu = _parse_line_floats(f)
             zl, zu = _parse_line_floats(f)
             values = np.array([l.split() for l in f.readlines() if l.strip() != b""],
-                              dtype=np.float)  # around 8 times faster
+                              dtype=float)  # around 8 times faster
 
         xarr = np.linspace(xl, xu, nx)
         yarr = np.linspace(yl, yu, ny)

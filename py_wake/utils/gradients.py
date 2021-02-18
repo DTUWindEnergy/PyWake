@@ -21,7 +21,7 @@ anp.asarray = asarray
 
 
 # replace dsqrt to avoid divide by zero if x=0
-eps = 2 * np.finfo(np.float).eps ** 2
+eps = 2 * np.finfo(float).eps ** 2
 defvjp(anp.sqrt, lambda ans, x: lambda g: g * 0.5 * np.where(x == 0, eps, x)**-0.5)  # @UndefinedVariable
 
 
@@ -57,7 +57,7 @@ def use_autograd_in(modules=["py_wake."]):
 
 def _step_grad(f, argnum, step_func, step):
     def wrap(*args, **kwargs):
-        x = np.atleast_1d(args[argnum]).astype(np.float)
+        x = np.atleast_1d(args[argnum]).astype(float)
         ref = f(*args, **kwargs)
         return np.array([step_func(f(*(args[:argnum] + (x_,) + args[argnum + 1:]), **kwargs), ref, step)
                          for x_ in x + np.diag(np.ones_like(x) * step)]).T

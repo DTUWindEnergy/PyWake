@@ -159,7 +159,7 @@ class LUTInterpolator(object):
         # zp = np.maximum(np.minimum(zp, self.z[-1]), self.z[0])
 
         def i0f(_i):
-            _i0 = np.asarray(_i).astype(np.int)
+            _i0 = np.asarray(_i).astype(int)
             _if = _i - _i0
             return _i0, _if
 
