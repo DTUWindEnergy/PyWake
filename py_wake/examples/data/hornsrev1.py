@@ -1,6 +1,7 @@
 import numpy as np
 from py_wake.site._site import UniformWeibullSite
-from py_wake.wind_turbines import OneTypeWindTurbines
+from py_wake.wind_turbines import WindTurbine
+from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 
 wt_x = [423974, 424042, 424111, 424179, 424247, 424315, 424384, 424452, 424534,
         424602, 424671, 424739, 424807, 424875, 424944, 425012, 425094, 425162,
@@ -76,16 +77,17 @@ ct_curve = np.array([[3.0, 0.0],
                      [25.0, 0.053]])
 
 
-class V80(OneTypeWindTurbines):
-    def __init__(self):
-        OneTypeWindTurbines.__init__(self, 'V80', diameter=80, hub_height=70,
-                                     ct_func=self._ct, power_func=self._power, power_unit='W')
-
-    def _ct(self, u):
-        return np.interp(u, ct_curve[:, 0], ct_curve[:, 1])
-
-    def _power(self, u):
-        return np.interp(u, power_curve[:, 0], power_curve[:, 1])
+class V80(WindTurbine):
+    def __init__(self, method='linear'):
+        """
+        Parameters
+        ----------
+        method : {'linear', 'pchip'}
+            linear(fast) or pchip(smooth and gradient friendly) interpolation
+        """
+        WindTurbine.__init__(self, name='V80', diameter=80, hub_height=70,
+                             powerCtFunction=PowerCtTabular(power_curve[:, 0], power_curve[:, 1], 'w',
+                                                            ct_curve[:, 1], method=method))
 
 
 HornsrevV80 = V80
@@ -107,9 +109,17 @@ def main():
     wt = V80()
     print('Diameter', wt.diameter())
     print('Hub height', wt.hub_height())
-    ws = np.arange(3, 25)
+
     import matplotlib.pyplot as plt
-    plt.plot(ws, wt.power(ws), '.-')
+    ws = np.linspace(3, 20, 100)
+    plt.plot(ws, wt.power(ws) * 1e-3, label='Power')
+    c = plt.plot([], [], label='Ct')[0].get_color()
+    plt.ylabel('Power [kW]')
+    ax = plt.gca().twinx()
+    ax.plot(ws, wt.ct(ws), color=c)
+    ax.set_ylabel('Ct')
+    plt.xlabel('Wind speed [m/s]')
+    plt.gcf().axes[0].legend(loc=1)
     plt.show()
 
 

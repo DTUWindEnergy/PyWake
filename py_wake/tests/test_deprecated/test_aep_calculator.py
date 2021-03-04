@@ -6,6 +6,15 @@ from py_wake.examples.data import hornsrev1
 import numpy as np
 from py_wake.aep_calculator import AEPCalculator
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
+import pytest
+import warnings
+
+
+@pytest.fixture(autouse=True)
+def my_fixture():
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        yield
 
 
 def test_aep_no_wake():
@@ -106,8 +115,8 @@ def test_aep_no_wake_loss_hornsrev():
     site.default_ws = np.arange(3, 25)
 
     aep = AEPCalculator(NOJ(site, wt))
-
-    npt.assert_almost_equal(aep.calculate_AEP_no_wake_loss(x, y).sum() / 80, 8.260757098)
-    cap_factor = aep.calculate_AEP(x, y).sum() / aep.calculate_AEP_no_wake_loss(x, y).sum()
+    aep_nowake = aep.calculate_AEP_no_wake_loss(x, y).sum()
+    npt.assert_almost_equal(aep_nowake / 80, 8.260757098)
+    cap_factor = aep.calculate_AEP(x, y).sum() / aep_nowake
     # print(cap_factor)
     npt.assert_almost_equal(cap_factor, 0.947175839142014)

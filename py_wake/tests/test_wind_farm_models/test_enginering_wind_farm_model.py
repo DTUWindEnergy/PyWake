@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
+from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site, IEA37WindTurbinesDeprecated
 from py_wake import NOJ, Fuga
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
@@ -20,8 +20,16 @@ from py_wake.utils.gradients import autograd, cs, fd, plot_gradients
 from py_wake.deficit_models.fuga import FugaDeficit
 from py_wake.superposition_models import LinearSum
 from py_wake.deficit_models.no_wake import NoWakeDeficit
-from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
+from py_wake.wind_farm_models.wind_farm_model import WindFarmModel, SimulationResult
 from py_wake.wind_turbines import WindTurbines
+from py_wake.wind_turbines.wind_turbines_deprecated import DeprecatedOneTypeWindTurbines, DeprecatedWindTurbines
+from py_wake.tests.check_speed import timeit
+from py_wake.wind_turbines._wind_turbines import WindTurbine
+from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt
+
+from autograd.tracer import trace
+
+
 WindFarmModel.verbose = False
 
 
@@ -108,10 +116,10 @@ def test_huge_flow_map(wake_deficitModel, deflectionModel, superpositionModel):
                                    superpositionModel=superpositionModel, deflectionModel=deflectionModel,
                                    turbulenceModel=STF2005TurbulenceModel())
     n_wt = 2
-    flow_map = wake_model(*site.initial_position[:n_wt].T, wd=[0, 90]).flow_map(HorizontalGrid(resolution=1000))
+    flow_map = wake_model(*site.initial_position[:n_wt].T, wd=[0]).flow_map(HorizontalGrid(resolution=810))
     # check that deficit matrix > 10MB (i.e. it enters the memory saving loop)
     assert (np.prod(flow_map.WS_eff_xylk.shape) * n_wt * 8 / 1024**2) > 10
-    assert flow_map.WS_eff_xylk.shape == (1000, 1000, 2, 1)
+    assert flow_map.WS_eff_xylk.shape == (810, 810, 1, 1)
 
 
 def test_aep():
@@ -174,7 +182,36 @@ def test_dAEP_2wt():
     site = Hornsrev1Site()
     iea37_site = IEA37Site(16)
 
-    wt = IEA37_WindTurbines()
+    wsp_cut_in = 4
+    wsp_cut_out = 25
+    wsp_rated = 9.8
+    power_rated = 3350000
+    constant_ct = 8 / 9
+
+    def ct(wsp):
+        wsp = np.asarray(wsp)
+        ct = np.zeros_like(wsp, dtype=float)
+        ct[(wsp >= wsp_cut_in) & (wsp <= wsp_cut_out)] = constant_ct
+        return ct
+
+    def power(wsp):
+        wsp = np.asarray(wsp)
+        power = np.where((wsp > wsp_cut_in) & (wsp <= wsp_cut_out),
+                         np.minimum(power_rated * ((wsp - wsp_cut_in) / (wsp_rated - wsp_cut_in))**3, power_rated), 0)
+
+        return power
+
+    def dpower(wsp):
+        return np.where((wsp > wsp_cut_in) & (wsp <= wsp_rated),
+                        3 * power_rated * (wsp - wsp_cut_in)**2 / (wsp_rated - wsp_cut_in)**3,
+                        0)
+
+    def dct(wsp):
+        return wsp * 0  # constant ct
+
+    wt = DeprecatedOneTypeWindTurbines(name='test', diameter=130, hub_height=110,
+                                       ct_func=ct, power_func=power, power_unit='w')
+    wt.set_gradient_funcs(dpower, dct)
     wfm = IEA37SimpleBastankhahGaussian(site, wt)
     x, y = iea37_site.initial_position[np.array([0, 2, 5, 8, 14])].T
 
@@ -216,6 +253,7 @@ def test_dAEPdx():
     iea37_site = IEA37Site(16)
 
     wt = IEA37_WindTurbines()
+    wt.enable_autograd()
     wfm = IEA37SimpleBastankhahGaussian(site, wt)
     x, y = iea37_site.initial_position[np.array([0, 2, 5, 8, 14])].T
 
@@ -225,6 +263,43 @@ def test_dAEPdx():
 
     npt.assert_array_almost_equal(dAEPdxy_autograd, dAEPdxy_cs, 15)
     npt.assert_array_almost_equal(dAEPdxy_autograd, dAEPdxy_fd, 6)
+    return
+
+    site = Hornsrev1Site()
+    iea37_site = IEA37Site(16)
+
+    wt = IEA37_WindTurbines()
+    wt_deprecated = IEA37WindTurbinesDeprecated(gradient_functions=True)
+    wfm = IEA37SimpleBastankhahGaussian(site, wt)
+    wfm2 = IEA37SimpleBastankhahGaussian(site, wt_deprecated)
+    x, y = iea37_site.initial_position.T
+    ws = np.broadcast_to(np.arange(3, 26)[na, na, :], (80, 360, 23))
+#     _, t = timeit(wt.power_ct, min_runs=5,
+#                   )(ws)
+#     _, td = timeit(wt_deprecated.power_ct, min_runs=5)(ws, yaw=0)
+#     print(np.mean(t), np.mean(td), 3)
+#     return
+
+#     timeit(wfm, verbose=1)(x, y)
+#     timeit(wfm2, verbose=1)(x, y)
+#     return
+    x, y = iea37_site.initial_position[np.array([0, 2, 5, 8, 14])].T
+
+    args = {'x': x, 'y': y}
+    profile_funcs = [WindTurbine.power_ct, CubePowerSimpleCt._power_ct, CubePowerSimpleCt._power_ct_grad]
+    dAEPdxy_ad, t_ad = timeit(wfm.dAEPdxy(gradient_method=autograd), verbose=True, line_profile=0,
+                              profile_funcs=profile_funcs + [trace])(**args)
+#     dAEPdxy_cs, t_cs = timeit(wfm.dAEPdxy(gradient_method=cs))(**args)
+    dAEPdxy_fd, t_fd = timeit(wfm.dAEPdxy(gradient_method=fd), verbose=True, line_profile=0,
+                              profile_funcs=profile_funcs)(**args)
+#     dAEPdxy_fd, t_fd2 = timeit(wfm2.dAEPdxy(gradient_method=fd), verbose=True, line_profile=0,
+#                                profile_funcs=[DeprecatedWindTurbines._ct_power])(**args)
+    print(t_ad)
+    # print(t_cs)
+    print(t_fd)
+
+    # npt.assert_array_almost_equal(dAEPdxy_ad, dAEPdxy_cs, 15)
+    # npt.assert_array_almost_equal(dAEPdxy_ad, dAEPdxy_fd, 6)
 
 
 @pytest.mark.parametrize('wake_deficitModel,blockage_deficitModel', [(FugaDeficit(), None),

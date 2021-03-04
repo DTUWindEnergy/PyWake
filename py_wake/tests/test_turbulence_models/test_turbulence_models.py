@@ -26,7 +26,9 @@ import pkgutil
 import inspect
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter, EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg
-from py_wake.deficit_models.gcl import GCLDeficit
+from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
+
+WindFarmModel.verbose = False
 
 
 def get_all_turbulence_models():

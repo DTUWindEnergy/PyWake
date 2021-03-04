@@ -8,11 +8,14 @@ import numpy as np
 from autograd.differential_operators import grad, jacobian, elementwise_grad
 import matplotlib.pyplot as plt
 import sys
+from autograd.builtins import SequenceBox
 
 
 def asarray(x, dtype=None, order=None):
-    if isinstance(x, ArrayBox):
+    if isinstance(x, (ArrayBox)):
         return x
+#     if any([isinstance(_x, (ArrayBox, SequenceBox)) for _x in np.atleast_1d(x).flatten()]):
+#         return x
     return np.asarray(x, dtype, order)
 
 
@@ -55,30 +58,37 @@ def use_autograd_in(modules=["py_wake."]):
             d['np'] = prev_np[d["__name__"]]
 
 
-def _step_grad(f, argnum, step_func, step):
+def _step_grad(f, argnum, step_func, step, vector_interdependence):
     def wrap(*args, **kwargs):
         x = np.atleast_1d(args[argnum]).astype(float)
-        ref = f(*args, **kwargs)
-        return np.array([step_func(f(*(args[:argnum] + (x_,) + args[argnum + 1:]), **kwargs), ref, step)
-                         for x_ in x + np.diag(np.ones_like(x) * step)]).T
-    wrap.__name__ = "%s_of_%s_wrt_argnum_%d" % (step_func.__name__, f.__name__, argnum)
+        ref = np.asarray(f(*args, **kwargs))
+        if vector_interdependence:
+            return np.array([step_func(f(*(args[:argnum] + (x_,) + args[argnum + 1:]), **kwargs), ref, step)
+                             for x_ in x + np.diag(np.ones_like(x) * step)]).T
+        else:
+            return step_func(f(*(args[:argnum] + (x + step,) + args[argnum + 1:]), **kwargs), ref, step)
+    fname = getattr(f, '__name__', f'{f.__class__.__name__}.{f.__call__.__name__}')
+    wrap.__name__ = "%s_of_%s_wrt_argnum_%d" % (step_func.__name__, fname, argnum)
     return wrap
 
 
-def fd(f, argnum=0, step=1e-6):
+def fd(f, vector_interdependence=False, argnum=0, step=1e-6):
     def fd_gradient(res, ref, step):
         return (res - ref) / step
-    return _step_grad(f, argnum, fd_gradient, step)
+    return _step_grad(f, argnum, fd_gradient, step, vector_interdependence)
 
 
-def cs(f, argnum=0, step=1e-20):
+def cs(f, vector_interdependence=False, argnum=0, step=1e-20):
     def cs_gradient(res, _, step):
         return np.imag(res) / np.imag(step)
-    return _step_grad(f, argnum, cs_gradient, step * 1j)
+    return _step_grad(f, argnum, cs_gradient, step * 1j, vector_interdependence)
 
 
-def autograd(f, argnum=0):
-    return jacobian(f, argnum)
+def autograd(f, vector_interdependence=False, argnum=0):
+    if vector_interdependence:
+        return jacobian(f, argnum)
+    else:
+        return elementwise_grad(f, argnum)
 
 
 color_dict = {}

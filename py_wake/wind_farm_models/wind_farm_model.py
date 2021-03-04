@@ -18,7 +18,7 @@ class WindFarmModel(ABC):
         self.site = site
         self.windTurbines = windTurbines
 
-    def __call__(self, x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None, verbose=False):
+    def __call__(self, x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None, verbose=False, **kwargs):
         """Run the wind farm simulation
 
         Parameters
@@ -45,19 +45,19 @@ class WindFarmModel(ABC):
         """
         assert len(x) == len(y)
         self.verbose = verbose
-        type, h, _ = self.windTurbines.get_defaults(len(x), type, h)
+        h, _ = self.windTurbines.get_defaults(len(x), type, h)
 
         if len(x) == 0:
             lw = UniformSite([1], 0.1).local_wind(x_i=[], y_i=[], h_i=[], wd=wd, ws=ws)
             z = xr.DataArray(np.zeros((0, len(lw.wd), len(lw.ws))), coords=[('wt', []), ('wd', lw.wd), ('ws', lw.ws)])
-            return SimulationResult(self, lw, [], yaw_ilk, z, z, z, z)
-        res = self.calc_wt_interaction(x_i=x, y_i=y, h_i=h, type_i=type, yaw_ilk=yaw_ilk, wd=wd, ws=ws)
-        WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, localWind = res
+            return SimulationResult(self, lw, [], yaw_ilk, z, z, z, z, kwargs)
+        res = self.calc_wt_interaction(x_i=x, y_i=y, h_i=h, type_i=type, yaw_ilk=yaw_ilk, wd=wd, ws=ws, **kwargs)
+        WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, localWind, power_ct_inputs = res
         return SimulationResult(self, localWind=localWind,
-                                type_i=type, yaw_ilk=yaw_ilk,
+                                type_i=np.zeros(len(x), dtype=int) + type, yaw_ilk=yaw_ilk,
 
                                 WS_eff_ilk=WS_eff_ilk, TI_eff_ilk=TI_eff_ilk,
-                                power_ilk=power_ilk, ct_ilk=ct_ilk)
+                                power_ilk=power_ilk, ct_ilk=ct_ilk, power_ct_inputs=power_ct_inputs)
 
     def aep(self, x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None,  # @ReservedAssignment
             normalize_probabilities=False, with_wake_loss=True):
@@ -72,7 +72,7 @@ class WindFarmModel(ABC):
         >> windFarmModel.aep(x,y,...)
 
         """
-        _, _, power_ilk, _, localWind = self.calc_wt_interaction(
+        _, _, power_ilk, _, localWind, power_ct_inputs = self.calc_wt_interaction(
             x_i=x, y_i=y, h_i=h, type_i=type, yaw_ilk=yaw_ilk, wd=wd, ws=ws)
         P_ilk = localWind.P_ilk
         if normalize_probabilities:
@@ -81,11 +81,11 @@ class WindFarmModel(ABC):
             norm = 1
 
         if with_wake_loss is False:
-            power_ilk = self.windTurbines.power(localWind.WS_ilk, type)
+            power_ilk = self.windTurbines.power(localWind.WS_ilk, **power_ct_inputs)
         return (power_ilk * P_ilk / norm * 24 * 365 * 1e-9).sum()
 
     @abstractmethod
-    def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=None, yaw_ilk=None, wd=None, ws=None):
+    def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=None, yaw_ilk=None, wd=None, ws=None, **kwargs):
         """Calculate effective wind speed, turbulence intensity,
         power and thrust coefficient, and local site parameters
 
@@ -133,13 +133,14 @@ class WindFarmModel(ABC):
 
 class SimulationResult(xr.Dataset):
     """Simulation result returned when calling a WindFarmModel object"""
-    __slots__ = ('windFarmModel', 'localWind')
+    __slots__ = ('windFarmModel', 'localWind', 'power_ct_inputs')
 
     def __init__(self, windFarmModel, localWind, type_i, yaw_ilk,
-                 WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk):
+                 WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, power_ct_inputs):
         self.windFarmModel = windFarmModel
         lw = localWind
         self.localWind = localWind
+        self.power_ct_inputs = power_ct_inputs
         n_wt = len(lw.i)
 
         coords = {k: (k, v, {'Description': d}) for k, v, d in [
@@ -207,9 +208,8 @@ class SimulationResult(xr.Dataset):
             norm = 1
         if with_wake_loss:
             power_ilk = self.Power.ilk()
-
         else:
-            power_ilk = self.windFarmModel.windTurbines.power(self.WS.ilk(self.Power.shape), self.type.values)
+            power_ilk = self.windFarmModel.windTurbines.power(self.WS.ilk(self.Power.shape), **self.power_ct_inputs)
 
         if linear_power_segments:
             s = "The linear_power_segments method "

@@ -9,12 +9,13 @@ from py_wake.wind_farm_models.engineering_models import All2AllIterative
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.superposition_models import LinearSum, WeightedSum
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
+from py_wake.wind_turbines.power_ct_functions import PowerCtFunction
 
 # Two turbines, 0: Nibe-A, 1:Ct=0
 NibeA0 = WindTurbines(names=['Nibe-A'] * 2, diameters=[40] * 2,
                       hub_heights=[50] * 2,
-                      ct_funcs=[lambda x: x * 0 + 8 / 9, lambda x: x * 0],
-                      power_funcs=[lambda ws: ws * 0] * 2, power_unit='w')
+                      powerCtFunctions=[PowerCtFunction(['ws'], lambda ws: (ws * 0, ws * 0 + 8 / 9), 'w'),
+                                        PowerCtFunction(['ws'], lambda ws: (ws * 0, ws * 0), 'w')])
 
 
 def test_NOJ_Nibe_result():

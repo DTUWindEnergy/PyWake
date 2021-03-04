@@ -21,8 +21,10 @@ except ModuleNotFoundError:
         try:
             self.nb = self.load_notebook(self.filename)
         except Exception as e:
-
             raise Exception('Error in ', os.path.relpath(filename)) from e
+
+    def __repr__(self):
+        return "hej"
 
     def load_notebook(self, filename):
         with open(filename, encoding='utf-8') as fid:

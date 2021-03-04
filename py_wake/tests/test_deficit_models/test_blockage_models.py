@@ -14,8 +14,9 @@ from py_wake.deficit_models.vortexdipole import VortexDipole
 from py_wake.deficit_models.rankinehalfbody import RankineHalfBody
 from py_wake.deficit_models.hybridinduction import HybridInduction
 from py_wake.deficit_models.rathmann import Rathmann
+from py_wake.flow_map import XYGrid
 
-debug = True
+debug = False
 
 
 @pytest.fixture(scope='module')
@@ -54,21 +55,25 @@ def test_blockage_map(setup, blockage_model, center_ref, side_ref):
     wm = All2AllIterative(site, windTurbines, wake_deficitModel=NoWakeDeficit(),
                           superpositionModel=LinearSum(), blockage_deficitModel=blockage_model())
 
-    flow_map = wm(x=[0], y=[0], wd=[270], ws=[10]).flow_map()
+    xy = np.linspace(-200, 200, 500)
+    flow_map = wm(x=[0], y=[0], wd=[270], ws=[10]).flow_map(XYGrid(x=xy[::50], y=xy[[190, 250]]))
     X_j, Y_j = flow_map.XY
     WS_eff = flow_map.WS_eff_xylk[:, :, 0, 0]
 
     if debug:
-        plt.contourf(X_j, Y_j, WS_eff)
-        plt.plot(X_j[190, ::50], Y_j[190, ::50], '.-')
-        plt.plot(X_j[250, ::50], Y_j[250, ::50], '.-')
-        print(list(np.round(np.array(WS_eff[190, ::50]), 6)))
-        print(list(np.round(np.array(WS_eff[250, ::50]), 6)))
+        flow_map_full = wm(x=[0], y=[0], wd=[270], ws=[10]).flow_map()
+        X_j_full, Y_j_full = flow_map_full.XY
+        WS_eff_full = flow_map_full.WS_eff_xylk[:, :, 0, 0]
+        plt.contourf(X_j_full, Y_j_full, WS_eff_full)
+        plt.plot(X_j.T, Y_j.T, '.-')
+
+        print(list(np.round(np.array(WS_eff[0]), 6)))
+        print(list(np.round(np.array(WS_eff[1]), 6)))
         plt.title(blockage_model.__name__)
         plt.show()
 
-    npt.assert_array_almost_equal(WS_eff[190, ::50], center_ref)
-    npt.assert_array_almost_equal(WS_eff[250, ::50], side_ref)
+    npt.assert_array_almost_equal(WS_eff[0], center_ref)
+    npt.assert_array_almost_equal(WS_eff[1], side_ref)
 
 
 @pytest.mark.parametrize('blockage_model,center_ref,side_ref', [
@@ -99,21 +104,25 @@ def test_wake_and_blockage(setup, blockage_model, center_ref, side_ref):
     noj_ss = All2AllIterative(site, windTurbines, wake_deficitModel=NOJDeficit(),
                               blockage_deficitModel=blockage_model(), superpositionModel=LinearSum())
 
-    flow_map = noj_ss(x=[0], y=[0], wd=[270], ws=[10]).flow_map()
+    xy = np.linspace(-200, 200, 500)
+    flow_map = noj_ss(x=[0], y=[0], wd=[270], ws=[10]).flow_map(XYGrid(x=xy[::50], y=xy[[190, 250]]))
     X_j, Y_j = flow_map.XY
     WS_eff = flow_map.WS_eff_xylk[:, :, 0, 0]
 
     if debug:
-        plt.contourf(X_j, Y_j, WS_eff)
-        plt.plot(X_j[190, ::50], Y_j[190, ::50], '.-')
-        plt.plot(X_j[250, ::50], Y_j[250, ::50], '.-')
-        print(list(np.round(np.array(WS_eff[190, ::50]), 6)))
-        print(list(np.round(np.array(WS_eff[250, ::50]), 6)))
+        flow_map_full = noj_ss(x=[0], y=[0], wd=[270], ws=[10]).flow_map()
+        X_j_full, Y_j_full = flow_map_full.XY
+        WS_eff_full = flow_map_full.WS_eff_xylk[:, :, 0, 0]
+        plt.contourf(X_j_full, Y_j_full, WS_eff_full)
+        plt.plot(X_j.T, Y_j.T, '.-')
+
+        print(list(np.round(np.array(WS_eff[0]), 6)))
+        print(list(np.round(np.array(WS_eff[1]), 6)))
         plt.title(blockage_model.__name__)
         plt.show()
 
-    npt.assert_array_almost_equal(WS_eff[190, ::50], center_ref)
-    npt.assert_array_almost_equal(WS_eff[250, ::50], side_ref)
+    npt.assert_array_almost_equal(WS_eff[0], center_ref)
+    npt.assert_array_almost_equal(WS_eff[1], side_ref)
 
 
 @pytest.mark.parametrize('blockage_model,blockage_loss', [

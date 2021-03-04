@@ -1,5 +1,6 @@
 import numpy as np
-from py_wake.wind_turbines import OneTypeWindTurbines
+from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
+from py_wake.wind_turbines._wind_turbines import WindTurbine
 power_curve = np.array([[4, 280.2],
                         [5, 799.1],
                         [6, 1532.7],
@@ -48,7 +49,7 @@ ct_curve = np.array([[4, 0.923],
                      ])
 
 
-class DTU10MW(OneTypeWindTurbines):
+class DTU10MW(WindTurbine):
     '''
     Data from:
     Christian Bak, Frederik Zahle, Robert Bitsche, Taeseong Kim, Anders Yde, Lars Christian Henriksen, Anand Natarajan,
@@ -56,21 +57,14 @@ class DTU10MW(OneTypeWindTurbines):
 
     '''
 
-    def __init__(self):
-        OneTypeWindTurbines.__init__(
+    def __init__(self, method='linear'):
+        u, p = power_curve.T
+        WindTurbine.__init__(
             self,
             'DTU10MW',
             diameter=178.3,
             hub_height=119,
-            ct_func=self._ct,
-            power_func=self._power,
-            power_unit='kW')
-
-    def _ct(self, u):
-        return np.interp(u, ct_curve[:, 0], ct_curve[:, 1])
-
-    def _power(self, u):
-        return np.interp(u, power_curve[:, 0], power_curve[:, 1])
+            powerCtFunction=PowerCtTabular(u, p * 1000, 'w', ct_curve[:, 1], method=method))
 
 
 DTU10WM_RWT = DTU10MW
@@ -82,7 +76,11 @@ def main():
     print('Hub height', wt.hub_height())
     ws = np.arange(3, 25)
     import matplotlib.pyplot as plt
-    plt.plot(ws, wt.power(ws), '.-')
+    plt.plot(ws, wt.power(ws), '.-', label='power [W]')
+    c = plt.plot([], label='ct')[0].get_color()
+    plt.legend()
+    ax = plt.twinx()
+    ax.plot(ws, wt.ct(ws), '.-', color=c)
     plt.show()
 
 

@@ -13,7 +13,7 @@ from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
 from py_wake.deficit_models import VortexDipole
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 from py_wake.examples.data.iea37 import iea37_path
-from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
+from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site, IEA37WindTurbinesDeprecated
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windfarm
 from py_wake.flow_map import HorizontalGrid, XYGrid
 from py_wake.superposition_models import SquaredSum, WeightedSum
@@ -219,8 +219,8 @@ def test_wake_radius_not_implemented():
 @pytest.mark.parametrize(
     'deficitModel,aep_ref',
     # test that the result is equal to last run (no evidens that  these number are correct)
-    [(BastankhahGaussianDeficit(), (346412.82243950944,
-                                    [8835.30563, 7877.90062, 11079.66832, 13565.65235, 19469.4846,
+    [(BastankhahGaussianDeficit(), (345846.3355259293,
+                                    [8835.30563, 7877.90062, 11079.66832, 13565.65235, 18902.99769,
                                      24493.53897, 38205.75284, 40045.9948, 22264.97018, 12662.90784,
                                      14650.96535, 31289.90349, 65276.92307, 17341.39229, 12021.3049,
                                      7331.15717])),
@@ -240,6 +240,7 @@ def test_IEA37_ex16_convection(deficitModel, aep_ref):
     site = IEA37Site(16)
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
+
     wf_model = PropagateDownwind(site, windTurbines, wake_deficitModel=deficitModel,
                                  superpositionModel=WeightedSum(), turbulenceModel=GCLTurbulence())
 

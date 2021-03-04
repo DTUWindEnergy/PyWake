@@ -14,7 +14,10 @@ def get_notebooks():
     return get(path) + get(path + "exercises/")
 
 
-@pytest.mark.parametrize("notebook", get_notebooks())
+notebooks = get_notebooks()
+
+
+@pytest.mark.parametrize("notebook", notebooks, ids=[os.path.basename(nb.filename) for nb in notebooks])
 def test_notebooks(notebook):
     import matplotlib.pyplot as plt
 

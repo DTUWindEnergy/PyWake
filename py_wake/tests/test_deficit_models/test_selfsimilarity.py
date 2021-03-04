@@ -11,7 +11,7 @@ from py_wake.superposition_models import LinearSum
 from py_wake.tests import npt
 from py_wake.wind_farm_models.engineering_models import All2AllIterative
 
-debug = True
+debug = False
 
 
 @pytest.fixture(scope='module')

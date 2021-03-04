@@ -73,9 +73,14 @@ class FlowMap(FlowBox):
 
     def power_xylk(self, wt_type=0, with_wake_loss=True):
         if with_wake_loss:
-            power_xylk = self.windFarmModel.windTurbines.power(self.WS_eff_xylk, wt_type)
+            ws = self.WS_eff_xylk
+
         else:
-            power_xylk = self.windFarmModel.windTurbines.power(self.WS_xylk, wt_type)
+            ws = self.WS_xylk
+
+        type = {'type': wt_type} if wt_type != 0 else {}
+
+        power_xylk = self.windFarmModel.windTurbines.power(ws, **type)
         return xr.DataArray(power_xylk[:, :, na], self.coords, dims=['y', 'x', 'h', 'wd', 'ws'])
 
     def aep_xylk(self, wt_type=0, normalize_probabilities=False, with_wake_loss=True):
