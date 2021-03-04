@@ -1,18 +1,30 @@
 import numpy as np
 
-from py_wake.examples.data.iea37.iea37_reader import read_iea37_windturbine
-from py_wake.wind_turbines import OneTypeWindTurbines
+from py_wake.examples.data.iea37.iea37_reader import read_iea37_windturbine, read_iea37_windturbine_deprecated
 from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37.iea37_aepcalc import getTurbLocYAML,\
     getWindRoseYAML, getTurbAtrbtYAML, calcAEP
 from py_wake.site._site import UniformSite
+from py_wake.wind_turbines import WindTurbine
+from py_wake.wind_turbines.wind_turbines_deprecated import DeprecatedOneTypeWindTurbines
 
 
-class IEA37_WindTurbines(OneTypeWindTurbines):
+class IEA37_WindTurbines(WindTurbine):
     def __init__(self, yaml_filename=iea37_path + 'iea37-335mw.yaml'):
-        name, hub_height, diameter, ct_func, power_func, dct, dpower = read_iea37_windturbine(yaml_filename)
-        super().__init__(name, diameter, hub_height, ct_func, power_func, power_unit='W')
-        self.set_gradient_funcs(dpower, dct)
+        name, hub_height, diameter, power_ct_func = read_iea37_windturbine(yaml_filename)
+        super().__init__(name, diameter, hub_height, power_ct_func)
+
+
+class IEA37WindTurbinesDeprecated(DeprecatedOneTypeWindTurbines):
+    def __init__(self, yaml_filename=iea37_path + 'iea37-335mw.yaml', gradient_functions=True):
+        name, hub_height, diameter, power_func, ct_func, dpower_func, dct_func = read_iea37_windturbine_deprecated(
+            yaml_filename)
+        super().__init__(name, diameter, hub_height, ct_func, power_func, 'w')
+        if gradient_functions:
+            self.set_gradient_funcs(dpower_func, dct_func)
+
+
+IEA37WindTurbines = IEA37_WindTurbines
 
 
 class IEA37Site(UniformSite):

@@ -237,7 +237,7 @@ class TerrainFollowingDistance2():
         i_wd_l = np.arange(L)
         na = np.newaxis
         if calc_all or not np.array(self.r_i).any():
-            mask_isl = np.ones_like(dist_down_isl, dtype=np.bool)
+            mask_isl = np.ones_like(dist_down_isl, dtype=bool)
         else:  # pragma: no cover
             r_i = self.r_i
             # Only consider if: r0 + k_star * dist_down < dist_cross-r1 and straight distance > 2*r

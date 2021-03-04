@@ -12,21 +12,29 @@ import xarray as xr
 from py_wake.validation.lillgrund import SWT2p3_93_65
 from py_wake.validation.ecn_wieringermeer import N80
 from py_wake.examples.data.hornsrev1 import HornsrevV80
+from py_wake.wind_turbines.power_ct_functions import PowerCtFunction, PowerCtTabular
+from py_wake.wind_turbines._wind_turbines import WindTurbine
 
 
 class ValidationSite(UniformSite):
+    """Dummy site, used when instantiating the WindFarmModels to validadate.
+    Will be replaced during the validation"""
+
     def __init__(self):
         UniformSite.__init__(self, p_wd=[1], ti=0.075)
 
 
 class ValidationWindTurbines(OneTypeWindTurbines):
+    """Dummy wind turbine, used when instantiating the WindFarmModels to validadate.
+    Will be replaced during the validation"""
+
     def __init__(self):
-        OneTypeWindTurbines.__init__(self, name='ValidationWindTurbines',
-                                     diameter=0,
-                                     hub_height=0,
-                                     ct_func=lambda ws: ws * 0,
-                                     power_func=lambda ws: ws * 0,
-                                     power_unit='w')
+        WindTurbine.__init__(self, name='ValidationWindTurbines',
+                             diameter=0,
+                             hub_height=0,
+                             powerCtFunction=PowerCtFunction(input_keys=['ws'], power_ct_func=None,
+                                                             power_unit='w')
+                             )
 
 
 class ValidationCase():
@@ -89,12 +97,13 @@ class SingleWakeValidationCase(ValidationCase):
                            ti=case_dict['TItot'] / 0.8,
                            ws=case_dict['U0'])
         site.default_wd = np.linspace(-30, 30, 61) % 360
-        windTurbines = OneTypeWindTurbines(name="",
-                                           diameter=case_dict['D'],
-                                           hub_height=case_dict['zH'],
-                                           ct_func=lambda ws, ct=case_dict['CT']: ws * 0 + ct,
-                                           power_func=lambda ws: ws * 0 + 1,
-                                           power_unit='W')
+        windTurbines = WindTurbine(name="",
+                                   diameter=case_dict['D'],
+                                   hub_height=case_dict['zH'],
+                                   powerCtFunction=PowerCtFunction(
+                                       input_keys=['ws'],
+                                       power_ct_func=lambda ws, ct=case_dict['CT']: (ws * 0 + 1, ws * 0 + ct),
+                                       power_unit='w'))
         xD = case_dict['xDown']
         x = xD * case_dict['sDown']
         return SingleWakeValidationCase(name, site, windTurbines, xD, x)
@@ -383,7 +392,7 @@ if __name__ == '__main__':
         "NOJ(k=0.04)",
         PropagateDownwind(site, windTurbines, wake_deficitModel=NOJDeficit(k=0.04)), ':')
 
-#     validation.plot_deficit_profile()
+    validation.plot_deficit_profile()
 #     validation.plot_integrated_deficit()
 #     plt.close('all')
     validation.plot_multiwake_power()

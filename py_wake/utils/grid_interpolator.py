@@ -95,9 +95,10 @@ class GridInterpolator(object):
             if i == xpif.shape[1]:
                 return weights
             else:
-                return np.r_[mul_weight(weights * xpif1[:, i], i + 1), mul_weight(weights * xpif[:, i], i + 1)]
 
-        w = mul_weight(1, 0).reshape(-1, xpif.shape[0])
+                return [mul_weight(weights * xpif1[:, i], i + 1), mul_weight(weights * xpif[:, i], i + 1)]
+
+        w = np.reshape(mul_weight(1, 0), (-1, xpif.shape[0]))
 
         return np.moveaxis((w * v).sum(-2), -1, 0)
 

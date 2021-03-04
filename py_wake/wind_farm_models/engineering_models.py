@@ -149,9 +149,10 @@ class EngineeringWindFarmModel(WindFarmModel):
         deficit, blockage = self._add_blockage(deficit, dw_ijlk, **kwargs)
         return deficit, uc, sigma_sqr, blockage
 
-    def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=0, wd=None, ws=None, yaw_ilk=None):
+    def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=0, wd=None, ws=None, yaw_ilk=None, **kwargs):
         """See WindFarmModel.calc_wt_interaction"""
-        type_i, h_i, D_i = self.windTurbines.get_defaults(len(x_i), type_i, h_i)
+        h_i, D_i = self.windTurbines.get_defaults(len(x_i), type_i, h_i)
+        type_i = np.asarray(type_i)
         wd, ws = self.site.get_defaults(wd, ws)
 
         # Find local wind speed, wind direction, turbulence intensity and probability
@@ -165,27 +166,48 @@ class EngineeringWindFarmModel(WindFarmModel):
         K = lw.WS_ilk.shape[2]
         WS_eff_ilk = lw.WS.ilk((I, L, K)).copy()
         TI_eff_ilk = lw.TI.ilk((I, L, K)).copy()
-        if yaw_ilk is None:
-            yaw_ilk = np.zeros((I, L, K))
-        else:
+        if yaw_ilk is not None:
             yaw_ilk = np.zeros((I, L, K)) + np.deg2rad(yaw_ilk)
 
         if self.wec != 1:
             hcw_iil = hcw_iil / self.wec
 
         # add eps to avoid non-differentiable 0
-        if 'autograd' in np.__name__:
-            eps = 2 * np.finfo(float).eps ** 2
-        else:
-            eps = 0
+        eps = 2 * np.finfo(float).eps ** 2 if 'autograd' in np.__name__ else 0
         cw_iil = np.sqrt(hcw_iil**2 + dh_iil**2 + eps)
+        power_ct_inputs = kwargs
+
+        def add_arg(name, optional):
+            if name in power_ct_inputs:  # custom WindFarmModel.__call__ arguments
+                return
+            elif name in {'yaw', 'type'}:  # fix WindFarmModel.__call__ arguments
+                power_ct_inputs[name] = {'yaw': yaw_ilk, 'type': type_i}[name]
+            elif name in lw:
+                power_ct_inputs[name] = lw[name]
+            elif name in self.site.ds:
+                power_ct_inputs[name] = self.site.interp(self.site.ds[name], lw.coords).values
+            elif optional:
+                power_ct_inputs[name] = None
+            elif name in ['TI_eff']:
+                if self.turbulenceModel:
+                    power_ct_inputs['TI_eff'] = None
+                else:
+                    raise KeyError("Argument, TI_eff, needed to calculate power and ct requires a TurbulenceModel")
+            else:
+                raise KeyError("Argument, %s, required to calculate power and ct not found" % name)
+        for opt, lst in zip([False, True], self.windTurbines.power_ct_inputs):
+            for k in lst:
+                add_arg(k, opt)
+
+        if yaw_ilk is None:
+            yaw_ilk = np.zeros((I, L, K))
 
         kwargs = {'localWind': lw,
                   'WS_eff_ilk': WS_eff_ilk, 'TI_eff_ilk': TI_eff_ilk,
-                  'type_i': type_i, 'h_i': h_i, 'D_i': D_i, 'yaw_ilk': yaw_ilk,
+                  'h_i': h_i, 'D_i': D_i, 'yaw_ilk': yaw_ilk,
                   'dw_iil': dw_iil, 'hcw_iil': hcw_iil, 'cw_iil': cw_iil, 'dh_iil': dh_iil,
-                  'dw_order_indices_dl': dw_order_indices_dl, 'I': I, 'L': L, 'K': K}
-        return self._calc_wt_interaction(**kwargs) + (lw,)
+                  'dw_order_indices_dl': dw_order_indices_dl, 'I': I, 'L': L, 'K': K, **power_ct_inputs}
+        return self._calc_wt_interaction(**kwargs) + (lw, power_ct_inputs)
 
     @abstractmethod
     def _calc_wt_interaction(self, **kwargs):
@@ -302,7 +324,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                     return self.aep(x, y, h, type, wd, ws, yaw_ilk)
             else:
                 return self.aep(x, y, h, type, wd, ws, yaw_ilk)
-        return gradient_method(aep, argnum)
+        return gradient_method(aep, True, argnum)
 
     def dAEPdxy(self, gradient_method, normalize_probabilities=False, with_wake_loss=True, gradient_method_kwargs={}):
 
@@ -315,8 +337,8 @@ class EngineeringWindFarmModel(WindFarmModel):
                 else:
                     return self.aep(x, y, h, type, wd, ws, yaw_ilk,
                                     normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss)
-            return (gradient_method(aep, 0, **gradient_method_kwargs)(x, y, h, type, wd, ws, yaw_ilk),
-                    gradient_method(aep, 1, **gradient_method_kwargs)(x, y, h, type, wd, ws, yaw_ilk))
+            return (gradient_method(aep, True, 0, **gradient_method_kwargs)(x, y, h, type, wd, ws, yaw_ilk),
+                    gradient_method(aep, True, 1, **gradient_method_kwargs)(x, y, h, type, wd, ws, yaw_ilk))
         return wrap
 
 
@@ -356,8 +378,8 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
     def _calc_wt_interaction(self, localWind,
                              WS_eff_ilk, TI_eff_ilk,
-                             type_i, h_i, D_i, yaw_ilk,
-                             dw_iil, hcw_iil, cw_iil, dh_iil, dw_order_indices_dl, I, L, K):
+                             h_i, D_i, yaw_ilk,
+                             dw_iil, hcw_iil, cw_iil, dh_iil, dw_order_indices_dl, I, L, K, **kwargs):
         """
         Additional suffixes:
 
@@ -438,7 +460,18 @@ class PropagateDownwind(EngineeringWindFarmModel):
                 if self.turbulenceModel:
                     TI_eff_mk.append(self.turbulenceModel.calc_effective_TI(TI_mk[m], add_turb_nk[n_uw]))
 
-            ct_lk, power_lk = self.windTurbines._ct_power(WS_eff_lk, type_i[i_wt_l], yaw_ilk[i_wt_l, i_wd_l])
+            # Calculate Power/CT
+            def mask(v):
+                if v is None or isinstance(v, (int, float)) or len(v.shape) == 0:
+                    return v
+                elif len(v.shape) == 1:
+                    return v[i_wt_l]
+                else:
+                    return v[i_wt_l, i_wd_l]
+            _kwargs = {k: mask(v) for k, v in kwargs.items()}
+            if 'TI_eff' in kwargs:
+                _kwargs['TI_eff'] = TI_eff_mk[-1]
+            power_lk, ct_lk, = self.windTurbines.power_ct(WS_eff_lk, **_kwargs)
 
             power_jlk.append(power_lk)
             ct_jlk.append(ct_lk)
@@ -553,13 +586,13 @@ class All2AllIterative(EngineeringWindFarmModel):
 
     def _calc_wt_interaction(self, localWind,
                              WS_eff_ilk, TI_eff_ilk,
-                             type_i, h_i, D_i, yaw_ilk,
-                             dw_iil, hcw_iil, cw_iil, dh_iil, dw_order_indices_dl, I, L, K):
+                             h_i, D_i, yaw_ilk,
+                             dw_iil, hcw_iil, cw_iil, dh_iil, dw_order_indices_dl, I, L, K, **kwargs):
         lw = localWind
         power_ilk = np.zeros((I, L, K))
         WS_eff_ilk_last = WS_eff_ilk.copy()
 
-        ct_ilk = self.windTurbines.ct(lw.WS.ilk((I, L, K)), type_i)
+        ct_ilk = self.windTurbines.ct(lw.WS.ilk((I, L, K)), **kwargs)
         D_src_il = D_i[:, na]
         args = {'WS_ilk': lw.WS.ilk((I, L, K)),
                 'TI_ilk': lw.TI.ilk((I, L, K)),
@@ -575,7 +608,7 @@ class All2AllIterative(EngineeringWindFarmModel):
         # Iterate until convergence
         for j in tqdm(range(I), disable=I <= 1 or not self.verbose, desc="Calculate flow interaction", unit="wt"):
 
-            ct_ilk, power_ilk = self.windTurbines._ct_power(WS_eff_ilk, type_i, yaw_ilk)
+            power_ilk, ct_ilk = self.windTurbines.power_ct(WS_eff_ilk, **kwargs)
             args['ct_ilk'] = ct_ilk
             args['WS_eff_ilk'] = WS_eff_ilk
             if self.deflectionModel:

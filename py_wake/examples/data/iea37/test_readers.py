@@ -1,7 +1,7 @@
 import numpy as np
 from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windrose,\
-    read_iea37_windturbine, read_iea37_windfarm
+    read_iea37_windturbine, read_iea37_windfarm, read_iea37_windturbine_deprecated
 from py_wake.tests import npt
 from py_wake.utils.gradients import cs
 
@@ -14,7 +14,8 @@ def test_read_iea37_windrose():
 
 
 def test_read_iea_windturbine():
-    wt_id, hubheight, diameter, ct, power, dct, dpower = read_iea37_windturbine(iea37_path + 'iea37-335mw.yaml')
+    wt_id, hubheight, diameter, power, ct, dpower, dct = read_iea37_windturbine_deprecated(
+        iea37_path + 'iea37-335mw.yaml')
     assert wt_id == "3.35MW"
     assert hubheight == 110
     assert diameter == 130
