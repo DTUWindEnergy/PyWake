@@ -1,13 +1,13 @@
 from numpy import newaxis as na
 import pytest
-
+import xarray as xr
 import matplotlib.pyplot as plt
 import numpy as np
 from py_wake.examples.data import hornsrev1
 
 from py_wake.tests import npt
 from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt, DensityScale, \
-    PowerCtTabular, PowerCtFunction, PowerCtFunctionList, PowerCtNDTabular
+    PowerCtTabular, PowerCtFunction, PowerCtFunctionList, PowerCtNDTabular, PowerCtXr
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80
 from py_wake.wind_turbines import WindTurbine, WindTurbines, power_ct_functions, wind_turbines_deprecated
 from py_wake.deficit_models.noj import NOJ
@@ -171,6 +171,47 @@ def test_2d_tabular():
     ct = sim_res.CT.values
 
     npt.assert_array_almost_equal_nulp(p, np.interp(u, u_p, p_c * 1.5))
+    npt.assert_array_almost_equal_nulp(ct, np.interp(u, u_p, ct_c))
+
+    boost_16 = (np.arange(16) > 7) * .1
+    boost_16_360 = np.broadcast_to(boost_16[:, na], (16, 360))
+    boost_16_360_23 = np.broadcast_to(boost_16[:, na, na], (16, 360, 23))
+
+    ref_p = np.array(np.broadcast_to(hornsrev1.power_curve[:, 1][na, na], (16, 360, 23)))
+    ref_p[8:] *= 1.1
+
+    wfm = get_wfm(curve)
+    for b in [boost_16, boost_16_360, boost_16_360_23]:
+        sim_res = wfm(np.arange(16) * 1e3, [0] * 16, wd=np.arange(360) % 5, boost=b)  # no wake effects
+        p = sim_res.Power.values
+        npt.assert_array_almost_equal(p, ref_p)
+
+
+def test_PowerCtXr():
+    u_p, p_c, ct_c = v80_upct.copy()
+
+    ds = xr.Dataset(
+        data_vars={'power': (['ws', 'boost'], np.array([p_c, p_c * 2]).T),
+                   'ct': (['ws', 'boost'], np.array([ct_c, ct_c]).T)},
+        coords={'boost': [0, 1], 'ws': u_p, }).transpose('boost', 'ws')
+    curve = PowerCtXr(ds, 'w')
+    u = np.linspace(3, 25, 10)
+    wfm = get_wfm(curve)
+    ri, oi = wfm.windTurbines.power_ct_inputs
+    npt.assert_array_equal(ri, ['boost'])
+    npt.assert_array_equal(oi, ['Air_density', 'yaw'])
+
+    sim_res = wfm([0], [0], wd=0, ws=u, boost=0)
+    p = sim_res.Power.values
+    ct = sim_res.CT.values
+    npt.assert_array_almost_equal_nulp(p, np.interp(u, u_p, p_c))
+    npt.assert_array_almost_equal_nulp(ct, np.interp(u, u_p, ct_c))
+
+    sim_res = wfm([0], [0], wd=0, ws=u, boost=.5)
+    p = sim_res.Power.values
+    ct = sim_res.CT.values
+
+    npt.assert_array_almost_equal_nulp(p[0, 0], np.interp(u, u_p, p_c * 1.5))
     npt.assert_array_almost_equal_nulp(ct, np.interp(u, u_p, ct_c))
 
     boost_16 = (np.arange(16) > 7) * .1

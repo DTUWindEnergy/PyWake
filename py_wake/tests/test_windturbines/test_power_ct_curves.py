@@ -2,10 +2,11 @@ from numpy import newaxis as na
 import pytest
 import matplotlib.pyplot as plt
 import numpy as np
+import xarray as xr
 from py_wake.examples.data import hornsrev1
 from py_wake.tests import npt
 from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt, PowerCtNDTabular, DensityScale, \
-    PowerCtTabular, PowerCtFunction, PowerCtFunctionList
+    PowerCtTabular, PowerCtFunction, PowerCtFunctionList, PowerCtXr
 
 
 @pytest.mark.parametrize('method,unit,p_scale,p_ref,ct_ref', [
@@ -173,9 +174,13 @@ def get_continuous_curve(key, optional):
     tab_powerct_curve = PowerCtTabular(ws=u_p, power=p, power_unit='w', ct=ct)
 
     def _power_ct(ws, **kwargs):
-        v = kwargs.pop(key)
-        if optional and v is None:
-            v = 1
+        try:
+            v = kwargs.pop(key)
+        except KeyError:
+            if optional:
+                v = 1
+            else:
+                raise
         return (np.asarray(tab_powerct_curve(ws)).T * np.array([v, np.ones_like(v)]).T).T
     oi = [key] if optional else []
     return PowerCtFunction(['ws', key], _power_ct, 'w', optional_inputs=oi)
@@ -185,7 +190,7 @@ def test_continuous():
     curve = get_continuous_curve('boost', True)
 
     u = np.arange(0, 30, .1)
-    p0, ct0 = curve(u, boost=None)
+    p0, ct0 = curve(u)
     p1, ct1 = curve(u, boost=1.1)
     p2, ct2 = curve(u, boost=1.1, Air_density=1.3)
 
@@ -207,6 +212,17 @@ def test_continuous():
     for b in [boost_16, boost_16_360, boost_16_360_23]:
         p, ct = curve(u, boost=b)
         npt.assert_array_almost_equal(p, ref_p)
+
+
+def test_PowerCtXr():
+    u_p, p_c = np.asarray(hornsrev1.power_curve).T.copy()
+    ct_c = hornsrev1.ct_curve[:, 1]
+    ds = xr.Dataset(
+        data_vars={'power': (['ws', 'boost'], np.array([p_c, p_c * 1.1]).T),
+                   'ct': (['ws', 'boost'], np.array([ct_c, ct_c * 1.1]).T)},
+        coords={'boost': [0, 10], 'ws': u_p})
+    curve = PowerCtXr(ds, 'w')
+    npt.assert_array_almost_equal(curve(u_p, boost=0), curve(u_p, boost=10) / 1.1)
 
 
 def test_unused_input():
