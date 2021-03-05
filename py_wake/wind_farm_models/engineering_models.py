@@ -187,7 +187,7 @@ class EngineeringWindFarmModel(WindFarmModel):
             elif name in self.site.ds:
                 power_ct_inputs[name] = self.site.interp(self.site.ds[name], lw.coords).values
             elif optional:
-                power_ct_inputs[name] = None
+                pass
             elif name in ['TI_eff']:
                 if self.turbulenceModel:
                     power_ct_inputs['TI_eff'] = None
@@ -462,9 +462,10 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
             # Calculate Power/CT
             def mask(v):
-                if v is None or isinstance(v, (int, float)) or len(v.shape) == 0:
+                if v is None or isinstance(v, (int, float)) or len(np.asarray(v).shape) == 0:
                     return v
-                elif len(v.shape) == 1:
+                v = np.asarray(v)
+                if len(v.shape) == 1:
                     return v[i_wt_l]
                 else:
                     return v[i_wt_l, i_wd_l]

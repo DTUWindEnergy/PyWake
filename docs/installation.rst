@@ -30,10 +30,12 @@ Install PyWake (Developer)
 
 We highly recommend developers install PyWake into its own environment. (See
 instructions above.) The commands to clone and install PyWake with developer
-options into the current active environment in an Anaconda Prommpt are as
-follows::
+options including dependencies required to run the tests into the current active 
+environment in an Anaconda Prommpt are as follows::
 
    git clone https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake.git
    cd PyWake
-   pip install -e .
+   pip install -e .[test]
+   
+
 

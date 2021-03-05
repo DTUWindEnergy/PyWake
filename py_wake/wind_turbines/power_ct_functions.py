@@ -341,8 +341,6 @@ class PowerCtFunctionList(PowerCtFunction):
     def _power_ct(self, ws, **kwargs):
         try:
             idx = kwargs.pop(self.key)
-            if idx is None:
-                raise KeyError()
         except KeyError:
             if self.default_value is None:
                 raise KeyError(f"Argument, {self.key}, required to calculate power and ct not found")
@@ -397,6 +395,33 @@ class PowerCtNDTabular(PowerCtFunction):
         kwargs['ws'] = ws
         args = np.moveaxis([self.fix_shape(kwargs.pop(k), ws) for k in self.input_keys], 0, -1)
         return np.moveaxis(self.interp(args), -1, 0)
+
+
+class PowerCtXr(PowerCtNDTabular):
+    """Multi dimensional power/ct tabular taking xarray dataset as input"""
+
+    def __init__(self, ds, power_unit, method='linear', additional_models=default_additional_models):
+        """
+        Parameters
+        ----------
+        ds : xarray dataset
+            Must contain data variables power and ct as well as the coordinate ws
+        power_unit : {'W','kW','MW','GW'}
+            unit of power values
+        additional_models : list, optional
+            list of additional models.
+        """
+        assert method == 'linear'
+        assert 'power' in ds
+        assert 'ct' in ds
+        assert 'ws' in ds.dims
+        power_arr, ct_arr = ds.to_array()
+
+        if list(power_arr.dims).index('ws') > 0:
+            power_arr, ct_arr = ds.transpose(*(['ws'] + [k for k in power_arr.dims if k != 'ws'])).to_array()
+
+        PowerCtNDTabular.__init__(self, power_arr.dims, [power_arr[k] for k in power_arr.dims], power_arr, power_unit,
+                                  ct_arr, additional_models=additional_models)
 
 
 class CubePowerSimpleCt(PowerCtFunction):
