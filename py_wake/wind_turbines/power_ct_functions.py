@@ -8,6 +8,7 @@ from py_wake.utils.gradients import fd
 from scipy.interpolate.fitpack2 import UnivariateSpline
 from autograd.numpy.numpy_boxes import ArrayBox
 from autograd.builtins import SequenceBox
+from py_wake.utils.generic_power_ct_curves import standard_power_ct_curve
 
 
 class PowerCtModel():
@@ -502,3 +503,61 @@ class CubePowerSimpleCt(PowerCtFunction):
                            self.dct_rated2cutout(ws),
                            0)  # constant ct
         return np.asarray([dp, dct])
+
+
+class PowerCtGeneric(PowerCtTabular):
+    def __init__(self, power_norm, diameter, turbulence_intensity=.1,
+                 rho=1.225, max_cp=.49, constant_ct=.8,
+                 gear_loss_const=.01, gear_loss_var=.014, generator_loss=0.03, converter_loss=.03,
+                 wsp_lst=np.arange(.1, 25, .1), ws_cutin=None,
+                 ws_cutout=None, power_idle=0, ct_idle=0, method='linear', additional_models=default_additional_models):
+        """Generate generic standard power curve based on max_cp, rated power and losses.
+        Ct is computed from the basic 1d momentum theory
+
+        Parameters
+        ----------
+        power_norm : int or float
+            Nominal power [kW]
+        diameter : int or float
+            Rotor diameter [m]
+        turbulence_intensity : float
+            Turbulence intensity [%]
+        rho : float optional
+            Density of air [kg/m^3], defualt is 1.225
+        max_cp : float
+            Maximum power coefficient
+        constant_ct : float, optional
+            Ct value in constant-ct region
+        gear_loss_const : float
+            Constant gear loss [%]
+        gear_loss_var : float
+            Variable gear loss [%]
+        generator_loss : float
+            Generator loss [%]
+        converter_loss : float
+            converter loss [%]
+        ws_cutin : number or None, optional
+            if number, then the range [0,ws_cutin[ will be set to power_idle and ct_idle
+        ws_cutout : number or None, optional
+            if number, then the range ]ws_cutout,100] will be set to power_idle and ct_idle
+        power_idle : number, optional
+            see ws_cutin and ws_cutout
+        ct_idle : number, optional
+            see ws_cutin and ws_cutout
+        method : {'linear', 'phip','spline}
+            Interpolation method:\n
+            - linear: fast, discontinous gradients\n
+            - pchip: smooth\n
+            - spline: smooth, closer to linear, small overshoots in transition to/from constant plateaus)
+        additional_models : list, optional
+            list of additional models.
+        """
+
+        u, p, ct = standard_power_ct_curve(power_norm, diameter, turbulence_intensity, rho, max_cp, constant_ct,
+                                           gear_loss_const, gear_loss_var, generator_loss, converter_loss, wsp_lst)
+
+        if ws_cutin is not None:
+            ct[u < ws_cutin] = ct_idle
+        PowerCtTabular.__init__(self, u, p * 1000, 'w', ct, ws_cutin=ws_cutin, ws_cutout=ws_cutout,
+                                power_idle=power_idle, ct_idle=ct_idle, method=method,
+                                additional_models=additional_models)
