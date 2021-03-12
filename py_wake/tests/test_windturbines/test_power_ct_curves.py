@@ -3,10 +3,13 @@ import pytest
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
-from py_wake.examples.data import hornsrev1
+from py_wake.examples.data import hornsrev1, wtg_path
 from py_wake.tests import npt
 from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt, PowerCtNDTabular, DensityScale, \
-    PowerCtTabular, PowerCtFunction, PowerCtFunctionList, PowerCtXr
+    PowerCtTabular, PowerCtFunction, PowerCtFunctionList, PowerCtXr, PowerCtGeneric
+from py_wake.examples.data.hornsrev1 import V80
+from py_wake.wind_turbines._wind_turbines import WindTurbine
+from py_wake.examples.data.dtu10mw import DTU10MW
 
 
 @pytest.mark.parametrize('method,unit,p_scale,p_ref,ct_ref', [
@@ -166,6 +169,70 @@ def test_FunctionalPowerCtCurve():
                                                   5000000.0, 5000000.0, 5000000.0, 0.0]) * 1.3 / 1.225, 3)
     npt.assert_array_almost_equal(ct[s], np.array([0.03, 0.889, 0.889, 0.889, 0.824, 0.489,
                                                    0.245, 0.092, 0.031, 0.03]) * 1.3 / 1.225, 3)
+
+
+def test_PowerCtGeneric():
+    for ref, ti, p_tol, ct_tol in [(V80(), .1, 0.03, .16),
+                                   (WindTurbine.from_WAsP_wtg(wtg_path + "Vestas V112-3.0 MW.wtg"), .05, 0.035, .07),
+                                   (DTU10MW(), .05, 0.06, .13)]:
+        power_norm = ref.power(15)
+        curve = PowerCtGeneric(
+            power_norm=power_norm / 1000,
+            diameter=ref.diameter(),
+            turbulence_intensity=ti,
+            ws_cutin=None,
+            max_cp=.49,
+            constant_ct=.8)
+
+        if 0:
+            u = np.arange(0, 30, .1)
+            p, ct = curve(u)
+            plt.plot(u, p / 1e6, label='Generic')
+
+            plt.plot(u, ref.power(u) / 1e6, label=ref.name())
+
+            plt.ylabel('Power [MW]')
+            plt.legend()
+            ax = plt.twinx()
+            ax.plot(u, ct, '--')
+            ax.plot(u, ref.ct(u), '--')
+            plt.ylabel('Ct')
+            plt.show()
+
+        u = np.arange(5, 25)
+        p, ct = curve(u)
+        p_ref, ct_ref = ref.power_ct(u)
+        # print(np.abs(p_ref - p).max() / power_norm)
+        npt.assert_allclose(p, p_ref, atol=power_norm * p_tol)
+        # print(np.abs(ct_ref - ct).max())
+        npt.assert_allclose(ct, ct_ref, atol=ct_tol)
+
+
+def test_PowerCtGeneric2():
+    ref = V80()
+    power_norm = ref.power(15)
+    curve = PowerCtGeneric(
+        power_norm=power_norm / 1000,
+        diameter=ref.diameter(),
+        turbulence_intensity=0,
+        ws_cutin=3,
+        max_cp=.49,
+        constant_ct=.8)
+
+    if 0:
+        u = np.arange(0, 30, .1)
+        p, ct = curve(u)
+        plt.plot(u, p / 1e6, label='Generic')
+
+        plt.plot(u, ref.power(u) / 1e6, label=ref.name())
+
+        plt.ylabel('Power [MW]')
+        plt.legend()
+        ax = plt.twinx()
+        ax.plot(u, ct, '--')
+        ax.plot(u, ref.ct(u), '--')
+        plt.ylabel('Ct')
+        plt.show()
 
 
 def get_continuous_curve(key, optional):
