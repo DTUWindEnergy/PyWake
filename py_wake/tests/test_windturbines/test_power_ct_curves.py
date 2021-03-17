@@ -6,7 +6,7 @@ import xarray as xr
 from py_wake.examples.data import hornsrev1, wtg_path
 from py_wake.tests import npt
 from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt, PowerCtNDTabular, DensityScale, \
-    PowerCtTabular, PowerCtFunction, PowerCtFunctionList, PowerCtXr, PowerCtGeneric
+    PowerCtTabular, PowerCtFunction, PowerCtFunctionList, PowerCtXr
 from py_wake.examples.data.hornsrev1 import V80
 from py_wake.wind_turbines._wind_turbines import WindTurbine
 from py_wake.examples.data.dtu10mw import DTU10MW
@@ -130,6 +130,14 @@ def test_2d_tabular():
     npt.assert_array_almost_equal_nulp(p, np.interp(u, u_p, p_c))
     npt.assert_array_almost_equal_nulp(ct, np.interp(u, u_p, ct_c))
 
+    # check out of bounds
+    with pytest.raises(ValueError, match='Input, boost, with value, 2.0 outside range 0-1'):
+        curve(ws=u, boost=2)
+
+    # no default value > KeyError
+    with pytest.raises(KeyError, match="boost"):
+        curve(ws=u)
+
     p, ct = curve(ws=u, boost=.5)
     npt.assert_array_almost_equal_nulp(p, np.interp(u, u_p, p_c * 1.5))
     npt.assert_array_almost_equal_nulp(ct, np.interp(u, u_p, ct_c))
@@ -146,6 +154,20 @@ def test_2d_tabular():
     for b in [boost_16, boost_16_360, boost_16_360_23]:
         p, ct = curve(u, boost=b)
         npt.assert_array_almost_equal(p, ref_p)
+
+
+def test_2d_tabular_default_value():
+    u_p, p_c = np.asarray(hornsrev1.power_curve).T.copy()
+    ct_c = hornsrev1.ct_curve[:, 1]
+    curve = PowerCtNDTabular(['ws', 'boost'], [u_p, [0, 1]],
+                             np.array([p_c, 2 * p_c]).T, 'w',
+                             np.array([ct_c, ct_c]).T,
+                             {'boost': .1})
+
+    u = np.linspace(3, 25, 10)
+
+    # check default value
+    npt.assert_array_equal(curve(ws=u, boost=.1), curve(ws=u))
 
 
 def test_FunctionalPowerCtCurve():
@@ -169,70 +191,6 @@ def test_FunctionalPowerCtCurve():
                                                   5000000.0, 5000000.0, 5000000.0, 0.0]) * 1.3 / 1.225, 3)
     npt.assert_array_almost_equal(ct[s], np.array([0.03, 0.889, 0.889, 0.889, 0.824, 0.489,
                                                    0.245, 0.092, 0.031, 0.03]) * 1.3 / 1.225, 3)
-
-
-def test_PowerCtGeneric():
-    for ref, ti, p_tol, ct_tol in [(V80(), .1, 0.03, .16),
-                                   (WindTurbine.from_WAsP_wtg(wtg_path + "Vestas V112-3.0 MW.wtg"), .05, 0.035, .07),
-                                   (DTU10MW(), .05, 0.06, .13)]:
-        power_norm = ref.power(15)
-        curve = PowerCtGeneric(
-            power_norm=power_norm / 1000,
-            diameter=ref.diameter(),
-            turbulence_intensity=ti,
-            ws_cutin=None,
-            max_cp=.49,
-            constant_ct=.8)
-
-        if 0:
-            u = np.arange(0, 30, .1)
-            p, ct = curve(u)
-            plt.plot(u, p / 1e6, label='Generic')
-
-            plt.plot(u, ref.power(u) / 1e6, label=ref.name())
-
-            plt.ylabel('Power [MW]')
-            plt.legend()
-            ax = plt.twinx()
-            ax.plot(u, ct, '--')
-            ax.plot(u, ref.ct(u), '--')
-            plt.ylabel('Ct')
-            plt.show()
-
-        u = np.arange(5, 25)
-        p, ct = curve(u)
-        p_ref, ct_ref = ref.power_ct(u)
-        # print(np.abs(p_ref - p).max() / power_norm)
-        npt.assert_allclose(p, p_ref, atol=power_norm * p_tol)
-        # print(np.abs(ct_ref - ct).max())
-        npt.assert_allclose(ct, ct_ref, atol=ct_tol)
-
-
-def test_PowerCtGeneric2():
-    ref = V80()
-    power_norm = ref.power(15)
-    curve = PowerCtGeneric(
-        power_norm=power_norm / 1000,
-        diameter=ref.diameter(),
-        turbulence_intensity=0,
-        ws_cutin=3,
-        max_cp=.49,
-        constant_ct=.8)
-
-    if 0:
-        u = np.arange(0, 30, .1)
-        p, ct = curve(u)
-        plt.plot(u, p / 1e6, label='Generic')
-
-        plt.plot(u, ref.power(u) / 1e6, label=ref.name())
-
-        plt.ylabel('Power [MW]')
-        plt.legend()
-        ax = plt.twinx()
-        ax.plot(u, ct, '--')
-        ax.plot(u, ref.ct(u), '--')
-        plt.ylabel('Ct')
-        plt.show()
 
 
 def get_continuous_curve(key, optional):

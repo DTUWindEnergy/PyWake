@@ -1,14 +1,13 @@
 import numpy as np
 from numpy import newaxis as na
-from scipy.optimize import optimize
 from scipy.optimize.zeros import newton
+import matplotlib.pyplot as plt
 
 
 def standard_power_ct_curve(power_norm, diameter, turbulence_intensity=.1,
-
                             rho=1.225, max_cp=.49, constant_ct=.8,
                             gear_loss_const=.01, gear_loss_var=.014, generator_loss=0.03, converter_loss=.03,
-                            wsp_lst=np.arange(3, 25, .1)):
+                            wsp_lst=np.arange(0.1, 25, .1)):
     """Generate standard power curve, extracted from WETB (original extracted from excel sheet made by Kenneth Thomsen)
 
     Parameters
@@ -54,6 +53,8 @@ def standard_power_ct_curve(power_norm, diameter, turbulence_intensity=.1,
     if turbulence_intensity > 0:
         sigma = sigma_lst[:, na]
         ndist = 1 / np.sqrt(2 * np.pi * sigma ** 2) * np.exp(-(wsp_lst - wsp_lst[:, na]) ** 2 / (2 * sigma ** 2))
+#         for i in range(len(wsp_lst)):
+#             ndist[i, i * 2 + 1:] = 0
         power_lst = (ndist * p_raw).sum(1) / ndist.sum(1)
     else:
         power_lst = p_raw
@@ -62,7 +63,6 @@ def standard_power_ct_curve(power_norm, diameter, turbulence_intensity=.1,
     p_gear = p_gen / (1 - generator_loss)
     p_aero = (p_gear + gear_loss_const * power_norm) / (1 - gear_loss_var)
     cp = p_aero * 1000 / (.5 * rho * area * wsp_lst ** 3)
-    constant_ct_idx = np.where(np.abs(np.diff(cp)) < 1e-4)[0][0]
     cp = np.minimum(cp, 16 / 27)
 
     def cp2ct(cp):
@@ -70,6 +70,11 @@ def standard_power_ct_curve(power_norm, diameter, turbulence_intensity=.1,
         return 4 * a * (1 - a)
 
     ct_lst = cp2ct(cp)
+
+    ct_below_lim = np.where(ct_lst < 8 / 9 - 1e-6)[0][0]
+    constant_ct_idx = ct_below_lim + np.argmin(np.abs(np.diff(ct_lst[ct_below_lim:])))
+    if ct_lst[constant_ct_idx] < cp2ct([max_cp]):
+        constant_ct_idx = 0
     f = constant_ct / ct_lst[constant_ct_idx]
     ct_lst = np.minimum(8 / 9, ct_lst * f)
     return wsp_lst, power_lst, ct_lst
@@ -80,10 +85,13 @@ def main():
 
         import matplotlib.pyplot as plt
         u = np.linspace(0., 30, 500)
-        u, p, ct = standard_power_ct_curve(10000, 178.3, 0.1)
-        plt.plot(u, p)
-        ax = plt.twinx()
-        ax.plot(u, ct)
+        ax1 = plt.gca()
+        ax2 = plt.twinx()
+        for ti in [0, .1, .2, .25, .3, .5]:
+            u, p, ct = standard_power_ct_curve(10000, 178.3, ti)
+            ax1.plot(u, p, label='TI=%s' % ti)
+            ax2.plot(u, ct, '--')
+        ax1.legend(loc='center right')
         plt.show()
 
 
