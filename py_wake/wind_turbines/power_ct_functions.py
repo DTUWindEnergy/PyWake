@@ -394,7 +394,8 @@ class PowerCtNDTabular(PowerCtFunction):
         """
         self.default_value_dict = default_value_dict
         self.interp = RegularGridInterpolator(value_lst, np.moveaxis([power_arr, ct_arr], 0, - 1))
-        PowerCtFunction.__init__(self, input_keys, self._power_ct, power_unit, [], additional_models)
+        PowerCtFunction.__init__(self, input_keys, self._power_ct, power_unit,
+                                 default_value_dict.keys(), additional_models)
 
     def _power_ct(self, ws, **kwargs):
         kwargs = {**self.default_value_dict, 'ws': ws, **kwargs}
