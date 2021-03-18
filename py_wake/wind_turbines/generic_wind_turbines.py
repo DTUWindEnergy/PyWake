@@ -8,7 +8,7 @@ class GenericWindTurbine(WindTurbine):
     def __init__(self, name, diameter, hub_height, power_norm, turbulence_intensity=.1,
                  air_density=1.225, max_cp=.49, constant_ct=.8,
                  gear_loss_const=.01, gear_loss_var=.014, generator_loss=0.03, converter_loss=.03,
-                 wsp_lst=np.arange(.1, 30, .1), ws_cutin=None,
+                 ws_lst=np.arange(.1, 30, .1), ws_cutin=None,
                  ws_cutout=None, power_idle=0, ct_idle=0, method='linear',
                  additional_models=[SimpleYawModel()]):
         """Wind turbine with generic standard power curve based on max_cp, rated power and losses.
@@ -40,6 +40,8 @@ class GenericWindTurbine(WindTurbine):
             Generator loss [%]
         converter_loss : float
             converter loss [%]
+        ws_lst : array_like
+            List of wind speeds. The power/ct tabular will be calculated for these wind speeds
         ws_cutin : number or None, optional
             if number, then the range [0,ws_cutin[ will be set to power_idle and ct_idle
         ws_cutout : number or None, optional
@@ -57,7 +59,7 @@ class GenericWindTurbine(WindTurbine):
             list of additional models.
         """
         u, p, ct = standard_power_ct_curve(power_norm, diameter, turbulence_intensity, air_density, max_cp, constant_ct,
-                                           gear_loss_const, gear_loss_var, generator_loss, converter_loss, wsp_lst)
+                                           gear_loss_const, gear_loss_var, generator_loss, converter_loss, ws_lst)
         if ws_cutin is not None:
             u, p, ct = [v[u >= ws_cutin] for v in [u, p, ct]]
         if ws_cutout is not None:
@@ -125,6 +127,7 @@ class GenericTIRhoWindTurbine(WindTurbine):
             input_keys=['ws', 'TI_eff', 'Air_density'],
             value_lst=[wsp_lst, TI_eff_lst, Air_density_lst],
             power_arr=p * 1000, power_unit='w', ct_arr=ct,
-            default_value_dict={'TI_eff': default_TI_eff, 'Air_density': default_Air_density},
+            default_value_dict={k: v for k, v in [('TI_eff', default_TI_eff), ('Air_density', default_Air_density)]
+                                if v is not None},
             additional_models=additional_models)
         WindTurbine.__init__(self, name, diameter, hub_height, powerCtFunction)
