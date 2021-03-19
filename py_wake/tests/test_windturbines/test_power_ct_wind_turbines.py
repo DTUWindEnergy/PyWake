@@ -191,8 +191,8 @@ def test_PowerCtXr():
     u_p, p_c, ct_c = v80_upct.copy()
 
     ds = xr.Dataset(
-        data_vars={'power': (['ws', 'boost'], np.array([p_c, p_c * 2]).T),
-                   'ct': (['ws', 'boost'], np.array([ct_c, ct_c]).T)},
+        data_vars={'ct': (['ws', 'boost'], np.array([ct_c, ct_c]).T),
+                   'power': (['ws', 'boost'], np.array([p_c, p_c * 2]).T)},
         coords={'boost': [0, 1], 'ws': u_p, }).transpose('boost', 'ws')
     curve = PowerCtXr(ds, 'w')
     u = np.linspace(3, 25, 10)

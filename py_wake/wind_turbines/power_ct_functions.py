@@ -426,6 +426,7 @@ class PowerCtXr(PowerCtNDTabular):
         assert 'power' in ds
         assert 'ct' in ds
         assert 'ws' in ds.dims
+        ds = ds[['power', 'ct']]
         power_arr, ct_arr = ds.to_array()
 
         if list(power_arr.dims).index('ws') > 0:
