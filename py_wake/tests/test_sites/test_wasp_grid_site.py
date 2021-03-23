@@ -135,9 +135,9 @@ def test_wasp_resources_grid_point(site):
                                           ws=wt_u, ct=wt_ct, power=wt_p, power_unit='kw')
 
     lw = site.local_wind(x, y, 30, wd=range(0, 360, 30))
-    A_lst, k_lst, f_lst, spd_lst, orog_trn_lst, flow_inc_lst, tke_lst = [
+    A_lst, k_lst, f_lst, spd_lst, orog_trn_lst, flow_inc_lst, ti15ms_lst = [
         site.interp(site.ds[n], lw.coords).sel(i=0).values
-        for n in ['Weibull_A', 'Weibull_k', 'Sector_frequency', 'Speedup', 'Turning', 'flow_inc', 'tke']]
+        for n in ['Weibull_A', 'Weibull_k', 'Sector_frequency', 'Speedup', 'Turning', 'flow_inc', 'ti15ms']]
     pdf_lst = [lambda x, A=A, k=k: k / A * (x / A)**(k - 1) * np.exp(-(x / A)**k) * (x[1] - x[0])
                for A, k in zip(A_lst, k_lst)]
 #     cdf_lst = [lambda x, A=A, k=k: 1 - np.exp(-(x / A) ** k) for A, k in zip(A_lst, k_lst)]
@@ -151,7 +151,7 @@ def test_wasp_resources_grid_point(site):
     npt.assert_array_almost_equal(spd_lst, wasp_spd)
     npt.assert_array_almost_equal(orog_trn_lst, wasp_trn)
     npt.assert_array_almost_equal(flow_inc_lst, wasp_inc)
-    npt.assert_array_almost_equal(tke_lst, np.array(wasp_ti) / 100)
+    npt.assert_array_almost_equal(ti15ms_lst, np.array(wasp_ti) / 100)
 
     # compare pdf, u_mean and aep to wasp
     lw = site.local_wind(x, np.array(y) + 1e-6, 30, wd=np.arange(0, 360, 30), ws=ws)

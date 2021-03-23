@@ -37,7 +37,12 @@ class WaspGridSite(XRSite):
 
     def _local_wind(self, localWind, ws_bins=None):
         lw = super()._local_wind(localWind.copy(), ws_bins)
-        lw['TI'] = self.interp(self.ds.tke, lw.coords) * (.75 + 3.8 / lw.ws)
+
+        # ti is assumed to be the turbulence intensity given by CFD
+        # (expected value of TI at 15m/s). The Normal Turbulence model
+        # is used to calculate TI at different wind speed,
+        # see footnote 4 at page 24 of IEC 61400-1 (2005)
+        lw['TI'] = self.interp(self.ds.ti15ms, lw.coords) * (.75 + 3.8 / lw.ws)
         return lw
 
     @classmethod
@@ -58,48 +63,6 @@ def load_wasp_grd(path, globstr='*.grd', speedup_using_pickle=True):
 
     globstr: str
         string that is used to glob files if path is a directory.
-
-    Returns
-    -------
-    WindResourceGrid: :any:`WindResourceGrid`:
-
-    Examples
-    --------
-    >>> from mowflot.wind_resource import WindResourceGrid
-    >>> path = '../mowflot/tests/data/WAsP_grd/'
-    >>> wrg = WindResourceGrid.from_wasp_grd(path)
-    >>> print(wrg)
-        <xarray.Dataset>
-        Dimensions:            (sec: 12, x: 20, y: 20, z: 3)
-        Coordinates:
-          * sec                (sec) int64 1 2 3 4 5 6 7 8 9 10 11 12
-          * x                  (x) float64 5.347e+05 5.348e+05 5.349e+05 5.35e+05 ...
-          * y                  (y) float64 6.149e+06 6.149e+06 6.149e+06 6.149e+06 ...
-          * z                  (z) float64 10.0 40.0 80.0
-        Data variables:
-            flow_inc           (x, y, z, sec) float64 1.701e+38 1.701e+38 1.701e+38 ...
-            ws_mean            (x, y, z, sec) float64 3.824 3.489 5.137 5.287 5.271 ...
-            meso_rgh           (x, y, z, sec) float64 0.06429 0.03008 0.003926 ...
-            obst_spd           (x, y, z, sec) float64 1.701e+38 1.701e+38 1.701e+38 ...
-            orog_spd           (x, y, z, sec) float64 1.035 1.039 1.049 1.069 1.078 ...
-            orog_trn           (x, y, z, sec) float64 -0.1285 0.6421 0.7579 0.5855 ...
-            power_density      (x, y, z, sec) float64 77.98 76.96 193.5 201.5 183.9 ...
-            rix                (x, y, z, sec) float64 0.0 0.0 0.0 0.0 0.0 0.0 0.0 ...
-            rgh_change         (x, y, z, sec) float64 6.0 10.0 10.0 10.0 6.0 4.0 0.0 ...
-            rgh_spd            (x, y, z, sec) float64 1.008 0.9452 0.8578 0.9037 ...
-            f                  (x, y, z, sec) float64 0.04021 0.04215 0.06284 ...
-            tke                (x, y, z, sec) float64 1.701e+38 1.701e+38 1.701e+38 ...
-            A                  (x, y, z, sec) float64 4.287 3.837 5.752 5.934 5.937 ...
-            k                  (x, y, z, sec) float64 1.709 1.42 1.678 1.74 1.869 ...
-            flow_inc_tot       (x, y, z) float64 1.701e+38 1.701e+38 1.701e+38 ...
-            ws_mean_tot        (x, y, z) float64 5.16 6.876 7.788 5.069 6.85 7.785 ...
-            power_density_tot  (x, y, z) float64 189.5 408.1 547.8 178.7 402.2 546.6 ...
-            rix_tot            (x, y, z) float64 0.0 0.0 0.0 9.904e-05 9.904e-05 ...
-            tke_tot            (x, y, z) float64 1.701e+38 1.701e+38 1.701e+38 ...
-            A_tot              (x, y, z) float64 5.788 7.745 8.789 5.688 7.716 8.786 ...
-            k_tot              (x, y, z) float64 1.725 1.869 2.018 1.732 1.877 2.018 ...
-            elev               (x, y) float64 37.81 37.42 37.99 37.75 37.46 37.06 ...
-
     '''
 
     var_name_dict = {
@@ -114,7 +77,7 @@ def load_wasp_grd(path, globstr='*.grd', speedup_using_pickle=True):
         'Roughness changes': 'rgh_change',
         'Roughness speed': 'rgh_spd',
         'Sector frequency': 'f',
-        'Turbulence intensity': 'tke',
+        'Turbulence intensity': 'ti15ms',
         'Weibull-A': 'A',
         'Weibull-k': 'k',
         'Elevation': 'elev',
@@ -269,8 +232,8 @@ def load_wasp_grd(path, globstr='*.grd', speedup_using_pickle=True):
 
     ######################################################################
 
-    if 'tke' in ds and np.mean(ds['tke']) > 1:
-        ds['tke'] *= 0.01
+    if 'ti15ms' in ds and np.mean(ds['ti15ms']) > 1:
+        ds['ti15ms'] *= 0.01
 
     return ds
 
