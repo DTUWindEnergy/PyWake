@@ -4,7 +4,7 @@ from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site, IE
 from py_wake import NOJ, Fuga
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
-from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y, wt9_x, wt9_y
+from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y, wt9_x, wt9_y, V80
 from py_wake.tests.test_files.fuga import LUT_path_2MW_z0_0_03
 from py_wake.flow_map import HorizontalGrid
 from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind
@@ -28,6 +28,7 @@ from py_wake.wind_turbines._wind_turbines import WindTurbine
 from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt
 
 from autograd.tracer import trace
+from py_wake.tests.test_files import tfp
 
 
 WindFarmModel.verbose = False
@@ -39,7 +40,7 @@ def test_wake_model():
     wake_model = NOJ(site, windTurbines)
 
     with pytest.raises(ValueError, match="Turbines 0 and 1 are at the same position"):
-        wake_model([0, 0], [0, 0], wd=np.arange(0, 360, 22.5), ws=[9.8])
+        wake_model([0, 0], [100, 100], wd=np.arange(0, 360, 22.5), ws=[9.8])
 
 
 def test_wec():
@@ -357,6 +358,36 @@ def test_huge_farm():
     peak /= 1024**2
     assert peak < 800
     tracemalloc.stop()
+
+
+def test_time_series_values():
+    wt = V80()
+    site = Hornsrev1Site()
+    x, y = site.initial_position.T
+    wfm = NOJ(site, wt)
+    wd = np.arange(350, 360)
+    ws = np.arange(5, 10)
+    wd_t, ws_t = [v.flatten() for v in np.meshgrid(wd, ws)]
+    sim_res_t = wfm(x, y, ws=ws_t, wd=wd_t, time=True, verbose=False)
+    sim_res = wfm(x, y, wd=wd, ws=ws)
+
+    for k in ['WS_eff', 'TI_eff', 'Power', 'CT']:
+        npt.assert_array_equal(np.moveaxis(sim_res_t[k].values.reshape((80, 5, 10)), 1, 2), sim_res[k].values)
+
+
+def test_time_series_dates():
+    import pandas as pd
+    d = np.load(tfp + "time.npz")
+    wd, ws = [d[k][:6 * 24] for k in ['wd', 'ws']]
+    wt = V80()
+    site = Hornsrev1Site()
+    x, y = site.initial_position.T
+    wfm = NOJ(site, wt)
+    t = pd.date_range("2000-01-01", freq="10T", periods=24 * 6)
+    sim_res = wfm(x, y, ws=ws, wd=wd, time=t, verbose=False)
+    npt.assert_array_equal(sim_res.WS, ws)
+    npt.assert_array_equal(sim_res.WD, wd)
+    npt.assert_array_equal(sim_res.time, t)
 
 
 def test_aep_wind_atlas_method():

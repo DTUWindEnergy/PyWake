@@ -12,14 +12,17 @@ class ilk():
 
     def __call__(self, shape=None):
         dims = self.dataArray.dims
-        squeeze_dims = [d for d in self.dataArray.dims if d not in ['i', 'wt', 'wd', 'ws']]
+        squeeze_dims = [d for d in self.dataArray.dims if d not in ['i', 'wt', 'wd', 'ws', 'time']]
         v = self.dataArray.squeeze(squeeze_dims, drop=True).data
         if 'wt' not in dims and 'i' not in dims:
             v = v[na]
-        if 'wd' not in dims:
-            v = v[:, na]
-        if 'ws' not in dims:
+        if 'time' in dims:
             v = v[:, :, na]
+        else:
+            if 'wd' not in dims:
+                v = v[:, na]
+            if 'ws' not in dims:
+                v = v[:, :, na]
 
         if shape is None:
             return v

@@ -9,11 +9,14 @@ from py_wake import NOJ
 from py_wake.examples.data.ParqueFicticio import ParqueFicticioSite
 from py_wake.flow_map import HorizontalGrid
 import matplotlib.pyplot as plt
+from py_wake.tests.check_speed import timeit
+from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 
 
 class FlatSite(UniformSite):
-    def __init__(self):
+    def __init__(self, distance):
         UniformSite.__init__(self, p_wd=[1], ti=.075)
+        self.distance = distance
 
 
 class HalfCylinder(UniformSite):
@@ -38,19 +41,22 @@ class Rectangle(TerrainFollowingDistance, UniformSite):
 
 
 @pytest.mark.parametrize('distance', [StraightDistance(),
-                                      TerrainFollowingDistance()])
+                                      TerrainFollowingDistance()
+                                      ])
 def test_flat_distances(distance):
-    x = [0, 50, 100, 100]
-    y = [100, 100, 100, 0]
-    h = [0, 10, 20, 30]
+    x = [0, 50, 100, 100, 0]
+    y = [100, 100, 100, 0, 0]
+    h = [0, 10, 20, 30, 0]
     wdirs = [0, 30, 90]
 
-    dw_ijl, hcw_ijl, dh_ijl, dw_indices_l = distance(FlatSite(), src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=[0], dst_y_j=[0], dst_h_j=[0],
-                                                     wd_il=np.array(wdirs)[na])
+    site = FlatSite(distance=distance)
+    site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=h)
+    dw_ijl, hcw_ijl, dh_ijl = site.distance(wd_il=np.array(wdirs)[na], src_idx=[0, 1, 2, 3], dst_idx=[4])
+    dw_indices_l = site.distance.dw_order_indices(np.array(wdirs))
 
     if 0:
-        distance.plot(src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=[0], dst_y_j=[0], dst_h_j=[0],
-                      wd_il=np.array(wdirs)[na])
+        distance.plot(wd_il=np.array(wdirs)[na], src_i=[0, 1, 2, 3], dst_i=[4])
+        plt.show()
 
     npt.assert_array_almost_equal(dw_ijl, [[[100, 86.6025404, 0]],
                                            [[100, 111.602540, 50]],
@@ -64,24 +70,26 @@ def test_flat_distances(distance):
                                            [[-10, -10, -10]],
                                            [[-20, -20, -20]],
                                            [[-30, -30, -30]]])
-    npt.assert_array_equal(dw_indices_l, [[2, 1, 0, 3],
-                                          [2, 1, 0, 3],
-                                          [2, 3, 1, 0]])
+    npt.assert_array_equal(dw_indices_l[:, :4], [[2, 1, 0, 3],
+                                                 [2, 1, 0, 3],
+                                                 [2, 3, 1, 0]])
 
 
 @pytest.mark.parametrize('distance', [StraightDistance(),
                                       TerrainFollowingDistance()])
-def test_flat_distances_wt2wt(distance):
+def test_flat_distances_src_neq_dst(distance):
     x = [0, 50, 100]
     y = [100, 100, 0]
     h = [0, 10, 20]
     wdirs = [0, 30]
 
-    dw_ijl, hcw_ijl, dh_ijl, dw_indices_l = distance(FlatSite(), src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=x, dst_y_j=y, dst_h_j=[1, 2, 3],
-                                                     wd_il=np.array(wdirs)[na])
+    site = FlatSite(distance=distance)
+    site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=h, dst_xyh_j=(x, y, [1, 2, 3]))
+    dw_ijl, hcw_ijl, dh_ijl = site.distance(wd_il=np.array(wdirs)[na])
+    dw_indices_l = distance.dw_order_indices(wdirs)
     if 0:
-        distance.plot(src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=x, dst_y_j=y, dst_h_j=[1, 2, 3],
-                      wd_ijl=np.array(wdirs)[na, na])
+        distance.plot(wd_il=np.array(wdirs)[na])
+        plt.show()
 
     # check down wind distance wind from North and 30 deg
     npt.assert_array_almost_equal(dw_ijl[:, :, 0], [[0, 0, 100],
@@ -115,10 +123,8 @@ def test_iea37_distances():
     lw = site.local_wind(x_i=x, y_i=y,
                          wd=site.default_wd,
                          ws=site.default_ws)
-    dw_iil, hcw_iil, _, _ = site.wt2wt_distances(
-        x_i=x, y_i=y,
-        h_i=np.zeros_like(x),
-        wd_il=lw.WD_ilk.mean(2))
+    site.distance.setup(x, y, np.zeros_like(x))
+    dw_iil, hcw_iil, _ = site.wt2wt_distances(wd_il=lw.WD_ilk.mean(2))
     # Wind direction.
     wdir = np.rad2deg(np.arctan2(hcw_iil, dw_iil))
     npt.assert_allclose(
@@ -127,11 +133,11 @@ def test_iea37_distances():
         atol=1e-4)
 
     if 0:
-        import matplotlib.pyplot as plt
         _, ax = plt.subplots()
         ax.scatter(x, y)
         for i, txt in enumerate(np.arange(len(x))):
             ax.annotate(txt, (x[i], y[i]), fontsize='large')
+        plt.show()
 
 
 def test_terrain_following_half_cylinder():
@@ -142,12 +148,11 @@ def test_terrain_following_half_cylinder():
     dst_x, dst_y = np.array([100, 200, 300, 400]), [0, 0, 0, 0]
     x = np.arange(-150, 150)
 
-    dw_ijl, hcw_ijl, _, _ = hc.distances(src_x_i=src_x, src_y_i=src_y, src_h_i=src_x * 0,
-                                         dst_x_j=dst_x, dst_y_j=dst_y, dst_h_j=dst_x * 0,
-                                         wd_il=np.array([0, 90])[na])
+    hc.distance.setup(src_x_i=src_x, src_y_i=src_y, src_h_i=src_x * 0,
+                      dst_xyh_j=(dst_x, dst_y, dst_x * 0))
+    dw_ijl, hcw_ijl, _ = hc.distance(wd_il=np.array([0, 90])[na])
 
     if 0:
-        import matplotlib.pyplot as plt
         plt.plot(x, hc.elevation(x_i=x, y_i=x * 0))
         plt.plot(src_x, hc.elevation(x_i=src_x, y_i=src_y), '.')
         plt.plot(dst_x, dst_y, 'o')
@@ -172,8 +177,8 @@ def test_distance_over_rectangle():
     site = Rectangle(height=200, width=100, distance_resolution=100)
     wf_model = NOJ(site, windTurbines)
     sim_res = wf_model(x, y, wd=[270], ws=[9])
-    x_j = np.linspace(-100, 500, 100)
-    y_j = np.linspace(-200, 300, 100)
+    x_j = np.linspace(-100, 500, 50)
+    y_j = np.linspace(-200, 300, 50)
     flow_map = sim_res.flow_map(HorizontalGrid(x_j, y_j))
     Z = flow_map.WS_eff_xylk[:, :, 0, 0]
     X, Y = flow_map.X, flow_map.Y
@@ -182,7 +187,6 @@ def test_distance_over_rectangle():
     my2 = np.argmin(np.abs(Y[:, 0] + 100))
 
     if 0:
-        import matplotlib.pyplot as plt
         flow_map.plot_wake_map()
         H = site.elevation(X, Y)
         plt.plot(X[my], Z[my] * 10, label='wsp*10')
@@ -194,21 +198,21 @@ def test_distance_over_rectangle():
         plt.show()
 
     ref = [9., 3.42, 3.8, 6.02, 6.17, 6.31, 6.43, 7.29, 7.35, 7.41, 7.47, 7.53, 7.58]
-    npt.assert_array_almost_equal(Z[my, :50:4], ref, 2)
+    npt.assert_array_almost_equal(Z[my, :25:2], ref, 2)
 
 
 def test_distance_plot():
 
-    x = [0, 50, 100, 100]
-    y = [100, 100, 100, 0]
-    h = [0, 10, 20, 30]
+    x = [0, 50, 100, 100, 0]
+    y = [100, 100, 100, 0, 0]
+    h = [0, 10, 20, 30, 0]
     wdirs = [0, 30, 90]
     distance = StraightDistance()
-    distance.plot(None, src_x_i=x, src_y_i=y, src_h_i=h, dst_x_j=[0], dst_y_j=[0], dst_h_j=[0],
-                  wd_il=np.array(wdirs)[na])
+    distance.setup(src_x_i=x, src_y_i=y, src_h_i=h)
+    distance.plot(wd_il=np.array(wdirs)[na], src_idx=[0], dst_idx=[3])
     if 0:
-        import matplotlib.pyplot as plt
         plt.show()
+    plt.close('all')
 
 
 # ======================================================================================================================
@@ -229,9 +233,9 @@ def test_distances_ri():
     x, y = site.initial_position.T
     site.calc_all = False
     site.r_i = np.ones(len(x)) * 90
-    dw_ijl, cw_ijl, dh_ijl, _ = site.distances(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
-                                               dst_x_j=x, dst_y_j=y, dst_h_j=np.array([70]),
-                                               wd_il=np.array([[180]]))
+    site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
+                        dst_xyh_j=(x, y, np.array([70])))
+    dw_ijl, cw_ijl, dh_ijl = site.distance(wd_il=np.array([[180]]))
     npt.assert_almost_equal(dw_ijl[0, :, 0], np.array([0., -207., -477., -710., -1016., -1236., -1456., -1799.]))
     npt.assert_almost_equal(cw_ijl[:, 1, 0], np.array([-236.1, 0., 131.1, 167.8, 204.5, 131.1, 131.1, 45.4]))
     npt.assert_almost_equal(dh_ijl, np.zeros_like(dh_ijl))
@@ -243,9 +247,9 @@ def test_distance2_outside_map_WestEast():
     x = np.arange(-1500, 1000, 500) + 264777
     h = x * 0
     y = h + 6505450
-
-    dw = site.distances(src_x_i=x, src_y_i=y, src_h_i=h,
-                        dst_x_j=x, dst_y_j=y, dst_h_j=h * 0, wd_il=[270])[0]
+    site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=h,
+                        dst_xyh_j=(x, y, h * 0))
+    dw = site.distance(wd_il=[270])[0]
 
     if 0:
         site.ds.Elevation.plot()
@@ -262,9 +266,9 @@ def test_distance2_outside_map_NorthSouth():
     y = np.arange(-1500, 1000, 500) + 6506613.0
     h = y * 0
     x = h + 264200
-
-    dw = site.distances(src_x_i=x, src_y_i=y, src_h_i=h,
-                        dst_x_j=x, dst_y_j=y, dst_h_j=h * 0, wd_il=[180])[0]
+    site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=h,
+                        dst_xyh_j=(x, y, h * 0))
+    dw = site.distance(wd_il=[180])[0]
 
     if 0:
         site.ds.Elevation.plot()

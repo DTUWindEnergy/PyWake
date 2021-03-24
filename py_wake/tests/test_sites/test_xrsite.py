@@ -382,7 +382,7 @@ def test_interp(h, wd, ws, h_i, wd_l, ws_k):
                 'i': [0, 1]}
     )
     site = XRSite(ds)
-    lw = LocalWind(x_i=[25, 50], y_i=[225, 250], h_i=h_i, wd=wd_l, ws=ws_k, wd_bin_size=1)
+    lw = LocalWind(x_i=[25, 50], y_i=[225, 250], h_i=h_i, wd=wd_l, ws=ws_k, time=False, wd_bin_size=1)
 
     for n in ['XYHLK', 'XYHL', 'XYHK', 'K', 'L', 'KL', 'XY', 'H', 'XYH', 'XYL', 'XYK', 'I', 'IL', 'IK', 'ILK']:
         ip1 = site.interp(site.ds[n], lw.coords)
@@ -406,11 +406,11 @@ def test_interp_special_cases():
     )
     site = XRSite(ds)
     with pytest.raises(ValueError, match=r"Number of points, i\(=10\), in site data variable, TI, must match "):
-        lw = LocalWind(x_i=[25, 50], y_i=[225, 250], h_i=110, wd=wd, ws=ws, wd_bin_size=1)
+        lw = LocalWind(x_i=[25, 50], y_i=[225, 250], h_i=110, wd=wd, ws=ws, time=False, wd_bin_size=1)
         site.interp(site.ds.TI, lw.coords)
 
     x = y = np.arange(10)
-    lw = LocalWind(x_i=x, y_i=y, h_i=110, wd=wd, ws=ws, wd_bin_size=1)
+    lw = LocalWind(x_i=x, y_i=y, h_i=110, wd=wd, ws=ws, time=False, wd_bin_size=1)
     ip1 = site.interp(site.ds.TI, lw.coords)
     ip2 = ds.TI.sel_interp_all(lw.coords)
     npt.assert_array_equal(ip1.shape, ip2.shape)

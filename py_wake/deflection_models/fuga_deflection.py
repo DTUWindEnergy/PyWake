@@ -2,11 +2,12 @@ from numpy import newaxis as na
 import matplotlib.pyplot as plt
 import numpy as np
 from py_wake.deflection_models.deflection_model import DeflectionModel
-from py_wake.tests import npt
-from py_wake.tests.test_files import tfp
 from py_wake.utils.fuga_utils import FugaUtils
 from py_wake.utils.grid_interpolator import GridInterpolator
 import time
+import py_wake
+import os
+tfp = os.path.dirname(py_wake.__file__).replace("\\", "/") + "/tests/test_files/"
 
 
 class FugaDeflection(FugaUtils, DeflectionModel):

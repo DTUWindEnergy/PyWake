@@ -118,13 +118,16 @@ def load_wasp_grd(path, globstr='*.grd', speedup_using_pickle=True):
         if os.path.isdir(path):
             pkl_fn = os.path.join(path, os.path.split(os.path.dirname(path))[1] + '.pkl')
             if os.path.isfile(pkl_fn):
-                with open(pkl_fn, 'rb') as f:
-                    return pickle.load(f)
-            else:
-                ds = load_wasp_grd(path, globstr, speedup_using_pickle=False)
-                with open(pkl_fn, 'wb') as f:
-                    pickle.dump(ds, f, protocol=-1)
-                return ds
+                try:
+                    with open(pkl_fn, 'rb') as f:
+                        return pickle.load(f)
+                except Exception:
+                    print('loading %s failed. Loading from grid files instead' % pkl_fn)
+
+            ds = load_wasp_grd(path, globstr, speedup_using_pickle=False)
+            with open(pkl_fn, 'wb') as f:
+                pickle.dump(ds, f, protocol=-1)
+            return ds
         else:
             raise NotImplementedError
 
