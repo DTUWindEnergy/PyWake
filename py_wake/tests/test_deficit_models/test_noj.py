@@ -11,6 +11,7 @@ from py_wake.superposition_models import LinearSum, WeightedSum
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.wind_turbines.power_ct_functions import PowerCtFunction
 
+
 # Two turbines, 0: Nibe-A, 1:Ct=0
 NibeA0 = WindTurbines(names=['Nibe-A'] * 2, diameters=[40] * 2,
                       hub_heights=[50] * 2,
@@ -26,7 +27,6 @@ def test_NOJ_Nibe_result():
     y_i = [0, -40, -100]
     h_i = [50, 50, 50]
     wfm = All2AllIterative(site, NibeA0, wake_deficitModel=NOJDeficit(), superpositionModel=LinearSum())
-    wfm.verbose = False
     WS_eff_ilk = wfm.calc_wt_interaction(x_i, y_i, h_i, [0, 1, 1], 0.0, 8.1)[0]
     npt.assert_array_almost_equal(WS_eff_ilk[:, 0, 0], [8.1, 4.35, 5.7])
 

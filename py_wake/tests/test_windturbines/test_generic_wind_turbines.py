@@ -1,4 +1,4 @@
-from py_wake.examples.data.hornsrev1 import V80
+from py_wake.examples.data.hornsrev1 import V80, Hornsrev1Site
 from py_wake.wind_turbines._wind_turbines import WindTurbine
 from py_wake.wind_turbines.generic_wind_turbines import GenericWindTurbine, GenericTIRhoWindTurbine
 from py_wake.examples.data import wtg_path
@@ -7,9 +7,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from py_wake.tests import npt
 import pytest
+from py_wake.deficit_models.noj import NOJ
+from py_wake.site.xrsite import XRSite
 
 
-def test_PowerCtGeneric():
+def test_GenericWindTurbine():
     for ref, ti, p_tol, ct_tol in [(V80(), .1, 0.03, .16),
                                    (WindTurbine.from_WAsP_wtg(wtg_path + "Vestas V112-3.0 MW.wtg"), .05, 0.035, .07),
                                    (DTU10MW(), .05, 0.06, .13)]:
@@ -17,7 +19,7 @@ def test_PowerCtGeneric():
         wt = GenericWindTurbine('Generic', ref.diameter(), ref.hub_height(), power_norm / 1e3,
                                 turbulence_intensity=ti, ws_cutin=None)
 
-        if 1:
+        if 0:
             u = np.arange(0, 30, .1)
             p, ct = wt.power_ct(u)
             plt.plot(u, p / 1e6, label='Generic')
@@ -42,7 +44,7 @@ def test_PowerCtGeneric():
 
 
 @pytest.mark.parametrize(['power_idle', 'ct_idle'], [(0, 0), (100, .1)])
-def test_PowerCtGeneric_cut_in_out(power_idle, ct_idle):
+def test_GenericWindTurbine_cut_in_out(power_idle, ct_idle):
     ref = V80()
     power_norm = ref.power(15)
 

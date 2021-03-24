@@ -58,5 +58,5 @@ def test_main(module):
         plt.close()
 
 
-# if __name__ == '__main__':
-#     print_main_modules()
+if __name__ == '__main__':
+    print_main_modules()

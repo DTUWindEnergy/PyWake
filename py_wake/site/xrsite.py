@@ -226,25 +226,26 @@ class XRSite(Site):
         lw.set_W(WS, WD, TI, ws_bins, self.use_WS_bins)
         lw.set_data_array(TI_std, 'TI_std', 'Standard deviation of turbulence intensity')
 
-        if 'P' in self.ds:
-            if ('ws' in self.ds.P.dims and 'ws' in lw.coords):
-                d_ws = self.ds.P.ws.values
-                c_ws = lw.coords['ws'].values
-                i = np.searchsorted(d_ws, c_ws[0])
-                if (np.any([ws not in d_ws for ws in c_ws]) or  # check all coordinate ws in data ws
-                    len(d_ws[i:i + len(c_ws)]) != len(c_ws) or  # check subset has same length
-                        np.any(d_ws[i:i + len(c_ws)] != c_ws)):  # check subset are equal
-                    raise ValueError("Cannot interpolate ws-dependent P to other range of ws")
-            lw['P'] = self.interp(self.ds.P, lw.coords) / \
-                self.ds.sector_width * lw.wd_bin_size
-        else:
-            sf = self.interp(self.ds.Sector_frequency, lw.coords)
-            p_wd = sf / self.ds.sector_width * lw.wd_bin_size
-            A, k = self.interp(self.ds.Weibull_A, lw.coords), self.interp(self.ds.Weibull_k, lw.coords)
-            lw['Weibull_A'] = A
-            lw['Weibull_k'] = k
-            lw['Sector_frequency'] = p_wd
-            lw['P'] = p_wd * self.weibull_weight(lw, A, k)
+        if 'time' not in lw:
+            if 'P' in self.ds:
+                if ('ws' in self.ds.P.dims and 'ws' in lw.coords):
+                    d_ws = self.ds.P.ws.values
+                    c_ws = lw.coords['ws'].values
+                    i = np.searchsorted(d_ws, c_ws[0])
+                    if (np.any([ws not in d_ws for ws in c_ws]) or  # check all coordinate ws in data ws
+                        len(d_ws[i:i + len(c_ws)]) != len(c_ws) or  # check subset has same length
+                            np.any(d_ws[i:i + len(c_ws)] != c_ws)):  # check subset are equal
+                        raise ValueError("Cannot interpolate ws-dependent P to other range of ws")
+                lw['P'] = self.interp(self.ds.P, lw.coords) / \
+                    self.ds.sector_width * lw.wd_bin_size
+            else:
+                sf = self.interp(self.ds.Sector_frequency, lw.coords)
+                p_wd = sf / self.ds.sector_width * lw.wd_bin_size
+                A, k = self.interp(self.ds.Weibull_A, lw.coords), self.interp(self.ds.Weibull_k, lw.coords)
+                lw['Weibull_A'] = A
+                lw['Weibull_k'] = k
+                lw['Sector_frequency'] = p_wd
+                lw['P'] = p_wd * self.weibull_weight(lw, A, k)
         return lw
 
 

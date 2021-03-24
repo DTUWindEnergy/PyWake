@@ -18,7 +18,7 @@ suffixs:
 class LocalWind(xr.Dataset):
     __slots__ = ('wd_bin_size')
 
-    def __init__(self, x_i, y_i, h_i, wd, ws, wd_bin_size, WD=None, WS=None, TI=None, P=None):
+    def __init__(self, x_i, y_i, h_i, wd, ws, time, wd_bin_size, WD=None, WS=None, TI=None, P=None):
         """
 
         Parameters
@@ -32,7 +32,15 @@ class LocalWind(xr.Dataset):
         P : array_like
             Probability/weight
         """
-        coords = {'wd': wd, 'ws': np.atleast_1d(ws)}
+        ws = np.atleast_1d(ws)
+        if time is not False:
+            assert len(wd) == len(ws)
+            if time is True:
+                time = np.arange(len(wd))
+            coords = {'time': time, 'wd': ('time', wd), 'ws': ('time', ws)}
+        else:
+            coords = {'wd': wd, 'ws': np.atleast_1d(ws)}
+
         assert len(np.atleast_1d(x_i)) == len(np.atleast_1d(y_i))
         n_i = max(len(np.atleast_1d(x_i)), len(np.atleast_1d(h_i)))
         coords['i'] = np.arange(n_i)
@@ -40,7 +48,6 @@ class LocalWind(xr.Dataset):
         for k, v in [('x', x_i), ('y', y_i), ('h', h_i)]:
             if v is not None:
                 coords[k] = ('i', np.zeros(n_i) + v)
-
         xr.Dataset.__init__(self, data_vars={k: v for k, v in [('WD', WD), ('WS', WS),
                                                                ('TI', TI), ('P', P)] if v is not None},
                             coords=coords)
@@ -89,6 +96,15 @@ class Site(ABC):
         self.default_ws = np.arange(3, 26.)
         self.default_wd = np.arange(360)
 
+    @property
+    def distance(self):
+        return self._distance
+
+    @distance.setter
+    def distance(self, distance):
+        self._distance = distance
+        distance.site = self
+
     def get_defaults(self, wd=None, ws=None):
         if wd is None:
             wd = self.default_wd
@@ -108,7 +124,7 @@ class Site(ABC):
         ds['WD'] = xr.DataArray(wd, [('wd', wd)])
         return ds
 
-    def local_wind(self, x_i, y_i, h_i=None, wd=None, ws=None, wd_bin_size=None, ws_bins=None):
+    def local_wind(self, x_i, y_i, h_i=None, wd=None, ws=None, time=False, wd_bin_size=None, ws_bins=None):
         """Local free flow wind conditions
 
         Parameters
@@ -123,6 +139,9 @@ class Site(ABC):
             Global wind direction(s). Override self.default_wd
         ws : float, int or array_like, optional
             Global wind speed(s). Override self.default_ws
+        time : boolean or array_like
+            If True or array_like, wd and ws is interpreted as a time series
+            If False, full wd x ws matrix is computed
         wd_bin_size : int or float, optional
             Size of wind direction bins. default is size between first and
             second element in default_wd
@@ -143,7 +162,7 @@ class Site(ABC):
         """
         wd, ws = self.get_defaults(wd, ws)
         wd_bin_size = self.wd_bin_size(wd, wd_bin_size)
-        lw = LocalWind(x_i, y_i, h_i, wd, ws, wd_bin_size)
+        lw = LocalWind(x_i, y_i, h_i, wd, ws, time, wd_bin_size)
         return self._local_wind(lw, ws_bins)
 
     @abstractmethod
@@ -170,43 +189,8 @@ class Site(ABC):
                 Probability/weight
         """
 
-    def distances(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il):
-        """Calculate down/crosswind distance between source and destination points
-
-        Parameters
-        ----------
-        src_x_i : array_like
-            Source x position
-        src_y_i : array_like
-            Source y position
-        src_h_i : array_like
-            Source height above ground level
-        dst_x_j : array_like
-            Destination x position
-        dst_y_j : array_like
-            Destination y position
-        dst_h_j : array_like
-            Destination height above ground level
-        wd_il : array_like, shape (#src, #wd)
-            Local wind direction at the source points for all global wind directions
-
-
-        Returns
-        -------
-        dw_ijl : array_like
-            down wind distances. Positive downstream
-        hcw_ijl : array_like
-            horizontal cross wind distances. Positive when the wind is in your
-            back and  the turbine lies on the left.
-        dh_ijl : array_like
-            vertical distances
-        dw_order_indices_l : array_like
-            indices that gives the downwind order of source points
-        """
-        return self.distance(self, src_x_i, src_y_i, src_h_i, dst_x_j, dst_y_j, dst_h_j, wd_il)
-
-    def wt2wt_distances(self, x_i, y_i, h_i, wd_il):
-        return self.distances(x_i, y_i, h_i, x_i, y_i, h_i, wd_il)
+    def wt2wt_distances(self, wd_il):
+        return self.distance(wd_il)
 
     @abstractmethod
     def elevation(self, x_i, y_i):

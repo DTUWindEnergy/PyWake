@@ -13,6 +13,7 @@ from py_wake import NOJ
 from py_wake.wind_turbines import OneTypeWindTurbines
 import matplotlib.pyplot as plt
 from py_wake.site.xrsite import XRSite
+import shutil
 
 
 @pytest.fixture(autouse=True)
@@ -195,9 +196,9 @@ def test_wasp_resources_grid_point(site):
      [-0, 207, 477, 710, 1016, 1236, 1456, 1799])])
 def test_distances(site, dw_ref):
     x, y = site.initial_position.T
-    dw_ijl, cw_ijl, dh_ijl, _ = site.distances(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
-                                               dst_x_j=x, dst_y_j=y, dst_h_j=np.array([70]),
-                                               wd_il=np.array([[0]]))
+    site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
+                        dst_xyh_j=(x, y, np.array([70])))
+    dw_ijl, cw_ijl, dh_ijl = site.distance(wd_il=np.array([[0]]))
     npt.assert_almost_equal(dw_ijl[0, :, 0], dw_ref)
 
     cw_ref = [236.1, 0., -131.1, -167.8, -204.5, -131.1, -131.1, -45.4]
@@ -208,9 +209,9 @@ def test_distances(site, dw_ref):
 def test_distances_different_points(site2):
     site, x, y = site2
     with pytest.raises(NotImplementedError):
-        site.distances(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
-                       dst_x_j=x[1:], dst_y_j=y[1:], dst_h_j=np.array([70]),
-                       wd_il=np.array([[0]]))
+        site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
+                            dst_xyh_j=(x[1:], y[1:], np.array([70])))
+        site.distance(wd_il=np.array([[0]]))
 
 
 # def test_distances_wd_shape():
@@ -237,6 +238,14 @@ def test_speed_up_using_pickle():
     site = WaspGridSite.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=True)
     time_w_pkl = time.time() - start
     npt.assert_array_less(time_w_pkl * 10, time_wo_pkl)
+
+
+def test_speed_up_using_pickle_wrong_pkl():
+    pkl_fn = ParqueFicticio_path + "ParqueFicticio.pkl"
+    if os.path.exists(pkl_fn):
+        os.remove(pkl_fn)
+    shutil.copy(__file__, pkl_fn)
+    site = WaspGridSite.from_wasp_grd(ParqueFicticio_path, speedup_using_pickle=True)
 
 
 def test_one_layer():

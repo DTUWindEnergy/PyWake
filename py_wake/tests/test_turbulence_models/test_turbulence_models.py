@@ -106,7 +106,8 @@ def test_max_sum():
 
 def test_superposition_model_indices():
     class WTSite(UniformSite):
-        def local_wind(self, x_i=None, y_i=None, h_i=None, wd=None, ws=None, wd_bin_size=None, ws_bins=None):
+        def local_wind(self, x_i=None, y_i=None, h_i=None, wd=None,
+                       ws=None, time=False, wd_bin_size=None, ws_bins=None):
             lw = UniformSite.local_wind(self, x_i=x_i, y_i=y_i, h_i=h_i, wd=wd, ws=ws,
                                         wd_bin_size=wd_bin_size, ws_bins=ws_bins)
             lw['TI'] = xr.DataArray(lw.TI_ilk + np.arange(len(x_i))[:, np.newaxis, np.newaxis] * .1,

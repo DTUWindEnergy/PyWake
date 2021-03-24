@@ -18,7 +18,7 @@ class WindFarmModel(ABC):
         self.site = site
         self.windTurbines = windTurbines
 
-    def __call__(self, x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None, verbose=False, **kwargs):
+    def __call__(self, x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None, time=False, verbose=False, **kwargs):
         """Run the wind farm simulation
 
         Parameters
@@ -51,7 +51,8 @@ class WindFarmModel(ABC):
             lw = UniformSite([1], 0.1).local_wind(x_i=[], y_i=[], h_i=[], wd=wd, ws=ws)
             z = xr.DataArray(np.zeros((0, len(lw.wd), len(lw.ws))), coords=[('wt', []), ('wd', lw.wd), ('ws', lw.ws)])
             return SimulationResult(self, lw, [], yaw_ilk, z, z, z, z, kwargs)
-        res = self.calc_wt_interaction(x_i=x, y_i=y, h_i=h, type_i=type, yaw_ilk=yaw_ilk, wd=wd, ws=ws, **kwargs)
+        res = self.calc_wt_interaction(x_i=np.asarray(x), y_i=np.asarray(y), h_i=h, type_i=type, yaw_ilk=yaw_ilk,
+                                       wd=wd, ws=ws, time=time, **kwargs)
         WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, localWind, power_ct_inputs = res
         return SimulationResult(self, localWind=localWind,
                                 type_i=np.zeros(len(x), dtype=int) + type, yaw_ilk=yaw_ilk,
@@ -85,7 +86,8 @@ class WindFarmModel(ABC):
         return (power_ilk * P_ilk / norm * 24 * 365 * 1e-9).sum()
 
     @abstractmethod
-    def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=None, yaw_ilk=None, wd=None, ws=None, **kwargs):
+    def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=None, yaw_ilk=None,
+                            wd=None, ws=None, time=False, **kwargs):
         """Calculate effective wind speed, turbulence intensity,
         power and thrust coefficient, and local site parameters
 
@@ -143,17 +145,18 @@ class SimulationResult(xr.Dataset):
         self.power_ct_inputs = power_ct_inputs
         n_wt = len(lw.i)
 
-        coords = {k: (k, v, {'Description': d}) for k, v, d in [
-            ('wt', np.arange(n_wt), 'Wind turbine number'),
-            ('wd', lw.wd, 'Ambient reference wind direction [deg]'),
-            ('ws', lw.ws, 'Ambient reference wind speed [m/s]')]}
-        coords.update({k: ('wt', v, {'Description': d}) for k, v, d in [
-            ('x', lw.x, 'Wind turbine x coordinate [m]'),
-            ('y', lw.y, 'Wind turbine y coordinate [m]'),
-            ('h', lw.h, 'Wind turbine hub height [m]'),
-            ('type', type_i, 'Wind turbine type')]})
+        coords = {k: (dep, v, {'Description': d}) for k, dep, v, d in [
+            ('wt', 'wt', np.arange(n_wt), 'Wind turbine number'),
+            ('wd', ('wd', 'time')['time' in lw], lw.wd.values, 'Ambient reference wind direction [deg]'),
+            ('ws', ('ws', 'time')['time' in lw], lw.ws.values, 'Ambient reference wind speed [m/s]'),
+            ('x', 'wt', lw.x.values, 'Wind turbine x coordinate [m]'),
+            ('y', 'wt', lw.y.values, 'Wind turbine y coordinate [m]'),
+            ('h', 'wt', lw.h.values, 'Wind turbine hub height [m]'),
+            ('type', 'wt', type_i, 'Wind turbine type')]}
+
+        ilk_dims = (['wt', 'wd', 'ws'], ['wt', 'time'])['time' in lw]
         xr.Dataset.__init__(self,
-                            data_vars={k: (['wt', 'wd', 'ws'], v, {'Description': d}) for k, v, d in [
+                            data_vars={k: (ilk_dims, (v, v[:, :, 0])['time' in lw], {'Description': d}) for k, v, d in [
                                 ('WS_eff', WS_eff_ilk, 'Effective local wind speed [m/s]'),
                                 ('TI_eff', np.zeros_like(WS_eff_ilk) + TI_eff_ilk,
                                  'Effective local turbulence intensity'),
