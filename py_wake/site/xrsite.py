@@ -96,7 +96,7 @@ class XRSite(Site):
             ix = tuple([(slice(None), indices)[dim == i] for dim in range(data.ndim)])
             return data[ix]
 
-        ip_dims = [n for n in ['i', 'x', 'y', 'h', 'wd', 'ws'] if n in var.dims]  # interpolation dimensions
+        ip_dims = [n for n in ['i', 'x', 'y', 'h', 'time', 'wd', 'ws'] if n in var.dims]  # interpolation dimensions
         data = var.data
         data_dims = var.dims
 
@@ -121,7 +121,10 @@ class XRSite(Site):
 
         # pre select, i.e. reduce input data size in case only one ws or wd is needed
         data, k_indices = pre_sel(data, 'ws')
-        data, l_indices = pre_sel(data, 'wd')
+        if 'time' in coords:
+            data, l_indices = pre_sel(data, 'time')
+        else:
+            data, l_indices = pre_sel(data, 'wd')
 
         if 'i' in ip_dims:
             if 'i' in coords and len(var.i) != len(coords['i']):
@@ -165,8 +168,12 @@ class XRSite(Site):
 #         if 'i' in var.dims:
 #             ip_data_dims.insert(0, 'i')
         if l_indices is not None:
-            ip_data_dims.append('wd')
-            ip_data = sel(ip_data, ip_data_dims, l_indices, 'wd')
+            if 'time' in coords:
+                ip_data_dims.append('time')
+                ip_data = sel(ip_data, ip_data_dims, l_indices, 'time')
+            else:
+                ip_data_dims.append('wd')
+                ip_data = sel(ip_data, ip_data_dims, l_indices, 'wd')
         if k_indices is not None:
             ip_data_dims.append('ws')
             ip_data = sel(ip_data, ip_data_dims, k_indices, 'ws')
