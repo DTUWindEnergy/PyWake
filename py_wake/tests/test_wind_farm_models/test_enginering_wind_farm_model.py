@@ -377,13 +377,17 @@ def test_time_series_values():
 
 def test_time_series_dates():
     import pandas as pd
+    import xarray as xr
     d = np.load(tfp + "time.npz")
-    wd, ws = [d[k][:6 * 24] for k in ['wd', 'ws']]
+    wd, ws, ws_std = [d[k][:6 * 24] for k in ['wd', 'ws', 'ws_std']]
+    ti = np.minimum(ws_std / ws, .5)
+    t = pd.date_range("2000-01-01", freq="10T", periods=24 * 6)
     wt = V80()
     site = Hornsrev1Site()
+    site.ds['TI'] = xr.DataArray(ti, [('time', t)])
+
     x, y = site.initial_position.T
     wfm = NOJ(site, wt)
-    t = pd.date_range("2000-01-01", freq="10T", periods=24 * 6)
     sim_res = wfm(x, y, ws=ws, wd=wd, time=t, verbose=False)
     npt.assert_array_equal(sim_res.WS, ws)
     npt.assert_array_equal(sim_res.WD, wd)
