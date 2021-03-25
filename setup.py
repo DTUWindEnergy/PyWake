@@ -35,7 +35,9 @@ setup(name='py_wake',
       packages=find_packages(),
       package_data={
           'py_wake': ['examples/data/iea37/*.yaml',
-                      'tests/test_files/fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/*.*'],
+					  'examples/data/*.npz'
+                      'tests/test_files/fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/*.*'
+                      ],
       },
       install_requires=[
           'matplotlib',  # for plotting
@@ -44,15 +46,15 @@ setup(name='py_wake',
           'autograd',  # gradient calculation
           'pyyaml',  # for reading yaml files
           'scipy',  # constraints
-          'tqdm', # progressbar
-          'ipywidgets',  # notebook widgets          
+          'tqdm',  # progressbar
+          'ipywidgets',  # notebook widgets
       ],
       extras_require={
-        'test': [
-            'pytest',  # for testing
-            'pytest-cov',  # for calculating coverage
-            'sphinx',  # generating documentation
-            'sphinx_rtd_theme',  # docs theme
-            'line_profiler', # to check speed
-        ]},      
+          'test': [
+              'pytest',  # for testing
+              'pytest-cov',  # for calculating coverage
+              'sphinx',  # generating documentation
+              'sphinx_rtd_theme',  # docs theme
+              'line_profiler',  # to check speed
+          ]},
       zip_safe=True)
