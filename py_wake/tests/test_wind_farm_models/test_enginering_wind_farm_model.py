@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site, IEA37WindTurbinesDeprecated
-from py_wake import NOJ, Fuga
+from py_wake import NOJ, Fuga, examples
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
 from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y, wt9_x, wt9_y, V80
@@ -29,6 +29,7 @@ from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt
 
 from autograd.tracer import trace
 from py_wake.tests.test_files import tfp
+import os
 
 
 WindFarmModel.verbose = False
@@ -378,7 +379,7 @@ def test_time_series_values():
 def test_time_series_dates():
     import pandas as pd
     import xarray as xr
-    d = np.load(tfp + "time.npz")
+    d = np.load(os.path.dirname(examples.__file__) + "/data/time_series.npz")
     wd, ws, ws_std = [d[k][:6 * 24] for k in ['wd', 'ws', 'ws_std']]
     ti = np.minimum(ws_std / ws, .5)
     t = pd.date_range("2000-01-01", freq="10T", periods=24 * 6)
