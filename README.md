@@ -3,8 +3,6 @@
 [![DOI](https://zenodo.org/badge/164115313.svg)](https://zenodo.org/badge/latestdoi/164115313)
 [![PyPi](https://img.shields.io/pypi/v/py_wake)](https://pypi.org/project/py-wake/)
 [![License](https://img.shields.io/pypi/l/py_wake)](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/blob/master/LICENSE)
-[![pipeline status](https://gitlab.windenergy.dtu.dk/TOPFARM/cuttingedge/pywake/pywake_park/badges/master/pipeline.svg)](https://gitlab.windenergy.dtu.dk/TOPFARM/cuttingedge/pywake/pywake_park/-/commits/master)
-[![pipeline status](https://gitlab.windenergy.dtu.dk/TOPFARM/cuttingedge/pywake/pywake_ellipsys/badges/master/pipeline.svg)](https://gitlab.windenergy.dtu.dk/TOPFARM/cuttingedge/pywake/pywake_ellipsys/commits/master) 
 
 ![PyWake](https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake/raw/master/docs/logo.svg)
 
