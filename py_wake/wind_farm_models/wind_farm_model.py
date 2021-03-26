@@ -53,12 +53,13 @@ class WindFarmModel(ABC):
             return SimulationResult(self, lw, [], yaw_ilk, z, z, z, z, kwargs)
         res = self.calc_wt_interaction(x_i=np.asarray(x), y_i=np.asarray(y), h_i=h, type_i=type, yaw_ilk=yaw_ilk,
                                        wd=wd, ws=ws, time=time, **kwargs)
-        WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, localWind, power_ct_inputs = res
+        WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, localWind, wt_inputs = res
+
         return SimulationResult(self, localWind=localWind,
                                 type_i=np.zeros(len(x), dtype=int) + type, yaw_ilk=yaw_ilk,
 
                                 WS_eff_ilk=WS_eff_ilk, TI_eff_ilk=TI_eff_ilk,
-                                power_ilk=power_ilk, ct_ilk=ct_ilk, power_ct_inputs=power_ct_inputs)
+                                power_ilk=power_ilk, ct_ilk=ct_ilk, wt_inputs=wt_inputs)
 
     def aep(self, x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None,  # @ReservedAssignment
             normalize_probabilities=False, with_wake_loss=True):
@@ -135,14 +136,14 @@ class WindFarmModel(ABC):
 
 class SimulationResult(xr.Dataset):
     """Simulation result returned when calling a WindFarmModel object"""
-    __slots__ = ('windFarmModel', 'localWind', 'power_ct_inputs')
+    __slots__ = ('windFarmModel', 'localWind', 'wt_inputs')
 
     def __init__(self, windFarmModel, localWind, type_i, yaw_ilk,
-                 WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, power_ct_inputs):
+                 WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, wt_inputs):
         self.windFarmModel = windFarmModel
         lw = localWind
         self.localWind = localWind
-        self.power_ct_inputs = power_ct_inputs
+        self.wt_inputs = wt_inputs
         n_wt = len(lw.i)
 
         coords = {k: (dep, v, {'Description': d}) for k, dep, v, d in [
@@ -212,7 +213,7 @@ class SimulationResult(xr.Dataset):
         if with_wake_loss:
             power_ilk = self.Power.ilk()
         else:
-            power_ilk = self.windFarmModel.windTurbines.power(self.WS.ilk(self.Power.shape), **self.power_ct_inputs)
+            power_ilk = self.windFarmModel.windTurbines.power(self.WS.ilk(self.Power.shape), **self.wt_inputs)
 
         if linear_power_segments:
             s = "The linear_power_segments method "
@@ -239,6 +240,88 @@ class SimulationResult(xr.Dataset):
                             self.Power.coords,
                             name='AEP [GWh]',
                             attrs={'Description': 'Annual energy production [GWh]'})
+
+    def loads(self, method, lifetime_years=20, n_eq_lifetime=1e7, normalize_probabilities=False, softmax_base=None):
+        assert method in ['TwoWT', 'OneWT_WDAvg', 'OneWT']
+        wt = self.windFarmModel.windTurbines
+
+        P_ilk = self.P_ilk
+        if normalize_probabilities:
+            P_ilk /= P_ilk.sum((1, 2))[:, na, na]
+        WS_eff_ilk = self.WS_eff_ilk
+        TI_eff_ilk = self.TI_eff_ilk
+
+        kwargs = self.wt_inputs
+
+        if method == 'OneWT_WDAvg':  # average over wd
+            p_wd_ilk = P_ilk.sum((0, 2))[na, :, na]
+            ws_ik = (WS_eff_ilk * p_wd_ilk).sum(1)
+            kwargs_ik = {k: (wt.loadFunction.fix_shape(v, WS_eff_ilk) * p_wd_ilk).sum(1) for k, v in kwargs.items()
+                         if k != 'TI_eff' and v is not None}
+            kwargs_ik.update({k: v for k, v in kwargs.items() if v is None})
+
+            loads, i_lst = [], []
+            m_lst = np.asarray(wt.loadFunction.wohler_exponents)
+            for m in np.unique(m_lst):
+                i = np.where(m_lst == m)[0]
+                if 'TI_eff' in kwargs:
+                    kwargs_ik['TI_eff'] = ((p_wd_ilk * TI_eff_ilk ** m).sum(1)) ** (1 / m)
+                loads.extend(wt.loads(ws_ik, run_only=i, **kwargs_ik))
+                i_lst.extend(i)
+            loads = [loads[i] for i in np.argsort(i_lst)]  # reorder
+
+            ds = xr.DataArray(
+                loads,
+                dims=['sensor', 'wt', 'ws'],
+                coords={'sensor': wt.loadFunction.output_keys,
+                        'm': ('sensor', wt.loadFunction.wohler_exponents),
+                        'wt': self.wt, 'ws': self.ws},
+                attrs={'description': '1Hz Damage Equivalent Load'}).to_dataset(name='DEL')
+            ds['P'] = self.P.sum('wd')
+            t_flowcase = ds.P * lifetime_years * 365 * 24 * 3600
+            f = ds.DEL.mean()  # factor used to reduce numerical errors in power
+            ds['LDEL'] = ((t_flowcase * (ds.DEL / f)**ds.m).sum('ws') / n_eq_lifetime)**(1 / ds.m) * f
+            ds.LDEL.attrs['description'] = "Lifetime (%d years) equivalent loads, n_eq_L=%d" % (
+                lifetime_years, n_eq_lifetime)
+        elif method == 'OneWT' or method == 'TwoWT':
+            if method == 'OneWT':
+                loads_silk = wt.loads(WS_eff_ilk, **kwargs)
+            else:  # method == 'TwoWT':
+                I, L, K = WS_eff_ilk.shape
+                ws_iilk = np.broadcast_to(WS_eff_ilk[na], (I, I, L, K))
+
+                def fix_shape(k, v):
+                    # if hasattr(v, 'shape') and v.shape == (I, I, L, K):
+                    #     return v
+                    if k[-3:] == 'ijl':
+                        return wt.loadFunction.fix_shape(v, ws_iilk)
+                    else:
+                        return np.broadcast_to(wt.loadFunction.fix_shape(v, WS_eff_ilk)[na], (I, I, L, K))
+                kwargs_iilk = {k: fix_shape(k, v)
+                               for k, v in kwargs.items()}
+
+                loads_siilk = np.array(wt.loads(ws_iilk, **kwargs_iilk))
+                if softmax_base is None:
+                    loads_silk = loads_siilk.max(1)
+                else:
+                    f = loads_siilk.mean((1, 2, 3, 4)) / 10  # factor used to reduce numerical errors in power
+                    loads_silk = np.log((softmax_base**(loads_siilk / f)).sum(1)) / np.log(softmax_base) * f
+
+            ds = xr.DataArray(
+                loads_silk,
+                dims=['sensor', 'wt', 'wd', 'ws'],
+                coords={'sensor': wt.loadFunction.output_keys,
+                        'm': ('sensor', wt.loadFunction.wohler_exponents, {'description': 'Wohler exponents'}),
+                        'wt': self.wt, 'wd': self.wd, 'ws': self.ws},
+                attrs={'description': '1Hz Damage Equivalent Load'}).to_dataset(name='DEL')
+            ds['P'] = self.P
+            t_flowcase = ds.P * lifetime_years * 365 * 24 * 3600
+            f = ds.DEL.mean()   # factor used to reduce numerical errors in power
+            ds['LDEL'] = ((t_flowcase * (ds.DEL / f)**ds.m).sum(('wd', 'ws')) / n_eq_lifetime)**(1 / ds.m) * f
+            ds.LDEL.attrs['description'] = "Lifetime (%d years) equivalent loads, n_eq_L=%d" % (
+                lifetime_years, n_eq_lifetime)
+
+        return ds
 
     def flow_box(self, x, y, h, wd=None, ws=None):
         X, Y, H = np.meshgrid(x, y, h)

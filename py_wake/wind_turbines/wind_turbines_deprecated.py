@@ -3,6 +3,7 @@ from scipy.interpolate.fitpack2 import UnivariateSpline
 from autograd.core import defvjp, primitive
 from inspect import signature
 from py_wake.wind_turbines._wind_turbines import WindTurbines
+from py_wake.wind_turbines.wind_turbine_functions import WindTurbineFunction
 
 
 class DeprecatedWindTurbines(WindTurbines):
@@ -45,10 +46,7 @@ class DeprecatedWindTurbines(WindTurbines):
                 power_funcs = list([PowerScaler(f, power_scale) for f in power_funcs])
 
         self._power_funcs = power_funcs
-
-    @property
-    def power_ct_inputs(self):
-        return ['type', 'yaw'], []
+        self.powerCtFunction = WindTurbineFunction(['ws', 'type', 'yaw'], [])  # dummy for forward compatibility
 
     def _ct_power(self, ws_i, type=0, **kwargs):
         ws_i = np.asarray(ws_i)

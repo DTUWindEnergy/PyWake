@@ -54,7 +54,7 @@ def check_speed_Hornsrev(WFModel):
     wt = HornsrevV80()
     site = Hornsrev1Site()
     wf_model = WFModel(site, wt)
-    aep, t_lst = timeit(lambda x, y: wf_model(x, y).aep().sum())(wt_x, wt_y)
+    aep, t_lst = timeit(lambda x, y: wf_model(x, y).aep().sum(), min_runs=3)(wt_x, wt_y)
 
     fn = tfp + "speed_check/%s.txt" % WFModel.__name__
     if os.path.isfile(fn):
@@ -83,6 +83,22 @@ def check_speed_Hornsrev(WFModel):
     if getattr(sys, 'gettrace')() is None:
         with open(fn, 'a') as fid:
             fid.write("%s;%.10f;%s\n" % (datetime.now(), aep, t_lst))
+
+
+def test_check_speed():
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
+
+    def Fuga(site, wt):
+        return fuga.Fuga(path, site, wt)
+
+    for WFModel in [NOJ, IEA37SimpleBastankhahGaussian, Fuga]:
+        try:
+            check_speed_Hornsrev(WFModel)
+        except Exception as e:
+            print(e)
+            raise e
+    if 1:
+        plt.show()
 
 
 if __name__ == '__main__':

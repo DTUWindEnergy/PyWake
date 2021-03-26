@@ -1,0 +1,73 @@
+{
+    "input_channel_names": [
+        "ti",
+        "ws",
+        "shear"
+    ],
+    "output_channel_name": "MomentMz Mbdy:shaft nodenr:   3 coo: shaft  main bearing moment",
+    "wind_speed_cut_in": 4.0,
+    "wind_speed_cut_out": 25.0,
+    "wohler_exponent": NaN,
+    "input_scalers": {
+        "operating": {
+            "feature_range": [
+                -3.0,
+                3.0
+            ],
+            "copy": true,
+            "n_features_in_": 3,
+            "n_samples_seen_": 1572,
+            "scale_": [
+                11.79559835553993,
+                0.28710421679370607,
+                10.014669925814587
+            ],
+            "min_": [
+                -3.000817363012889,
+                -4.148878985987874,
+                -2.0014669922476362
+            ],
+            "data_min_": [
+                6.92939e-05,
+                4.0016095856,
+                -0.0997070313
+            ],
+            "data_max_": [
+                0.5087336125,
+                24.8999442287,
+                0.4994140625
+            ],
+            "data_range_": [
+                0.5086643186,
+                20.8983346431,
+                0.5991210938
+            ]
+        }
+    },
+    "output_scalers": {
+        "operating": {
+            "feature_range": [
+                -1.0,
+                1.0
+            ],
+            "copy": true,
+            "n_features_in_": 1,
+            "n_samples_seen_": 1572,
+            "scale_": [
+                0.007802703621193679
+            ],
+            "min_": [
+                -1.4325525794302039
+            ],
+            "data_min_": [
+                55.43624369575
+            ],
+            "data_max_": [
+                311.7576544651667
+            ],
+            "data_range_": [
+                256.3214107694167
+            ]
+        }
+    }
+}

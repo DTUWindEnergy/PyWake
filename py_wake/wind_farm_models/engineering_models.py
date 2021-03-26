@@ -172,27 +172,35 @@ class EngineeringWindFarmModel(WindFarmModel):
 
         self.site.distance.setup(x_i, y_i, h_i)
         # cw_iil = np.sqrt(hcw_iil**2 + dh_iil**2 + eps)
-        power_ct_inputs = kwargs
+        wt_kwargs = kwargs
+        ri, oi = self.windTurbines.function_inputs
+        unused_inputs = set(wt_kwargs) - set(ri) - set(oi)
+        if unused_inputs:
+            raise TypeError("""got unexpected keyword argument(s): '%s'
+            required arguments: %s
+            optional arguments: %s""" % ("', '".join(unused_inputs), ['ws'] + ri, oi))
 
         def add_arg(name, optional):
-            if name in power_ct_inputs:  # custom WindFarmModel.__call__ arguments
+            if name in wt_kwargs:  # custom WindFarmModel.__call__ arguments
                 return
-            elif name in {'yaw', 'type'}:  # fix WindFarmModel.__call__ arguments
-                power_ct_inputs[name] = {'yaw': yaw_ilk, 'type': type_i}[name]
+            elif name in {'yaw', 'type'}:  # fixed WindFarmModel.__call__ arguments
+                wt_kwargs[name] = {'yaw': yaw_ilk, 'type': type_i}[name]
             elif name in lw:
-                power_ct_inputs[name] = lw[name]
+                wt_kwargs[name] = lw[name]
             elif name in self.site.ds:
-                power_ct_inputs[name] = self.site.interp(self.site.ds[name], lw.coords).values
-            elif optional:
-                pass
+                wt_kwargs[name] = self.site.interp(self.site.ds[name], lw.coords).values
             elif name in ['TI_eff']:
                 if self.turbulenceModel:
-                    power_ct_inputs['TI_eff'] = None
-                else:
+                    wt_kwargs['TI_eff'] = None
+                elif optional is False:
                     raise KeyError("Argument, TI_eff, needed to calculate power and ct requires a TurbulenceModel")
+            elif name in ['dw_ijl', 'cw_ijl', 'hcw_ijl']:
+                pass
+            elif optional:
+                pass
             else:
                 raise KeyError("Argument, %s, required to calculate power and ct not found" % name)
-        for opt, lst in zip([False, True], self.windTurbines.power_ct_inputs):
+        for opt, lst in zip([False, True], self.windTurbines.function_inputs):
             for k in lst:
                 add_arg(k, opt)
 
@@ -202,8 +210,19 @@ class EngineeringWindFarmModel(WindFarmModel):
         kwargs = {'localWind': lw,
                   'WS_eff_ilk': WS_eff_ilk, 'TI_eff_ilk': TI_eff_ilk,
                   'x_i': x_i, 'y_i': y_i, 'h_i': h_i, 'D_i': D_i, 'yaw_ilk': yaw_ilk,
-                  'I': I, 'L': L, 'K': K, **power_ct_inputs}
-        return self._calc_wt_interaction(**kwargs) + (lw, power_ct_inputs)
+                  'I': I, 'L': L, 'K': K, **wt_kwargs}
+        WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk = self._calc_wt_interaction(**kwargs)
+        if 'TI_eff' in wt_kwargs:
+            wt_kwargs['TI_eff'] = TI_eff_ilk
+        d_ijl_keys = ({k for l in self.windTurbines.function_inputs for k in l} &
+                      {'dw_ijl', 'hcw_ijl', 'dh_ijl', 'cw_ijl'})
+        if d_ijl_keys:
+            d_ijl_dict = {k: lambda: v for k, v in zip(['dw_ijl', 'hcw_ijl', 'dh_ijl'], self.site.distance(wd[na]))}
+            d_ijl_dict['cw_ijl'] = lambda d_ijl_dict=d_ijl_dict: np.sqrt(
+                d_ijl_dict['dw_ijl']**2 + d_ijl_dict['hcw_ijl']**2)
+            wt_kwargs.update({k: d_ijl_dict[k]() for k in d_ijl_keys})
+
+        return WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, lw, wt_kwargs
 
     @abstractmethod
     def _calc_wt_interaction(self, **kwargs):
@@ -454,8 +473,9 @@ class PropagateDownwind(EngineeringWindFarmModel):
                     return v[i_wt_l]
                 else:
                     return v[i_wt_l, i_wd_l]
-            _kwargs = {k: mask(v) for k, v in kwargs.items()}
-            if 'TI_eff' in kwargs:
+            keys = self.windTurbines.powerCtFunction.required_inputs + self.windTurbines.powerCtFunction.optional_inputs
+            _kwargs = {k: mask(v) for k, v in kwargs.items() if k in keys}
+            if 'TI_eff' in _kwargs:
                 _kwargs['TI_eff'] = TI_eff_mk[-1]
             power_lk, ct_lk, = self.windTurbines.power_ct(WS_eff_lk, **_kwargs)
 

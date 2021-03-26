@@ -1,58 +1,56 @@
 import numpy as np
 from scipy.interpolate._cubic import PchipInterpolator
 from scipy.interpolate.interpolate import RegularGridInterpolator
-import types
 from abc import abstractmethod, ABC
 from autograd.core import defvjp, primitive
 from py_wake.utils.gradients import fd
 from scipy.interpolate.fitpack2 import UnivariateSpline
 from autograd.numpy.numpy_boxes import ArrayBox
-from autograd.builtins import SequenceBox
-from py_wake.utils.generic_power_ct_curves import standard_power_ct_curve
+from py_wake.wind_turbines.wind_turbine_functions import WindTurbineFunction, FunctionSurrogates,\
+    WindTurbineFunctionList
 from py_wake.utils.check_input import check_input
 
 
-class PowerCtModel():
-    """Base class for all PowerCtModel classes"""
+"""
+sequenceDiagram
+    participant wfm as WindFarmModel
+    participant pctf as PowerCtFunction
+    participant wtf as WindTurbineFunction
+    participant pmc as PowerCtModelContainer
+    participant ds as DensityScale
+    participant cpct as CubePowerSimpleCt
+    wfm->>+pctf: call(ws,**kwargs)
+    pctf->>+wtf: call(ws,**kwargs)
+    wtf->>wtf: check no unused input
+    wtf->>+pctf: evaluate(ws,**kwargs)
+    pctf->>+pmc: call(ws,**kwargs)
+    pmc->>+pmc: recursive_wrap(ws,**kwargs)
+    pmc->>+ds: call(ws, Air_density=None,**kwargs)
+    ds->>+pmc: recursive_wrap(ws,**kwargs)
+    pmc->>+cpct: power_ct(ws,**kwargs)
+    cpct->>-pmc: power/ct
+    pmc->>-ds: power/ct
+    ds->ds: scale power/ct
+    ds->>-pmc: power/ct
+    pmc->>-pmc: power/ct
+    pmc->>-pctf: power/ct
+    pctf->>-wtf: power/ct
+    wtf->>-pctf: power/ct
+    pctf->pctf: scale power
+    pctf->>-wfm: power[w]/ct
+"""
 
-    def __init__(self, required_inputs, optional_inputs):
-        if not hasattr(self, '_required_inputs'):
-            self._required_inputs = set({})
-            self._optional_inputs = set({})
-        self.add_inputs(required_inputs, optional_inputs)
 
-    @property
-    def required_inputs(self):
-        return sorted(self._required_inputs)
-
-    @property
-    def optional_inputs(self):
-        return sorted(self._optional_inputs)
-
-    def add_inputs(self, required_inputs, optional_inputs):
-        lst = [i for sub_lst in required_inputs for i in ([sub_lst], sub_lst)[isinstance(sub_lst, (list, set))]]
-        self._required_inputs |= set(lst)
-        lst = [i for sub_lst in optional_inputs for i in ([sub_lst], sub_lst)[isinstance(sub_lst, (list, set))]]
-        self._optional_inputs |= set(lst)
-
-    def fix_shape(self, arr, arr_to_match, allow_number=False):
-        if allow_number and isinstance(arr, (int, float)):
-            return arr
-        arr = np.asarray(arr)
-        shape = np.asarray(arr_to_match).shape
-        return np.broadcast_to(arr.reshape(arr.shape + (1,) * (len(shape) - len(arr.shape))), shape)
-
-
-class PowerCtModelContainer(PowerCtModel, ABC):
+class PowerCtModelContainer(WindTurbineFunction, ABC):
     """Base class for PowerCtModels that may have additional models"""
 
-    def __init__(self, required_inputs, optional_inputs, additional_models=[]):
-        PowerCtModel.__init__(self, required_inputs, optional_inputs)
+    def __init__(self, input_keys, optional_inputs, additional_models=[]):
+        WindTurbineFunction.__init__(self, input_keys, optional_inputs)
         for m in additional_models:
             self.add_inputs(m.required_inputs, m.optional_inputs)
         self.model_lst = additional_models
 
-    def __call__(self, ws, **kwargs):
+    def __call__(self, ws, run_only=slice(None), **kwargs):
         """This function recursively calls all additional (intermediate) models.
         The last additional model calls the final PowerCtFunction.power_ct method
         The resulting power/ct array is propagated back through the additional models"""
@@ -67,11 +65,11 @@ class PowerCtModelContainer(PowerCtModel, ABC):
                     # optional inputs not present => skip f and continue with next f in f_lst
                     return recursive_wrap(model_idx + 1, ws, **kwargs)
             else:
-                return self.power_ct(ws, **kwargs)
+                return self.power_ct(ws, **kwargs)[run_only]
         return recursive_wrap(0, ws, **kwargs)
 
 
-class AdditionalModel(PowerCtModel, ABC):
+class AdditionalModel(WindTurbineFunction, ABC):
     """AdditionalModel is intermediate model that wraps the final PowerCtFunction.
     It means that it can modify both inputs to and outputs from the final PowerCtFunction"""
 
@@ -97,7 +95,7 @@ class SimpleYawModel(AdditionalModel):
     """Simple model that replace ws with cos(yaw)*ws and scales the CT output with cos(yaw)**2"""
 
     def __init__(self):
-        AdditionalModel.__init__(self, required_inputs=[], optional_inputs=['yaw'])
+        AdditionalModel.__init__(self, input_keys=['ws', 'yaw'], optional_inputs=['yaw'])
 
     def __call__(self, f, ws, yaw=None, **kwargs):
         if yaw is not None:
@@ -115,7 +113,7 @@ class DensityScale(AdditionalModel):
     """Scales the power and ct with density"""
 
     def __init__(self, air_density_ref):
-        AdditionalModel.__init__(self, required_inputs=[], optional_inputs=['Air_density'])
+        AdditionalModel.__init__(self, input_keys=['ws', 'Air_density'], optional_inputs=['Air_density'])
         self.air_density_ref = air_density_ref
 
     def __call__(self, f, ws, Air_density=None, **kwargs):
@@ -150,8 +148,7 @@ class PowerCtFunction(PowerCtModelContainer, ABC):
             list of additional models.
         """
         assert input_keys[0] == 'ws'
-        required_inputs = [k for k in input_keys[1:] if k not in optional_inputs]
-        PowerCtModelContainer.__init__(self, required_inputs, optional_inputs, additional_models)
+        PowerCtModelContainer.__init__(self, input_keys, optional_inputs, additional_models)
         self.input_keys = input_keys
         self.power_unit = power_unit
         self.power_scale = {'w': 1, 'kw': 1e3, 'mw': 1e6, 'gw': 1e9}[power_unit.lower()]
@@ -160,19 +157,16 @@ class PowerCtFunction(PowerCtModelContainer, ABC):
     def enable_autograd(self):
         self.set_gradient_funcs(self.get_power_ct_grad_func())
 
-    def __call__(self, ws, **kwargs):
-        unused_inputs = set(kwargs) - self._required_inputs - self._optional_inputs
-        if unused_inputs:
-            raise TypeError("got unexpected keyword argument(s): '%s'" % ("', '".join(unused_inputs)))
+    def __call__(self, ws, run_only=slice(None), **kwargs):
 
         # Start call hierachy, i.e. recursively run all additional models and finally the self.power_ct
         power_ct_arr = PowerCtModelContainer.__call__(self, ws, **kwargs)
         if self.power_scale != 1:
             if isinstance(power_ct_arr, ArrayBox):
                 return power_ct_arr * np.reshape([self.power_scale, 1], (2,) + (1,) * len(np.shape(ws)))
-            return [power_ct_arr[0] * self.power_scale, power_ct_arr[1]]
+            return [power_ct_arr[0] * self.power_scale, power_ct_arr[1]][run_only]
         else:
-            return power_ct_arr
+            return power_ct_arr[run_only]
 
     def set_gradient_funcs(self, power_ct_grad_func):
 
@@ -246,7 +240,7 @@ class PowerCtTabular(PowerCtFunction):
         self.method = method
         PowerCtFunction.__init__(self, ['ws'], self.handle_cs, power_unit, [], additional_models)
 
-    def handle_cs(self, ws):
+    def handle_cs(self, ws, **_):
         f = self.interp
         if np.asarray(ws).dtype == np.complex128:
             return np.asarray(f(ws.real)) + ws.imag * self.get_power_ct_grad_func()(ws.real) * 1j
@@ -300,7 +294,7 @@ class PowerCtTabular(PowerCtFunction):
         self.power_ct_spline_derivative = self.power_spline.derivative(), self.ct_spline.derivative()
 
 
-class PowerCtFunctionList(PowerCtFunction):
+class PowerCtFunctionList(WindTurbineFunctionList, PowerCtFunction):
     """Wraps a list of PowerCtFunction objects by adding a new discrete input argument,
     representing the index of the PowerCtFunction objects in the list"""
 
@@ -324,49 +318,15 @@ class PowerCtFunctionList(PowerCtFunction):
         # collect required and optional inputs from all powerCtFunctions
         required_inputs.extend([pcct.required_inputs for pcct in powerCtFunction_lst])
         optional_inputs.extend([pcct.optional_inputs for pcct in powerCtFunction_lst])
-        PowerCtFunction.__init__(self, ['ws'] + required_inputs + optional_inputs, self._power_ct, power_unit='w',
-                                 optional_inputs=optional_inputs, additional_models=additional_models)
 
-        self.powerCtFunction_lst = powerCtFunction_lst
-        self.default_value = default_value
-        self.key = key
-
-    def enable_autograd(self):
-        for f in self.powerCtFunction_lst:
-            f.enable_autograd()
-
-    def _subset(self, arr, mask):
-        if arr is None or isinstance(arr, types.FunctionType):
-            return arr
-        return np.broadcast_to(arr.reshape(arr.shape + (1,) * (len(mask.shape) - len(arr.shape))), mask.shape)[mask]
-
-    def _power_ct(self, ws, **kwargs):
-        try:
-            idx = kwargs.pop(self.key)
-        except KeyError:
-            if self.default_value is None:
-                raise KeyError(f"Argument, {self.key}, required to calculate power and ct not found")
-            idx = self.default_value
-
-        idx = np.asarray(idx, dtype=int)
-
-        if idx.shape == (1,):
-            idx = idx[0]
-        if idx.shape == ():
-            res = self.powerCtFunction_lst[idx](ws, **kwargs)
-        else:
-            res = np.empty((2,) + np.asarray(ws).shape)
-            unique_idx = np.unique(idx)
-            idx = np.zeros(ws.shape, dtype=int) + idx.reshape(idx.shape + (1,) * (len(ws.shape) - len(idx.shape)))
-            for i in unique_idx:
-                m = (idx == i)
-                res[:, m] = self.powerCtFunction_lst[i](ws[m], **{k: self._subset(v, m) for k, v in kwargs.items()})
-        for i in self.powerCtFunction_lst[0].required_inputs:
-            kwargs.pop(i)
-        for i in self.powerCtFunction_lst[0].optional_inputs:
-            if i in kwargs:
-                kwargs.pop(i)
-        return res
+        PowerCtFunction.__init__(
+            self,
+            input_keys=['ws'],
+            power_ct_func=self.__call__,
+            power_unit='w',
+            additional_models=additional_models)
+        WindTurbineFunctionList.__init__(self, key=key,
+                                         windTurbineFunction_lst=powerCtFunction_lst, default_value=default_value)
 
 
 class PowerCtNDTabular(PowerCtFunction):
@@ -514,3 +474,20 @@ class CubePowerSimpleCt(PowerCtFunction):
                            self.dct_rated2cutout(ws),
                            0)  # constant ct
         return np.asarray([dp, dct])
+
+
+class PowerCtSurrogate(PowerCtFunction, FunctionSurrogates):
+    def __init__(self, power_surrogate, power_unit, ct_surrogate, input_parser, additional_models=[]):
+        assert power_surrogate.input_channel_names == ct_surrogate.input_channel_names
+
+        PowerCtFunction.__init__(
+            self,
+            input_keys=['ws'],  # dummy, overriden below
+            power_ct_func=self._power_ct,
+            power_unit=power_unit,
+            optional_inputs=[],  # dummy, overriden below
+            additional_models=additional_models)
+        FunctionSurrogates.__init__(self, [power_surrogate, ct_surrogate], input_parser)
+
+    def _power_ct(self, ws, run_only=slice(None), **kwargs):
+        return FunctionSurrogates.__call__(self, ws, run_only, **kwargs)

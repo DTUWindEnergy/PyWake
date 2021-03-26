@@ -1,9 +1,7 @@
-
 from py_wake.deficit_models.deficit_model import BlockageDeficitModel
 from py_wake.deficit_models.fuga import FugaDeficit
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
-from py_wake.site._site import Site
 from py_wake.site.xrsite import XRSite
 from py_wake.superposition_models import SuperpositionModel
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel

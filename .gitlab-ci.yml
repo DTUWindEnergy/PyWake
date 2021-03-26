@@ -7,13 +7,14 @@ stages:
 
 # ===== TEST PyWake debian=====
 test_PyWake:  # name the job what we like
+  image: continuumio/anaconda3
   stage:  # build, test, deploy defined by default [2]
     test
   script:
-  - pip install -e .
-  - py.test
+  - pip install -e .[test]
+  - pytest
   tags:  # only runners with this tag can do the job [3]
-  - python
+  - ci-ubuntu
 
   
 # ===== Check code style =====
@@ -31,7 +32,8 @@ test_PyWake_windows:  # name the job what we like
   stage:  # build, test, deploy defined by default [2]
     test
   script:  # runs on windows machine due to tag below
-  - source activate pyTopfarm
+  - source activate py38
+  - pip install -e .[test]
   - pytest --cov-report term-missing:skip-covered --cov=py_wake --cov-config .coveragerc
   tags:  # tag for shared runner on windows machine
   - ANMH_old
