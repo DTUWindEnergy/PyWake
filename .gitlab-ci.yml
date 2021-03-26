@@ -70,6 +70,7 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
   stage:  # build, test, deploy defined by default [2]
     deploy
   script:  # use sphinx to build docs, move to public page
+  - pip install --upgrade pip
   - pip install sphinx --upgrade
   - pip install nbsphinx --upgrade
   - pip install -e .
@@ -104,6 +105,7 @@ pypi_linux:
     - test_pypi
   script:
     - apt-get update
+    - pip install --upgrade pip
     - pip install pypandoc
     - pip install -e . --upgrade
     - python3 -c 'from git_utils import get_tag; get_tag(verbose=True)'
