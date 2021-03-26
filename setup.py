@@ -56,5 +56,11 @@ setup(name='py_wake',
               'sphinx',  # generating documentation
               'sphinx_rtd_theme',  # docs theme
               'line_profiler',  # to check speed
+              'sklearn',  # MinMaxScaler
+              'tensorflow',  # load surrogates
+          ],
+          'loads': [
+              'sklearn',  # MinMaxScaler
+              'tensorflow',  # load surrogates
           ]},
       zip_safe=True)

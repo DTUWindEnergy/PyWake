@@ -17,7 +17,11 @@ def get_main_modules():
     for _, modname, _ in pkgutil.walk_packages(package.__path__, package.__name__ + '.'):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            m = importlib.import_module(modname)
+            try:
+                m = importlib.import_module(modname)
+            except Exception:
+                print(f"!!!!!! failed to import {modname}")
+                raise
 
         if 'main' in dir(m):
             modules.append(m)

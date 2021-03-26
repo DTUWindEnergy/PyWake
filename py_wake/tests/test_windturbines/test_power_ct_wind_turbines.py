@@ -57,7 +57,7 @@ def test_PowerCtTabular(method, unit, p_scale, p_ref, ct_ref):
     u = np.arange(0, 30, .1)
 
     wfm = get_wfm(curve)
-    ri, oi = wfm.windTurbines.power_ct_inputs
+    ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, [])
     npt.assert_array_equal(oi, ['Air_density', 'yaw'])
     sim_res = wfm([0], [0], ws=u, wd=[0]).squeeze()
@@ -88,7 +88,7 @@ def test_MultiPowerCtCurve():
     u = np.arange(0, 30, .1)
 
     wfm = get_wfm(curve)
-    ri, oi = wfm.windTurbines.power_ct_inputs
+    ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['mode'])
     npt.assert_array_equal(oi, ['Air_density', 'yaw'])
 
@@ -125,7 +125,7 @@ def test_MultiMultiPowerCtCurve_subset():
                                      PowerCtTabular(ws=u_p, power=p + 6, power_unit='w', ct=ct)]),
     ])
     wfm = get_wfm(curves)
-    ri, oi = wfm.windTurbines.power_ct_inputs
+    ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['mode', 'mytype'])
     npt.assert_array_equal(oi, ['Air_density', 'yaw'])
 
@@ -156,7 +156,7 @@ def test_2d_tabular():
                              np.array([ct_c, ct_c]).T)
     u = np.linspace(3, 25, 10)
     wfm = get_wfm(curve)
-    ri, oi = wfm.windTurbines.power_ct_inputs
+    ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['boost'])
     npt.assert_array_equal(oi, ['Air_density', 'yaw'])
 
@@ -197,7 +197,7 @@ def test_PowerCtXr():
     curve = PowerCtXr(ds, 'w')
     u = np.linspace(3, 25, 10)
     wfm = get_wfm(curve)
-    ri, oi = wfm.windTurbines.power_ct_inputs
+    ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['boost'])
     npt.assert_array_equal(oi, ['Air_density', 'yaw'])
 
@@ -231,7 +231,7 @@ def test_PowerCtXr():
 def test_FunctionalPowerCtCurve():
     curve = CubePowerSimpleCt()
     wfm = get_wfm(curve)
-    ri, oi = wfm.windTurbines.power_ct_inputs
+    ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, [])
     npt.assert_array_equal(oi, ['Air_density', 'yaw'])
 
@@ -260,7 +260,7 @@ def test_continuous():
     curve = get_continuous_curve('boost', True)
 
     wfm = get_wfm(curve)
-    ri, oi = wfm.windTurbines.power_ct_inputs
+    ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, [])
     npt.assert_array_equal(oi, ['Air_density', 'boost', 'yaw'])
 
@@ -293,7 +293,7 @@ def test_continuous():
 def test_unused_input():
     curve = get_continuous_curve('boost', True)
     wfm = get_wfm(curve)
-    ri, oi = wfm.windTurbines.power_ct_inputs
+    ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, [])
     npt.assert_array_equal(oi, ['Air_density', 'boost', 'yaw'])
     with pytest.raises(TypeError, match=r"got unexpected keyword argument\(s\): 'mode'"):
@@ -303,7 +303,7 @@ def test_unused_input():
 def test_missing_input():
     curve = get_continuous_curve('boost', False)
     wfm = get_wfm(curve)
-    ri, oi = wfm.windTurbines.power_ct_inputs
+    ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['boost'])
     npt.assert_array_equal(oi, ['Air_density', 'yaw'])
 
@@ -318,7 +318,7 @@ def test_missing_input_PowerCtFunctionList():
                                          PowerCtTabular(ws=u_p, power=p + 3, power_unit='w', ct=ct)])
 
     wfm = get_wfm(curve)
-    ri, oi = wfm.windTurbines.power_ct_inputs
+    ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['mode'])
     npt.assert_array_equal(oi, ['Air_density', 'yaw'])
 
@@ -331,7 +331,7 @@ def test_DensityScaleAndSimpleYawModel():
 
     curve = PowerCtTabular(ws=u_p, power=p_c, power_unit='w', ct=ct_c, method='linear')
     wfm = get_wfm(curve)
-    ri, oi = wfm.windTurbines.power_ct_inputs
+    ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, [])
     npt.assert_array_equal(oi, ['Air_density', 'yaw'])
 
@@ -360,7 +360,7 @@ def test_DensityScaleFromSite():
         curve = PowerCtTabular(ws=u_p, power=p_c, power_unit='w', ct=ct_c, ws_cutin=4, ws_cutout=25,
                                method='linear', additional_models=[DensityScale(rho_ref)])
         wfm = get_wfm(curve, site=XRSite(ds))
-        ri, oi = wfm.windTurbines.power_ct_inputs
+        ri, oi = wfm.windTurbines.function_inputs
         npt.assert_array_equal(ri, [])
         npt.assert_array_equal(oi, ['Air_density'])
         u = np.arange(4, 25, .1)
@@ -377,7 +377,7 @@ def test_WSFromLocalWind():
 
     curve = get_continuous_curve('WD', False)
     wfm = get_wfm(curve)
-    ri, oi = wfm.windTurbines.power_ct_inputs
+    ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['WD'])
     npt.assert_array_equal(oi, ['Air_density', 'yaw'])
     u = np.arange(4, 25, .1)
@@ -397,7 +397,7 @@ def test_TIFromWFM():
     curve = PowerCtFunction(['ws', 'TI_eff'], _power_ct, 'w')
 
     wfm = get_wfm(curve)
-    ri, oi = wfm.windTurbines.power_ct_inputs
+    ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['TI_eff'])
     npt.assert_array_equal(oi, ['Air_density', 'yaw'])
     u = np.arange(4, 25, .1)
@@ -444,7 +444,7 @@ def test_gradients(case, wt, dpdu_ref, dctdu_ref, grad_method):
         if grad_method == autograd:
             wt.enable_autograd()
         ws_lst = np.arange(2, 25, .1)
-        kwargs = {k: 1 for k in wt.power_ct_inputs[0]}
+        kwargs = {k: 1 for k in wt.function_inputs[0]}
         dpdu_lst, dctdu_lst = grad_method(wt.power_ct)(ws_pts, **kwargs)
 
     if 0:

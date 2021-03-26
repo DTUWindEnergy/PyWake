@@ -50,6 +50,10 @@ def test_TabularPowerCtCurve(method, unit, p_scale, p_ref, ct_ref):
     npt.assert_array_almost_equal(p[s], p_ref, 3)
     npt.assert_array_almost_equal(ct[s], ct_ref, 3)
 
+    p, ct = curve(u, run_only=0), curve(u, run_only=1)
+    npt.assert_array_almost_equal(p[s], p_ref, 3)
+    npt.assert_array_almost_equal(ct[s], ct_ref, 3)
+
 
 def test_MultiPowerCtCurve():
     u_p, p = np.asarray(hornsrev1.power_curve).T.copy()
@@ -248,13 +252,6 @@ def test_PowerCtXr():
         coords={'boost': [0, 10], 'ws': u_p})
     curve = PowerCtXr(ds, 'w')
     npt.assert_array_almost_equal(curve(u_p, boost=0), curve(u_p, boost=10) / 1.1)
-
-
-def test_unused_input():
-    curve = get_continuous_curve('boost', True)
-    u = np.zeros((16, 360, 23)) + np.arange(3, 26)[na, na, :]
-    with pytest.raises(TypeError, match=r"got unexpected keyword argument\(s\): 'mode'"):
-        curve(u, boost=1, mode=1)
 
 
 def test_missing_input_PowerCtFunctionList():

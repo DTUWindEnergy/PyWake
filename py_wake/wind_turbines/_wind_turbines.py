@@ -4,6 +4,8 @@ from matplotlib.patches import Ellipse
 import warnings
 import inspect
 from py_wake.wind_turbines.power_ct_functions import PowerCtFunctionList, PowerCtTabular, SimpleYawModel, CubePowerSimpleCt
+import xarray as xr
+from numpy import newaxis as na
 
 
 class WindTurbines():
@@ -21,7 +23,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         except TypeError:
             return super(WindTurbines, cls).__new__(cls)
 
-    def __init__(self, names, diameters, hub_heights, powerCtFunctions):
+    def __init__(self, names, diameters, hub_heights, powerCtFunctions, loadFunctions=None):
         """Initialize WindTurbines
 
         Parameters
@@ -32,22 +34,24 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
             Diameter of wind turbines
         hub_heights : array_like
             Hub height of wind turbines
-        ct_funcs : list of functions
+        powerCtFunctions : list of powerCtFunction objects
             Wind turbine ct functions; func(ws) -> ct
-        power_funcs : list of functions
-            Wind turbine power functions; func(ws) -> power
-        power_unit : {'W', 'kW', 'MW', 'GW'}
-            Unit of power_func output (case insensitive)
         """
         self._names = np.array(names)
         self._diameters = np.array(diameters)
         self._hub_heights = np.array(hub_heights)
         assert len(names) == len(diameters) == len(hub_heights) == len(powerCtFunctions)
         self.powerCtFunction = PowerCtFunctionList('type', powerCtFunctions)
+#         if loadFunctions:
+#             self.loadfunction =
 
     @property
-    def power_ct_inputs(self):
-        return self.powerCtFunction.required_inputs, self.powerCtFunction.optional_inputs
+    def function_inputs(self):
+        ri, oi = self.powerCtFunction.required_inputs, self.powerCtFunction.optional_inputs
+        if hasattr(self, 'loadFunction'):
+            ri += self.loadFunction.required_inputs
+            oi += self.loadFunction.optional_inputs
+        return ri, oi
 
     def _info(self, var, type):
         return var[np.asarray(type, int)]
@@ -90,6 +94,9 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
 
     def power_ct(self, ws, **kwargs):
         return self.powerCtFunction(ws, **kwargs)
+
+    def loads(self, ws, **kwargs):
+        return self.loadFunction(ws, **kwargs)
 
     def types(self):
         return np.arange(len(self._names))
@@ -313,7 +320,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
             default_value=0, additional_models=[SimpleYawModel()])
 
         char_data_tables = [np.array([pct.ws_tab, pct.power_ct_tab[0], pct.power_ct_tab[1]]).T
-                            for pct in power_ct_funcs.powerCtFunction_lst]
+                            for pct in power_ct_funcs.windTurbineFunction_lst]
 
         wts = WindTurbine(name=name, diameter=diameter, hub_height=hub_height,
                           powerCtFunction=power_ct_funcs)
@@ -327,7 +334,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
 class WindTurbine(WindTurbines):
     """Set of wind turbines (one type, i.e. all wind turbines have same name, diameter, power curve etc"""
 
-    def __init__(self, name, diameter, hub_height, powerCtFunction):
+    def __init__(self, name, diameter, hub_height, powerCtFunction, **windTurbineFunctions):
         """Initialize OneTypeWindTurbine
 
         Parameters
@@ -338,18 +345,15 @@ class WindTurbine(WindTurbines):
             Diameter of wind turbine
         hub_height : int or float
             Hub height of wind turbine
-        ct_func : function
-            Wind turbine ct function; func(ws) -> ct
-        power_func : function
-            Wind turbine power function; func(ws) -> power
-        power_unit : {'W', 'kW', 'MW', 'GW'}
-            Unit of power_func output (case insensitive)
+        powerCtFunction : PowerCtFunction object
+            Wind turbine powerCtFunction
         """
-
         self._names = np.array([name])
         self._diameters = np.array([diameter])
         self._hub_heights = np.array([hub_height])
         self.powerCtFunction = powerCtFunction
+        for k, v in windTurbineFunctions.items():
+            setattr(self, k, v)
 
 
 def main():
