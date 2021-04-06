@@ -168,6 +168,8 @@ class SimulationResult(xr.Dataset):
         for n in localWind:
             self[n] = localWind[n]
         self.attrs.update(localWind.attrs)
+        for n in set(wt_inputs) - {'type', 'TI_eff'}:
+            self.add_ilk(n, wt_inputs[n])
 
         if yaw_ilk is None:
             self['Yaw'] = self.Power * 0
@@ -298,7 +300,8 @@ class SimulationResult(xr.Dataset):
                     else:
                         return np.broadcast_to(wt.loadFunction.fix_shape(v, WS_eff_ilk)[na], (I, I, L, K))
                 kwargs_iilk = {k: fix_shape(k, v)
-                               for k, v in kwargs.items()}
+                               for k, v in kwargs.items()
+                               if k in wt.loadFunction.required_inputs + wt.loadFunction.optional_inputs}
 
                 loads_siilk = np.array(wt.loads(ws_iilk, **kwargs_iilk))
                 if softmax_base is None:

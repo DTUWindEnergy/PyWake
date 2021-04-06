@@ -51,6 +51,10 @@ class WindTurbineFunction():
     def optional_inputs(self):
         return sorted(self._optional_inputs)
 
+    @property
+    def inputs(self):
+        return sorted(self._required_inputs | self._optional_inputs)
+
     def add_inputs(self, required_inputs, optional_inputs):
         lst = [i for sub_lst in required_inputs for i in ([sub_lst], sub_lst)[isinstance(sub_lst, (list, set))]]
         self._required_inputs |= set(lst)
@@ -115,17 +119,21 @@ class WindTurbineFunctionList(WindTurbineFunction):
 
         idx = np.asarray(idx, dtype=int)
 
+        def get_kwargs(idx):
+            return {k: v for k, v in kwargs.items() if k in self.windTurbineFunction_lst[idx].inputs}
+
         if idx.shape == (1,):
             idx = idx[0]
         if idx.shape == ():
-            res = self.windTurbineFunction_lst[idx](ws, **kwargs)
+            res = self.windTurbineFunction_lst[idx](ws, **get_kwargs(idx))
         else:
             res = np.empty((2,) + np.asarray(ws).shape)
             unique_idx = np.unique(idx)
             idx = np.zeros(ws.shape, dtype=int) + idx.reshape(idx.shape + (1,) * (len(ws.shape) - len(idx.shape)))
             for i in unique_idx:
                 m = (idx == i)
-                res[:, m] = self.windTurbineFunction_lst[i](ws[m], **{k: self._subset(v, m) for k, v in kwargs.items()})
+                res[:, m] = self.windTurbineFunction_lst[i](
+                    ws[m], **{k: self._subset(v, m) for k, v in get_kwargs(i).items()})
         return res
 
 

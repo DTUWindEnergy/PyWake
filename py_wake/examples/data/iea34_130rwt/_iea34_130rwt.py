@@ -26,10 +26,14 @@ class IEA34_130_PowerCtSurrogate(PowerCtSurrogate):
         self.ct_idle = thrust_idle / (1 / 2 * 1.225 * (65**2 * np.pi) * self.ws_cutout**2)
 
     def _power_ct(self, ws, **kwargs):
-        power, thrust = PowerCtSurrogate._power_ct(self, ws, **kwargs)
-        ct = thrust * 1000 / (1 / 2 * 1.225 * (65**2 * np.pi) * ws**2)
-        power[(ws < self.ws_cutin) | (ws > self.ws_cutout)] = 0
-        ct[(ws < self.ws_cutin) | (ws > self.ws_cutout)] = self.ct_idle
+        m = (ws > self.ws_cutin) & (ws < self.ws_cutout)
+        power = np.zeros_like(ws)
+        ct = np.full(ws.shape, self.ct_idle)
+        kwargs = {k: self.fix_shape(v, ws)[m] for k, v in kwargs.items()}
+        power_m, thrust_m = PowerCtSurrogate._power_ct(self, ws[m], **kwargs)
+        ct_m = thrust_m * 1000 / (1 / 2 * 1.225 * (65**2 * np.pi) * ws[m]**2)
+        power[m] = power_m
+        ct[m] = ct_m
         return power, ct
 
 
