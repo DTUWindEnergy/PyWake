@@ -162,6 +162,9 @@ class EngineeringWindFarmModel(WindFarmModel):
         self._validate_input(x_i, y_i)
 
         I, L, K, = len(x_i), len(wd), (1, len(ws))[time is False]
+        if 'TI' in kwargs:
+            lw.add_ilk('TI', kwargs['TI'])
+
         WS_eff_ilk = lw.WS.ilk((I, L, K)).copy()
         TI_eff_ilk = lw.TI.ilk((I, L, K)).copy()
         if yaw_ilk is not None:
@@ -174,7 +177,7 @@ class EngineeringWindFarmModel(WindFarmModel):
         # cw_iil = np.sqrt(hcw_iil**2 + dh_iil**2 + eps)
         wt_kwargs = kwargs
         ri, oi = self.windTurbines.function_inputs
-        unused_inputs = set(wt_kwargs) - set(ri) - set(oi)
+        unused_inputs = set(wt_kwargs) - set(ri) - set(oi) - {'TI'}
         if unused_inputs:
             raise TypeError("""got unexpected keyword argument(s): '%s'
             required arguments: %s
@@ -414,6 +417,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
             return np.broadcast_to(x_ilk.astype(float), (I, L, K)).reshape((I * L, K))
 
         indices = np.arange(I * I * L).reshape((I, I, L))
+
         TI_mk = ilk2mk(lw.TI_ilk)
         WS_mk = ilk2mk(lw.WS_ilk)
         WS_eff_mk = []
@@ -465,16 +469,22 @@ class PropagateDownwind(EngineeringWindFarmModel):
                     TI_eff_mk.append(self.turbulenceModel.calc_effective_TI(TI_mk[m], add_turb_nk[n_uw]))
 
             # Calculate Power/CT
-            def mask(v):
+            def mask(k, v):
                 if v is None or isinstance(v, (int, float)) or len(np.asarray(v).shape) == 0:
                     return v
                 v = np.asarray(v)
-                if len(v.shape) == 1:
+                if len(v.shape) == 1 and len(v) == I:
                     return v[i_wt_l]
-                else:
+                elif v.shape[:2] == (I, L):
                     return v[i_wt_l, i_wd_l]
+                elif v.shape == (L,):
+                    return v[i_wd_l]
+                else:
+                    valid_shapes = f"(), ({I}), ({I},{L}), ({I},{L},{K}), ({L}), ({L},{K})"
+                    raise ValueError(
+                        f"Argument, {k}(shape={v.shape}), has unsupported shape. Valid shapes are {valid_shapes}")
             keys = self.windTurbines.powerCtFunction.required_inputs + self.windTurbines.powerCtFunction.optional_inputs
-            _kwargs = {k: mask(v) for k, v in kwargs.items() if k in keys}
+            _kwargs = {k: mask(k, v) for k, v in kwargs.items() if k in keys}
             if 'TI_eff' in _kwargs:
                 _kwargs['TI_eff'] = TI_eff_mk[-1]
             power_lk, ct_lk, = self.windTurbines.power_ct(WS_eff_lk, **_kwargs)

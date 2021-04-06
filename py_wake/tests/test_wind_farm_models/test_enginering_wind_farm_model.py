@@ -1,10 +1,11 @@
 import numpy as np
+import xarray as xr
 import pytest
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site, IEA37WindTurbinesDeprecated
 from py_wake import NOJ, Fuga, examples
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
-from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y, wt9_x, wt9_y, V80
+from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y, V80
 from py_wake.tests.test_files.fuga import LUT_path_2MW_z0_0_03
 from py_wake.flow_map import HorizontalGrid
 from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind
@@ -20,15 +21,13 @@ from py_wake.utils.gradients import autograd, cs, fd, plot_gradients
 from py_wake.deficit_models.fuga import FugaDeficit
 from py_wake.superposition_models import LinearSum
 from py_wake.deficit_models.no_wake import NoWakeDeficit
-from py_wake.wind_farm_models.wind_farm_model import WindFarmModel, SimulationResult
+from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.wind_turbines import WindTurbines
-from py_wake.wind_turbines.wind_turbines_deprecated import DeprecatedOneTypeWindTurbines, DeprecatedWindTurbines
+from py_wake.wind_turbines.wind_turbines_deprecated import DeprecatedOneTypeWindTurbines
 from py_wake.tests.check_speed import timeit
 from py_wake.wind_turbines._wind_turbines import WindTurbine
-from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt
-
-from autograd.tracer import trace
-from py_wake.tests.test_files import tfp
+from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt, PowerCtFunctionList
+import pandas as pd
 import os
 
 
@@ -290,7 +289,7 @@ def test_dAEPdx():
     args = {'x': x, 'y': y}
     profile_funcs = [WindTurbine.power_ct, CubePowerSimpleCt._power_ct, CubePowerSimpleCt._power_ct_grad]
     dAEPdxy_ad, t_ad = timeit(wfm.dAEPdxy(gradient_method=autograd), verbose=True, line_profile=0,
-                              profile_funcs=profile_funcs + [trace])(**args)
+                              profile_funcs=profile_funcs)(**args)
 #     dAEPdxy_cs, t_cs = timeit(wfm.dAEPdxy(gradient_method=cs))(**args)
     dAEPdxy_fd, t_fd = timeit(wfm.dAEPdxy(gradient_method=fd), verbose=True, line_profile=0,
                               profile_funcs=profile_funcs)(**args)
@@ -377,8 +376,6 @@ def test_time_series_values():
 
 
 def test_time_series_dates():
-    import pandas as pd
-    import xarray as xr
     d = np.load(os.path.dirname(examples.__file__) + "/data/time_series.npz")
     wd, ws, ws_std = [d[k][:6 * 24] for k in ['wd', 'ws', 'ws_std']]
     ti = np.minimum(ws_std / ws, .5)
@@ -393,6 +390,76 @@ def test_time_series_dates():
     npt.assert_array_equal(sim_res.WS, ws)
     npt.assert_array_equal(sim_res.WD, wd)
     npt.assert_array_equal(sim_res.time, t)
+
+
+def test_time_series_override_ti():
+
+    d = np.load(os.path.dirname(examples.__file__) + "/data/time_series.npz")
+    wd, ws, ws_std = [d[k][:6 * 24] for k in ['wd', 'ws', 'ws_std']]
+    ti = np.minimum(ws_std / ws, .5)
+    t = pd.date_range("2000-01-01", freq="10T", periods=24 * 6)
+    wt = V80()
+    site = Hornsrev1Site()
+    x, y = site.initial_position.T
+    wfm = NOJ(site, wt)
+    sim_res = wfm(x, y, ws=ws, wd=wd, time=t, TI=ti, verbose=False)
+    npt.assert_array_equal(sim_res.WS, ws)
+    npt.assert_array_equal(sim_res.WD, wd)
+    npt.assert_array_equal(sim_res.time, t)
+    npt.assert_array_equal(sim_res.TI, ti)
+
+
+def test_time_series_operating():
+    from py_wake.wind_turbines.power_ct_functions import PowerCtFunctionList, PowerCtTabular
+    d = np.load(os.path.dirname(examples.__file__) + "/data/time_series.npz")
+    wd, ws, ws_std = [d[k][:6 * 24] for k in ['wd', 'ws', 'ws_std']]
+    ws += 3
+    t = np.arange(6 * 24)
+    wt = V80()
+    site = Hornsrev1Site()
+
+    # replace powerCtFunction
+    wt.powerCtFunction = PowerCtFunctionList(
+        key='operating',
+        powerCtFunction_lst=[PowerCtTabular(ws=[0, 100], power=[0, 0], power_unit='w', ct=[0, 0]),  # 0=No power and ct
+                             wt.powerCtFunction],  # 1=Normal operation
+        default_value=1)
+    wfm = NOJ(site, wt)
+    x, y = site.initial_position.T
+    operating = (t < 48) | (t > 72)
+    sim_res = wfm(x, y, ws=ws, wd=wd, time=t, operating=operating)
+    npt.assert_array_equal(sim_res.operating, operating)
+    npt.assert_array_equal(sim_res.Power[:, operating == 0], 0)
+    npt.assert_array_equal(sim_res.Power[:, operating != 0] > 0, True)
+
+    operating = np.ones((80, 6 * 24))
+    operating[1] = (t < 48) | (t > 72)
+    sim_res = wfm(x, y, ws=ws, wd=wd, time=t, operating=operating)
+    npt.assert_array_equal(sim_res.operating, operating)
+    npt.assert_array_equal(sim_res.Power.values[operating == 0], 0)
+    npt.assert_array_equal(sim_res.Power.values[operating != 0] > 0, True)
+
+
+def test_time_series_operating_wrong_shape():
+    from py_wake.wind_turbines.power_ct_functions import PowerCtFunctionList, PowerCtTabular
+    d = np.load(os.path.dirname(examples.__file__) + "/data/time_series.npz")
+    wd, ws, ws_std = [d[k][:6 * 24] for k in ['wd', 'ws', 'ws_std']]
+    ws += 3
+    t = np.arange(6 * 24)
+    wt = V80()
+    site = Hornsrev1Site()
+
+    # replace powerCtFunction
+    wt.powerCtFunction = PowerCtFunctionList(
+        key='operating',
+        powerCtFunction_lst=[PowerCtTabular(ws=[0, 100], power=[0, 0], power_unit='w', ct=[0, 0]),  # 0=No power and ct
+                             wt.powerCtFunction],  # 1=Normal operation
+        default_value=1)
+    wfm = NOJ(site, wt)
+    x, y = site.initial_position.T
+    operating = (t < 48) | (t > 72)
+    with pytest.raises(ValueError, match=r"Argument, operating\(shape=\(1, 144\)\), has unsupported shape."):
+        wfm(x, y, ws=ws, wd=wd, time=t, operating=[operating])
 
 
 def test_aep_wind_atlas_method():

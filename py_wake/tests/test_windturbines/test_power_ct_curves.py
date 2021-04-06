@@ -3,13 +3,10 @@ import pytest
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
-from py_wake.examples.data import hornsrev1, wtg_path
+from py_wake.examples.data import hornsrev1
 from py_wake.tests import npt
 from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt, PowerCtNDTabular, DensityScale, \
     PowerCtTabular, PowerCtFunction, PowerCtFunctionList, PowerCtXr
-from py_wake.examples.data.hornsrev1 import V80
-from py_wake.wind_turbines._wind_turbines import WindTurbine
-from py_wake.examples.data.dtu10mw import DTU10MW
 
 
 @pytest.mark.parametrize('method,unit,p_scale,p_ref,ct_ref', [
