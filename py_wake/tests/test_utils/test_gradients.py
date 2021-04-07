@@ -217,4 +217,4 @@ def test_plot_gradients():
     plot_gradients(1.5**2, 3, 1.5, "test", 1)
     if 0:
         plt.show()
-    plt.close()
+    plt.close('all')

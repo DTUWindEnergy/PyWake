@@ -38,7 +38,7 @@ def test_notebooks(notebook):
         raise Exception(notebook.filename + " failed") from e
     finally:
         Grid.default_resolution = default_resolution
-        plt.close()
+        plt.close('all')
         plt.rcParams.update({'figure.max_open_warning': 20})
 
 

@@ -62,4 +62,4 @@ def test_plot_deflection_grid(deflectionModel):
     plt.legend()
     if 0:
         plt.show()
-    plt.close()
+    plt.close('all')

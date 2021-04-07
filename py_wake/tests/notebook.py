@@ -123,7 +123,7 @@ except ModuleNotFoundError:
 
                     code_str = "def test():\n    " + "\n    ".join(lines) + "\ntest()"
                     exec(code_str, l, {})
-                    plt.close()
+                    plt.close('all')
         except Exception as e:
             raise type(e)("Code error in %s\n%s\n" % (self.filename, str(e))).with_traceback(sys.exc_info()[2])
 

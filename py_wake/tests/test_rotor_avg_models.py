@@ -58,7 +58,7 @@ def test_RotorGridAvg_deficit():
     if 0:
         plt.legend()
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 def test_RotorGridAvg_ti():
@@ -101,7 +101,7 @@ def test_RotorGridAvg_ti():
     if 0:
         plt.legend()
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 def test_gauss_quadrature():

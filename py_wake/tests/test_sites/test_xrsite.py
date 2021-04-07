@@ -31,7 +31,7 @@ ti = .1
 def close_plots():
     yield
     try:
-        plt.close()
+        plt.close('all')
     except Exception:
         pass
 
@@ -241,7 +241,7 @@ def test_plot_wd_distribution(complex_ws_site):
     if 0:
         print(np.round(res.squeeze().values, 4).tolist())
         plt.show()
-    plt.close()
+    plt.close('all')
     npt.assert_array_almost_equal(res.squeeze(), ref, 4)
 
 

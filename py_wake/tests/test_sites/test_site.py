@@ -20,7 +20,7 @@ ti = .1
 def close_plots():
     yield
     try:
-        plt.close()
+        plt.close('all')
     except Exception:
         pass
 
@@ -99,7 +99,7 @@ def test_plot_ws_distribution(site):
 
     if 0:
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 def test_plot_wd_distribution(site):
@@ -115,7 +115,7 @@ def test_plot_wd_distribution(site):
 
     if 0:
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 def test_plot_wd_distribution_uniformSite():
@@ -124,7 +124,7 @@ def test_plot_wd_distribution_uniformSite():
     p1 = site.plot_wd_distribution(n_wd=12, ax=plt)
     if 0:
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 def test_plot_wd_distribution_with_ws_levels(site):
@@ -145,7 +145,7 @@ def test_plot_wd_distribution_with_ws_levels(site):
 
     if 0:
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 def test_plot_wd_distribution_with_ws_levels_xr(site):
@@ -172,7 +172,7 @@ def test_plot_wd_distribution_with_ws_levels_xr(site):
                                       [0.0103, 0.0386, 0.0369, 0.0127, 0.0015],
                                       [0.0092, 0.0231, 0.0152, 0.0038, 0.0004]], 4)
 
-    plt.close()
+    plt.close('all')
 
 
 def test_plot_wd_distribution_with_ws_levels2(site):
@@ -192,7 +192,7 @@ def test_plot_wd_distribution_with_ws_levels2(site):
                                       [0.013, 0.028, 0.011, 0.001, 0.0]], 3)
     if 0:
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 def test_plot_ws_distribution_iea37():

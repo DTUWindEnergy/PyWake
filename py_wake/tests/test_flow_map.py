@@ -14,7 +14,7 @@ from py_wake.deflection_models.jimenez import JimenezWakeDeflection
 def close_plots():
     yield
     try:
-        plt.close()
+        plt.close('all')
     except Exception:
         pass
 
@@ -84,7 +84,7 @@ def test_YZGrid_plot_wake_map_perpendicular():
     sim_res.flow_map(grid=YZGrid(x=-100, y=None, resolution=100, extend=.1), wd=270, ws=None).plot_wake_map()
     if 0:
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 def test_YZGrid_variables():
@@ -102,7 +102,7 @@ def test_YZGrid_variables():
     if 0:
         print(np.round(fm.WS_eff.interp(h=110)[::10].squeeze().values, 4))
         plt.show()
-    plt.close()
+    plt.close('all')
     npt.assert_array_almost_equal(fm.WS_eff.interp(h=110)[::10].squeeze(),
                                   [9.1461, 8.4157, 7.3239, 6.058, 5.022, 4.6455, 5.1019, 6.182, 7.446, 8.506], 4)
 
@@ -120,7 +120,7 @@ def test_YZGrid_plot_wake_map_parallel():
     sim_res.flow_map(grid=YZGrid(x=-450, y=None, resolution=100, extend=.1), wd=0, ws=None).plot_wake_map()
     if 0:
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 def test_YZGrid_terrain_perpendicular():
@@ -146,7 +146,7 @@ def test_YZGrid_terrain_perpendicular():
     if 0:
         print(np.round(fm.WS_eff_xylk[:, 0, 0, 0], 2).values.tolist())
         plt.show()
-    plt.close()
+    plt.close('all')
     npt.assert_array_almost_equal(fm.WS_eff_xylk[:, 0, 0, 0],
                                   [5.39, 8.48, 8.42, 6.42, 5.55, 11.02, 4.99, 11.47, 5.32, 10.22, 13.39, 8.79,
                                    8.51, 12.4, 5.47, 10.78, 10.12, 6.54, 10.91, 7.18], 2)
@@ -174,7 +174,7 @@ def test_YZGrid_terrain_parallel():
     if 0:
         print(np.round(fm.WS_eff_xylk[:, 0, 0, 0], 2).values.tolist())
         plt.show()
-    plt.close()
+    plt.close('all')
     npt.assert_array_almost_equal(fm.WS_eff_xylk[:, 0, 0, 0],
                                   [7.24, 7.24, 7.28, 7.42, 4.48, 6.14, 3.52, 4.98, 6.06, 7.18, 8.24, 8.64, 7.14,
                                    7.28, 3.8, 5.72, 7.09, 7.49, 6.88, 6.15], 2)
@@ -192,7 +192,7 @@ def test_Points():
     if 0:
         flow_map.WS_eff.plot()
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 def test_not_implemented_plane():
