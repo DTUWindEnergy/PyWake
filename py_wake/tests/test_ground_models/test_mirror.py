@@ -38,7 +38,7 @@ def test_Mirror_NOJ():
 
         plt.legend()
         plt.show()
-    plt.close()
+    plt.close('all')
     npt.assert_array_equal(res, ref)
 
 
@@ -66,7 +66,7 @@ def test_Mirror(wfm_cls):
 
         plt.legend()
         plt.show()
-    plt.close()
+    plt.close('all')
     npt.assert_array_equal(res, ref)
 
 
@@ -91,5 +91,5 @@ def test_Mirror_flow_map(wfm_cls, groundModel, superpositionModel):
 
     if 0:
         plt.show()
-    plt.close()
+    plt.close('all')
     npt.assert_array_equal(fm_ref.WS_eff, fm_res.WS_eff)

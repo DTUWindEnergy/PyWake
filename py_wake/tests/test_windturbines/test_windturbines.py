@@ -218,7 +218,7 @@ def test_plot_yz():
         plt.title("WD: %s" % wd)
     if 0:
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 def test_plot_yz2_types():
@@ -233,7 +233,7 @@ def test_plot_yz2_types():
         plt.title("WD: %s" % wd)
     if 0:
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 def test_set_gradients():

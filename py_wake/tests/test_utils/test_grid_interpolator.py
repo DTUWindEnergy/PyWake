@@ -69,7 +69,7 @@ def test_grid_interpolator_2d():
         plt.colorbar(c)
     if 0:
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 def test_grid_interpolator_2d_plus_1d():

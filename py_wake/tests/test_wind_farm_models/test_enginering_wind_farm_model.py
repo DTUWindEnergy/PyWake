@@ -246,7 +246,7 @@ def test_dAEP_2wt():
     if 0:
         plt.legend()
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 def test_dAEPdx():

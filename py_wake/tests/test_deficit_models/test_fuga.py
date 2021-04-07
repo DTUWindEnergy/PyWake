@@ -172,7 +172,7 @@ def test_fuga_downwind():
 
     if 0:
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 def test_fuga_table_edges():

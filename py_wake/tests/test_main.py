@@ -59,7 +59,7 @@ def test_main(module):
                       ' in %s.main' % module.__name__).with_traceback(sys.exc_info()[2])
     finally:
         Grid.default_resolution = default_resolution
-        plt.close()
+        plt.close('all')
 
 
 if __name__ == '__main__':

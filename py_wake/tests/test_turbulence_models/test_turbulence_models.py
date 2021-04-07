@@ -194,7 +194,7 @@ def test_RotorAvg_deficit():
     if 0:
         plt.legend()
         plt.show()
-    plt.close()
+    plt.close('all')
 
 
 @pytest.mark.parametrize('WFM', [All2AllIterative, PropagateDownwind])
