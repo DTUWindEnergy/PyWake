@@ -220,7 +220,7 @@ class EngineeringWindFarmModel(WindFarmModel):
         d_ijl_keys = ({k for l in self.windTurbines.function_inputs for k in l} &
                       {'dw_ijl', 'hcw_ijl', 'dh_ijl', 'cw_ijl'})
         if d_ijl_keys:
-            d_ijl_dict = {k: lambda: v for k, v in zip(['dw_ijl', 'hcw_ijl', 'dh_ijl'], self.site.distance(wd[na]))}
+            d_ijl_dict = {k: lambda v=v: v for k, v in zip(['dw_ijl', 'hcw_ijl', 'dh_ijl'], self.site.distance(wd[na]))}
             d_ijl_dict['cw_ijl'] = lambda d_ijl_dict=d_ijl_dict: np.sqrt(
                 d_ijl_dict['dw_ijl']**2 + d_ijl_dict['hcw_ijl']**2)
             wt_kwargs.update({k: d_ijl_dict[k]() for k in d_ijl_keys})
