@@ -409,6 +409,18 @@ def test_time_series_override_ti():
     npt.assert_array_equal(sim_res.TI, ti)
 
 
+def test_time_series_aep():
+
+    d = np.load(os.path.dirname(examples.__file__) + "/data/time_series.npz")
+    wd, ws = [d[k][::100] for k in ['wd', 'ws']]
+    wt = V80()
+    site = Hornsrev1Site()
+    x, y = site.initial_position.T
+    wfm = NOJ(site, wt)
+    sim_res = wfm(x, y, ws=ws, wd=wd, time=True, verbose=False)
+    npt.assert_allclose(sim_res.aep().sum(), 545, atol=1)
+
+
 def test_time_series_operating():
     from py_wake.wind_turbines.power_ct_functions import PowerCtFunctionList, PowerCtTabular
     d = np.load(os.path.dirname(examples.__file__) + "/data/time_series.npz")

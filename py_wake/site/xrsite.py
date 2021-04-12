@@ -233,7 +233,9 @@ class XRSite(Site):
         lw.set_W(WS, WD, TI, ws_bins, self.use_WS_bins)
         lw.set_data_array(TI_std, 'TI_std', 'Standard deviation of turbulence intensity')
 
-        if 'time' not in lw:
+        if 'time' in lw:
+            lw['P'] = 1 / len(lw.time)
+        else:
             if 'P' in self.ds:
                 if ('ws' in self.ds.P.dims and 'ws' in lw.coords):
                     d_ws = self.ds.P.ws.values
