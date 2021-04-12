@@ -237,6 +237,8 @@ class SimulationResult(xr.Dataset):
             return xr.DataArray(aep, [('wt', self.wt), ('wd', self.wd), ('ws', ws)])
         else:
             weighted_power = power_ilk * self.P.ilk() / norm
+        if 'time' in self and weighted_power.shape[2] == 1:
+            weighted_power = weighted_power[:, :, 0]
 
         return xr.DataArray(weighted_power * hours_pr_year * 1e-9,
                             self.Power.coords,
