@@ -307,8 +307,10 @@ class SimulationResult(xr.Dataset):
                 if softmax_base is None:
                     loads_silk = loads_siilk.max(1)
                 else:
-                    f = loads_siilk.mean((1, 2, 3, 4)) / 10  # factor used to reduce numerical errors in power
-                    loads_silk = np.log((softmax_base**(loads_siilk / f)).sum(1)) / np.log(softmax_base) * f
+                    # factor used to reduce numerical errors in power
+                    f = loads_siilk.mean((1, 2, 3, 4)) / 10
+                    loads_silk = (np.log((softmax_base**(loads_siilk / f[:, na, na, na, na])).sum(1)) /
+                                  np.log(softmax_base) * f[:, na, na, na])
 
             ds = xr.DataArray(
                 loads_silk,

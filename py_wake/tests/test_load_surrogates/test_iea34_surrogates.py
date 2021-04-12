@@ -1,93 +1,108 @@
 import numpy as np
+import pandas as pd
+
 from py_wake.examples.data.iea34_130rwt._iea34_130rwt import IEA34_130_1WT_Surrogate, IEA34_130_2WT_Surrogate
 from py_wake.tests import npt
 from py_wake.deficit_models.noj import NOJ
 from py_wake.site.xrsite import UniformSite
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
+from pathlib import Path
 
 
 def test_one_turbine_case0():
-    ti, ws, shear = 0.0592370641, 9.6833182032, 0.2
+    ws, ti, shear = 9.2984459862, 0.0597870198, 0.2
 
-    # for i in [10, 14, 322]:
-    #     print(sensors[i], mean_values[i], std_values[i])
-    # "Free wind speed Vy gl. coo of gl. pos    0.00   0.00-110.00" 9.704401687125 0.7808578675666666
-    # Aero rotor thrust 532.846421460325 26.557189388525
-    # generator_servo inpvec   2  2: pelec [w] 3197471.4446449564 176585.66727525144
+    if 0:
+        f = r'C:\mmpe\programming\python\Topfarm\iea-3_4-130-rwt\turbine_model\res/'
+        print(pd.concat([pd.read_csv(f + 'stats_one_turbine_mean.csv').iloc[0, [10, 14, 322]],
+                         pd.read_csv(f + 'stats_one_turbine_std.csv').iloc[0, [10, 14, 322]]],
+                        axis=1))
+        # Free wind speed Vy, gl. coo, of gl. pos    0.00...  9.309756e+00       0.401308
+        # Aero rotor thrust                                   5.408776e+02      11.489005
+        # generator_servo inpvec   2  2: pelec [w]            2.931442e+06  116491.192548
+
+        print(pd.read_csv(f + 'stats_one_turbine_del.csv').iloc[0, [28, 29, 1, 2, 9]])
+        # MomentMx Mbdy:blade1 nodenr:   1 coo: blade1  blade root moment blade1      1822.247387
+        # MomentMy Mbdy:blade1 nodenr:   1 coo: blade1  blade root moment blade1      5795.166623
+        # MomentMx Mbdy:tower nodenr:   1 coo: tower  tower bottom moment             4385.405881
+        # MomentMy Mbdy:tower nodenr:   1 coo: tower  tower bottom moment             2468.357017
+        # MomentMz Mbdy:tower nodenr:  11 coo: tower  tower top/yaw bearing moment    1183.884786
+
+    ws_ref = 9.309756e+00
+    ws_std_ref = 0.401308
+    power_ref = 2.931442e+06
+    thrust_ref = 5.408776e+02
+    ref_dels = [1822, 5795, 4385, 2468, 1183]
 
     wt = IEA34_130_1WT_Surrogate()
-    assert wt.loadFunction.output_keys[1] == 'MomentMy Mbdy:blade1 nodenr:   1 coo: blade1  blade root moment blade1'
+    assert wt.loadFunction.output_keys[1] == 'del_blade_edge'
     assert wt.loadFunction.wohler_exponents == [10, 10, 4, 4, 7]
     site = UniformSite(p_wd=[1], ti=ti, ws=ws)
     sim_res = NOJ(site, wt, turbulenceModel=STF2017TurbulenceModel())([0], [0], wd=0, Alpha=shear)
 
-    npt.assert_allclose(ws, 9.7, atol=.02)
-    npt.assert_allclose(ti, 0.78 / 9.7, atol=.022)
-    npt.assert_allclose(sim_res.Power, 3197471, atol=230)
-    npt.assert_allclose(sim_res.CT, 532 * 1e3 / (1 / 2 * 1.225 * (65**2 * np.pi) * 9.7**2), atol=0.006)
+    npt.assert_allclose(ws, ws_ref, rtol=.0013)
+    npt.assert_allclose(ti, ws_std_ref / ws_ref, atol=.02)
+    npt.assert_allclose(sim_res.Power, power_ref, rtol=0.003)
+    npt.assert_allclose(sim_res.CT, thrust_ref * 1e3 / (1 / 2 * 1.225 * (65**2 * np.pi) * ws_ref**2), rtol=0.011)
 
-    # for i in [28,29,1,2,9]:
-    #     print(del_sensors[i], del_values[i])
-    # MomentMx Mbdy:blade1 nodenr:   1 coo: blade1  blade root moment blade1 2837.2258423768494
-    # MomentMy Mbdy:blade1 nodenr:   1 coo: blade1  blade root moment blade1 5870.8557931814585
-    # MomentMx Mbdy:tower nodenr:   1 coo: tower  tower bottom moment 9154.009617791817
-    # MomentMy Mbdy:tower nodenr:   1 coo: tower  tower bottom moment 5184.805475839391
-    # MomentMz Mbdy:tower nodenr:  11 coo: tower  tower top/yaw bearing moment 2204.4440980948084
     loads = sim_res.loads(method='OneWT')
-    npt.assert_allclose(loads.DEL.squeeze(), [2837, 5870, 9154, 5184, 2204], rtol=.11)
+    npt.assert_allclose(loads.DEL.squeeze(), ref_dels, rtol=.11)
     f = 20 * 365 * 24 * 3600 / 1e7
     m = np.array([10, 10, 4, 4, 7])
     npt.assert_array_almost_equal(loads.LDEL.squeeze(), (loads.DEL.squeeze()**m * f)**(1 / m))
 
     loads = sim_res.loads(method='OneWT_WDAvg')
-    npt.assert_allclose(loads.DEL.squeeze(), [2837, 5870, 9154, 5184, 2204], rtol=.11)
+    npt.assert_allclose(loads.DEL.squeeze(), ref_dels, rtol=.11)
     npt.assert_array_almost_equal(loads.LDEL.squeeze(), (loads.DEL.squeeze()**m * f)**(1 / m))
 
 
 def test_two_turbine_case0():
-    ws, ti, shear, wdir, dist = 11.924050697, 0.2580934242, 0.2536493558, 20.5038383383, 3.8603095881
+    if 0:
+        i = 0
+        f = r'C:\mmpe\programming\python\Topfarm\iea-3_4-130-rwt\turbine_model\res/'
+        print(list(pd.DataFrame(eval(Path(f + 'input_two_turbines_dist.json').read_text())).iloc[i]))
+        # [10.9785338191, 0.2623204277, 0.4092031776, -38.4114616871, 5.123719529]
 
-#     sensors = 'case,shaft_rot angle,shaft_rot angle speed,pitch1 angle,'.split(
-#         ',')
-#     mean_values = np.array("0,180.03464337189587,11.752259992475002,".split(","), dtype=np.float)
-#     std_values = np.array("0,104.04391803126249,0.1227628373541667,".split(","), dtype=np.float)
-#     for i in [10, 14, 322]:
-#         print(sensors[i], mean_values[i], std_values[i])
-    # "Free wind speed Vy gl. coo of gl. pos    0.00   0.00-110.00" 11.107441047808335 0.8527054147583332
-    # Aero rotor thrust 381.01636820417497 37.541737944825
-    # generator_servo inpvec   2  2: pelec [w] 3398038.328107514 13065.24538016912
-    # ref from simulation statistic
-    ws_ref = 11.1
-    ws_std_ref = 0.85
-    power_ref = 3398038
-    thrust_ref = 381
+        print(pd.concat([pd.read_csv(f + 'stats_two_turbines_mean.csv').iloc[i, [12, 14, 322]],
+                         pd.read_csv(f + 'stats_two_turbines_std.csv').iloc[i, [12, 14, 322]]],
+                        axis=1))
+        # Free wind speed Abs_vhor, gl. coo, of gl. pos  ...  1.103937e+01     0.914252
+        # Aero rotor thrust                                   4.211741e+02    41.015962
+        # generator_servo inpvec   2  2: pelec [w]            3.399746e+06  3430.717100
+
+        print(pd.read_csv(f + 'stats_two_turbines_del.csv').iloc[i, [28, 29, 1, 2, 9]])
+        # MomentMx Mbdy:blade1 nodenr:   1 coo: blade1  blade root moment blade1       4546.998501
+        # MomentMy Mbdy:blade1 nodenr:   1 coo: blade1  blade root moment blade1       5931.157693
+        # MomentMx Mbdy:tower nodenr:   1 coo: tower  tower bottom moment             11902.153031
+        # MomentMy Mbdy:tower nodenr:   1 coo: tower  tower bottom moment              7599.336676
+        # MomentMz Mbdy:tower nodenr:  11 coo: tower  tower top/yaw bearing moment     2407.279074
+
+    ws, ti, shear, wdir, dist = [10.9785338191, 0.2623204277, 0.4092031776, -38.4114616871 % 360, 5.123719529]
+
+    # ref from simulation statistic (not updated yet)
+    ws_ref = 1.103937e+01
+    ws_std_ref = 0.914252
+    thrust_ref = 4.211741e+02
+    power_ref = 3.399746e+06
+    ref_dels = [4546, 5931, 11902, 7599, 2407]
 
     wt = IEA34_130_2WT_Surrogate()
     site = UniformSite(p_wd=[1], ti=ti, ws=ws)
     sim_res = NOJ(site, wt, turbulenceModel=STF2017TurbulenceModel())([0, 0], [0, dist * 130], wd=wdir, Alpha=shear)
 
-    npt.assert_allclose(ws, ws_ref, atol=.9)
-    npt.assert_allclose(ti, ws_std_ref / ws_ref, atol=.19)
-    npt.assert_allclose(sim_res.Power.sel(wt=0), power_ref, atol=1060)
+    npt.assert_allclose(ws, ws_ref, rtol=.006)
+    # npt.assert_allclose(ti, ws_std_ref / ws_ref, atol=.19)
+    npt.assert_allclose(sim_res.Power.sel(wt=0), power_ref, rtol=0.002)
     npt.assert_allclose(sim_res.CT.sel(wt=0), thrust_ref * 1e3 / (1 / 2 * 1.225 * (65**2 * np.pi) * ws_ref**2),
-                        atol=0.06)
+                        rtol=0.03)
 
-    # del_sensors = 'case,MomentMx Mbdy:tower nodenr:   1 coo: tower  tower bottom moment,'.split(",")
-    # del_values = np.array("0, 11235.755826844477, 7551.985936926388, ".split(","), dtype=float)
-    # for i in [28, 29, 1, 2, 9]:
-    #     print(del_sensors[i], del_values[i])
-    # MomentMx Mbdy:blade1 nodenr:   1 coo: blade1  blade root moment blade1 3863.6241845634827
-    # MomentMy Mbdy:blade1 nodenr:   1 coo: blade1  blade root moment blade1 5774.294439888724
-    # MomentMx Mbdy:tower nodenr:   1 coo: tower  tower bottom moment 11235.755826844477
-    # MomentMy Mbdy:tower nodenr:   1 coo: tower  tower bottom moment 7551.985936926388
-    # MomentMz Mbdy:tower nodenr:  11 coo: tower  tower top/yaw bearing moment 2384.173023068421
     loads = sim_res.loads(method='TwoWT')
-    npt.assert_allclose(loads.DEL.sel(wt=0).squeeze(), [3863], rtol=.12)
+    npt.assert_allclose(loads.DEL.sel(wt=0).squeeze(), ref_dels, rtol=.05)
 
     f = 20 * 365 * 24 * 3600 / 1e7
-    m = 10
+    m = loads.m.values
     npt.assert_array_almost_equal(loads.LDEL.sel(wt=0).squeeze(), (loads.DEL.sel(wt=0).squeeze()**m * f)**(1 / m))
 
     loads = sim_res.loads(method='TwoWT', softmax_base=100)
-    npt.assert_allclose(loads.DEL.sel(wt=0).squeeze(), [3863], rtol=.11)
+    npt.assert_allclose(loads.DEL.sel(wt=0).squeeze(), ref_dels, rtol=.05)
     npt.assert_array_almost_equal(loads.LDEL.sel(wt=0).squeeze(), (loads.DEL.sel(wt=0).squeeze()**m * f)**(1 / m))

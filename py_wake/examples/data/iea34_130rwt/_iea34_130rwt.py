@@ -37,7 +37,7 @@ class IEA34_130_PowerCtSurrogate(PowerCtSurrogate):
         return power, ct
 
 
-class TreeRegionLoadSurrogates(FunctionSurrogates):
+class ThreeRegionLoadSurrogates(FunctionSurrogates):
     def __init__(self, function_surrogate_lst, input_parser):
         FunctionSurrogates.__init__(self, function_surrogate_lst, input_parser)
         self.ws_cutin = function_surrogate_lst[0][0].wind_speed_cut_in
@@ -68,35 +68,37 @@ class TreeRegionLoadSurrogates(FunctionSurrogates):
 
 
 class IEA34_130_Base(WindTurbine):
+    load_sensors = ['del_blade_flap', 'del_blade_edge', 'del_tower_bottom_fa', 'del_tower_bottom_ss',
+                    'del_tower_top_torsion']
+    set_names = ['below_cut_in', 'operating', 'above_cut_out']
+
     def __init__(self, powerCtFunction, loadFunction):
         WindTurbine.__init__(self, 'IEA 3.4MW', diameter=130, hub_height=110,
                              powerCtFunction=powerCtFunction,
                              loadFunction=loadFunction)
+        for sensor, fs_lst in zip(self.load_sensors, self.loadFunction.function_surrogate_lst):
+            for fs in fs_lst:
+                fs.output_channel_name = sensor
 
 
 class IEA34_130_1WT_Surrogate(IEA34_130_Base):
 
     def __init__(self):
-        sensors = ['del_blade_flap', 'del_blade_edge', 'del_tower_bottom_fa', 'del_tower_bottom_ss',
-                   'del_tower_top_torsion']
         surrogate_path = Path(example_data_path) / 'iea34_130rwt' / 'one_turbine'
-        set_names = ['below_cut_in', 'operating', 'above_cut_out']
-        loadFunction = TreeRegionLoadSurrogates(
-            [[TensorflowSurrogate(surrogate_path / s, n) for n in set_names] for s in sensors],
-            input_parser=lambda ws, TI_eff=.1, Alpha=0: [TI_eff, ws, Alpha])
+        loadFunction = ThreeRegionLoadSurrogates(
+            [[TensorflowSurrogate(surrogate_path / s, n) for n in self.set_names] for s in self.load_sensors],
+            input_parser=lambda ws, TI_eff=.1, Alpha=0: [ws, TI_eff, Alpha])
         powerCtFunction = IEA34_130_PowerCtSurrogate(
             'one_turbine',
-            input_parser=lambda ws, TI_eff, Alpha=0: [TI_eff, ws, Alpha])
+            input_parser=lambda ws, TI_eff, Alpha=0: [ws, TI_eff, Alpha])
         IEA34_130_Base.__init__(self, powerCtFunction=powerCtFunction, loadFunction=loadFunction)
 
 
 class IEA34_130_2WT_Surrogate(IEA34_130_Base):
     def __init__(self):
-        sensors = ['del_blade_flap']
         surrogate_path = Path(example_data_path) / 'iea34_130rwt' / 'two_turbines'
-        set_names = ['below_cut_in', 'operating', 'above_cut_out']
-        loadFunction = TreeRegionLoadSurrogates(
-            [[TensorflowSurrogate(surrogate_path / s, n) for n in set_names] for s in sensors],
+        loadFunction = ThreeRegionLoadSurrogates(
+            [[TensorflowSurrogate(surrogate_path / s, n) for n in self.set_names] for s in self.load_sensors],
             input_parser=self.get_input)
         self.max_dist = loadFunction.function_surrogate_lst[0][0].input_scaler.data_max_[4]
         self.max_angle = loadFunction.function_surrogate_lst[0][0].input_scaler.data_max_[3]
@@ -125,6 +127,7 @@ def main():
         import matplotlib.pyplot as plt
 
         u = np.arange(3, 28, .1)
+
         # ===============================================================================================================
         # IEA34_130_1WT_Surrogate
         # ===============================================================================================================
@@ -170,7 +173,7 @@ def main():
         plt.figure()
         site = Hornsrev1Site()
         x, y = [0, 1000], [0, 0]
-        sim_res = NOJ(site, wt, turbulenceModel=STF2017TurbulenceModel())(x, y, ws=np.arange(6, 25), Alpha=.12)
+        sim_res = NOJ(site, wt, turbulenceModel=STF2017TurbulenceModel())(x, y, ws=np.arange(3, 28), Alpha=.12)
         load_wd_averaged = sim_res.loads(normalize_probabilities=True, method='OneWT_WDAvg')
         loads = sim_res.loads(normalize_probabilities=True, method='OneWT')
         loads.DEL.isel(sensor=0, wt=0).plot()
