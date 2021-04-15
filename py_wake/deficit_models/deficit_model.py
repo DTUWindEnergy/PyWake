@@ -34,6 +34,21 @@ class DeficitModel(ABC):
         else:
             return self.calc_deficit(yaw_ilk=yaw_ilk, **kwargs)
 
+
+class BlockageDeficitModel(DeficitModel):
+    def __init__(self, upstream_only=False):
+        self.upstream_only = upstream_only
+
+    def calc_blockage_deficit(self, dw_ijlk, **kwargs):
+        deficit_ijlk = self.calc_deficit(dw_ijlk=dw_ijlk, **kwargs)
+        if self.upstream_only:
+            rotor_pos = -1e-10
+            deficit_ijlk *= (dw_ijlk < rotor_pos)
+        return deficit_ijlk
+
+
+class WakeDeficitModel(DeficitModel, ABC):
+
     def wake_radius(self, dw_ijlk, **_):
         """Calculates the radius of the wake of the i'th turbine
         for all wind directions(l) and wind speeds(k) at a set of points(j)
@@ -48,22 +63,6 @@ class DeficitModel(ABC):
         wake_radius_ijlk : array_like
         """
         raise NotImplementedError("wake_radius not implemented for %s" % self.__class__.__name__)
-
-
-class BlockageDeficitModel(DeficitModel):
-    def __init__(self, upstream_only=False):
-        self.upstream_only = upstream_only
-
-    def calc_blockage_deficit(self, dw_ijlk, **kwargs):
-        deficit_ijlk = self.calc_deficit(dw_ijlk=dw_ijlk, **kwargs)
-        if self.upstream_only:
-            rotor_pos = -1e-10
-            deficit_ijlk *= (dw_ijlk < rotor_pos)
-        return deficit_ijlk
-
-
-class WakeDeficitModel(DeficitModel):
-    pass
 
 
 class ConvectionDeficitModel(WakeDeficitModel):

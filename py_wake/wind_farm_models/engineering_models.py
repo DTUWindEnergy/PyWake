@@ -8,9 +8,11 @@ from py_wake.deflection_models.deflection_model import DeflectionModel
 from py_wake.utils.gradients import use_autograd_in, autograd
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter, RotorAvgModel
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel
-from py_wake.deficit_models.deficit_model import ConvectionDeficitModel
+from py_wake.deficit_models.deficit_model import ConvectionDeficitModel, BlockageDeficitModel, WakeDeficitModel
 from py_wake.ground_models.ground_models import NoGround, GroundModel
 from tqdm import tqdm
+from py_wake.wind_turbines._wind_turbines import WindTurbine, WindTurbines
+from py_wake.utils.model_utils import check_model
 
 
 class EngineeringWindFarmModel(WindFarmModel):
@@ -42,21 +44,20 @@ class EngineeringWindFarmModel(WindFarmModel):
     """
     default_grid_resolution = 500
 
-    def __init__(self, site, windTurbines, wake_deficitModel, rotorAvgModel, superpositionModel,
+    def __init__(self, site, windTurbines: WindTurbines, wake_deficitModel, rotorAvgModel, superpositionModel,
                  blockage_deficitModel=None, deflectionModel=None, turbulenceModel=None,
                  groundModel=None):
 
         WindFarmModel.__init__(self, site, windTurbines)
-
-        assert isinstance(wake_deficitModel, DeficitModel)
-        assert isinstance(rotorAvgModel, RotorAvgModel)
-        assert isinstance(superpositionModel, SuperpositionModel)
-        assert blockage_deficitModel is None or isinstance(blockage_deficitModel, DeficitModel)
-        assert deflectionModel is None or isinstance(deflectionModel, DeflectionModel)
-        assert turbulenceModel is None or isinstance(turbulenceModel, TurbulenceModel)
+        check_model(wake_deficitModel, WakeDeficitModel, 'wake_deficitModel')
+        check_model(rotorAvgModel, RotorAvgModel, 'rotorAvgModel')
+        check_model(superpositionModel, SuperpositionModel, 'superpositionModel')
+        check_model(blockage_deficitModel, BlockageDeficitModel, 'blockage_deficitModel')
+        check_model(deflectionModel, DeflectionModel, 'deflectionModel')
+        check_model(turbulenceModel, TurbulenceModel, 'turbulenceModel')
         if groundModel is None:
             groundModel = NoGround()
-        assert isinstance(groundModel, GroundModel)
+        check_model(groundModel, GroundModel, 'groundModel')
         if isinstance(superpositionModel, WeightedSum):
             assert isinstance(wake_deficitModel, ConvectionDeficitModel)
             assert rotorAvgModel.__class__ is RotorCenter, "Multiple rotor average points not implemented for WeightedSum"

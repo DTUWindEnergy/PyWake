@@ -6,6 +6,7 @@ from py_wake.flow_map import FlowMap, HorizontalGrid, FlowBox, YZGrid, Grid, Poi
 import xarray as xr
 from py_wake.utils import xarray_utils, weibull  # register ilk function @UnusedImport
 from numpy import newaxis as na
+from py_wake.utils.model_utils import check_model
 
 
 class WindFarmModel(ABC):
@@ -13,8 +14,8 @@ class WindFarmModel(ABC):
     verbose = True
 
     def __init__(self, site, windTurbines):
-        assert isinstance(site, Site)
-        assert isinstance(windTurbines, WindTurbines)
+        check_model(site, Site, 'site')
+        check_model(windTurbines, WindTurbines, 'windTurbines')
         self.site = site
         self.windTurbines = windTurbines
 

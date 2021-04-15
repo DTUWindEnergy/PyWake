@@ -11,7 +11,7 @@ from py_wake.superposition_models import SquaredSum, LinearSum
 import pytest
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 
-from py_wake.deficit_models.deficit_model import DeficitModel
+from py_wake.deficit_models.deficit_model import DeficitModel, WakeDeficitModel
 from py_wake.utils.model_utils import get_models
 
 EngineeringWindFarmModel.verbose = False
@@ -74,11 +74,11 @@ def test_RotorGridAvg_ti():
 
     for name, rotorAvgModel, ref1 in [
             ('RotorCenter', RotorCenter(), 0.22292190804089568),
-            ('RotorGrid2', EqGridRotorAvg(2), 0.21135016790319944),
-            ('RotorGrid3', EqGridRotorAvg(3), 0.20618819397725846),
-            ('RotorGrid4', EqGridRotorAvg(4), 0.20324660406762962),
-            ('RotorGrid100', EqGridRotorAvg(100), 0.1989725533174574),
-            ('RotorGQGrid_4,3', GQGridRotorAvg(4, 3), 0.19874837617113356)]:
+            ('RotorGrid2', EqGridRotorAvg(2), 0.2111162769995657),
+            ('RotorGrid3', EqGridRotorAvg(3), 0.2058616982653193),
+            ('RotorGrid4', EqGridRotorAvg(4), 0.2028701990648858),
+            ('RotorGrid100', EqGridRotorAvg(100), 0.1985255601976247),
+            ('RotorGQGrid_4,3', GQGridRotorAvg(4, 3), 0.1982984399750206)]:
 
         # test with PropagateDownwind
         wfm = IEA37SimpleBastankhahGaussian(site,
@@ -198,7 +198,7 @@ def test_CGIRotorAvg(n, x, y, w):
 def test_with_all_deficit_models(WFM):
     site = IEA37Site(16)
     windTurbines = IEA37_WindTurbines()
-    for deficitModel in get_models(DeficitModel):
+    for deficitModel in get_models(WakeDeficitModel):
 
         wfm = WFM(site, windTurbines, wake_deficitModel=deficitModel(),
                   rotorAvgModel=RotorCenter(),

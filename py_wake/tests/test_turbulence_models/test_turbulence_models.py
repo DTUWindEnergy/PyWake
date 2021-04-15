@@ -8,12 +8,12 @@ from py_wake.examples.data.iea37._iea37 import IEA37Site
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
 from py_wake.flow_map import HorizontalGrid
 from py_wake.site._site import UniformSite
-from py_wake.superposition_models import LinearSum
+from py_wake.superposition_models import LinearSum, MaxSum
 from py_wake.superposition_models import SquaredSum
 from py_wake.tests import npt
 from py_wake.tests.test_deficit_models.test_noj import NibeA0
-from py_wake.turbulence_models.stf import STF2005TurbulenceModel, STF2017TurbulenceModel
-from py_wake.turbulence_models.turbulence_model import MaxSum, TurbulenceModel
+from py_wake.turbulence_models.stf import STF2005TurbulenceModel, STF2017TurbulenceModel, IECWeight
+from py_wake.turbulence_models.turbulence_model import TurbulenceModel
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.turbulence_models.gcl_turb import GCLTurbulence
 import matplotlib.pyplot as plt
@@ -49,6 +49,8 @@ def get_all_turbulence_models():
                                 0.075, 0.075, 0.075, 0.075, 0.104, 0.136, 0.098, 0.104]),
     (STF2017TurbulenceModel(), [0.075, 0.075, 0.075, 0.114, 0.197, 0.142, 0.075, 0.075,
                                 0.075, 0.075, 0.075, 0.075, 0.115, 0.158, 0.108, 0.115]),
+    (STF2017TurbulenceModel(weight_function=IECWeight()), [0.075, 0.075, 0.075, 0.215, 0.229, 0.179, 0.075, 0.075, 0.075,
+                                                           0.075, 0.075, 0.075, 0.075, 0.215, 0.075, 0.075]),
     (GCLTurbulence(), [0.075, 0.075, 0.075, 0.117, 0.151, 0.135, 0.075, 0.075, 0.075,
                        0.075, 0.075, 0.075, 0.128, 0.127, 0.117, 0.128]),
     (CrespoHernandez(), [0.075, 0.075, 0.075, 0.129, 0.17, 0.151, 0.075,
@@ -70,6 +72,7 @@ def test_models_with_noj(turbulence_model, ref_ti):
         res = wake_model(x, y)
         # print(turbulence_model.__class__.__name__, np.round(res.TI_eff_ilk[:, 0, 0], 3).tolist())
         if 0:
+            plt.title("%s, %s" % (wake_model.__class__.__name__, turbulence_model.__class__.__name__))
             res.flow_map(wd=0).plot_ti_map()
             plt.show()
 
@@ -170,17 +173,17 @@ def test_RotorAvg_deficit():
     for name, rotorAvgModel, ref1 in [
             ('None', None, 0.22292190804089568),
             ('RotorCenter', RotorCenter(), 0.22292190804089568),
-            ('RotorGrid100', EqGridRotorAvg(100), 0.1989725533174574),
-            ('RotorGQGrid_4,3', GQGridRotorAvg(4, 3), 0.19874837617113356),
-            ('RotorCGI4', CGIRotorAvg(4), 0.19822024411411204),
-            ('RotorCGI4', CGIRotorAvg(21), 0.1989414764606653)]:
+            ('RotorGrid100', EqGridRotorAvg(100), 0.1985255601976247),
+            ('RotorGQGrid_4,3', GQGridRotorAvg(4, 3), 0.1982984399750206),
+            ('RotorCGI4', CGIRotorAvg(4), 0.19774602325558865),
+            ('RotorCGI4', CGIRotorAvg(21), 0.19849398318014355)]:
 
         # test with PropagateDownwind
         wfm = IEA37SimpleBastankhahGaussian(site,
                                             windTurbines,
                                             turbulenceModel=STF2017TurbulenceModel(rotorAvgModel=rotorAvgModel))
         sim_res = wfm([0, 500], [0, 0], wd=270, ws=10)
-        npt.assert_almost_equal(sim_res.TI_eff_ilk[1, 0, 0], ref1, err_msg=name)
+        npt.assert_almost_equal(ref1, sim_res.TI_eff_ilk[1, 0, 0], ref1, err_msg=name)
 
         # test with All2AllIterative
         wfm = All2AllIterative(site, windTurbines,
@@ -188,7 +191,7 @@ def test_RotorAvg_deficit():
                                turbulenceModel=STF2017TurbulenceModel(rotorAvgModel=rotorAvgModel),
                                superpositionModel=SquaredSum())
         sim_res = wfm([0, 500], [0, 0], wd=270, ws=10)
-        npt.assert_almost_equal(sim_res.TI_eff_ilk[1, 0, 0], ref1)
+        npt.assert_almost_equal(ref1, sim_res.TI_eff_ilk[1, 0, 0])
 
         plt.plot([-R, R], [sim_res.WS_eff_ilk[1, 0, 0]] * 2, label=name)
     if 0:

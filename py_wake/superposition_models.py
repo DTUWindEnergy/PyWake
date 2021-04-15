@@ -28,19 +28,49 @@ class SuperpositionModel(ABC):
         """
 
 
+class AddedTurbulenceSuperpositionModel():
+    @abstractmethod
+    def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
+        """Calculate effective turbulence intensity
+
+        Parameters
+        ----------
+        TI_xxx : array_like
+            Local turbulence intensity. xxx optionally includes destination turbine/site, wind directions, wind speeds
+        add_turb_jxxx : array_like
+            added turbulence caused by source turbines(j) on xxx (see above)
+
+        Returns
+        -------
+        TI_eff_xxx : array_like
+            Effective turbulence intensity xxx (see TI_xxx)
+        """
+
+
 class SquaredSum(SuperpositionModel):
     def calc_effective_WS(self, WS_xxx, deficit_jxxx):
         return WS_xxx - np.sqrt(np.sum(deficit_jxxx**2, 0))
 
 
-class LinearSum(SuperpositionModel):
+class LinearSum(SuperpositionModel, AddedTurbulenceSuperpositionModel):
     def calc_effective_WS(self, WS_xxx, deficit_jxxx):
         return WS_xxx - np.sum(deficit_jxxx, 0)
 
+    def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
+        return TI_xxx + np.sum(add_turb_jxxx, 0)
 
-class MaxSum(SuperpositionModel):
+
+class MaxSum(SuperpositionModel, AddedTurbulenceSuperpositionModel):
     def calc_effective_WS(self, WS_xxx, deficit_jxxx):
         return WS_xxx - np.max(deficit_jxxx, 0)
+
+    def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
+        return TI_xxx + np.max(add_turb_jxxx, 0)
+
+
+class SqrMaxSum(AddedTurbulenceSuperpositionModel):
+    def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
+        return np.sqrt(TI_xxx**2 + np.max(add_turb_jxxx, 0)**2)
 
 
 class WeightedSum(SuperpositionModel):

@@ -1,11 +1,15 @@
-import numpy as np
 from abc import abstractmethod
+from py_wake.superposition_models import AddedTurbulenceSuperpositionModel, LinearSum, SqrMaxSum, MaxSum
+from py_wake.utils.model_utils import check_model
 
 
 class TurbulenceModel():
 
     def __init__(self, addedTurbulenceSuperpositionModel, rotorAvgModel=None):
-        assert isinstance(addedTurbulenceSuperpositionModel, AddedTurbulenceSuperpositionModel)
+        check_model(
+            addedTurbulenceSuperpositionModel,
+            AddedTurbulenceSuperpositionModel,
+            'addedTurbulenceSuperpositionModel')
         self.addedTurbulenceSuperpositionModel = addedTurbulenceSuperpositionModel
         self.rotorAvgModel = rotorAvgModel
 
@@ -30,35 +34,8 @@ class TurbulenceModel():
         return self.addedTurbulenceSuperpositionModel.calc_effective_TI(TI_xxx, add_turb_jxxx)
 
 
-class AddedTurbulenceSuperpositionModel():
-    @abstractmethod
-    def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
-        """Calculate effective turbulence intensity
-
-        Parameters
-        ----------
-        TI_xxx : array_like
-            Local turbulence intensity. xxx optionally includes destination turbine/site, wind directions, wind speeds
-        add_turb_jxxx : array_like
-            added turbulence caused by source turbines(j) on xxx (see above)
-
-        Returns
-        -------
-        TI_eff_xxx : array_like
-            Effective turbulence intensity xxx (see TI_xxx)
-        """
-
-
-class LinearSum(AddedTurbulenceSuperpositionModel):
-    def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
-        return TI_xxx + np.sum(add_turb_jxxx, 0)
-
-
-class MaxSum(AddedTurbulenceSuperpositionModel):
-    def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
-        return TI_xxx + np.max(add_turb_jxxx, 0)
-
-
-class SqrMaxSum(AddedTurbulenceSuperpositionModel):
-    def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
-        return np.sqrt(TI_xxx**2 + np.max(add_turb_jxxx, 0)**2)
+# Aliases for backward compatibility. Use
+# from py_wake.super_position_models import LinearSum, SqrMaxSum, MaxSum
+LinearSum = LinearSum
+SqrMaxSum = SqrMaxSum
+MaxSum = MaxSum

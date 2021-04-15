@@ -12,11 +12,11 @@ from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37WindTurb
 from py_wake.superposition_models import SquaredSum
 from py_wake.tests import npt
 from py_wake.utils import gradients
-from py_wake.utils.gradients import use_autograd_in, autograd, plot_gradients, fd
+from py_wake.utils.gradients import use_autograd_in, autograd, plot_gradients
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.wind_turbines import WindTurbines, WindTurbine, OneTypeWindTurbines, wind_turbines_deprecated,\
     power_ct_functions
-from py_wake.wind_turbines.power_ct_functions import PowerCtTabular, CubePowerSimpleCt
+from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 
 
 def get_wfms(wt, site=Hornsrev1Site(), wake_model=NOJDeficit(), superpositionModel=SquaredSum()):
