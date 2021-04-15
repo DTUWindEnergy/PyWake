@@ -1,36 +1,37 @@
 import inspect
 import os
 import pkgutil
-
-from py_wake.deficit_models.deficit_model import DeficitModel, ConvectionDeficitModel, WakeDeficitModel,\
-    BlockageDeficitModel
-from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel, RotorCenter
-from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
-from py_wake.wind_farm_models.engineering_models import EngineeringWindFarmModel, PropagateDownwind
 import py_wake
 from pathlib import Path
-from py_wake.superposition_models import SuperpositionModel, LinearSum
-from py_wake.deflection_models.deflection_model import DeflectionModel
-from py_wake.turbulence_models.turbulence_model import TurbulenceModel
-from py_wake.ground_models import GroundModel
-from py_wake.deficit_models.noj import NOJDeficit
-from py_wake.ground_models.ground_models import NoGround
 import numpy as np
 from numpy import newaxis as na
 
-exclude_dict = {
-    WindFarmModel: ([EngineeringWindFarmModel], [], PropagateDownwind),
-    DeficitModel: ([ConvectionDeficitModel, BlockageDeficitModel, WakeDeficitModel], [RotorAvgModel], NOJDeficit),
-    WakeDeficitModel: ([ConvectionDeficitModel], [RotorAvgModel], NOJDeficit),
-    RotorAvgModel: ([], [], RotorCenter),
-    SuperpositionModel: ([], [], LinearSum),
-    BlockageDeficitModel: ([], [], None),
-    DeflectionModel: ([], [], None),
-    TurbulenceModel: ([], [], None),
-    GroundModel: ([], [], NoGround)
 
-}
-model_type_lst = list(exclude_dict.keys())
+def get_exclude_dict():
+    from py_wake.deficit_models.deficit_model import DeficitModel, ConvectionDeficitModel, WakeDeficitModel,\
+        BlockageDeficitModel
+    from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel, RotorCenter
+    from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
+    from py_wake.wind_farm_models.engineering_models import EngineeringWindFarmModel, PropagateDownwind
+
+    from py_wake.superposition_models import SuperpositionModel, LinearSum
+    from py_wake.deflection_models.deflection_model import DeflectionModel
+    from py_wake.turbulence_models.turbulence_model import TurbulenceModel
+    from py_wake.ground_models import GroundModel
+    from py_wake.deficit_models.noj import NOJDeficit
+    from py_wake.ground_models.ground_models import NoGround
+    return {
+        WindFarmModel: ([EngineeringWindFarmModel], [], PropagateDownwind),
+        DeficitModel: ([ConvectionDeficitModel, BlockageDeficitModel, WakeDeficitModel], [RotorAvgModel], NOJDeficit),
+        WakeDeficitModel: ([ConvectionDeficitModel], [RotorAvgModel], NOJDeficit),
+        RotorAvgModel: ([], [], RotorCenter),
+        SuperpositionModel: ([], [], LinearSum),
+        BlockageDeficitModel: ([], [], None),
+        DeflectionModel: ([], [], None),
+        TurbulenceModel: ([], [], None),
+        GroundModel: ([], [], NoGround)
+
+    }
 
 
 def cls_name(cls):
@@ -53,7 +54,7 @@ def cls_in(A, cls_lst):
 
 def get_models(base_class):
 
-    exclude_cls_lst, exclude_subcls_lst, default = exclude_dict[base_class]
+    exclude_cls_lst, exclude_subcls_lst, default = get_exclude_dict()[base_class]
 
     model_lst = []
     for loader, module_name, _ in pkgutil.walk_packages([os.path.dirname(inspect.getabsfile(base_class))]):
@@ -76,7 +77,7 @@ def get_models(base_class):
 
 
 def list_models():
-    for model_type in model_type_lst:
+    for model_type in list(get_exclude_dict().keys()):
         print("%s (from %s import *)" % (model_type.__name__, ".".join(model_type.__module__.split(".")[:2])))
         for model in get_models(model_type):
             if model is not None:
@@ -128,6 +129,22 @@ def get_model_input(wfm, x, y, ws=10, wd=270, yaw_ilk=[[[0]]]):
                                                   ('ct_ilk', 'CT')]})
     args['yaw_ilk'] = np.deg2rad(args['yaw_ilk'])
     return args
+
+
+def check_model(model, cls, arg_name=None, accept_None=True):
+    if not isinstance(model, cls):
+        if model is None and accept_None:
+            return
+
+        if arg_name is not None:
+            s = f'Argument, {arg_name}, '
+        else:
+            s = f'{model} '
+        s += f'must be a {cls.__name__} instance'
+        if inspect.isclass(model) and issubclass(model, cls):
+            raise ValueError(s + f'. Did you forget the brackets: {model.__name__}()')
+
+        raise ValueError(s + f', but is a {model.__class__.__name__} instance')
 
 
 def main():

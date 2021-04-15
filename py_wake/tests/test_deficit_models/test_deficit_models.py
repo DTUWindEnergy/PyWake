@@ -9,11 +9,10 @@ from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, IEA37Simp
     NiayifarGaussian
 from py_wake.deficit_models.gcl import GCLDeficit, GCL, GCLLocal
 from py_wake.deficit_models.noj import NOJDeficit, NOJ, NOJLocalDeficit, NOJLocal
-from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
 from py_wake.deficit_models import VortexDipole
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 from py_wake.examples.data.iea37 import iea37_path
-from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site, IEA37WindTurbinesDeprecated
+from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windfarm
 from py_wake.flow_map import HorizontalGrid, XYGrid
 from py_wake.superposition_models import SquaredSum, WeightedSum
@@ -23,6 +22,7 @@ from py_wake.turbulence_models.gcl_turb import GCLTurbulence
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.utils.model_utils import get_models
+from numpy import newaxis as na
 
 
 class GCLLocalDeficit(GCLDeficit):
@@ -210,9 +210,19 @@ def test_wake_radius_not_implemented():
     site = IEA37Site(16)
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
-    wfm = PropagateDownwind(site, windTurbines, wake_deficitModel=SelfSimilarityDeficit(),
+
+    class MyDeficitModel(WakeDeficitModel):
+        args4deficit = ['WS_ilk', 'dw_ijlk', 'cw_ijlk']
+
+        def calc_deficit(self, WS_ilk, dw_ijlk, cw_ijlk, **_):
+            # 10% deficit in downstream triangle
+            ws_10pct_ijlk = 0.1 * WS_ilk[:, na]
+            triangle_ijlk = ((.2 * dw_ijlk) > cw_ijlk)
+            return ws_10pct_ijlk * triangle_ijlk
+
+    wfm = PropagateDownwind(site, windTurbines, wake_deficitModel=MyDeficitModel(),
                             turbulenceModel=GCLTurbulence())
-    with pytest.raises(NotImplementedError, match="wake_radius not implemented for SelfSimilarityDeficit"):
+    with pytest.raises(NotImplementedError, match="wake_radius not implemented for MyDeficitModel"):
         wfm(x, y)
 
 
@@ -407,7 +417,7 @@ def test_IEA37_ex16_windFarmModel(windFarmModel, aep_ref):
 
 
 def test_own_deficit_is_zero():
-    for deficitModel in get_models(DeficitModel):
+    for deficitModel in get_models(WakeDeficitModel):
         site = Hornsrev1Site()
         windTurbines = IEA37_WindTurbines()
         wf_model = All2AllIterative(site, windTurbines, wake_deficitModel=deficitModel(),
