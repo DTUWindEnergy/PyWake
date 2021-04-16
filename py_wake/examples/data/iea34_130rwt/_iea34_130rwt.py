@@ -9,8 +9,7 @@ from py_wake.examples.data import example_data_path
 
 
 class IEA34_130_PowerCtSurrogate(PowerCtSurrogate):
-    def __init__(self, name, input_parser):
-        surrogate_path = Path(__file__).parent / name
+    def __init__(self, surrogate_path, input_parser):
         PowerCtSurrogate.__init__(
             self,
             power_surrogate=TensorflowSurrogate(surrogate_path / "electrical_power", 'operating'),
@@ -89,7 +88,7 @@ class IEA34_130_1WT_Surrogate(IEA34_130_Base):
             [[TensorflowSurrogate(surrogate_path / s, n) for n in self.set_names] for s in self.load_sensors],
             input_parser=lambda ws, TI_eff=.1, Alpha=0: [ws, TI_eff, Alpha])
         powerCtFunction = IEA34_130_PowerCtSurrogate(
-            'one_turbine',
+            surrogate_path,
             input_parser=lambda ws, TI_eff, Alpha=0: [ws, TI_eff, Alpha])
         IEA34_130_Base.__init__(self, powerCtFunction=powerCtFunction, loadFunction=loadFunction)
 
@@ -104,7 +103,7 @@ class IEA34_130_2WT_Surrogate(IEA34_130_Base):
         self.max_angle = loadFunction.function_surrogate_lst[0][0].input_scaler.data_max_[3]
 
         powerCtFunction = IEA34_130_PowerCtSurrogate(
-            'two_turbines',
+            surrogate_path,
             input_parser=(lambda ws, TI=.1, Alpha=0, get_input=self.get_input:
                           get_input(ws, TI=TI, Alpha=Alpha, dw_ijl=np.array([0]), hcw_ijl=0)))
         IEA34_130_Base.__init__(self, powerCtFunction=powerCtFunction, loadFunction=loadFunction)
