@@ -7,6 +7,7 @@ from py_wake.examples.data import hornsrev1
 from py_wake.tests import npt
 from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt, PowerCtNDTabular, DensityScale, \
     PowerCtTabular, PowerCtFunction, PowerCtFunctionList, PowerCtXr
+from py_wake.wind_turbines.wind_turbine_functions import WindTurbineFunction
 
 
 @pytest.mark.parametrize('method,unit,p_scale,p_ref,ct_ref', [
@@ -199,15 +200,16 @@ def get_continuous_curve(key, optional):
     ct = hornsrev1.ct_curve[:, 1]
     tab_powerct_curve = PowerCtTabular(ws=u_p, power=p, power_unit='w', ct=ct)
 
-    def _power_ct(ws, **kwargs):
+    def _power_ct(ws, run_only, **kwargs):
         try:
-            v = kwargs.pop(key)
+            v = tab_powerct_curve.fix_shape(kwargs.pop(key), ws, True)
         except KeyError:
             if optional:
                 v = 1
             else:
                 raise
-        return (np.asarray(tab_powerct_curve(ws)).T * np.array([v, np.ones_like(v)]).T).T
+        return tab_powerct_curve(ws, run_only) * (v, 1)[run_only]
+
     oi = [key] if optional else []
     return PowerCtFunction(['ws', key], _power_ct, 'w', optional_inputs=oi)
 

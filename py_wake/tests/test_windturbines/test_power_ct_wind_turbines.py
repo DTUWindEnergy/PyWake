@@ -390,8 +390,8 @@ def test_TIFromWFM():
 
     tab_powerct_curve = PowerCtTabular(ws=u_p, power=p_c, power_unit='w', ct=ct_c)
 
-    def _power_ct(ws, TI_eff):
-        return (np.asarray(tab_powerct_curve(ws)).T * np.array([TI_eff, np.ones_like(TI_eff)]).T).T
+    def _power_ct(ws, run_only, TI_eff):
+        return tab_powerct_curve(ws, run_only) * [TI_eff, np.ones_like(TI_eff)][run_only]
 
     curve = PowerCtFunction(['ws', 'TI_eff'], _power_ct, 'w')
 
@@ -444,7 +444,8 @@ def test_gradients(case, wt, dpdu_ref, dctdu_ref, grad_method):
             wt.enable_autograd()
         ws_lst = np.arange(2, 25, .1)
         kwargs = {k: 1 for k in wt.function_inputs[0]}
-        dpdu_lst, dctdu_lst = grad_method(wt.power_ct)(ws_pts, **kwargs)
+        dpdu_lst = grad_method(wt.power)(ws_pts, **kwargs)
+        dctdu_lst = grad_method(wt.ct)(ws_pts, **kwargs)
 
     if 0:
         gradients.color_dict = {'power': 'b', 'ct': 'r'}

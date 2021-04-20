@@ -191,7 +191,7 @@ def test_gradients():
     ws_lst = np.arange(3, 25, .1)
 
     ws_pts = np.array([3., 6., 9., 12.])
-    dpdu_lst = autograd(wt.power)(ws_pts)[0]  # for some reason autograd returns both dpdu and dctdu
+    dpdu_lst = autograd(wt.power)(ws_pts)
     if 0:
         plt.plot(ws_lst, wt.power(ws_lst))
         for dpdu, ws in zip(dpdu_lst, ws_pts):
