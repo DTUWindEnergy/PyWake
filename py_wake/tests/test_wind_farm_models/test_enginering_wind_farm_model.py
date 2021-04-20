@@ -264,43 +264,6 @@ def test_dAEPdx():
 
     npt.assert_array_almost_equal(dAEPdxy_autograd, dAEPdxy_cs, 15)
     npt.assert_array_almost_equal(dAEPdxy_autograd, dAEPdxy_fd, 6)
-    return
-
-    site = Hornsrev1Site()
-    iea37_site = IEA37Site(16)
-
-    wt = IEA37_WindTurbines()
-    wt_deprecated = IEA37WindTurbinesDeprecated(gradient_functions=True)
-    wfm = IEA37SimpleBastankhahGaussian(site, wt)
-    wfm2 = IEA37SimpleBastankhahGaussian(site, wt_deprecated)
-    x, y = iea37_site.initial_position.T
-    ws = np.broadcast_to(np.arange(3, 26)[na, na, :], (80, 360, 23))
-#     _, t = timeit(wt.power_ct, min_runs=5,
-#                   )(ws)
-#     _, td = timeit(wt_deprecated.power_ct, min_runs=5)(ws, yaw=0)
-#     print(np.mean(t), np.mean(td), 3)
-#     return
-
-#     timeit(wfm, verbose=1)(x, y)
-#     timeit(wfm2, verbose=1)(x, y)
-#     return
-    x, y = iea37_site.initial_position[np.array([0, 2, 5, 8, 14])].T
-
-    args = {'x': x, 'y': y}
-    profile_funcs = [WindTurbine.power_ct, CubePowerSimpleCt._power_ct, CubePowerSimpleCt._power_ct_grad]
-    dAEPdxy_ad, t_ad = timeit(wfm.dAEPdxy(gradient_method=autograd), verbose=True, line_profile=0,
-                              profile_funcs=profile_funcs)(**args)
-#     dAEPdxy_cs, t_cs = timeit(wfm.dAEPdxy(gradient_method=cs))(**args)
-    dAEPdxy_fd, t_fd = timeit(wfm.dAEPdxy(gradient_method=fd), verbose=True, line_profile=0,
-                              profile_funcs=profile_funcs)(**args)
-#     dAEPdxy_fd, t_fd2 = timeit(wfm2.dAEPdxy(gradient_method=fd), verbose=True, line_profile=0,
-#                                profile_funcs=[DeprecatedWindTurbines._ct_power])(**args)
-    print(t_ad)
-    # print(t_cs)
-    print(t_fd)
-
-    # npt.assert_array_almost_equal(dAEPdxy_ad, dAEPdxy_cs, 15)
-    # npt.assert_array_almost_equal(dAEPdxy_ad, dAEPdxy_fd, 6)
 
 
 @pytest.mark.parametrize('wake_deficitModel,blockage_deficitModel', [(FugaDeficit(), None),
@@ -406,7 +369,7 @@ def test_time_series_override_ti():
     npt.assert_array_equal(sim_res.WS, ws)
     npt.assert_array_equal(sim_res.WD, wd)
     npt.assert_array_equal(sim_res.time, t)
-    npt.assert_array_equal(sim_res.TI, ti)
+    npt.assert_array_equal(sim_res.TI[0], ti)
 
 
 def test_time_series_aep():
@@ -440,7 +403,7 @@ def test_time_series_operating():
     x, y = site.initial_position.T
     operating = (t < 48) | (t > 72)
     sim_res = wfm(x, y, ws=ws, wd=wd, time=t, operating=operating)
-    npt.assert_array_equal(sim_res.operating, operating)
+    npt.assert_array_equal(sim_res.operating[0], operating)
     npt.assert_array_equal(sim_res.Power[:, operating == 0], 0)
     npt.assert_array_equal(sim_res.Power[:, operating != 0] > 0, True)
 

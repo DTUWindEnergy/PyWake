@@ -45,27 +45,28 @@ class PowerCtModelContainer(WindTurbineFunction, ABC):
     """Base class for PowerCtModels that may have additional models"""
 
     def __init__(self, input_keys, optional_inputs, additional_models=[]):
-        WindTurbineFunction.__init__(self, input_keys, optional_inputs)
+        WindTurbineFunction.__init__(self, input_keys, optional_inputs, output_keys=['power', 'ct'])
         for m in additional_models:
             self.add_inputs(m.required_inputs, m.optional_inputs)
         self.model_lst = additional_models
 
-    def __call__(self, ws, run_only=slice(None), **kwargs):
+    def __call__(self, ws, **kwargs):
         """This function recursively calls all additional (intermediate) models.
         The last additional model calls the final PowerCtFunction.power_ct method
         The resulting power/ct array is propagated back through the additional models"""
+
         def recursive_wrap(model_idx, ws, **kwargs):
             if model_idx < len(self.model_lst):
                 f = self.model_lst[model_idx]
                 # more functions in f_lst to call
-                if f.required_inputs or any([o in kwargs for o in f.optional_inputs]):
+                if f.required_inputs or any([o in kwargs for o in f.optional_inputs if o is not None]):
                     return f(lambda ws, model_idx=model_idx + 1, **kwargs: recursive_wrap(model_idx, ws, **kwargs),
                              ws, **kwargs)
                 else:
                     # optional inputs not present => skip f and continue with next f in f_lst
                     return recursive_wrap(model_idx + 1, ws, **kwargs)
             else:
-                return self.power_ct(ws, **kwargs)[run_only]
+                return self.power_ct(ws, **kwargs)
         return recursive_wrap(0, ws, **kwargs)
 
 
@@ -95,15 +96,15 @@ class SimpleYawModel(AdditionalModel):
     """Simple model that replace ws with cos(yaw)*ws and scales the CT output with cos(yaw)**2"""
 
     def __init__(self):
-        AdditionalModel.__init__(self, input_keys=['ws', 'yaw'], optional_inputs=['yaw'])
+        AdditionalModel.__init__(self, input_keys=['ws', 'yaw'], optional_inputs=['yaw'], output_keys=['power', 'ct'])
 
     def __call__(self, f, ws, yaw=None, **kwargs):
         if yaw is not None:
             co = np.cos(self.fix_shape(yaw, ws, True))
             power_ct_arr = f(ws * co, **kwargs)  # calculate for reduced ws (ws projection on rotor)
-
-            # multiply ct by cos(yaw)**2 to compensate for reduced thrust
-            power_ct_arr = [power_ct_arr[0], power_ct_arr[1] * co**2]
+            if kwargs['run_only'] == 1:  # ct
+                # multiply ct by cos(yaw)**2 to compensate for reduced thrust
+                return power_ct_arr * co**2
             return power_ct_arr
         else:
             return f(ws, **kwargs)
@@ -113,7 +114,8 @@ class DensityScale(AdditionalModel):
     """Scales the power and ct with density"""
 
     def __init__(self, air_density_ref):
-        AdditionalModel.__init__(self, input_keys=['ws', 'Air_density'], optional_inputs=['Air_density'])
+        AdditionalModel.__init__(self, input_keys=['ws', 'Air_density'], optional_inputs=['Air_density'],
+                                 output_keys=['power', 'ct'])
         self.air_density_ref = air_density_ref
 
     def __call__(self, f, ws, Air_density=None, **kwargs):
@@ -158,22 +160,21 @@ class PowerCtFunction(PowerCtModelContainer, ABC):
         self.set_gradient_funcs(self.get_power_ct_grad_func())
 
     def __call__(self, ws, run_only=slice(None), **kwargs):
+        if run_only not in [0, 1]:
+            return np.array([self.__call__(ws, i, **kwargs) for i in np.arange(2)[run_only]])
 
         # Start call hierachy, i.e. recursively run all additional models and finally the self.power_ct
-        power_ct_arr = PowerCtModelContainer.__call__(self, ws, **kwargs)
-        if self.power_scale != 1:
-            if isinstance(power_ct_arr, ArrayBox):
-                return power_ct_arr * np.reshape([self.power_scale, 1], (2,) + (1,) * len(np.shape(ws)))
-            return [power_ct_arr[0] * self.power_scale, power_ct_arr[1]][run_only]
+        power_ct_arr = PowerCtModelContainer.__call__(self, ws, run_only=run_only, **kwargs)
+        if run_only == 0:
+            return power_ct_arr * self.power_scale
         else:
-            return power_ct_arr[run_only]
+            return power_ct_arr
 
     def set_gradient_funcs(self, power_ct_grad_func):
 
         def get_grad(ans, ws, **kwargs):
             def grad(g):
-                dp, dct = power_ct_grad_func(ws, **kwargs)
-                return np.asarray([g[0] * dp, g[1] * dct])
+                return g * power_ct_grad_func(ws, **kwargs)
             return grad
         primitive_power_ct = primitive(self.power_ct)
         defvjp(primitive_power_ct, get_grad)
@@ -231,7 +232,9 @@ class PowerCtTabular(PowerCtFunction):
         if method == 'linear':
             interp = self.np_interp
         elif method == 'pchip':
-            self._pchip_interpolator = PchipInterpolator(ws, self.power_ct_tab.T)
+            self._pchip_interpolator = [PchipInterpolator(ws, self.power_ct_tab[0]),
+                                        PchipInterpolator(ws, self.power_ct_tab[1])]
+            self._pchip_derivative = [pi.derivative() for pi in self._pchip_interpolator]
             interp = self.pchip_interp
         else:
             self.make_splines()
@@ -240,31 +243,34 @@ class PowerCtTabular(PowerCtFunction):
         self.method = method
         PowerCtFunction.__init__(self, ['ws'], self.handle_cs, power_unit, [], additional_models)
 
-    def handle_cs(self, ws, **_):
-        f = self.interp
+    def handle_cs(self, ws, run_only, **_):
         if np.asarray(ws).dtype == np.complex128:
-            return np.asarray(f(ws.real)) + ws.imag * self.get_power_ct_grad_func()(ws.real) * 1j
-        return np.asarray(f(ws))
+            return np.asarray(self.interp(ws.real, run_only)) + \
+                ws.imag * self.get_power_ct_grad_func()(ws.real, run_only) * 1j
+        else:
+            return np.asarray(self.interp(ws, run_only))
 
     def get_power_ct_grad_func(self):
         if self.method == 'linear':
-            power_ct_grad_func = fd(self.np_interp)  # fd is fine for linear interpolation
+            def power_ct_grad_func(ws, run_only):
+                # fd is fine for linear interpolation
+                return fd(lambda ws, run_only=run_only, self=self: self.np_interp(ws, run_only))(ws)
         elif self.method == 'pchip':
-            def power_ct_grad_func(ws, f=self._pchip_interpolator.derivative()):
-                return np.moveaxis(f(ws), -1, 0)
+            def power_ct_grad_func(ws, run_only):
+                return self._pchip_derivative[run_only](ws)
         else:
-            def power_ct_grad_func(ws):
-                return [f(ws) for f in self.power_ct_spline_derivative]
+            def power_ct_grad_func(ws, run_only):
+                return self.power_ct_spline_derivative[run_only](ws)
         return power_ct_grad_func
 
-    def pchip_interp(self, ws):
-        return np.moveaxis(self._pchip_interpolator(ws), -1, 0)
+    def pchip_interp(self, ws, run_only):
+        return self._pchip_interpolator[run_only](ws)
 
-    def np_interp(self, ws):
-        return np.interp(ws, self.ws_tab, self.power_ct_tab[0]), np.interp(ws, self.ws_tab, self.power_ct_tab[1])
+    def np_interp(self, ws, run_only):
+        return np.interp(ws, self.ws_tab, self.power_ct_tab[run_only])
 
-    def spline_interp(self, ws):
-        return self.power_spline(ws), self.ct_spline(ws)
+    def spline_interp(self, ws, run_only):
+        return [self.power_spline, self.ct_spline][run_only](ws)
 
     def make_splines(self, err_tol_factor=1e-2):
         """Generate a spline of a ws dependent curve (power/ct)
@@ -279,7 +285,7 @@ class PowerCtTabular(PowerCtFunction):
         """
         # make curve tabular
         ws = np.arange(0, 100, .001)
-        power, ct = self.np_interp(ws)
+        power, ct = [self.np_interp(ws, run_only=i) for i in [0, 1]]
 
         # smoothen curve to avoid spline oscillations around steps (especially around cut out)
         n, e = 99, 3
@@ -353,19 +359,20 @@ class PowerCtNDTabular(PowerCtFunction):
             list of additional models.
         """
         self.default_value_dict = default_value_dict
-        self.interp = RegularGridInterpolator(value_lst, np.moveaxis([power_arr, ct_arr], 0, - 1))
+        self.interp = [RegularGridInterpolator(value_lst, power_arr),
+                       RegularGridInterpolator(value_lst, ct_arr)]
         PowerCtFunction.__init__(self, input_keys, self._power_ct, power_unit,
                                  default_value_dict.keys(), additional_models)
 
-    def _power_ct(self, ws, **kwargs):
+    def _power_ct(self, ws, run_only, **kwargs):
         kwargs = {**self.default_value_dict, 'ws': ws, **kwargs}
 
         args = np.moveaxis([self.fix_shape(kwargs[k], ws)
                             for k in self.input_keys], 0, -1)
         try:
-            return np.moveaxis(self.interp(args), -1, 0)
+            return self.interp[run_only](args)
         except ValueError:
-            check_input(self.interp.grid, args.T, self.input_keys)
+            check_input(self.interp[run_only].grid, args.T, self.input_keys)
 
 
 class PowerCtXr(PowerCtNDTabular):
@@ -392,8 +399,9 @@ class PowerCtXr(PowerCtNDTabular):
         if list(power_arr.dims).index('ws') > 0:
             power_arr, ct_arr = ds.transpose(*(['ws'] + [k for k in power_arr.dims if k != 'ws'])).to_array()
 
-        PowerCtNDTabular.__init__(self, power_arr.dims, [power_arr[k] for k in power_arr.dims], power_arr, power_unit,
-                                  ct_arr, additional_models=additional_models)
+        PowerCtNDTabular.__init__(self, power_arr.dims, [power_arr[k].values for k in power_arr.dims],
+                                  power_arr.values, power_unit,
+                                  ct_arr.values, additional_models=additional_models)
 
 
 class CubePowerSimpleCt(PowerCtFunction):
@@ -439,15 +447,20 @@ class CubePowerSimpleCt(PowerCtFunction):
             self.dct_rated2cutout = np.poly1d([2 * a, b])
             self.abc = a, b, c
 
-    def _power_ct(self, ws):
+    def _power(self, ws):
+        ws = np.asarray(ws)
+        return np.where((ws > self.ws_cutin) & (ws <= self.ws_cutout),
+                        np.minimum(self.power_rated * ((ws - self.ws_cutin) / (self.ws_rated - self.ws_cutin))**3,
+                                   self.power_rated),
+                        0)
+
+    def _power_ct(self, ws, run_only):
+        return (self._power, self._ct)[run_only](ws)
+
+    def _ct(self, ws):
         ws = np.asarray(ws)
 
-        power = np.where((ws > self.ws_cutin) & (ws <= self.ws_cutout),
-                         np.minimum(self.power_rated * ((ws - self.ws_cutin) / (self.ws_rated - self.ws_cutin))**3,
-                                    self.power_rated),
-                         0)
         ws0 = ws * 0
-
         ct = ws0 + self.ct
 
         if self.ct_idle is not None:
@@ -459,21 +472,23 @@ class CubePowerSimpleCt(PowerCtFunction):
                           a * ws**2 + b * ws + c,
                           ct)
 
-        return np.asarray([power, ct])
+        return ct
 
     def get_power_ct_grad_func(self):
         return self._power_ct_grad
 
-    def _power_ct_grad(self, ws):
-        dp = np.where((ws > self.ws_cutin) & (ws <= self.ws_rated),
-                      3 * self.power_rated * (ws - self.ws_cutin)**2 / (self.ws_rated - self.ws_cutin)**3,
-                      0)
-        dct = ws * 0
-        if self.ct_idle is not None:
-            dct = np.where((ws > self.ws_rated),
-                           self.dct_rated2cutout(ws),
-                           0)  # constant ct
-        return np.asarray([dp, dct])
+    def _power_ct_grad(self, ws, run_only):
+        if run_only == 0:
+            return np.where((ws > self.ws_cutin) & (ws <= self.ws_rated),
+                            3 * self.power_rated * (ws - self.ws_cutin)**2 / (self.ws_rated - self.ws_cutin)**3,
+                            0)
+        else:
+            dct = ws * 0
+            if self.ct_idle is not None:
+                dct = np.where((ws > self.ws_rated),
+                               self.dct_rated2cutout(ws),
+                               0)  # constant ct
+            return dct
 
 
 class PowerCtSurrogate(PowerCtFunction, FunctionSurrogates):
@@ -487,7 +502,7 @@ class PowerCtSurrogate(PowerCtFunction, FunctionSurrogates):
             power_unit=power_unit,
             optional_inputs=[],  # dummy, overriden below
             additional_models=additional_models)
-        FunctionSurrogates.__init__(self, [power_surrogate, ct_surrogate], input_parser)
+        FunctionSurrogates.__init__(self, [power_surrogate, ct_surrogate], input_parser, output_keys=['power', 'ct'])
 
     def _power_ct(self, ws, run_only=slice(None), **kwargs):
         return FunctionSurrogates.__call__(self, ws, run_only, **kwargs)

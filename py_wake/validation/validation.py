@@ -102,7 +102,7 @@ class SingleWakeValidationCase(ValidationCase):
                                    hub_height=case_dict['zH'],
                                    powerCtFunction=PowerCtFunction(
                                        input_keys=['ws'],
-                                       power_ct_func=lambda ws, ct=case_dict['CT']: (ws * 0 + 1, ws * 0 + ct),
+                                       power_ct_func=lambda ws, run_only, ct=case_dict['CT']: ws * 0 + ct,
                                        power_unit='w'))
         xD = case_dict['xDown']
         x = xD * case_dict['sDown']

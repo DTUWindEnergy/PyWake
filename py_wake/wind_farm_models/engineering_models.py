@@ -184,13 +184,27 @@ class EngineeringWindFarmModel(WindFarmModel):
             required arguments: %s
             optional arguments: %s""" % ("', '".join(unused_inputs), ['ws'] + ri, oi))
 
+        def arg2ilk(k, v):
+            #             if v is None:
+            #                 return v
+            v = np.asarray(v)
+            if v.shape not in {(), (I,), (I, L), (I, L, K), (L,), (L, K)}:
+                valid_shapes = f"(), ({I}), ({I},{L}), ({I},{L},{K})"
+                raise ValueError(
+                    f"Argument, {k}(shape={v.shape}), has unsupported shape. Valid shapes are {valid_shapes}")
+            if v.shape == (L,) or v.shape == (L, K):
+                return np.broadcast_to(v[na], (I,) + v.shape)
+            else:
+                return v
+        wt_kwargs = {k: arg2ilk(k, v)for k, v in wt_kwargs.items()}
+
         def add_arg(name, optional):
             if name in wt_kwargs:  # custom WindFarmModel.__call__ arguments
                 return
             elif name in {'yaw', 'type'}:  # fixed WindFarmModel.__call__ arguments
                 wt_kwargs[name] = {'yaw': yaw_ilk, 'type': type_i}[name]
             elif name in lw:
-                wt_kwargs[name] = lw[name]
+                wt_kwargs[name] = lw[name].values
             elif name in self.site.ds:
                 wt_kwargs[name] = self.site.interp(self.site.ds[name], lw.coords).values
             elif name in ['TI_eff']:
@@ -215,7 +229,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                   'WS_eff_ilk': WS_eff_ilk, 'TI_eff_ilk': TI_eff_ilk,
                   'x_i': x_i, 'y_i': y_i, 'h_i': h_i, 'D_i': D_i, 'yaw_ilk': yaw_ilk,
                   'I': I, 'L': L, 'K': K, **wt_kwargs}
-        WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk = self._calc_wt_interaction(**kwargs)
+        WS_eff_ilk, TI_eff_ilk, ct_ilk = self._calc_wt_interaction(**kwargs)
         if 'TI_eff' in wt_kwargs:
             wt_kwargs['TI_eff'] = TI_eff_ilk
         d_ijl_keys = ({k for l in self.windTurbines.function_inputs for k in l} &
@@ -225,6 +239,10 @@ class EngineeringWindFarmModel(WindFarmModel):
             d_ijl_dict['cw_ijl'] = lambda d_ijl_dict=d_ijl_dict: np.sqrt(
                 d_ijl_dict['dw_ijl']**2 + d_ijl_dict['hcw_ijl']**2)
             wt_kwargs.update({k: d_ijl_dict[k]() for k in d_ijl_keys})
+
+        wt_kwargs_keys = set(self.windTurbines.powerCtFunction.required_inputs +
+                             self.windTurbines.powerCtFunction.optional_inputs)
+        power_ilk = self.windTurbines.power(WS_eff_ilk, **{k: v for k, v in wt_kwargs.items() if k in wt_kwargs_keys})
 
         return WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, lw, wt_kwargs
 
@@ -424,7 +442,6 @@ class PropagateDownwind(EngineeringWindFarmModel):
         WS_eff_mk = []
         TI_eff_mk = []
         yaw_mk = ilk2mk(yaw_ilk)
-        power_jlk = []
         ct_jlk = []
 
         if self.turbulenceModel:
@@ -478,19 +495,18 @@ class PropagateDownwind(EngineeringWindFarmModel):
                     return v[i_wt_l]
                 elif v.shape[:2] == (I, L):
                     return v[i_wt_l, i_wd_l]
-                elif v.shape == (L,):
-                    return v[i_wd_l]
-                else:
-                    valid_shapes = f"(), ({I}), ({I},{L}), ({I},{L},{K}), ({L}), ({L},{K})"
-                    raise ValueError(
-                        f"Argument, {k}(shape={v.shape}), has unsupported shape. Valid shapes are {valid_shapes}")
+#                 elif v.shape == (L,):
+#                     return v[i_wd_l]
+#                 else:
+#                     valid_shapes = f"(), ({I}), ({I},{L}), ({I},{L},{K}), ({L}), ({L},{K})"
+#                     raise ValueError(
+#                         f"Argument, {k}(shape={v.shape}), has unsupported shape. Valid shapes are {valid_shapes}")
             keys = self.windTurbines.powerCtFunction.required_inputs + self.windTurbines.powerCtFunction.optional_inputs
             _kwargs = {k: mask(k, v) for k, v in kwargs.items() if k in keys}
             if 'TI_eff' in _kwargs:
                 _kwargs['TI_eff'] = TI_eff_mk[-1]
-            power_lk, ct_lk, = self.windTurbines.power_ct(WS_eff_lk, **_kwargs)
+            ct_lk = self.windTurbines.ct(WS_eff_lk, **_kwargs)
 
-            power_jlk.append(power_lk)
             ct_jlk.append(ct_lk)
 
             if j < I - 1:
@@ -553,17 +569,16 @@ class PropagateDownwind(EngineeringWindFarmModel):
                     add_turb_nk[n_dw] = self.turbulenceModel.rotorAvgModel(self.turbulenceModel.calc_added_turbulence,
                                                                            dw_ijlk=dw_ijlk, **turb_args)
 
-        WS_eff_jlk, power_jlk, ct_jlk = np.array(WS_eff_mk), np.array(power_jlk), np.array(ct_jlk)
+        WS_eff_jlk, ct_jlk = np.array(WS_eff_mk), np.array(ct_jlk)
 
         dw_inv_indices = (np.argsort(dw_order_indices_dl, 1).T * L + np.arange(L)[na]).flatten()
         WS_eff_ilk = WS_eff_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))
 
-        power_ilk = power_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))
         ct_ilk = ct_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))
         if self.turbulenceModel:
             TI_eff_ilk = np.reshape(TI_eff_mk, (I * L, K))[dw_inv_indices].reshape((I, L, K))
 
-        return WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk
+        return WS_eff_ilk, TI_eff_ilk, ct_ilk
 
 
 class All2AllIterative(EngineeringWindFarmModel):
@@ -611,7 +626,6 @@ class All2AllIterative(EngineeringWindFarmModel):
                              # dw_iil, hcw_iil, cw_iil, dh_iil, dw_order_indices_dl,
                              I, L, K, **kwargs):
         lw = localWind
-        power_ilk = np.zeros((I, L, K))
         WS_eff_ilk_last = WS_eff_ilk.copy()
         dw_iil, hcw_iil, dh_iil = self.site.distance(lw.WD_ilk.mean(2))
 
@@ -631,7 +645,7 @@ class All2AllIterative(EngineeringWindFarmModel):
         # Iterate until convergence
         for j in tqdm(range(I), disable=I <= 1 or not self.verbose, desc="Calculate flow interaction", unit="wt"):
 
-            power_ilk, ct_ilk = self.windTurbines.power_ct(WS_eff_ilk, **kwargs)
+            ct_ilk = self.windTurbines.ct(WS_eff_ilk, **kwargs)
             args['ct_ilk'] = ct_ilk
             args['WS_eff_ilk'] = WS_eff_ilk
             if self.deflectionModel:
@@ -679,7 +693,7 @@ class All2AllIterative(EngineeringWindFarmModel):
             # print("Iteration: %d, max diff: %f, WT: %d, WD: %d, WS: %d" % (j, max_diff, i_, l_, WS_ilk[i_, l_, k_]))
             WS_eff_ilk_last = WS_eff_ilk.copy()
         self._reset_deficit()
-        return WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk
+        return WS_eff_ilk, TI_eff_ilk, ct_ilk
 
 
 def main():

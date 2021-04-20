@@ -7,6 +7,9 @@ from py_wake.deficit_models.noj import NOJ
 from py_wake.site.xrsite import UniformSite
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from pathlib import Path
+from py_wake.wind_turbines.wind_turbine_functions import FunctionSurrogates
+from py_wake.utils.tensorflow_surrogate_utils import TensorflowSurrogate
+from py_wake.examples.data import example_data_path
 
 
 def test_one_turbine_case0():
@@ -106,3 +109,17 @@ def test_two_turbine_case0():
     loads = sim_res.loads(method='TwoWT', softmax_base=100)
     npt.assert_allclose(loads.DEL.sel(wt=0).squeeze(), ref_dels, rtol=.05)
     npt.assert_array_almost_equal(loads.LDEL.sel(wt=0).squeeze(), (loads.DEL.sel(wt=0).squeeze()**m * f)**(1 / m))
+
+
+def test_functionSurrogate():
+    surrogate_path = Path(example_data_path) / 'iea34_130rwt' / 'one_turbine'
+    load_sensors = ['del_blade_flap', 'del_blade_edge']
+
+    loadFunction = FunctionSurrogates(
+        [TensorflowSurrogate(surrogate_path / s, 'operating') for s in load_sensors],
+        input_parser=lambda ws, TI_eff=.1, Alpha=0: [ws, TI_eff, Alpha])
+
+    assert loadFunction.output_keys == [
+        'MomentMx Mbdy:blade1 nodenr:   1 coo: blade1  blade root moment blade1',
+        'MomentMy Mbdy:blade1 nodenr:   1 coo: blade1  blade root moment blade1']
+    npt.assert_array_almost_equal(loadFunction(np.array([10, 11])), [[2077.9673, 2116.636], [5710.0894, 5653.4956]], 3)

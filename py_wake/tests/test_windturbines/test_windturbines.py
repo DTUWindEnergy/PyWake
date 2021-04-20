@@ -239,18 +239,20 @@ def test_plot_yz2_types():
 def test_set_gradients():
     wt = IEA37_WindTurbines()
 
-    def dpctdu(ws):
-        return (np.where((ws > 4) & (ws <= 9.8),
-                         100000 * ws,  # not the right gradient, but similar to the reference
-                         0),
-                np.full(ws.shape, 0))
+    def dpctdu(ws, run_only):
+        if run_only == 0:
+            return np.where((ws > 4) & (ws <= 9.8),
+                            100000 * ws,  # not the right gradient, but similar to the reference
+                            0)
+        else:
+            return np.full(ws.shape, 0)
     wt.powerCtFunction.set_gradient_funcs(dpctdu)
     with use_autograd_in([WindTurbines, iea37_reader, power_ct_functions, wind_turbines_deprecated]):
         ws_lst = np.arange(3, 25, .1)
         plt.plot(ws_lst, wt.power(ws_lst))
 
         ws_pts = np.array([3., 6., 9., 12.])
-        dpdu_lst, dctdu_lst = autograd(wt.power_ct)(ws_pts)
+        dpdu_lst = autograd(wt.power)(ws_pts)
         if 0:
             for dpdu, ws in zip(dpdu_lst, ws_pts):
                 plot_gradients(wt.power(ws), dpdu, ws, "", 1)
@@ -272,9 +274,9 @@ def test_method():
 
     ws_pts = [6.99, 7.01]
     with use_autograd_in():
-        dpdu_linear_pts, _ = autograd(wt_linear.power_ct)(np.array(ws_pts))
-        dpdu_pchip_pts, _ = autograd(wt_pchip.power_ct)(np.array(ws_pts))
-        dpdu_spline_pts, _ = autograd(wt_spline.power_ct)(np.array(ws_pts))
+        dpdu_linear_pts = autograd(wt_linear.power)(np.array(ws_pts))
+        dpdu_pchip_pts = autograd(wt_pchip.power)(np.array(ws_pts))
+        dpdu_spline_pts = autograd(wt_spline.power)(np.array(ws_pts))
 
     if 0:
         wt_dp_label_lst = [(wt_linear, dpdu_linear_pts, 'linear'),

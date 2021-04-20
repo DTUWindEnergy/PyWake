@@ -21,24 +21,28 @@ class IEA34_130_PowerCtSurrogate(PowerCtSurrogate):
         self.ws_cutin = self.function_surrogate_lst[0].input_scaler.data_min_[ws_idx]  # .wind_speed_cut_in
         self.ws_cutout = self.function_surrogate_lst[0].input_scaler.data_max_[ws_idx]  # .wind_speed_cut_out
         ti_key = [k for k in list(inspect.signature(input_parser).parameters) if k[:2] == 'TI'][0]
-        thrust_idle = PowerCtSurrogate._power_ct(self, np.array([self.ws_cutout]), **{ti_key: .1})[1] * 1000
+        thrust_idle = PowerCtSurrogate._power_ct(self, np.array([self.ws_cutout]), run_only=1, **{ti_key: .1}) * 1000
         self.ct_idle = thrust_idle / (1 / 2 * 1.225 * (65**2 * np.pi) * self.ws_cutout**2)
 
-    def _power_ct(self, ws, **kwargs):
+    def _power_ct(self, ws, run_only, **kwargs):
         m = (ws > self.ws_cutin) & (ws < self.ws_cutout)
-        power = np.zeros_like(ws)
-        ct = np.full(ws.shape, self.ct_idle)
         kwargs = {k: self.fix_shape(v, ws)[m] for k, v in kwargs.items()}
-        power_m, thrust_m = PowerCtSurrogate._power_ct(self, ws[m], **kwargs)
-        ct_m = thrust_m * 1000 / (1 / 2 * 1.225 * (65**2 * np.pi) * ws[m]**2)
-        power[m] = power_m
-        ct[m] = ct_m
-        return power, ct
+        arr_m = PowerCtSurrogate._power_ct(self, ws[m], run_only=run_only, **kwargs)
+        if run_only == 0:
+            power = np.zeros_like(ws)
+            power[m] = arr_m
+            return power
+        else:
+            ct = np.full(ws.shape, self.ct_idle)
+            ct_m = arr_m * 1000 / (1 / 2 * 1.225 * (65**2 * np.pi) * ws[m]**2)
+            ct[m] = ct_m
+            return ct
 
 
 class ThreeRegionLoadSurrogates(FunctionSurrogates):
     def __init__(self, function_surrogate_lst, input_parser):
-        FunctionSurrogates.__init__(self, function_surrogate_lst, input_parser)
+        output_keys = [fs[0].output_channel_name for fs in function_surrogate_lst]
+        FunctionSurrogates.__init__(self, function_surrogate_lst, input_parser, output_keys)
         self.ws_cutin = function_surrogate_lst[0][0].wind_speed_cut_in
         self.ws_cutout = function_surrogate_lst[0][0].wind_speed_cut_out
 
@@ -58,10 +62,6 @@ class ThreeRegionLoadSurrogates(FunctionSurrogates):
         return [predict(fs).reshape(ws.shape) for fs in np.asarray(self.function_surrogate_lst)[run_only]]
 
     @property
-    def output_keys(self):
-        return [fs[0].output_channel_name for fs in self.function_surrogate_lst]
-
-    @property
     def wohler_exponents(self):
         return [fs[0].wohler_exponent for fs in self.function_surrogate_lst]
 
@@ -75,9 +75,7 @@ class IEA34_130_Base(WindTurbine):
         WindTurbine.__init__(self, 'IEA 3.4MW', diameter=130, hub_height=110,
                              powerCtFunction=powerCtFunction,
                              loadFunction=loadFunction)
-        for sensor, fs_lst in zip(self.load_sensors, self.loadFunction.function_surrogate_lst):
-            for fs in fs_lst:
-                fs.output_channel_name = sensor
+        self.loadFunction.output_keys = self.load_sensors
 
 
 class IEA34_130_1WT_Surrogate(IEA34_130_Base):
@@ -125,7 +123,7 @@ def main():
         from py_wake import NOJ
         import matplotlib.pyplot as plt
 
-        u = np.arange(3, 28, .1)
+        u = np.arange(3, 28, 1)
 
         # ===============================================================================================================
         # IEA34_130_1WT_Surrogate
@@ -179,7 +177,7 @@ def main():
 
         for s in load_wd_averaged.sensor:
             print(s.item(), load_wd_averaged.LDEL.sel(sensor=s, wt=0).item(), loads.LDEL.sel(sensor=s, wt=0).item())
-        plt.show()
+        # plt.show()
 
         # =======================================================================================================================
         # IEA34_130_2WTSurrogate
@@ -233,7 +231,7 @@ def main():
 
         for s in loads.sensor:
             print(s.item(), loads.LDEL.sel(sensor=s, wt=0).item())
-        plt.show()
+        # plt.show()
 
 
 main()

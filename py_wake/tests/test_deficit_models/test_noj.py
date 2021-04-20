@@ -15,8 +15,9 @@ from py_wake.wind_turbines.power_ct_functions import PowerCtFunction
 # Two turbines, 0: Nibe-A, 1:Ct=0
 NibeA0 = WindTurbines(names=['Nibe-A'] * 2, diameters=[40] * 2,
                       hub_heights=[50] * 2,
-                      powerCtFunctions=[PowerCtFunction(['ws'], lambda ws: (ws * 0, ws * 0 + 8 / 9), 'w'),
-                                        PowerCtFunction(['ws'], lambda ws: (ws * 0, ws * 0), 'w')])
+                      # only define for ct
+                      powerCtFunctions=[PowerCtFunction(['ws'], lambda ws, run_only: ws * 0 + 8 / 9, 'w'),
+                                        PowerCtFunction(['ws'], lambda ws, run_only: ws * 0, 'w')])
 
 
 def test_NOJ_Nibe_result():

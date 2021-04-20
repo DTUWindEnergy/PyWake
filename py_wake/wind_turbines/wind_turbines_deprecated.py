@@ -46,7 +46,7 @@ class DeprecatedWindTurbines(WindTurbines):
                 power_funcs = list([PowerScaler(f, power_scale) for f in power_funcs])
 
         self._power_funcs = power_funcs
-        self.powerCtFunction = WindTurbineFunction(['ws', 'type', 'yaw'], [])  # dummy for forward compatibility
+        self.powerCtFunction = WindTurbineFunction(['ws', 'type', 'yaw'], [], [])  # dummy for forward compatibility
 
     def _ct_power(self, ws_i, type=0, **kwargs):
         ws_i = np.asarray(ws_i)
@@ -62,8 +62,11 @@ class DeprecatedWindTurbines(WindTurbines):
             return (self._ct_funcs[int(t[0])](ws_i, **kwargs),
                     self._power_funcs[int(t[0])](ws_i, **kwargs))
 
-    def power_ct(self, *args, **kwargs):
-        return self._ct_power(*args, **kwargs)[::-1]
+    def power(self, *args, **kwargs):
+        return self._ct_power(*args, **kwargs)[1]
+
+    def ct(self, *args, **kwargs):
+        return self._ct_power(*args, **kwargs)[0]
 
     def set_gradient_funcs(self, power_grad_funcs, ct_grad_funcs):
         def add_grad(f_lst, df_lst):

@@ -78,7 +78,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         kwargs : keyword arguments
             required and optional inputs
         """
-        return self.power_ct(ws, **kwargs)[0]
+        return self.powerCtFunction(ws, run_only=0, **kwargs)
 
     def ct(self, ws, **kwargs):
         """Thrust coefficient
@@ -90,10 +90,10 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         kwargs : keyword arguments
             required and optional inputs
         """
-        return self.power_ct(ws, **kwargs)[1]
+        return self.powerCtFunction(ws, run_only=1, **kwargs)
 
     def power_ct(self, ws, **kwargs):
-        return self.powerCtFunction(ws, **kwargs)
+        return [self.power(ws, **kwargs), self.ct(ws, **kwargs)]
 
     def loads(self, ws, **kwargs):
         return self.loadFunction(ws, **kwargs)
