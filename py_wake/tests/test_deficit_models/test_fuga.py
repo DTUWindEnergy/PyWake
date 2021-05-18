@@ -12,6 +12,9 @@ from py_wake.tests.check_speed import timeit
 from py_wake.utils.grid_interpolator import GridInterpolator
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 import pytest
+from pathlib import Path
+from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
+from py_wake.wind_turbines._wind_turbines import WindTurbine
 
 
 def test_fuga():
@@ -175,6 +178,28 @@ def test_fuga_downwind():
     plt.close('all')
 
 
+def test_fuga_downwind_vs_notebook():
+
+    powerCtFunction = PowerCtTabular([0, 100], [0, 0], 'w', [0.850877, 0.850877])
+    wt = WindTurbine(name='', diameter=80, hub_height=70, powerCtFunction=powerCtFunction)
+
+    path = tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00'
+    site = UniformSite([1, 0, 0, 0], ti=0.075)
+    wfm_ULT = PropagateDownwind(site, wt, FugaYawDeficit(path))
+    WS = 10
+    p = Path(tfp) / "fuga/v80_wake_4d_y_no_deflection.csv"
+    y, notebook_deficit_4d = np.array([v.split(",") for v in p.read_text().strip().split("\n")], dtype=float).T
+    sim_res = wfm_ULT([0], [0], wd=270, ws=WS, yaw_ilk=[[[17.4493]]])
+    fm = sim_res.flow_map(XYGrid(4 * wt.diameter(), y=y))
+    npt.assert_allclose(fm.WS_eff.squeeze() - WS, notebook_deficit_4d, atol=1e-6)
+
+    if 0:
+        plt.plot(y, notebook_deficit_4d, label='Notebook deficit 4d')
+        plt.plot(y, fm.WS_eff.squeeze() - WS)
+        plt.show()
+    plt.close('all')
+
+
 def test_fuga_table_edges():
 
     wts = HornsrevV80()
@@ -258,6 +283,38 @@ def test_lut_exists():
     assert fuga_utils.lut_exists([9999]) == {'UL', 'UT', 'VL', 'VT'}
 
 
+def test_interpolation():
+    wts = HornsrevV80()
+
+    path = tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/'
+    site = UniformSite([1, 0, 0, 0], ti=0.075)
+
+    plot = 0
+    if plot:
+        ax1 = plt.gca()
+        ax2 = plt.twinx()
+
+    for wdm, n_d_values in ((FugaDeficit(path, method='linear'), 4),
+                            (FugaDeficit(path, method='spline'), 20),
+                            (FugaYawDeficit(path, method='linear'), 4),
+                            (FugaYawDeficit(path, method='spline'), 20),
+                            ):
+        wfm = PropagateDownwind(site, wts, wdm)
+
+        sim_res = wfm(x=[0], y=[0], wd=[270], ws=[10], yaw_ilk=[[[10]]])
+        fm = sim_res.flow_map(XYGrid(x=[200], y=np.arange(-10, 11)))
+        fm = sim_res.flow_map(XYGrid(x=np.arange(-100, 800, 10), y=np.arange(-10, 11)))
+
+        # linear has 4 line segments with same gradient, while spline has 20 different gradient values
+        npt.assert_equal(len(np.unique(np.round(np.diff(fm.WS_eff.sel(x=500).squeeze()), 6))), n_d_values)
+        if plot:
+            ax1.plot(fm.y, fm.WS_eff.sel(x=500).squeeze())
+            ax2.plot(fm.y[:-1], np.diff(fm.WS_eff.sel(x=500).squeeze()), '--')
+
+    if plot:
+        plt.show()
+        plt.close('all')
+
 # def cmp_fuga_with_colonel():
 #     from py_wake.aep_calculator import AEPCalculator
 #
@@ -276,9 +333,9 @@ def test_lut_exists():
 #
 #     site = UniformSite([1, 0, 0, 0], ti=0.075)
 #
-#     wake_model = Fuga(path, site, wts)
-#     aep = AEPCalculator(wake_model)
-#     wake_model(wt_x, wt_y, h_i=70, wd=[30], ws=[10]).flow_map(x_j, y_j, 70)
+#     wfm = Fuga(path, site, wts)
+#     aep = AEPCalculator(wfm)
+#     wfm(wt_x, wt_y, h_i=70, wd=[30], ws=[10]).flow_map(x_j, y_j, 70)
 #     X, Y, Z2 = aep.wake_map(x_j, y_j, 70, wt_x, wt_y, h_i=70, wd=[30], ws=[10])
 #
 #     print(x_j)

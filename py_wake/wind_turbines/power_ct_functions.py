@@ -9,6 +9,7 @@ from autograd.numpy.numpy_boxes import ArrayBox
 from py_wake.wind_turbines.wind_turbine_functions import WindTurbineFunction, FunctionSurrogates,\
     WindTurbineFunctionList
 from py_wake.utils.check_input import check_input
+from py_wake.utils.model_utils import check_model
 
 
 """
@@ -46,7 +47,8 @@ class PowerCtModelContainer(WindTurbineFunction, ABC):
 
     def __init__(self, input_keys, optional_inputs, additional_models=[]):
         WindTurbineFunction.__init__(self, input_keys, optional_inputs, output_keys=['power', 'ct'])
-        for m in additional_models:
+        for i, m in enumerate(additional_models):
+            check_model(m, AdditionalModel, f"Additional model, element {i}")
             self.add_inputs(m.required_inputs, m.optional_inputs)
         self.model_lst = additional_models
 
