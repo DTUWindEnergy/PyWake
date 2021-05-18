@@ -28,16 +28,14 @@ class FugaUtils():
                 self.z0 = struct.unpack('d', fid.read(8))[0]
                 zi = struct.unpack('d', fid.read(8))[0]  # @UnusedVariable
                 self.ds = struct.unpack('d', fid.read(8))[0]
-                closure = struct.unpack('I', fid.read(4))[0]
+                closure = struct.unpack('I', fid.read(4))[0]  # @UnusedVariable
                 if os.path.getsize(self.path / 'CaseData.bin') == 187:
                     self.zeta0 = struct.unpack('d', fid.read(8))[0]
-                else:
+                #  else:
                     #                 with open(path + 'CaseData.bin', 'rb') as fid2:
                     #                     info = fid2.read(127).decode()
                     #                 zeta0 = float(info[info.index('Zeta0'):].replace("Zeta0=", ""))
-                    if 'Zeta0' in self.path.name:
-                        self.zeta0 = float(self.path.name[self.path.name.index(
-                            'Zeta0'):].replace("Zeta0=", "").replace("/", ""))
+
         else:
             with open(self.path / 'WTdata.bin', 'rb') as fid:
                 case_name = struct.unpack('127s', fid.read(127))[0]  # @UnusedVariable
@@ -45,6 +43,8 @@ class FugaUtils():
                 self.r = struct.unpack('d', fid.read(8))[0]  # @UnusedVariable
                 self.zHub = struct.unpack('d', fid.read(8))[0]
             on_mismatch = 'input_par'
+        if not hasattr(self, 'zeta0') and 'Zeta0' in self.path.name:
+            self.zeta0 = float(self.path.name[self.path.name.index('Zeta0'):].replace("Zeta0=", "").replace("/", ""))
         f = [f for f in os.listdir(self.path) if f.endswith('.par')][0]
         lines = (self.path / f).read_text().split("\n")
 

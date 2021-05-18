@@ -7,6 +7,7 @@ from py_wake.superposition_models import LinearSum
 from py_wake.tests.test_files import tfp
 from py_wake.utils.fuga_utils import FugaUtils
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
+from scipy.interpolate.fitpack2 import RectBivariateSpline
 
 
 class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
@@ -14,7 +15,8 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
     invL = 0
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijlk', 'h_il', 'ct_ilk', 'D_src_il']
 
-    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/', remove_wriggles=False):
+    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/', remove_wriggles=False,
+                 method='linear'):
         """
         Parameters
         ----------
@@ -29,7 +31,20 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
         BlockageDeficitModel.__init__(self, upstream_only=True)
         FugaUtils.__init__(self, LUT_path, on_mismatch='input_par')
         self.remove_wriggles = remove_wriggles
-        self.lut_interpolator = LUTInterpolator(*self.load())
+        x, y, z, du = self.load()
+        err_msg = "Method must be 'linear' or 'spline'. Spline is supports only height level only"
+        assert method == 'linear' or (method == 'spline' and len(z) == 1), err_msg
+
+        if method == 'linear':
+            self.lut_interpolator = LUTInterpolator(x, y, z, du)
+        else:
+            du_interpolator = RectBivariateSpline(x, y, du[0].T)
+
+            def interp(xyz):
+                x, y, z = xyz
+                assert np.all(z == self.z[0]), f'LUT table contains z={self.z} only'
+                return du_interpolator.ev(x, y)
+            self.lut_interpolator = interp
 
     def zeta0_factor(self):
         def psim(zeta):
@@ -44,7 +59,7 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
 
         mdUL = self.load_luts(['UL'])[0]
 
-        du = -np.array(mdUL, dtype=np.float32) * self.zeta0_factor()
+        du = -np.array(mdUL, dtype=np.float32) * self.zeta0_factor()  # minus because it is deficit
 
         if self.remove_wriggles:
             # remove all positive and negative deficits after first zero crossing in lateral direction
@@ -82,7 +97,8 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
 class FugaYawDeficit(FugaDeficit):
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijlk', 'h_il', 'ct_ilk', 'D_src_il', 'yaw_ilk']
 
-    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/', remove_wriggles=False):
+    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/',
+                 remove_wriggles=False, method='linear'):
         """
         Parameters
         ----------
@@ -100,9 +116,22 @@ class FugaYawDeficit(FugaDeficit):
         x, y, z, dUL = self.load()
 
         mdUT = self.load_luts(['UT'])[0]
-        dUT = np.array(mdUT, dtype=np.float32) * self.zeta0_factor()
+        dUT = -np.array(mdUT, dtype=np.float32) * self.zeta0_factor()  # minus because it is deficit
         dU = np.concatenate([dUL[:, :, :, na], dUT[:, :, :, na]], 3)
-        self.lut_interpolator = LUTInterpolator(x, y, z, dU)
+        err_msg = "Method must be 'linear' or 'spline'. Spline is supports only height level only"
+        assert method == 'linear' or (method == 'spline' and len(z) == 1), err_msg
+
+        if method == 'linear':
+            self.lut_interpolator = LUTInterpolator(x, y, z, dU)
+        else:
+            UL_interpolator = RectBivariateSpline(x, y, dU[0, :, :, 0].T)
+            UT_interpolator = RectBivariateSpline(x, y, dU[0, :, :, 1].T)
+
+            def interp(xyz):
+                x, y, z = xyz
+                assert np.all(z == self.z[0]), f'LUT table contains z={self.z} only'
+                return np.moveaxis([UL_interpolator.ev(x, y), UT_interpolator.ev(x, y)], 0, -1)
+            self.lut_interpolator = interp
 
     def calc_deficit_downwind(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk,
                               dh_ijlk, h_il, ct_ilk, D_src_il, yaw_ilk, **_):
@@ -110,9 +139,7 @@ class FugaYawDeficit(FugaDeficit):
         mdUL_ijlk, mdUT_ijlk = np.moveaxis(self.interpolate(
             dw_ijlk, np.abs(hcw_ijlk), (h_il[:, na, :, na] + dh_ijlk)), -1, 0)
         mdUT_ijlk[hcw_ijlk < 0] *= -1  # UT is antisymmetric
-        mdu_ijlk = (mdUL_ijlk * np.cos(yaw_ilk)[:, na] +
-                    mdUT_ijlk * np.sin(yaw_ilk)[:, na])
-
+        mdu_ijlk = (mdUL_ijlk * np.cos(yaw_ilk)[:, na] - mdUT_ijlk * np.sin(yaw_ilk)[:, na])
         mdu_ijlk *= ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na]))  # avoid wake on itself
 
         return mdu_ijlk * (ct_ilk * WS_eff_ilk**2 / WS_ilk)[:, na]
