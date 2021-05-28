@@ -188,22 +188,22 @@ def test_get_defaults():
 
 def test_yaw():
     v80 = V80()
-    yaw = np.deg2rad(np.arange(-30, 31))
+    yaw = np.arange(-30, 31)
     ws = np.zeros_like(yaw) + 8
     P0 = v80.power(ws[0])
     if 0:
         plt.plot(yaw, v80.power(ws, yaw=yaw) / P0)
-        plt.plot(yaw, np.cos(yaw)**3)
+        plt.plot(yaw, np.cos(np.deg2rad(yaw))**3)
         plt.grid()
         plt.figure()
         plt.plot(yaw, v80.ct(ws, yaw=yaw))
-        plt.plot(yaw, v80.ct(ws) * np.cos(yaw)**2)
+        plt.plot(yaw, v80.ct(ws) * np.cos(np.deg2rad(yaw))**2)
         plt.grid()
         plt.show()
     # Power in cube region
-    npt.assert_array_almost_equal(v80.power(ws, yaw=yaw) / P0, np.cos(yaw)**3, 2)
+    npt.assert_array_almost_equal(v80.power(ws, yaw=yaw) / P0, np.cos(np.deg2rad(yaw))**3, 2)
     # ct in constant region
-    npt.assert_array_almost_equal(v80.ct(ws, yaw=yaw), v80.ct(ws) * np.cos(yaw)**2, 3)
+    npt.assert_array_almost_equal(v80.ct(ws, yaw=yaw), v80.ct(ws) * np.cos(np.deg2rad(yaw))**2, 3)
 
 
 def test_plot_yz():

@@ -15,8 +15,8 @@ from py_wake.tests.test_files import tfp
 
 @pytest.mark.parametrize('deflectionModel,dy10d', [
     (JimenezWakeDeflection, 0.5672964),
-    ((lambda: FugaDeflection(tfp + 'fuga/D080.0000_zH070.0000/Z0=0.03000000Zi=00401Zeta0=0.00E+00/')), 0.2567786526168626),
-    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/')), 0.33216633496287334),
+    ((lambda: FugaDeflection(tfp + 'fuga/D080.0000_zH070.0000/Z0=0.03000000Zi=00401Zeta0=0.00E+00/')), 0.33771119153150087),
+    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/')), 0.37719131706149484),
 ])
 def test_deflection_model(deflectionModel, dy10d):
     site = IEA37Site(16)
@@ -27,7 +27,7 @@ def test_deflection_model(deflectionModel, dy10d):
 
     yaw_ilk = np.reshape([-30], (1, 1, 1))
 
-    sim_res = wfm(x, y, yaw_ilk=yaw_ilk, wd=270, ws=10)
+    sim_res = wfm(x, y, yaw=yaw_ilk, wd=270, ws=10)
     fm = sim_res.flow_map(XYGrid(x=np.arange(-D, 10 * D + 10, 10)))
     min_WS_line = fm.min_WS_eff()
     if 0:
@@ -51,7 +51,7 @@ def test_plot_deflection_grid(deflectionModel):
 
     yaw_ilk = np.reshape([-30], (1, 1, 1))
 
-    sim_res = wfm(x, y, yaw_ilk=yaw_ilk, wd=270, ws=10)
+    sim_res = wfm(x, y, yaw=yaw_ilk, wd=270, ws=10)
     fm = sim_res.flow_map(XYGrid(x=np.arange(-D, 10 * D + 10, 10)))
 
     plt.figure(figsize=(14, 3))
@@ -60,6 +60,7 @@ def test_plot_deflection_grid(deflectionModel):
     min_WS_line = fm.min_WS_eff()
     min_WS_line.plot()
     plt.legend()
+    plt.title(wfm.deflectionModel)
     if 0:
         plt.show()
     plt.close('all')

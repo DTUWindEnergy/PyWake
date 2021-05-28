@@ -173,7 +173,7 @@ class FlowMap(FlowBox):
 
     def plot_windturbines(self, normalize_with=1, ax=None):
         fm = self.windFarmModel
-        yaw = self.simulationResult.Yaw.sel(wd=self.wd[0]).mean(['ws']).data
+        yaw = self.simulationResult.yaw.sel(wd=self.wd[0]).mean(['ws']).data
         if self.plane[0] == "YZ":
             x_i, y_i = self.simulationResult.x.values, self.simulationResult.y.values
             h_i = self.simulationResult.h.values
@@ -270,7 +270,7 @@ class FlowMap(FlowBox):
 
         from py_wake.utils.model_utils import get_model_input
         kwargs = get_model_input(self.windFarmModel, X.flatten(), Y.flatten(), ws=self.ws, wd=self.wd,
-                                 yaw_ilk=self.simulationResult.Yaw.ilk())
+                                 yaw=self.simulationResult.yaw.ilk())
         dw, hcw, dh = self.windFarmModel.deflectionModel.calc_deflection(**kwargs)
         Yp = -hcw[0, :, 0, 0].reshape(X.shape)
         ax = ax or plt.gca()

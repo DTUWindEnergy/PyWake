@@ -111,6 +111,40 @@ def test_two_turbine_case0():
     npt.assert_array_almost_equal(loads.LDEL.sel(wt=0).squeeze(), (loads.DEL.sel(wt=0).squeeze()**m * f)**(1 / m))
 
 
+def test_two_turbine_case0_time_series():
+    # same as test_two_turbine_case0
+    ws, ti, shear, wdir, dist = [10.9785338191, 0.2623204277, 0.4092031776, -38.4114616871 % 360, 5.123719529]
+
+    # ref from simulation statistic (not updated yet)
+    ws_ref = 1.103937e+01
+    thrust_ref = 4.211741e+02
+    power_ref = 3.399746e+06
+    ref_dels = [4546, 5931, 11902, 7599, 2407]
+
+    wt = IEA34_130_2WT_Surrogate()
+    site = UniformSite(p_wd=[1], ti=ti, ws=ws)
+    wfm = NOJ(site, wt, turbulenceModel=STF2017TurbulenceModel())
+    sim_res = wfm([0, 0], [0, dist * 130], wd=wdir, time=True, Alpha=shear)
+    assert sim_res.dw_ijl.dims == ('wt', 'wt', 'time')
+
+    npt.assert_allclose(ws, ws_ref, rtol=.006)
+    # npt.assert_allclose(ti, ws_std_ref / ws_ref, atol=.19)
+    npt.assert_allclose(sim_res.Power.sel(wt=0), power_ref, rtol=0.002)
+    npt.assert_allclose(sim_res.CT.sel(wt=0), thrust_ref * 1e3 / (1 / 2 * 1.225 * (65**2 * np.pi) * ws_ref**2),
+                        rtol=0.03)
+    sim_res['duration'] = ('time', [3600 * 24 * 365 * 20])
+    loads = sim_res.loads(method='TwoWT')
+    npt.assert_allclose(loads.DEL.sel(wt=0).squeeze(), ref_dels, rtol=.05)
+
+    f = 20 * 365 * 24 * 3600 / 1e7
+    m = loads.m.values
+    npt.assert_array_almost_equal(loads.LDEL.sel(wt=0).squeeze(), (loads.DEL.sel(wt=0).squeeze()**m * f)**(1 / m))
+
+    loads = sim_res.loads(method='TwoWT', softmax_base=100)
+    npt.assert_allclose(loads.DEL.sel(wt=0).squeeze(), ref_dels, rtol=.05)
+    npt.assert_array_almost_equal(loads.LDEL.sel(wt=0).squeeze(), (loads.DEL.sel(wt=0).squeeze()**m * f)**(1 / m))
+
+
 def test_functionSurrogate():
     surrogate_path = Path(example_data_path) / 'iea34_130rwt' / 'one_turbine'
     load_sensors = ['del_blade_flap', 'del_blade_edge']

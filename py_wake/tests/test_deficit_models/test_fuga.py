@@ -102,15 +102,15 @@ def test_fuga_new_format():
     wt_y = [433, 300, 0, 0, 0, -433, -433]
     wts = HornsrevV80()
 
-    path = tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/'
+    path = tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/'
     site = UniformSite([1, 0, 0, 0], ti=0.075)
     wake_model = Fuga(path, site, wts)
     res = wake_model(x=wt_x, y=wt_y, wd=[30], ws=[10])
 
-    npt.assert_array_almost_equal(res.WS_eff_ilk.flatten(), [10.00725165, 10., 7.92176401, 10.02054952, 9.40501317,
-                                                             7.92609363, 7.52384558], 8)
-    npt.assert_array_almost_equal(res.ct_ilk.flatten(), [0.79260841, 0.793, 0.80592176, 0.79189033, 0.80132982,
-                                                         0.80592609, 0.80552385], 8)
+    npt.assert_array_almost_equal(res.WS_eff_ilk.flatten(), [10.00648185, 10., 8.21713811, 10.03039502, 9.36887205,
+                                                             8.23084156, 7.80661768], 8)
+    npt.assert_array_almost_equal(res.ct_ilk.flatten(), [0.79264998, 0.793, 0.80621714, 0.79135867, 0.80183579,
+                                                         0.80623084, 0.80580662], 8)
 
     x_j = np.linspace(-1500, 1500, 500)
     y_j = np.linspace(-1500, 1500, 300)
@@ -138,21 +138,21 @@ def test_fuga_new_format():
 
     npt.assert_array_almost_equal(
         Z70[140, 100:400:10],
-        [10.0458, 10.0309, 10.065, 10.0374, 9.7865, 7.7119, 6.4956, 9.2753, 10.0047, 10.0689,
-         10.0444, 10.0752, 10.0699, 9.1852, 6.9783, 9.152, 10.0707, 10.0477, 10.0365, 9.9884,
-         9.2867, 7.5714, 6.4451, 8.3276, 9.9976, 10.0251, 10.0264, 10.023, 10.0154, 9.9996], 4)
+        [10.0384, 10.042, 10.044, 10.0253, 9.7194, 7.7561, 6.7421, 9.2308, 9.9894, 10.0413, 10.0499,
+         10.0579, 10.0437, 9.1626, 7.2334, 9.1208, 10.0396, 10.0322, 10.0276, 9.9504, 9.2861, 7.8375,
+         6.6608, 8.3343, 9.9756, 10.0229, 10.0136, 10.0142, 10.0118, 10.0094], 4)
 
     npt.assert_array_almost_equal(
         Z73[140, 100:400:10],
-        [10.0458, 10.0309, 10.065, 10.0374, 9.7865, 7.7119, 6.4956, 9.2753, 10.0047, 10.0689,
-         10.0444, 10.0752, 10.0699, 9.1852, 6.9783, 9.152, 10.0707, 10.0477, 10.0365, 9.9884,
-         9.2867, 7.5714, 6.4451, 8.3276, 9.9976, 10.0251, 10.0264, 10.023, 10.0154, 9.9996], 4)
+        [10.0384, 10.042, 10.044, 10.0253, 9.7194, 7.7561, 6.7421, 9.2308, 9.9894, 10.0413, 10.0499,
+         10.0579, 10.0437, 9.1626, 7.2334, 9.1208, 10.0396, 10.0322, 10.0276, 9.9504, 9.2861, 7.8375,
+         6.6608, 8.3343, 9.9756, 10.0229, 10.0136, 10.0142, 10.0118, 10.0094], 4)
 
 
 def test_fuga_downwind():
     wts = HornsrevV80()
 
-    path = tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0'
+    path = tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00'
     site = UniformSite([1, 0, 0, 0], ti=0.075)
     wfm_UL = Fuga(path, site, wts)
 
@@ -162,16 +162,16 @@ def test_fuga_downwind():
 
     def plot(wfm, yaw, ax, min_ws):
         levels = np.arange(6.5, 10.5, .5)
-        sim_res = wfm([0], [0], wd=270, ws=10, yaw_ilk=[[[yaw]]])
+        sim_res = wfm([0], [0], wd=270, ws=10, yaw=[[[yaw]]])
         fm = sim_res.flow_map(XYGrid(x=np.arange(-100, 500, 5)))
         npt.assert_almost_equal(fm.WS_eff.min(), min_ws)
         fm.plot_wake_map(ax=ax, levels=levels)
         fm.min_WS_eff(fm.x, 70).plot(ax=ax, color='r')
         plt.axhline(0, color='k')
-    plot(wfm_UL, 0, ax1, 6.89020003)
-    plot(wfm_UL, 30, ax2, 7.62747285)
-    plot(wfm_ULT, 0, ax3, 6.89020003)
-    plot(wfm_ULT, 30, ax4, 7.94525864)
+    plot(wfm_UL, 0, ax1, 7.15850569)
+    plot(wfm_UL, 30, ax2, 7.83216849)
+    plot(wfm_ULT, 0, ax3, 7.15850569)
+    plot(wfm_ULT, 30, ax4, 8.12259776)
 
     if 0:
         plt.show()
@@ -189,7 +189,7 @@ def test_fuga_downwind_vs_notebook():
     WS = 10
     p = Path(tfp) / "fuga/v80_wake_4d_y_no_deflection.csv"
     y, notebook_deficit_4d = np.array([v.split(",") for v in p.read_text().strip().split("\n")], dtype=float).T
-    sim_res = wfm_ULT([0], [0], wd=270, ws=WS, yaw_ilk=[[[17.4493]]])
+    sim_res = wfm_ULT([0], [0], wd=270, ws=WS, yaw=[[[17.4493]]])
     fm = sim_res.flow_map(XYGrid(4 * wt.diameter(), y=y))
     npt.assert_allclose(fm.WS_eff.squeeze() - WS, notebook_deficit_4d, atol=1e-6)
 
@@ -276,7 +276,7 @@ def test_lut_exists():
     assert fuga_utils.lut_exists([154]) == set([])
     assert fuga_utils.lut_exists([155]) == {'UL'}
 
-    path = tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/'
+    path = tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/'
     fuga_utils = FugaUtils(path, on_mismatch='input_par')
     assert fuga_utils.lut_exists() == {'UL', 'UT', 'VL', 'VT'}
     assert fuga_utils.lut_exists([154]) == set([])
@@ -286,7 +286,7 @@ def test_lut_exists():
 def test_interpolation():
     wts = HornsrevV80()
 
-    path = tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/'
+    path = tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/'
     site = UniformSite([1, 0, 0, 0], ti=0.075)
 
     plot = 0
@@ -301,7 +301,7 @@ def test_interpolation():
                             ):
         wfm = PropagateDownwind(site, wts, wdm)
 
-        sim_res = wfm(x=[0], y=[0], wd=[270], ws=[10], yaw_ilk=[[[10]]])
+        sim_res = wfm(x=[0], y=[0], wd=[270], ws=[10], yaw=[[[10]]])
         fm = sim_res.flow_map(XYGrid(x=[200], y=np.arange(-10, 11)))
         fm = sim_res.flow_map(XYGrid(x=np.arange(-100, 800, 10), y=np.arange(-10, 11)))
 

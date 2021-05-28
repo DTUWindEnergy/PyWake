@@ -168,8 +168,6 @@ class EngineeringWindFarmModel(WindFarmModel):
 
         WS_eff_ilk = lw.WS.ilk((I, L, K)).copy()
         TI_eff_ilk = lw.TI.ilk((I, L, K)).copy()
-        if yaw_ilk is not None:
-            yaw_ilk = np.zeros((I, L, K)) + np.deg2rad(yaw_ilk)
 
         # add eps to avoid non-differentiable 0
 #        eps = 2 * np.finfo(float).eps ** 2 if 'autograd' in np.__name__ else 0
@@ -281,7 +279,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                          'WS_eff_ilk': get_ilk('WS_eff'),
                          'TI_ilk': get_ilk('TI'),
                          'TI_eff_ilk': get_ilk('TI_eff'),
-                         'yaw_ilk': lambda: np.deg2rad(get_ilk('Yaw')()),
+                         'yaw_ilk': get_ilk('yaw'),
                          'D_src_il': lambda: wt_d_i[:, na],
                          'D_dst_ijl': lambda: np.zeros_like(dh_ijl),
                          'h_il': lambda: wt_h_i.data[:, na],

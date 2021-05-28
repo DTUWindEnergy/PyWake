@@ -228,7 +228,7 @@ def test_min_ws_eff_line():
     yaw_ilk = np.reshape([-30, 30, 0], (3, 1, 1))
 
     plt.figure(figsize=(14, 3))
-    fm = wfm(x, y, yaw_ilk=yaw_ilk, wd=270, ws=10).flow_map(
+    fm = wfm(x, y, yaw=yaw_ilk, wd=270, ws=10).flow_map(
         XYGrid(x=np.arange(-100, 2000, 10), y=np.arange(-500, 500, 10)))
     min_ws_line = fm.min_WS_eff()
 

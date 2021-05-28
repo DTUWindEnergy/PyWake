@@ -2,6 +2,7 @@ import numpy as np
 import inspect
 from abc import ABC, abstractmethod
 import types
+from py_wake.utils.model_utils import fix_shape
 """
 sequenceDiagram
 
@@ -61,13 +62,6 @@ class WindTurbineFunction():
         self._required_inputs |= set(lst)
         lst = [i for sub_lst in optional_inputs for i in ([sub_lst], sub_lst)[isinstance(sub_lst, (list, set))]]
         self._optional_inputs |= set(lst)
-
-    def fix_shape(self, arr, arr_to_match, allow_number=False):
-        if allow_number and isinstance(arr, (int, float)):
-            return arr
-        arr = np.asarray(arr)
-        shape = np.asarray(arr_to_match).shape
-        return np.broadcast_to(arr.reshape(arr.shape + (1,) * (len(shape) - len(arr.shape))), shape)
 
 
 class WindTurbineFunctionList(WindTurbineFunction):
@@ -163,7 +157,7 @@ class FunctionSurrogates(WindTurbineFunction, ABC):
 
     def __call__(self, ws, run_only=slice(None), **kwargs):
         x = self.get_input(ws=ws, **kwargs)
-        x = np.array([self.fix_shape(v, ws).ravel() for v in x]).T
+        x = np.array([fix_shape(v, ws).ravel() for v in x]).T
         if isinstance(run_only, int):
             return self.function_surrogate_lst[run_only].predict_output(x).reshape(ws.shape)
         else:

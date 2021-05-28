@@ -160,23 +160,23 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         yaw = np.zeros_like(x) + yaw
 
         x, y, D = [np.asarray(v) / normalize_with for v in [x, y, self.diameter(types)]]
-
-        for i, (x_, y_, d, t, yaw_) in enumerate(zip(x, y, D, types, yaw)):
+        R = D / 2
+        for i, (x_, y_, r, t, yaw_) in enumerate(zip(x, y, R, types, yaw)):
             if wd is None or len(np.atleast_1d(wd)) > 1:
-                circle = Circle((x_, y_), d / 2, ec=colors[t], fc="None")
+                circle = Circle((x_, y_), r, ec=colors[t], fc="None")
                 ax.add_artist(circle)
                 ax.plot(x_, y_, 'None', )
             else:
                 for wd_ in np.atleast_1d(wd):
                     c, s = np.cos(np.deg2rad(90 + wd_ - yaw_)), np.sin(np.deg2rad(90 + wd_ - yaw_))
-                    ax.plot([x_ - s * d / 2, x_ + s * d / 2], [y_ - c * d / 2, y_ + c * d / 2], lw=1, color=colors[t])
+                    ax.plot([x_ - s * r, x_ + s * r], [y_ - c * r, y_ + c * r], lw=1, color=colors[t])
 
         for t, m, c in zip(np.unique(types), markers, colors):
             # ax.plot(np.asarray(x)[types == t], np.asarray(y)[types == t], '%sk' % m, label=self._names[int(t)])
             ax.plot([], [], '2', color=colors[t], label=self._names[int(t)])
 
-        for i, (x_, y_, d) in enumerate(zip(x, y, D)):
-            ax.annotate(i, (x_ + d / 2, y_ + d / 2), fontsize=7)
+        for i, (x_, y_, r) in enumerate(zip(x, y, R)):
+            ax.annotate(i, (x_ + r, y_ + r), fontsize=7)
         ax.legend(loc=1)
         ax.axis('equal')
 

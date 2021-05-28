@@ -341,7 +341,7 @@ def test_DensityScaleAndSimpleYawModel():
 
     co = np.cos(theta)
 
-    sim_res = wfm([0], [0], wd=0, ws=u, yaw_ilk=yaw_ilk, Air_density=1.3)
+    sim_res = wfm([0], [0], wd=0, ws=u, yaw=yaw_ilk, Air_density=1.3)
     p = sim_res.Power.values.squeeze()
     ct = sim_res.CT.values.squeeze()
 
