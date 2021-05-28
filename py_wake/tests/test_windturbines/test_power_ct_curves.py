@@ -8,6 +8,7 @@ from py_wake.tests import npt
 from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt, PowerCtNDTabular, DensityScale, \
     PowerCtTabular, PowerCtFunction, PowerCtFunctionList, PowerCtXr
 from py_wake.wind_turbines.wind_turbine_functions import WindTurbineFunction
+from py_wake.utils.model_utils import fix_shape
 
 
 @pytest.mark.parametrize('method,unit,p_scale,p_ref,ct_ref', [
@@ -202,7 +203,7 @@ def get_continuous_curve(key, optional):
 
     def _power_ct(ws, run_only, **kwargs):
         try:
-            v = tab_powerct_curve.fix_shape(kwargs.pop(key), ws, True)
+            v = fix_shape(kwargs.pop(key), ws, True)
         except KeyError:
             if optional:
                 v = 1
@@ -290,9 +291,10 @@ def test_SimpleYawModel():
     _, ct_c = hornsrev1.ct_curve.T
     curve = PowerCtTabular(ws=u_p, power=p_c, power_unit='w', ct=ct_c, method='linear')
     u = np.arange(4, 25, 1.1)
-    theta = np.deg2rad(30)
+    yaw = 30
+    theta = np.deg2rad(yaw)
     co = np.cos(theta)
-    p, ct = curve(u, yaw=theta)
+    p, ct = curve(u, yaw=yaw)
     npt.assert_array_almost_equal(p, np.interp(u * co, u_p, p_c))
     npt.assert_array_almost_equal(ct, np.interp(u * co, u_p, ct_c) * co**2)
 
@@ -302,9 +304,10 @@ def test_DensityScaleAndSimpleYawModel():
     _, ct_c = hornsrev1.ct_curve.T
     curve = PowerCtTabular(ws=u_p, power=p_c, power_unit='w', ct=ct_c, method='linear')
     u = np.arange(4, 25, 1.1)
-    theta = np.deg2rad(30)
+    yaw = 30
+    theta = np.deg2rad(yaw)
     co = np.cos(theta)
-    p, ct = curve(u, yaw=theta, Air_density=1.3)
+    p, ct = curve(u, yaw=yaw, Air_density=1.3)
     npt.assert_array_almost_equal(p, np.interp(u * co, u_p, p_c) * 1.3 / 1.225)
     npt.assert_array_almost_equal(ct, np.interp(u * co, u_p, ct_c) * co**2 * 1.3 / 1.225)
 

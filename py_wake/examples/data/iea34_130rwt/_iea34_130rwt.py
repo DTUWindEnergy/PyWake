@@ -6,6 +6,7 @@ import inspect
 from py_wake.wind_turbines.power_ct_functions import PowerCtSurrogate
 from py_wake.wind_turbines.wind_turbine_functions import FunctionSurrogates
 from py_wake.examples.data import example_data_path
+from py_wake.utils.model_utils import fix_shape
 
 
 class IEA34_130_PowerCtSurrogate(PowerCtSurrogate):
@@ -26,7 +27,7 @@ class IEA34_130_PowerCtSurrogate(PowerCtSurrogate):
 
     def _power_ct(self, ws, run_only, **kwargs):
         m = (ws > self.ws_cutin) & (ws < self.ws_cutout)
-        kwargs = {k: self.fix_shape(v, ws)[m] for k, v in kwargs.items()}
+        kwargs = {k: fix_shape(v, ws)[m] for k, v in kwargs.items()}
         arr_m = PowerCtSurrogate._power_ct(self, ws[m], run_only=run_only, **kwargs)
         if run_only == 0:
             power = np.zeros_like(ws)
@@ -49,7 +50,7 @@ class ThreeRegionLoadSurrogates(FunctionSurrogates):
     def __call__(self, ws, run_only=slice(None), **kwargs):
         ws_flat = ws.ravel()
         x = self.get_input(ws=ws, **kwargs)
-        x = np.array([self.fix_shape(v, ws).ravel() for v in x]).T
+        x = np.array([fix_shape(v, ws).ravel() for v in x]).T
 
         def predict(fs):
             output = np.empty(len(x))

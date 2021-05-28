@@ -113,21 +113,20 @@ def get_signature(cls, kwargs={}, indent_level=0):
         return "%s(%s)" % (cls.__name__, arg_str)
 
 
-def get_model_input(wfm, x, y, ws=10, wd=270, yaw_ilk=[[[0]]]):
+def get_model_input(wfm, x, y, ws=10, wd=270, yaw=[[[0]]]):
     ws, wd = [np.atleast_1d(v) for v in [ws, wd]]
     x, y = map(np.asarray, [x, y])
     wfm.site.distance.setup(src_x_i=[0], src_y_i=[0], src_h_i=[0],
                             dst_xyh_j=(x, y, x * 0))
     dw_ijl, hcw_ijl, dh_ijl = wfm.site.distance(wd_il=wd[na])
-    sim_res = wfm([0], [0], ws=ws, wd=wd, yaw_ilk=yaw_ilk)
+    sim_res = wfm([0], [0], ws=ws, wd=wd, yaw=yaw)
 
     args = {'dw_ijl': dw_ijl, 'hcw_ijl': hcw_ijl, 'dh_ijl': dh_ijl,
             'D_src_il': np.atleast_1d(wfm.windTurbines.diameter())[na]}
-    args.update({k: sim_res[n].ilk() for k, n in [('yaw_ilk', 'Yaw'),
+    args.update({k: sim_res[n].ilk() for k, n in [('yaw_ilk', 'yaw'),
                                                   ('WS_ilk', 'WS'),
                                                   ('WS_eff_ilk', 'WS_eff'),
                                                   ('ct_ilk', 'CT')]})
-    args['yaw_ilk'] = np.deg2rad(args['yaw_ilk'])
     return args
 
 
@@ -145,6 +144,20 @@ def check_model(model, cls, arg_name=None, accept_None=True):
             raise ValueError(s + f'. Did you forget the brackets: {model.__name__}()')
 
         raise ValueError(s + f', but is a {model.__class__.__name__} instance')
+
+
+def fix_shape(arr, shape_or_arr_to_match, allow_number=False, allow_None=False):
+    if allow_None and arr is None:
+        return arr
+    if allow_number and isinstance(arr, (int, float)):
+        return arr
+
+    arr = np.asarray(arr)
+    if isinstance(shape_or_arr_to_match, tuple):
+        shape = shape_or_arr_to_match
+    else:
+        shape = np.asarray(shape_or_arr_to_match).shape
+    return np.broadcast_to(arr.reshape(arr.shape + (1,) * (len(shape) - len(arr.shape))), shape)
 
 
 def main():

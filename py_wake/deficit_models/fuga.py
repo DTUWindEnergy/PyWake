@@ -97,7 +97,7 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
 class FugaYawDeficit(FugaDeficit):
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijlk', 'h_il', 'ct_ilk', 'D_src_il', 'yaw_ilk']
 
-    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.00014617Zi=00399Zeta0=0.00E+0/',
+    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/',
                  remove_wriggles=False, method='linear'):
         """
         Parameters
@@ -139,7 +139,8 @@ class FugaYawDeficit(FugaDeficit):
         mdUL_ijlk, mdUT_ijlk = np.moveaxis(self.interpolate(
             dw_ijlk, np.abs(hcw_ijlk), (h_il[:, na, :, na] + dh_ijlk)), -1, 0)
         mdUT_ijlk[hcw_ijlk < 0] *= -1  # UT is antisymmetric
-        mdu_ijlk = (mdUL_ijlk * np.cos(yaw_ilk)[:, na] - mdUT_ijlk * np.sin(yaw_ilk)[:, na])
+        theta_ilk = np.deg2rad(yaw_ilk)
+        mdu_ijlk = (mdUL_ijlk * np.cos(theta_ilk)[:, na] - mdUT_ijlk * np.sin(theta_ilk)[:, na])
         mdu_ijlk *= ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na]))  # avoid wake on itself
 
         return mdu_ijlk * (ct_ilk * WS_eff_ilk**2 / WS_ilk)[:, na]

@@ -11,7 +11,6 @@ from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian
 from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37_WindTurbines
 from py_wake.tests import npt
 import pytest
-import re
 from py_wake.ground_models.ground_models import GroundModel
 
 

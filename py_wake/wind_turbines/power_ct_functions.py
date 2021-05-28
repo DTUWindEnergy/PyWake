@@ -9,7 +9,7 @@ from autograd.numpy.numpy_boxes import ArrayBox
 from py_wake.wind_turbines.wind_turbine_functions import WindTurbineFunction, FunctionSurrogates,\
     WindTurbineFunctionList
 from py_wake.utils.check_input import check_input
-from py_wake.utils.model_utils import check_model
+from py_wake.utils.model_utils import check_model, fix_shape
 
 
 """
@@ -102,7 +102,7 @@ class SimpleYawModel(AdditionalModel):
 
     def __call__(self, f, ws, yaw=None, **kwargs):
         if yaw is not None:
-            co = np.cos(self.fix_shape(yaw, ws, True))
+            co = np.cos(np.deg2rad(fix_shape(yaw, ws, True)))
             power_ct_arr = f(ws * co, **kwargs)  # calculate for reduced ws (ws projection on rotor)
             if kwargs['run_only'] == 1:  # ct
                 # multiply ct by cos(yaw)**2 to compensate for reduced thrust
@@ -123,7 +123,7 @@ class DensityScale(AdditionalModel):
     def __call__(self, f, ws, Air_density=None, **kwargs):
         power_ct_arr = np.asarray(f(ws, **kwargs))
         if Air_density is not None:
-            power_ct_arr *= self.fix_shape(Air_density, ws, True) / self.air_density_ref
+            power_ct_arr *= fix_shape(Air_density, ws, True) / self.air_density_ref
         return power_ct_arr
 
 
@@ -367,9 +367,9 @@ class PowerCtNDTabular(PowerCtFunction):
                                  default_value_dict.keys(), additional_models)
 
     def _power_ct(self, ws, run_only, **kwargs):
-        kwargs = {**self.default_value_dict, 'ws': ws, **kwargs}
+        kwargs = {**self.default_value_dict, 'ws': ws, **{k: v for k, v in kwargs.items() if v is not None}}
 
-        args = np.moveaxis([self.fix_shape(kwargs[k], ws)
+        args = np.moveaxis([fix_shape(kwargs[k], ws)
                             for k in self.input_keys], 0, -1)
         try:
             return self.interp[run_only](args)

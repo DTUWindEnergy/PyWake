@@ -37,7 +37,32 @@ class add_ilk():
     def __call__(self, name, value):
         dims = self.dataset.dims
         if 'time' in dims:
-            allowed_dims = ['i', 'wt'], ['time']
+            allowed_dims = ['i', 'wt'], ['time'], ['ws']
+        else:
+            allowed_dims = ['i', 'wt'], ['wd'], ['ws']
+
+        d = []
+        i = 0
+
+        for ad in allowed_dims:
+            for k in ad:
+                if i < len(np.shape(value)) and np.shape(value)[i] == dims.get(k, None):
+                    d.append(k)
+                    i += 1
+                    break
+        while len(np.shape(value)) > len(d) and np.shape(value)[-1] == 1:
+            value = value[..., 0]
+        self.dataset[name] = (d, value)
+
+
+class add_ijlk():
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __call__(self, name, value):
+        dims = self.dataset.dims
+        if 'time' in dims:
+            allowed_dims = ['i', 'wt'], ['i', 'wt'], ['time'], ['ws']
         else:
             allowed_dims = ['i', 'wt'], ['i', 'wt'], ['wd'], ['ws']
 
@@ -50,6 +75,8 @@ class add_ilk():
                     d.append(k)
                     i += 1
                     break
+#         while len(value.shape) > len(d) and value.shape[-1] == 1:
+#             value = value[..., 0]
         self.dataset[name] = (d, value)
 
 
@@ -94,6 +121,7 @@ class plot_xy_map():
 if not hasattr(xr.DataArray(None), 'ilk'):
     xr.register_dataarray_accessor("ilk")(ilk)
     xr.register_dataset_accessor("add_ilk")(add_ilk)
+    xr.register_dataset_accessor("add_ijlk")(add_ijlk)
     xr.register_dataarray_accessor("interp_all")(interp_all)
     xr.register_dataarray_accessor("sel_interp_all")(sel_interp_all)
     with warnings.catch_warnings():

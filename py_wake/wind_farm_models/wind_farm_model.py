@@ -1,12 +1,12 @@
 from abc import abstractmethod, ABC
-from py_wake.site._site import Site, UniformSite, UniformWeibullSite
+from py_wake.site._site import Site, UniformSite, UniformWeibullSite, LocalWind
 from py_wake.wind_turbines import WindTurbines
 import numpy as np
 from py_wake.flow_map import FlowMap, HorizontalGrid, FlowBox, YZGrid, Grid, Points
 import xarray as xr
 from py_wake.utils import xarray_utils, weibull  # register ilk function @UnusedImport
 from numpy import newaxis as na
-from py_wake.utils.model_utils import check_model
+from py_wake.utils.model_utils import check_model, fix_shape
 
 
 class WindFarmModel(ABC):
@@ -19,7 +19,7 @@ class WindFarmModel(ABC):
         self.site = site
         self.windTurbines = windTurbines
 
-    def __call__(self, x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None, time=False, verbose=False, **kwargs):
+    def __call__(self, x, y, h=None, type=0, wd=None, ws=None, yaw=None, time=False, verbose=False, **kwargs):
         """Run the wind farm simulation
 
         Parameters
@@ -47,11 +47,16 @@ class WindFarmModel(ABC):
         assert len(x) == len(y)
         self.verbose = verbose
         h, _ = self.windTurbines.get_defaults(len(x), type, h)
+        I, L, K, = len(x), len(np.atleast_1d(wd)), (1, len(np.atleast_1d(ws)))[time is False]
+        if len([k for k in kwargs if 'yaw' in k.lower() and k != 'yaw']):
+            raise ValueError(
+                'Custom *yaw*-keyword arguments not allowed to avoid confusion with the default "yaw" keyword')
+        yaw_ilk = fix_shape(yaw, (I, L, K), allow_None=True)
 
         if len(x) == 0:
             lw = UniformSite([1], 0.1).local_wind(x_i=[], y_i=[], h_i=[], wd=wd, ws=ws)
             z = xr.DataArray(np.zeros((0, len(lw.wd), len(lw.ws))), coords=[('wt', []), ('wd', lw.wd), ('ws', lw.ws)])
-            return SimulationResult(self, lw, [], yaw_ilk, z, z, z, z, kwargs)
+            return SimulationResult(self, lw, [], yaw, z, z, z, z, kwargs)
         res = self.calc_wt_interaction(x_i=np.asarray(x), y_i=np.asarray(y), h_i=h, type_i=type, yaw_ilk=yaw_ilk,
                                        wd=wd, ws=ws, time=time, **kwargs)
         WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, localWind, wt_inputs = res
@@ -169,14 +174,17 @@ class SimulationResult(xr.Dataset):
         for n in localWind:
             self[n] = localWind[n]
         self.attrs.update(localWind.attrs)
-        for n in set(wt_inputs) - {'type', 'TI_eff'}:
-            self.add_ilk(n, wt_inputs[n])
+        for n in set(wt_inputs) - {'type', 'TI_eff', 'yaw'}:
+            if '_ijl' in n:
+                self.add_ijlk(n, wt_inputs[n])
+            else:
+                self.add_ilk(n, wt_inputs[n])
 
         if yaw_ilk is None:
-            self['Yaw'] = self.Power * 0
+            self['yaw'] = self.Power * 0
         else:
-            self['Yaw'] = xr.DataArray(yaw_ilk, dims=['wt', 'wd', 'ws'])
-        self['Yaw'].attrs['Description'] = 'Yaw misalignment [deg]'
+            self.add_ilk('yaw', yaw_ilk)
+        self['yaw'].attrs['Description'] = 'Yaw misalignment [deg]'
 
         # for backward compatibility
         for k in ['WD', 'WS', 'TI', 'P', 'WS_eff', 'TI_eff']:
@@ -261,7 +269,7 @@ class SimulationResult(xr.Dataset):
         if method == 'OneWT_WDAvg':  # average over wd
             p_wd_ilk = P_ilk.sum((0, 2))[na, :, na]
             ws_ik = (WS_eff_ilk * p_wd_ilk).sum(1)
-            kwargs_ik = {k: (wt.loadFunction.fix_shape(v, WS_eff_ilk) * p_wd_ilk).sum(1) for k, v in kwargs.items()
+            kwargs_ik = {k: (fix_shape(v, WS_eff_ilk) * p_wd_ilk).sum(1) for k, v in kwargs.items()
                          if k != 'TI_eff' and v is not None}
             kwargs_ik.update({k: v for k, v in kwargs.items() if v is None})
 
@@ -295,14 +303,12 @@ class SimulationResult(xr.Dataset):
                 I, L, K = WS_eff_ilk.shape
                 ws_iilk = np.broadcast_to(WS_eff_ilk[na], (I, I, L, K))
 
-                def fix_shape(k, v):
-                    # if hasattr(v, 'shape') and v.shape == (I, I, L, K):
-                    #     return v
+                def _fix_shape(k, v):
                     if k[-3:] == 'ijl':
-                        return wt.loadFunction.fix_shape(v, ws_iilk)
+                        return fix_shape(v, ws_iilk)
                     else:
-                        return np.broadcast_to(wt.loadFunction.fix_shape(v, WS_eff_ilk)[na], (I, I, L, K))
-                kwargs_iilk = {k: fix_shape(k, v)
+                        return np.broadcast_to(fix_shape(v, WS_eff_ilk)[na], (I, I, L, K))
+                kwargs_iilk = {k: _fix_shape(k, v)
                                for k, v in kwargs.items()
                                if k in wt.loadFunction.required_inputs + wt.loadFunction.optional_inputs}
 
@@ -317,15 +323,20 @@ class SimulationResult(xr.Dataset):
 
             ds = xr.DataArray(
                 loads_silk,
-                dims=['sensor', 'wt', 'wd', 'ws'],
+                dims=['sensor', 'wt', ('wd', 'time')['time' in self.dims], 'ws'],
                 coords={'sensor': wt.loadFunction.output_keys,
                         'm': ('sensor', wt.loadFunction.wohler_exponents, {'description': 'Wohler exponents'}),
                         'wt': self.wt, 'wd': self.wd, 'ws': self.ws},
                 attrs={'description': '1Hz Damage Equivalent Load'}).to_dataset(name='DEL')
-            ds['P'] = self.P
-            t_flowcase = ds.P * lifetime_years * 365 * 24 * 3600
             f = ds.DEL.mean()   # factor used to reduce numerical errors in power
-            ds['LDEL'] = ((t_flowcase * (ds.DEL / f)**ds.m).sum(('wd', 'ws')) / n_eq_lifetime)**(1 / ds.m) * f
+            if 'time' in self.dims:
+                assert 'duration' in self, "Simulation must contain a dataarray 'duration' with length of time steps in seconds"
+                t_flowcase = self.duration
+                ds['LDEL'] = ((t_flowcase * (ds.DEL / f)**ds.m).sum(('time', 'ws')) / n_eq_lifetime)**(1 / ds.m) * f
+            else:
+                ds['P'] = self.P
+                t_flowcase = ds.P * 3600 * 24 * 365 * lifetime_years
+                ds['LDEL'] = ((t_flowcase * (ds.DEL / f)**ds.m).sum(('wd', 'ws')) / n_eq_lifetime)**(1 / ds.m) * f
             ds.LDEL.attrs['description'] = "Lifetime (%d years) equivalent loads, n_eq_L=%d" % (
                 lifetime_years, n_eq_lifetime)
 
@@ -392,6 +403,20 @@ class SimulationResult(xr.Dataset):
         else:
             assert np.all(np.isin(ws, self.ws)), "All ws=%s not in simulation result (ws=%s)" % (ws, self.ws)
         return np.atleast_1d(wd), np.atleast_1d(ws)
+
+    def save(self, filename):
+        self.to_netcdf(filename)
+
+    @staticmethod
+    def load(filename, wfm):
+        ds = xr.load_dataset(filename)
+        lw = LocalWind(ds.x, ds.y, ds.h, ds.wd, ds.ws, time=False, wd_bin_size=ds.attrs['wd_bin_size'],
+                       WD=ds.WD, WS=ds.WS, TI=ds.TI, P=ds.P)
+        sim_res = SimulationResult(wfm, lw, type_i=ds.type.values, yaw_ilk=ds.yaw,
+                                   WS_eff_ilk=ds.WS_eff.ilk(), TI_eff_ilk=ds.TI_eff.ilk(), power_ilk=ds.Power, ct_ilk=ds.CT,
+                                   wt_inputs={})
+
+        return sim_res
 
 
 def main():
