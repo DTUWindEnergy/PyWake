@@ -130,7 +130,7 @@ class WindFarmModel(ABC):
         WS_eff_ilk : array_like
             Effective wind speeds [m/s]
         TI_eff_ilk : array_like
-            Turbulence intensities. Should be effective, but not implemented yet
+            Effective turbulence intensities [-]
         power_ilk : array_like
             Power productions [w]
         ct_ilk : array_like
