@@ -321,18 +321,27 @@ class SimulationResult(xr.Dataset):
                     loads_silk = (np.log((softmax_base**(loads_siilk / f[:, na, na, na, na])).sum(1)) /
                                   np.log(softmax_base) * f[:, na, na, na])
 
-            ds = xr.DataArray(
-                loads_silk,
-                dims=['sensor', 'wt', ('wd', 'time')['time' in self.dims], 'ws'],
-                coords={'sensor': wt.loadFunction.output_keys,
-                        'm': ('sensor', wt.loadFunction.wohler_exponents, {'description': 'Wohler exponents'}),
-                        'wt': self.wt, 'wd': self.wd, 'ws': self.ws},
-                attrs={'description': '1Hz Damage Equivalent Load'}).to_dataset(name='DEL')
+            if 'time' in self.dims:
+                ds = xr.DataArray(
+                    np.array(loads_silk)[..., 0],
+                    dims=['sensor', 'wt', 'time'],
+                    coords={'sensor': wt.loadFunction.output_keys,
+                            'm': ('sensor', wt.loadFunction.wohler_exponents, {'description': 'Wohler exponents'}),
+                            'wt': self.wt, 'time': self.time, 'wd': self.wd, 'ws': self.ws},
+                    attrs={'description': '1Hz Damage Equivalent Load'}).to_dataset(name='DEL')
+            else:
+                ds = xr.DataArray(
+                    loads_silk,
+                    dims=['sensor', 'wt', 'wd', 'ws'],
+                    coords={'sensor': wt.loadFunction.output_keys,
+                            'm': ('sensor', wt.loadFunction.wohler_exponents, {'description': 'Wohler exponents'}),
+                            'wt': self.wt, 'wd': self.wd, 'ws': self.ws},
+                    attrs={'description': '1Hz Damage Equivalent Load'}).to_dataset(name='DEL')
             f = ds.DEL.mean()   # factor used to reduce numerical errors in power
             if 'time' in self.dims:
                 assert 'duration' in self, "Simulation must contain a dataarray 'duration' with length of time steps in seconds"
                 t_flowcase = self.duration
-                ds['LDEL'] = ((t_flowcase * (ds.DEL / f)**ds.m).sum(('time', 'ws')) / n_eq_lifetime)**(1 / ds.m) * f
+                ds['LDEL'] = ((t_flowcase * (ds.DEL / f)**ds.m).sum(('time')) / n_eq_lifetime)**(1 / ds.m) * f
             else:
                 ds['P'] = self.P
                 t_flowcase = ds.P * 3600 * 24 * 365 * lifetime_years
