@@ -34,7 +34,7 @@ data_path = os.path.dirname(validation_lib.__file__) + '/data/'   # path to refe
 
 def p(ws):
     # Dummy power function for wind turbine
-    p = 1.0
+    p = ws
     return p
 
 
