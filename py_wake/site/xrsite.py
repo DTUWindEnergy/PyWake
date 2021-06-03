@@ -263,11 +263,12 @@ class UniformSite(XRSite):
     constant wind speed probability of 1. Only for one fixed wind speed
     """
 
-    def __init__(self, p_wd, ti, ws=12, interp_method='nearest', shear=None, initial_position=None):
+    def __init__(self, p_wd, ti=None, ws=12, interp_method='nearest', shear=None, initial_position=None):
         ds = xr.Dataset(
-            data_vars={'P': ('wd', p_wd), 'TI': ti},
+            data_vars={'P': ('wd', p_wd)},
             coords={'wd': np.linspace(0, 360, len(p_wd), endpoint=False)})
-
+        if ti is not None:
+            ds['TI'] = ti
         XRSite.__init__(self, ds, interp_method=interp_method, shear=shear, initial_position=initial_position,
                         default_ws=np.atleast_1d(ws))
 
@@ -277,7 +278,7 @@ class UniformWeibullSite(XRSite):
     weibull distributed wind speed
     """
 
-    def __init__(self, p_wd, a, k, ti, interp_method='nearest', shear=None):
+    def __init__(self, p_wd, a, k, ti=None, interp_method='nearest', shear=None):
         """Initialize UniformWeibullSite
 
         Parameters
@@ -288,7 +289,7 @@ class UniformWeibullSite(XRSite):
             Weilbull scaling parameter of wind direction sectors
         k : array_like
             Weibull shape parameter
-        ti : float or array_like
+        ti : float or array_like, optional
             Turbulence intensity
         interp_method : 'nearest', 'linear'
             p_wd, a, k, ti and alpha are interpolated to 1 deg sectors using this
@@ -303,6 +304,8 @@ class UniformWeibullSite(XRSite):
 
         """
         ds = xr.Dataset(
-            data_vars={'Sector_frequency': ('wd', p_wd), 'Weibull_A': ('wd', a), 'Weibull_k': ('wd', k), 'TI': ti},
+            data_vars={'Sector_frequency': ('wd', p_wd), 'Weibull_A': ('wd', a), 'Weibull_k': ('wd', k)},
             coords={'wd': np.linspace(0, 360, len(p_wd), endpoint=False)})
+        if ti is not None:
+            ds['TI'] = ti
         XRSite.__init__(self, ds, interp_method=interp_method, shear=shear)
