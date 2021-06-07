@@ -1,4 +1,4 @@
-image: dtuwindenergy/topfarm2:latest
+image: continuumio/anaconda3
 
 stages:
   - test
@@ -62,18 +62,17 @@ trigger_pywake_ellipsys_test:
   only:
     - schedules
 
-
-
-
 # ===== build documentation =====
 pages:  # "pages" is a job specifically for GitLab pages [1]
   stage:  # build, test, deploy defined by default [2]
     deploy
   script:  # use sphinx to build docs, move to public page
+  - apt-get update
+  - apt-get -y install make
   - pip install --upgrade pip
   - pip install sphinx --upgrade
   - pip install nbsphinx --upgrade
-  - pip install -e .
+  - pip install -e .[test]
   - cd docs/validation_report
   - python generate_validation_figures.py
   - cd report
@@ -90,12 +89,11 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
   artifacts:  # required for GitLab pages [1]
     paths:
     - public
-    #- docs/build/latex/PyWake.pdf
   only:  # only run for these branches
-  - master
   - /^test_doc.*/ 
   tags:  # only runners with this tag can do the job [3]
-  - python
+  - ci-ubuntu
+
 
 pypi_linux:
   stage:  
@@ -107,16 +105,16 @@ pypi_linux:
     - apt-get update
     - pip install --upgrade pip
     - pip install pypandoc
-    - pip install -e . --upgrade
-    - python3 -c 'from git_utils import get_tag; get_tag(verbose=True)'
-    - python3 -m pip install -U setuptools wheel
-    - python3 setup.py sdist bdist_wheel
-    - python3 -m pip install -U twine
-    - python3 -c 'from git_utils import rename_dist_file; rename_dist_file()'
+    - pip install -e .[test] --upgrade
+    - python -c 'from git_utils import get_tag; get_tag(verbose=True)'
+    - python -m pip install -U setuptools wheel
+    - python setup.py sdist bdist_wheel
+    - python -m pip install -U twine
+    - python -c 'from git_utils import rename_dist_file; rename_dist_file()'
     - twine upload dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD
     #- twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD # for testing purposes
   tags:  
-    - python
+  - ci-ubuntu
 
 # current
 # pypi_windows:
