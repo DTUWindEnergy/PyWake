@@ -24,9 +24,6 @@ from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.wind_turbines import WindTurbines
 from py_wake.wind_turbines.wind_turbines_deprecated import DeprecatedOneTypeWindTurbines
-from py_wake.tests.check_speed import timeit
-from py_wake.wind_turbines._wind_turbines import WindTurbine
-from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt, PowerCtFunctionList
 import pandas as pd
 import os
 
