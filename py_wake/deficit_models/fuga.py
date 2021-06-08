@@ -15,7 +15,7 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
     invL = 0
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijlk', 'h_il', 'ct_ilk', 'D_src_il']
 
-    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/', remove_wriggles=False,
+    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/', remove_wriggles=False,
                  method='linear'):
         """
         Parameters
@@ -293,7 +293,7 @@ def main():
         x, y = site.initial_position.T
         windTurbines = IEA37_WindTurbines()
 
-        path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
+        path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
 
         for wf_model in [Fuga(path, site, windTurbines),
                          FugaBlockage(path, site, windTurbines)]:

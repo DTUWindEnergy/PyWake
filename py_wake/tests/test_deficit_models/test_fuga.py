@@ -23,7 +23,7 @@ def test_fuga():
     wt_y = [433, 300, 0, 0, 0, -433, -433]
     wts = HornsrevV80()
 
-    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
     site = UniformSite([1, 0, 0, 0], ti=0.075)
     wake_model = Fuga(path, site, wts)
     res, _ = timeit(wake_model.__call__, verbose=0, line_profile=0,
@@ -74,7 +74,7 @@ def test_fuga():
 
 def test_fuga_blockage_wt_row():
     wts = HornsrevV80()
-    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
     site = hornsrev1.Hornsrev1Site()
     fuga_pdw = Fuga(path, site, wts)
     fuga_a2a = FugaBlockage(path, site, wts)
@@ -203,7 +203,7 @@ def test_fuga_downwind_vs_notebook():
 def test_fuga_table_edges():
 
     wts = HornsrevV80()
-    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
     site = hornsrev1.Hornsrev1Site()
     fuga = FugaBlockage(path, site, wts)
 
@@ -231,7 +231,7 @@ def test_fuga_table_edges():
 
 def test_fuga_wriggles():
     wts = HornsrevV80()
-    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
     site = hornsrev1.Hornsrev1Site()
     fuga = PropagateDownwind(site, wts, FugaDeficit(path, remove_wriggles=True))
 
@@ -256,25 +256,25 @@ def test_fuga_wriggles():
     assert np.all(flow_map_cw_lst > 0)
 
 
-def test_fuga_utils_mismatch():
-    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
-    with pytest.raises(ValueError, match="Mismatch between CaseData.bin and 2MW_FIT_input.par: low_level 102!=155"):
-        FugaUtils(path)
+# def test_fuga_utils_mismatch():
+#     path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
+#     with pytest.raises(ValueError, match="Mismatch between CaseData.bin and 2MW_FIT_input.par: low_level 102!=155"):
+#         FugaUtils(path)
 
 
 def test_mirror():
-    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
     fuga_utils = FugaUtils(path, on_mismatch='input_par')
     npt.assert_array_almost_equal(fuga_utils.mirror([0, 1, 3]), [3, 1, 0, 1, 3])
     npt.assert_array_almost_equal(fuga_utils.mirror([0, 1, 3], anti_symmetric=True), [-3, -1, 0, 1, 3])
 
 
 def test_lut_exists():
-    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
     fuga_utils = FugaUtils(path, on_mismatch='input_par')
-    assert fuga_utils.lut_exists() == {'UL'}
+    assert sorted(fuga_utils.lut_exists()) == ['UL', 'UT', 'VL', 'VT']
     assert fuga_utils.lut_exists([154]) == set([])
-    assert fuga_utils.lut_exists([155]) == {'UL'}
+    assert sorted(fuga_utils.lut_exists([155])) == ['UL', 'UT', 'VL', 'VT']
 
     path = tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/'
     fuga_utils = FugaUtils(path, on_mismatch='input_par')
@@ -329,7 +329,7 @@ def test_interpolation():
 #     x_j = np.arange(x_min, np.round((x_max - x_min) / x_step) * x_step + x_min + x_step, x_step)
 #     y_j = np.arange(y_min, np.round((y_max - y_min) / y_step) * y_step + y_min + y_step, y_step)
 #
-#     path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
+#     path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
 #
 #     site = UniformSite([1, 0, 0, 0], ti=0.075)
 #

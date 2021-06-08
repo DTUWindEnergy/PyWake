@@ -29,12 +29,12 @@ class FugaUtils():
                 zi = struct.unpack('d', fid.read(8))[0]  # @UnusedVariable
                 self.ds = struct.unpack('d', fid.read(8))[0]
                 closure = struct.unpack('I', fid.read(4))[0]  # @UnusedVariable
-                if os.path.getsize(self.path / 'CaseData.bin') == 187:
-                    self.zeta0 = struct.unpack('d', fid.read(8))[0]
-                #  else:
-                    #                 with open(path + 'CaseData.bin', 'rb') as fid2:
-                    #                     info = fid2.read(127).decode()
-                    #                 zeta0 = float(info[info.index('Zeta0'):].replace("Zeta0=", ""))
+#                 if os.path.getsize(self.path / 'CaseData.bin') == 187:
+#                     self.zeta0 = struct.unpack('d', fid.read(8))[0]
+#                 else:
+#                                    with open(path + 'CaseData.bin', 'rb') as fid2:
+#                                        info = fid2.read(127).decode()
+#                                    zeta0 = float(info[info.index('Zeta0'):].replace("Zeta0=", ""))
 
         else:
             with open(self.path / 'WTdata.bin', 'rb') as fid:
@@ -55,7 +55,8 @@ class FugaUtils():
 
         def set_Value(n, v):
             if on_mismatch == 'raise' and getattr(self, n) != v:
-                raise ValueError("Mismatch between CaseData.bin and %s: %s %s!=%s" % (f, n, getattr(self, n), v))
+                raise ValueError("Mismatch between CaseData.bin and %s: %s %s!=%s" %
+                                 (f, n, getattr(self, n), v))  # pragma: no cover
             elif on_mismatch == 'input_par':
                 setattr(self, n, v)
 
