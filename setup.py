@@ -36,7 +36,9 @@ setup(name='py_wake',
       package_data={
           'py_wake': ['examples/data/iea37/*.yaml',
 					  'examples/data/*.npz'
-                      'tests/test_files/fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/*.*'
+                      'tests/test_files/fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/*.*',
+                      'examples/data/iea34_130rwt/*/*/*.h5',
+                      'examples/data/iea34_130rwt/*/*/*.json',
                       ],
       },
       install_requires=[
