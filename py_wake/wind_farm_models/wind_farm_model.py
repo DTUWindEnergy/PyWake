@@ -48,7 +48,7 @@ class WindFarmModel(ABC):
         self.verbose = verbose
         h, _ = self.windTurbines.get_defaults(len(x), type, h)
         I, L, K, = len(x), len(np.atleast_1d(wd)), (1, len(np.atleast_1d(ws)))[time is False]
-        if len([k for k in kwargs if 'yaw' in k.lower() and k != 'yaw']):
+        if len([k for k in kwargs if 'yaw' in k.lower() and k != 'yaw' and not k.startswith('yawc_')]):
             raise ValueError(
                 'Custom *yaw*-keyword arguments not allowed to avoid confusion with the default "yaw" keyword')
         yaw_ilk = fix_shape(yaw, (I, L, K), allow_None=True)
