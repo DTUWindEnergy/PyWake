@@ -44,6 +44,8 @@ class WindFarmModel(ABC):
         -------
         SimulationResult
         """
+        if time is False and np.ndim(wd):
+            wd = np.sort(wd)
         assert len(x) == len(y)
         self.verbose = verbose
         h, _ = self.windTurbines.get_defaults(len(x), type, h)
