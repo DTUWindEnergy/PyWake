@@ -1,6 +1,6 @@
 import numpy as np
 from py_wake.site.shear import PowerShear
-from py_wake.site.xrsite import XRSite
+from py_wake.site.xrsite import XRSite, GlobalWindAtlasSite
 import xarray as xr
 from py_wake.tests import npt
 import pytest
@@ -188,6 +188,31 @@ def test_complex_grid_local_wind(complex_grid_site):
                                          [0.0078508, 0.01177761, 0.01557493],
                                          [0.0105829, 0.01576518, 0.02066746],
                                          [0.01079997, 0.01656828, 0.02257487]])
+
+
+def test_GlobalWindAtlasSite():
+    ref = Hornsrev1Site()
+    lat, long = 55.52972, 7.906111  # hornsrev
+
+    site = GlobalWindAtlasSite(lat, long, height=70, roughness=0.001, ti=0.075)
+    ref_mean = weibull.mean(ref.ds.Weibull_A, ref.ds.Weibull_k)
+    gwa_mean = weibull.mean(site.ds.Weibull_A, site.ds.Weibull_k)
+
+    if 0:
+        plt.figure()
+        plt.plot(ref.ds.wd, ref_mean, label='HornsrevSite')
+        plt.plot(site.ds.wd, gwa_mean, label='HornsrevSite')
+        for r in [0, 1.5]:
+            for h in [10, 200]:
+                A, k = [site.gwc_ds[v].sel(roughness=r, height=h) for v in ['Weibull_A', 'Weibull_k']]
+                plt.plot(site.gwc_ds.wd, weibull.mean(A, k), label=f'{h}, {r}')
+        plt.legend()
+
+        plt.show()
+
+    npt.assert_allclose(gwa_mean, ref_mean, atol=1.4)
+    for var, atol in [('Sector_frequency', 0.03), ('Weibull_A', 1.6), ('Weibull_k', 0.4)]:
+        npt.assert_allclose(site.ds[var], ref.ds[var], atol=atol)
 
 
 def test_wrong_height():

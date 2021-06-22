@@ -1,4 +1,9 @@
 import numpy as np
+from scipy.special import gamma
+
+
+def mean(A, k):
+    return A * gamma(1 + 1 / k)
 
 
 def cdf(ws, A, k):
