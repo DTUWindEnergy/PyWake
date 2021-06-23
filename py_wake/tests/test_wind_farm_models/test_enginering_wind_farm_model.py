@@ -7,7 +7,7 @@ from py_wake.site._site import UniformSite
 from py_wake.tests import npt
 from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y, V80
 from py_wake.tests.test_files.fuga import LUT_path_2MW_z0_0_03
-from py_wake.flow_map import HorizontalGrid
+from py_wake.flow_map import HorizontalGrid, XYGrid
 from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.superposition_models import SquaredSum, WeightedSum
@@ -173,7 +173,10 @@ def test_All2AllIterativeDeflection():
                                 wake_deficitModel=NOJDeficit(),
                                 superpositionModel=SquaredSum(),
                                 deflectionModel=JimenezWakeDeflection())
-    wf_model([0], [0])
+    sim_res = wf_model([0, 500], [0, 0], wd=270, ws=10, yaw=30)
+    if 0:
+        sim_res.flow_map(XYGrid(x=np.linspace(-200, 1000, 100))).plot_wake_map()
+        plt.show()
 
 
 def test_dAEP_2wt():

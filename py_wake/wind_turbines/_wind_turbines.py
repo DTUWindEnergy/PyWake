@@ -128,7 +128,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
     def enable_autograd(self):
         self.powerCtFunction.enable_autograd()
 
-    def plot_xy(self, x, y, types=None, wd=None, yaw=0, normalize_with=1, ax=None):
+    def plot_xy(self, x, y, types=None, wd=None, yaw=0, tilt=0, normalize_with=1, ax=None):
         """Plot wind farm layout including type name and diameter
 
         Parameters
@@ -158,6 +158,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         assert len(x) == len(y)
         types = (np.zeros_like(x) + types).astype(int)  # ensure same length as x
         yaw = np.zeros_like(x) + yaw
+        tilt = np.zeros_like(x) + tilt
 
         x, y, D = [np.asarray(v) / normalize_with for v in [x, y, self.diameter(types)]]
         R = D / 2
@@ -168,8 +169,9 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
                 ax.plot(x_, y_, 'None', )
             else:
                 for wd_ in np.atleast_1d(wd):
-                    c, s = np.cos(np.deg2rad(90 + wd_ - yaw_)), np.sin(np.deg2rad(90 + wd_ - yaw_))
-                    ax.plot([x_ - s * r, x_ + s * r], [y_ - c * r, y_ + c * r], lw=1, color=colors[t])
+                    circle = Ellipse((x_, y), 2 * r * np.sin(np.deg2rad(tilt)), 2 * r,
+                                     angle=90 - wd_ + yaw_, ec=colors[t], fc="None")
+                    ax.add_artist(circle)
 
         for t, m, c in zip(np.unique(types), markers, colors):
             # ax.plot(np.asarray(x)[types == t], np.asarray(y)[types == t], '%sk' % m, label=self._names[int(t)])
@@ -180,7 +182,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         ax.legend(loc=1)
         ax.axis('equal')
 
-    def plot_yz(self, y, z=None, h=None, types=None, wd=270, yaw=0, normalize_with=1, ax=None):
+    def plot_yz(self, y, z=None, h=None, types=None, wd=270, yaw=0, tilt=0, normalize_with=1, ax=None):
         """Plot wind farm layout in yz-plane including type name and diameter
 
         Parameters
@@ -216,10 +218,12 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         from matplotlib.patches import Circle
 
         yaw = np.zeros_like(y) + yaw
+        tilt = np.zeros_like(y) + tilt
         y, z, h, D = [v / normalize_with for v in [y, z, h, self.diameter(types)]]
         for i, (y_, z_, h_, d, t, yaw_) in enumerate(
                 zip(y, z, h, D, types, yaw)):
-            circle = Ellipse((y_, h_ + z_), d * np.sin(np.deg2rad(wd - yaw_)), d, ec=colors[t], fc="None")
+            circle = Ellipse((y_, h_ + z_), d * np.sin(np.deg2rad(wd - yaw_)),
+                             d, angle=-tilt, ec=colors[t], fc="None")
             ax.add_artist(circle)
             ax.plot([y_, y_], [z_, z_ + h_], 'k')
             ax.plot(y_, h_, 'None')
@@ -232,8 +236,8 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         ax.legend(loc=1)
         ax.axis('equal')
 
-    def plot(self, x, y, type=None, wd=None, yaw=0, normalize_with=1, ax=None):
-        return self.plot_xy(x, y, type, wd, yaw, normalize_with, ax)
+    def plot(self, x, y, type=None, wd=None, yaw=0, tilt=0, normalize_with=1, ax=None):
+        return self.plot_xy(x, y, type, wd, yaw, tilt, normalize_with, ax)
 
     @staticmethod
     def from_WindTurbine_lst(wt_lst):

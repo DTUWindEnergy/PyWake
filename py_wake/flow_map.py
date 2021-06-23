@@ -174,14 +174,15 @@ class FlowMap(FlowBox):
     def plot_windturbines(self, normalize_with=1, ax=None):
         fm = self.windFarmModel
         yaw = self.simulationResult.yaw.sel(wd=self.wd[0]).mean(['ws']).data
+        tilt = self.simulationResult.tilt.sel(wd=self.wd[0]).mean(['ws']).data
         if self.plane[0] == "YZ":
             x_i, y_i = self.simulationResult.x.values, self.simulationResult.y.values
             h_i = self.simulationResult.h.values
             z_i = self.simulationResult.windFarmModel.site.elevation(x_i, y_i)
-            fm.windTurbines.plot_yz(y_i, z_i, h_i, wd=self.wd, yaw=yaw, normalize_with=normalize_with, ax=ax)
+            fm.windTurbines.plot_yz(y_i, z_i, h_i, wd=self.wd, yaw=yaw, tilt=tilt, normalize_with=normalize_with, ax=ax)
         else:  # self.plane[0] == "XY":
             fm.windTurbines.plot_xy(self.simulationResult.x, self.simulationResult.y, self.simulationResult.type.data,
-                                    wd=self.wd, yaw=yaw, normalize_with=normalize_with, ax=ax)
+                                    wd=self.wd, yaw=yaw, tilt=tilt, normalize_with=normalize_with, ax=ax)
 
     def plot_wake_map(self, levels=100, cmap=None, plot_colorbar=True, plot_windturbines=True,
                       normalize_with=1, ax=None):

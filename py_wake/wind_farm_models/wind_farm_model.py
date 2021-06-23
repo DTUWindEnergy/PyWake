@@ -19,7 +19,8 @@ class WindFarmModel(ABC):
         self.site = site
         self.windTurbines = windTurbines
 
-    def __call__(self, x, y, h=None, type=0, wd=None, ws=None, yaw=None, time=False, verbose=False, **kwargs):
+    def __call__(self, x, y, h=None, type=0, wd=None, ws=None, yaw=None,
+                 tilt=None, time=False, verbose=False, **kwargs):
         """Run the wind farm simulation
 
         Parameters
@@ -54,18 +55,20 @@ class WindFarmModel(ABC):
             raise ValueError(
                 'Custom *yaw*-keyword arguments not allowed to avoid confusion with the default "yaw" keyword')
         yaw_ilk = fix_shape(yaw, (I, L, K), allow_None=True)
+        tilt_ilk = fix_shape(tilt, (I, L, K), allow_None=True)
 
         if len(x) == 0:
             lw = UniformSite([1], 0.1).local_wind(x_i=[], y_i=[], h_i=[], wd=wd, ws=ws)
             z = xr.DataArray(np.zeros((0, len(lw.wd), len(lw.ws))), coords=[('wt', []), ('wd', lw.wd), ('ws', lw.ws)])
-            return SimulationResult(self, lw, [], yaw, z, z, z, z, kwargs)
-        res = self.calc_wt_interaction(x_i=np.asarray(x), y_i=np.asarray(y), h_i=h, type_i=type, yaw_ilk=yaw_ilk,
+            return SimulationResult(self, lw, [], yaw, tilt, z, z, z, z, kwargs)
+        res = self.calc_wt_interaction(x_i=np.asarray(x), y_i=np.asarray(y), h_i=h, type_i=type,
+                                       yaw_ilk=yaw_ilk, tilt_ilk=tilt_ilk,
                                        wd=wd, ws=ws, time=time, **kwargs)
         WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, localWind, wt_inputs = res
 
         return SimulationResult(self, localWind=localWind,
-                                type_i=np.zeros(len(x), dtype=int) + type, yaw_ilk=yaw_ilk,
-
+                                type_i=np.zeros(len(x), dtype=int) + type,
+                                yaw_ilk=yaw_ilk, tilt_ilk=tilt_ilk,
                                 WS_eff_ilk=WS_eff_ilk, TI_eff_ilk=TI_eff_ilk,
                                 power_ilk=power_ilk, ct_ilk=ct_ilk, wt_inputs=wt_inputs)
 
@@ -146,7 +149,7 @@ class SimulationResult(xr.Dataset):
     """Simulation result returned when calling a WindFarmModel object"""
     __slots__ = ('windFarmModel', 'localWind', 'wt_inputs')
 
-    def __init__(self, windFarmModel, localWind, type_i, yaw_ilk,
+    def __init__(self, windFarmModel, localWind, type_i, yaw_ilk, tilt_ilk,
                  WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, wt_inputs):
         self.windFarmModel = windFarmModel
         lw = localWind
@@ -187,6 +190,11 @@ class SimulationResult(xr.Dataset):
         else:
             self.add_ilk('yaw', yaw_ilk)
         self['yaw'].attrs['Description'] = 'Yaw misalignment [deg]'
+        if tilt_ilk is None:
+            self['tilt'] = self.Power * 0
+        else:
+            self.add_ilk('tilt', tilt_ilk)
+        self['tilt'].attrs['Description'] = 'Rotor tilt [deg]'
 
         # for backward compatibility
         for k in ['WD', 'WS', 'TI', 'P', 'WS_eff', 'TI_eff']:
@@ -245,7 +253,7 @@ class SimulationResult(xr.Dataset):
                 self.Weibull_k.ilk())
             aep = weighted_power * self.Sector_frequency.ilk() * hours_pr_year * 1e-9
             ws = (self.ws.values[1:] + self.ws.values[:-1]) / 2
-            return xr.DataArray(aep, [('wt', self.wt), ('wd', self.wd), ('ws', ws)])
+            return xr.DataArray(aep, [('wt', self.wt.values), ('wd', self.wd.values), ('ws', ws)])
         else:
             weighted_power = power_ilk * self.P.ilk() / norm
         if 'time' in self and weighted_power.shape[2] == 1:
@@ -423,7 +431,7 @@ class SimulationResult(xr.Dataset):
         ds = xr.load_dataset(filename)
         lw = LocalWind(ds.x, ds.y, ds.h, ds.wd, ds.ws, time=False, wd_bin_size=ds.attrs['wd_bin_size'],
                        WD=ds.WD, WS=ds.WS, TI=ds.TI, P=ds.P)
-        sim_res = SimulationResult(wfm, lw, type_i=ds.type.values, yaw_ilk=ds.yaw,
+        sim_res = SimulationResult(wfm, lw, type_i=ds.type.values, yaw_ilk=ds.yaw, tilt_ilk=ds.tilt,
                                    WS_eff_ilk=ds.WS_eff.ilk(), TI_eff_ilk=ds.TI_eff.ilk(), power_ilk=ds.Power, ct_ilk=ds.CT,
                                    wt_inputs={})
 
