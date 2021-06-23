@@ -163,8 +163,9 @@ class EngineeringWindFarmModel(WindFarmModel):
         self._validate_input(x_i, y_i)
 
         I, L, K, = len(x_i), len(wd), (1, len(ws))[time is False]
-        if 'TI' in kwargs:
-            lw.add_ilk('TI', kwargs['TI'])
+        for v in ['WS', 'WD', 'TI']:
+            if v in kwargs:
+                lw.add_ilk(v, kwargs[v])
 
         WS_eff_ilk = lw.WS.ilk((I, L, K)).copy()
         TI_eff_ilk = lw.TI.ilk((I, L, K)).copy()
@@ -176,7 +177,7 @@ class EngineeringWindFarmModel(WindFarmModel):
         # cw_iil = np.sqrt(hcw_iil**2 + dh_iil**2 + eps)
         wt_kwargs = kwargs
         ri, oi = self.windTurbines.function_inputs
-        unused_inputs = set(wt_kwargs) - set(ri) - set(oi) - {'TI'}
+        unused_inputs = set(wt_kwargs) - set(ri) - set(oi) - {'WS', 'WD', 'TI'}
         if unused_inputs:
             raise TypeError("""got unexpected keyword argument(s): '%s'
             required arguments: %s

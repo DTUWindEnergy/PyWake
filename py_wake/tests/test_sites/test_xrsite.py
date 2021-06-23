@@ -16,6 +16,7 @@ from py_wake.superposition_models import LinearSum
 from py_wake.tests.check_speed import timeit
 from py_wake.site._site import LocalWind
 from py_wake.utils import weibull
+from py_wake.deficit_models.noj import NOJ
 
 
 f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,
@@ -244,6 +245,36 @@ def test_wd_independent_site():
     npt.assert_equal(site.ds.sector_width, 360)
 
 
+def test_i_dependent_WS():
+    ds = xr.Dataset(
+        data_vars={'WS': ('i', [8, 9, 10]), 'P': ('wd', f)},
+        coords={'wd': np.linspace(0, 360, len(f), endpoint=False)})
+    site = XRSite(ds)
+    lw = site.local_wind([0, 200, 400], [0, 0, 0], [70, 70, 70], wd=0, ws=10)
+    npt.assert_array_equal(lw.WS, [8, 9, 10])
+
+    WS = np.arange(6).reshape(3, 2) + 9
+    ds = xr.Dataset(
+        data_vars={'WS': (('i', 'ws'), WS), 'Sector_frequency': ('wd', f),
+                   'Weibull_A': ('wd', A), 'Weibull_k': ('wd', k)},
+        coords={'wd': np.linspace(0, 360, len(f), endpoint=False), 'ws': [9, 10], 'i': [0, 1, 2]})
+    site = XRSite(ds)
+    lw = site.local_wind([0, 200, 400], [0, 0, 0], [70, 70, 70], wd=0, ws=10)
+    npt.assert_array_equal(lw.WS.squeeze(), [10, 12, 14])
+
+
+def test_i_time_dependent_WS():
+    t = np.arange(4)
+    WS_it = t[na] / 10 + np.array([9, 10])[:, na]
+    ds = xr.Dataset(
+        data_vars={'WS': (('i', 'time'), WS_it), 'P': ('wd', f), 'TI': 0.1},
+        coords={'wd': np.linspace(0, 360, len(f), endpoint=False)})
+    site = XRSite(ds)
+    wfm = NOJ(site, V80())
+    sim_res = wfm([0, 200], [0, 0], ws=WS_it.mean(0), wd=np.zeros(4), time=t)
+    npt.assert_array_equal(sim_res.WS, WS_it)
+
+
 def test_load_save(complex_grid_site):
     complex_grid_site.save(tfp + "tmp.nc")
     site = XRSite.load(tfp + "tmp.nc", interp_method='linear')
@@ -334,7 +365,7 @@ def test_neighbour_farm_speed():
     neighbour_x, neighbour_y = wt_x - 4000, wt_y
     all_x, all_y = np.r_[wt_x, neighbour_x], np.r_[wt_y, neighbour_y]
 
-    windTurbines = WindTurbines.from_WindTurbines([IEA37_WindTurbines(), IEA37_WindTurbines()])
+    windTurbines = WindTurbines.from_WindTurbine_lst([IEA37_WindTurbines(), IEA37_WindTurbines()])
     windTurbines._names = ["Current wind farm", "Neighbour wind farm"]
     types = [0] * len(wt_x) + [1] * len(neighbour_x)
 

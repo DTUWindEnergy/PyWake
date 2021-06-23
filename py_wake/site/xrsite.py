@@ -128,14 +128,11 @@ class XRSite(Site):
         else:
             data, l_indices = pre_sel(data, 'wd')
 
-        if 'i' in ip_dims:
-            if 'i' in coords and len(var.i) != len(coords['i']):
-                raise ValueError(
-                    "Number of points, i(=%d), in site data variable, %s, must match number of requested points(=%d)" %
-                    (len(var.i), var.name, len(coords['i'])))
-            # requesting all points(wt positions) in site
-            # ip_dims.remove('i')
-            # ip_data_dims = ['i']
+        if 'i' in ip_dims and 'i' in coords and len(var.i) != len(coords['i']):
+            raise ValueError(
+                "Number of points, i(=%d), in site data variable, %s, must match number of requested points(=%d)" %
+                (len(var.i), var.name, len(coords['i'])))
+        data, i_indices = pre_sel(data, 'i')
 
         if len(ip_dims) > 0:
             grid_interp = GridInterpolator([var.coords[k].data for k in ip_dims], data,
@@ -167,8 +164,9 @@ class XRSite(Site):
             ip_data = data
             ip_data_dims = []
 
-#         if 'i' in var.dims:
-#             ip_data_dims.insert(0, 'i')
+        if i_indices is not None:
+            ip_data_dims.append('i')
+            ip_data = sel(ip_data, ip_data_dims, i_indices, 'i')
         if l_indices is not None:
             if 'time' in coords:
                 ip_data_dims.append('time')
