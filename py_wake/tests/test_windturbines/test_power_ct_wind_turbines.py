@@ -58,7 +58,7 @@ def test_PowerCtTabular(method, unit, p_scale, p_ref, ct_ref):
     wfm = get_wfm(curve)
     ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, [])
-    npt.assert_array_equal(oi, ['Air_density', 'yaw'])
+    npt.assert_array_equal(oi, ['Air_density', 'tilt', 'yaw'])
     sim_res = wfm([0], [0], ws=u, wd=[0]).squeeze()
     p = sim_res.Power.values
     ct = sim_res.CT.values
@@ -89,7 +89,7 @@ def test_MultiPowerCtCurve():
     wfm = get_wfm(curve)
     ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['mode'])
-    npt.assert_array_equal(oi, ['Air_density', 'yaw'])
+    npt.assert_array_equal(oi, ['Air_density', 'tilt', 'yaw'])
 
     sim_res = wfm([0], [0], ws=u, wd=0, mode=0)
     p0, ct0 = sim_res.Power.squeeze().values, sim_res.CT.squeeze().values,
@@ -126,7 +126,7 @@ def test_MultiMultiPowerCtCurve_subset():
     wfm = get_wfm(curves)
     ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['mode', 'mytype'])
-    npt.assert_array_equal(oi, ['Air_density', 'yaw'])
+    npt.assert_array_equal(oi, ['Air_density', 'tilt', 'yaw'])
 
     u = np.zeros((2, 3, 4)) + np.arange(3, 7)[na, na, :]
     type_2 = np.array([0, 1])
@@ -157,7 +157,7 @@ def test_2d_tabular():
     wfm = get_wfm(curve)
     ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['boost'])
-    npt.assert_array_equal(oi, ['Air_density', 'yaw'])
+    npt.assert_array_equal(oi, ['Air_density', 'tilt', 'yaw'])
 
     sim_res = wfm([0], [0], wd=0, ws=u, boost=0)
     p = sim_res.Power.values
@@ -198,7 +198,7 @@ def test_PowerCtXr():
     wfm = get_wfm(curve)
     ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['boost'])
-    npt.assert_array_equal(oi, ['Air_density', 'yaw'])
+    npt.assert_array_equal(oi, ['Air_density', 'tilt', 'yaw'])
 
     sim_res = wfm([0], [0], wd=0, ws=u, boost=0)
     p = sim_res.Power.values
@@ -232,7 +232,7 @@ def test_FunctionalPowerCtCurve():
     wfm = get_wfm(curve)
     ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, [])
-    npt.assert_array_equal(oi, ['Air_density', 'yaw'])
+    npt.assert_array_equal(oi, ['Air_density', 'tilt', 'yaw'])
 
     u = np.arange(0, 30, .1)
     sim_res = wfm([0], [0], wd=0, ws=u)
@@ -261,7 +261,7 @@ def test_continuous():
     wfm = get_wfm(curve)
     ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, [])
-    npt.assert_array_equal(oi, ['Air_density', 'boost', 'yaw'])
+    npt.assert_array_equal(oi, ['Air_density', 'boost', 'tilt', 'yaw'])
 
     u = np.arange(0, 30, .1)
     sim_res = wfm([0], [0], wd=0, ws=u)
@@ -294,7 +294,7 @@ def test_unused_input():
     wfm = get_wfm(curve)
     ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, [])
-    npt.assert_array_equal(oi, ['Air_density', 'boost', 'yaw'])
+    npt.assert_array_equal(oi, ['Air_density', 'boost', 'tilt', 'yaw'])
     with pytest.raises(TypeError, match=r"got unexpected keyword argument\(s\): 'mode'"):
         wfm([0], [0], boost=1, mode=1)
 
@@ -304,7 +304,7 @@ def test_missing_input():
     wfm = get_wfm(curve)
     ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['boost'])
-    npt.assert_array_equal(oi, ['Air_density', 'yaw'])
+    npt.assert_array_equal(oi, ['Air_density', 'tilt', 'yaw'])
 
     with pytest.raises(KeyError, match="Argument, boost, required to calculate power and ct not found"):
         wfm([0], [0])
@@ -319,7 +319,7 @@ def test_missing_input_PowerCtFunctionList():
     wfm = get_wfm(curve)
     ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['mode'])
-    npt.assert_array_equal(oi, ['Air_density', 'yaw'])
+    npt.assert_array_equal(oi, ['Air_density', 'tilt', 'yaw'])
 
     with pytest.raises(KeyError, match="Argument, mode, required to calculate power and ct not found"):
         wfm([0], [0])
@@ -332,7 +332,7 @@ def test_DensityScaleAndSimpleYawModel():
     wfm = get_wfm(curve)
     ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, [])
-    npt.assert_array_equal(oi, ['Air_density', 'yaw'])
+    npt.assert_array_equal(oi, ['Air_density', 'tilt', 'yaw'])
 
     u = np.arange(4, 25, 1.1)
     yaw = 30
@@ -378,7 +378,7 @@ def test_WSFromLocalWind():
     wfm = get_wfm(curve)
     ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['WD'])
-    npt.assert_array_equal(oi, ['Air_density', 'yaw'])
+    npt.assert_array_equal(oi, ['Air_density', 'tilt', 'yaw'])
     u = np.arange(4, 25, .1)
     sim_res = wfm([0], [0], wd=[2], ws=u)
     p = sim_res.Power.values.squeeze()
@@ -398,7 +398,7 @@ def test_TIFromWFM():
     wfm = get_wfm(curve)
     ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, ['TI_eff'])
-    npt.assert_array_equal(oi, ['Air_density', 'yaw'])
+    npt.assert_array_equal(oi, ['Air_density', 'tilt', 'yaw'])
     u = np.arange(4, 25, .1)
     with pytest.raises(KeyError, match='Argument, TI_eff, needed to calculate power and ct requires a TurbulenceModel'):
         wfm([0], [0], wd=[2], ws=u)

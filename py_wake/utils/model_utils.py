@@ -113,7 +113,7 @@ def get_signature(cls, kwargs={}, indent_level=0):
         return "%s(%s)" % (cls.__name__, arg_str)
 
 
-def get_model_input(wfm, x, y, ws=10, wd=270, yaw=[[[0]]]):
+def get_model_input(wfm, x, y, ws=10, wd=270, yaw=[[[0]]], tilt=[[[0]]]):
     ws, wd = [np.atleast_1d(v) for v in [ws, wd]]
     x, y = map(np.asarray, [x, y])
     wfm.site.distance.setup(src_x_i=[0], src_y_i=[0], src_h_i=[0],
@@ -124,6 +124,7 @@ def get_model_input(wfm, x, y, ws=10, wd=270, yaw=[[[0]]]):
     args = {'dw_ijl': dw_ijl, 'hcw_ijl': hcw_ijl, 'dh_ijl': dh_ijl,
             'D_src_il': np.atleast_1d(wfm.windTurbines.diameter())[na]}
     args.update({k: sim_res[n].ilk() for k, n in [('yaw_ilk', 'yaw'),
+                                                  ('tilt_ilk', 'tilt'),
                                                   ('WS_ilk', 'WS'),
                                                   ('WS_eff_ilk', 'WS_eff'),
                                                   ('ct_ilk', 'CT')]})

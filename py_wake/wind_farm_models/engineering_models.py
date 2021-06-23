@@ -150,7 +150,8 @@ class EngineeringWindFarmModel(WindFarmModel):
         deficit, blockage = self._add_blockage(deficit, dw_ijlk, **kwargs)
         return deficit, uc, sigma_sqr, blockage
 
-    def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=0, wd=None, ws=None, time=False, yaw_ilk=None, **kwargs):
+    def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=0, wd=None, ws=None, time=False,
+                            yaw_ilk=None, tilt_ilk=None, **kwargs):
         """See WindFarmModel.calc_wt_interaction"""
         h_i, D_i = self.windTurbines.get_defaults(len(x_i), type_i, h_i)
         x_i, y_i, type_i = [np.asarray(v) for v in [x_i, y_i, type_i]]
@@ -200,8 +201,8 @@ class EngineeringWindFarmModel(WindFarmModel):
         def add_arg(name, optional):
             if name in wt_kwargs:  # custom WindFarmModel.__call__ arguments
                 return
-            elif name in {'yaw', 'type'}:  # fixed WindFarmModel.__call__ arguments
-                wt_kwargs[name] = {'yaw': yaw_ilk, 'type': type_i}[name]
+            elif name in {'yaw', 'tilt', 'type'}:  # fixed WindFarmModel.__call__ arguments
+                wt_kwargs[name] = {'yaw': yaw_ilk, 'tilt': tilt_ilk, 'type': type_i}[name]
             elif name in lw:
                 wt_kwargs[name] = lw[name].values
             elif name in self.site.ds:
@@ -223,10 +224,13 @@ class EngineeringWindFarmModel(WindFarmModel):
 
         if yaw_ilk is None:
             yaw_ilk = np.zeros((I, L, K))
+        if tilt_ilk is None:
+            tilt_ilk = np.zeros((I, L, K))
 
         kwargs = {'localWind': lw,
                   'WS_eff_ilk': WS_eff_ilk, 'TI_eff_ilk': TI_eff_ilk,
-                  'x_i': x_i, 'y_i': y_i, 'h_i': h_i, 'D_i': D_i, 'yaw_ilk': yaw_ilk,
+                  'x_i': x_i, 'y_i': y_i, 'h_i': h_i, 'D_i': D_i,
+                  'yaw_ilk': yaw_ilk, 'tilt_ilk': tilt_ilk,
                   'I': I, 'L': L, 'K': K, **wt_kwargs}
         WS_eff_ilk, TI_eff_ilk, ct_ilk = self._calc_wt_interaction(**kwargs)
         if 'TI_eff' in wt_kwargs:
@@ -281,6 +285,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                          'TI_ilk': get_ilk('TI'),
                          'TI_eff_ilk': get_ilk('TI_eff'),
                          'yaw_ilk': get_ilk('yaw'),
+                         'tilt_ilk': get_ilk('tilt'),
                          'D_src_il': lambda: wt_d_i[:, na],
                          'D_dst_ijl': lambda: np.zeros_like(dh_ijl),
                          'h_il': lambda: wt_h_i.data[:, na],
@@ -291,7 +296,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                     ** {k: arg_funcs[k]() for k in self.deflectionModel.args4deflection})
             else:
                 dw_ijlk, hcw_ijlk, dh_ijlk = dw_ijl[..., na], hcw_ijl[..., na], dh_ijl[..., na]
-            arg_funcs.update({'cw_ijlk': lambda: np.hypot(dh_ijl[..., na], hcw_ijlk),
+            arg_funcs.update({'cw_ijlk': lambda: np.hypot(dh_ijlk, hcw_ijlk),
                               'dw_ijlk': lambda: dw_ijlk, 'hcw_ijlk': lambda: hcw_ijlk, 'dh_ijlk': lambda: dh_ijlk})
 
             args = {k: arg_funcs[k]() for k in self.args4deficit if k != 'dw_ijlk'}
@@ -414,7 +419,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
     def _calc_wt_interaction(self, localWind,
                              WS_eff_ilk, TI_eff_ilk,
-                             x_i, y_i, h_i, D_i, yaw_ilk,
+                             x_i, y_i, h_i, D_i, yaw_ilk, tilt_ilk,
                              I, L, K, **kwargs):
         """
         Additional suffixes:
@@ -441,6 +446,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
         WS_eff_mk = []
         TI_eff_mk = []
         yaw_mk = ilk2mk(yaw_ilk)
+        tilt_mk = ilk2mk(tilt_ilk)
         ct_jlk = []
 
         if self.turbulenceModel:
@@ -517,6 +523,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
                              'TI_eff_ilk': lambda: TI_eff_mk[-1][na],
                              'D_src_il': lambda: D_i[i_wt_l][na],
                              'yaw_ilk': lambda: yaw_mk[m][na],
+                             'tilt_ilk': lambda: tilt_mk[m][na],
                              'D_dst_ijl': lambda: D_i[dw_order_indices_dl[:, j + 1:]].T[na],
                              'h_il': lambda: h_i[i_wt_l][na],
                              'ct_ilk': lambda: ct_lk[na],
@@ -621,8 +628,7 @@ class All2AllIterative(EngineeringWindFarmModel):
 
     def _calc_wt_interaction(self, localWind,
                              WS_eff_ilk, TI_eff_ilk,
-                             x_i, y_i, h_i, D_i, yaw_ilk,
-                             # dw_iil, hcw_iil, cw_iil, dh_iil, dw_order_indices_dl,
+                             x_i, y_i, h_i, D_i, yaw_ilk, tilt_ilk,
                              I, L, K, **kwargs):
         lw = localWind
         WS_eff_ilk_last = WS_eff_ilk.copy()
@@ -634,6 +640,7 @@ class All2AllIterative(EngineeringWindFarmModel):
                 'TI_ilk': lw.TI.ilk((I, L, K)),
                 'TI_eff_ilk': lw.TI.ilk((I, L, K)),
                 'yaw_ilk': yaw_ilk,
+                'tilt_ilk': tilt_ilk,
                 'D_src_il': D_src_il,
                 'D_dst_ijl': D_src_il[na],
                 'cw_ijlk': np.sqrt(hcw_iil**2 + dh_iil**2)[..., na],
@@ -649,7 +656,7 @@ class All2AllIterative(EngineeringWindFarmModel):
             args['WS_eff_ilk'] = WS_eff_ilk
             if self.deflectionModel:
                 dw_ijlk, hcw_ijlk, dh_ijlk = self.deflectionModel.calc_deflection(
-                    dw_ijl=dw_iil, hcw_ijl=dw_iil, dh_ijl=dh_iil, **args)
+                    dw_ijl=dw_iil, hcw_ijl=hcw_iil, dh_ijl=dh_iil, **args)
                 args.update({'dw_ijlk': dw_ijlk, 'hcw_ijlk': hcw_ijlk, 'dh_ijlk': dh_ijlk,
                              'cw_ijlk': np.hypot(dh_iil[..., na], hcw_ijlk)})
             else:

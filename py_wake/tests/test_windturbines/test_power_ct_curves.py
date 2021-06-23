@@ -30,7 +30,7 @@ def test_TabularPowerCtCurve(method, unit, p_scale, p_ref, ct_ref):
     u_ct, ct = hornsrev1.ct_curve.T
     npt.assert_array_equal(u_p, u_ct)
     curve = PowerCtTabular(ws=u_p, power=p, power_unit=unit, ct=ct, ws_cutin=4, ws_cutout=25, method=method)
-    npt.assert_array_equal(curve.optional_inputs, ['Air_density', 'yaw'])
+    npt.assert_array_equal(curve.optional_inputs, ['Air_density', 'tilt', 'yaw'])
     npt.assert_array_equal(curve.required_inputs, [])
 
     u = np.arange(0, 30, .1)
@@ -61,7 +61,7 @@ def test_MultiPowerCtCurve():
     curve = PowerCtFunctionList('mode', [PowerCtTabular(ws=u_p, power=p, power_unit='w', ct=ct),
                                          PowerCtTabular(ws=u_p, power=p * 1.1, power_unit='w', ct=ct + .1)])
 
-    npt.assert_array_equal(sorted(curve.optional_inputs), ['Air_density', 'yaw'])
+    npt.assert_array_equal(sorted(curve.optional_inputs), ['Air_density', 'tilt', 'yaw'])
     npt.assert_array_equal(list(curve.required_inputs), ['mode'])
 
     u = np.arange(0, 30, .1)
@@ -98,7 +98,7 @@ def test_MultiMultiPowerCtCurve_subset():
                                      PowerCtTabular(ws=u_p, power=p + 6, power_unit='w', ct=ct)]),
     ])
 
-    npt.assert_array_equal(sorted(curve.optional_inputs)[::-1], ['yaw', 'Air_density'])
+    npt.assert_array_equal(sorted(curve.optional_inputs)[::-1], ['yaw', 'tilt', 'Air_density'])
     npt.assert_array_equal(sorted(curve.required_inputs)[::-1], ['type', 'mode'])
 
     u = np.zeros((2, 3, 4)) + np.arange(3, 7)[na, na, :]
@@ -125,7 +125,7 @@ def test_2d_tabular():
     curve = PowerCtNDTabular(['ws', 'boost'], [u_p, [0, 1]],
                              np.array([p_c, 2 * p_c]).T, 'w',
                              np.array([ct_c, ct_c]).T)
-    npt.assert_array_equal(sorted(curve.optional_inputs)[::-1], ['yaw', 'Air_density'])
+    npt.assert_array_equal(sorted(curve.optional_inputs)[::-1], ['yaw', 'tilt', 'Air_density'])
     npt.assert_array_equal(sorted(curve.required_inputs)[::-1], ['boost'])
 
     u = np.linspace(3, 25, 10)
@@ -175,7 +175,7 @@ def test_2d_tabular_default_value():
 
 def test_FunctionalPowerCtCurve():
     curve = CubePowerSimpleCt()
-    npt.assert_array_equal(sorted(curve.optional_inputs)[::-1], ['yaw', 'Air_density'])
+    npt.assert_array_equal(sorted(curve.optional_inputs)[::-1], ['yaw', 'tilt', 'Air_density'])
     npt.assert_array_equal(curve.required_inputs, [])
     u = np.arange(0, 30, .1)
     p, ct = curve(u, Air_density=1.3)

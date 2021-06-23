@@ -98,11 +98,18 @@ class SimpleYawModel(AdditionalModel):
     """Simple model that replace ws with cos(yaw)*ws and scales the CT output with cos(yaw)**2"""
 
     def __init__(self):
-        AdditionalModel.__init__(self, input_keys=['ws', 'yaw'], optional_inputs=['yaw'], output_keys=['power', 'ct'])
+        AdditionalModel.__init__(
+            self, input_keys=[
+                'ws', 'yaw', 'tilt'], optional_inputs=['yaw', 'tilt'],
+            output_keys=['power', 'ct'])
 
-    def __call__(self, f, ws, yaw=None, **kwargs):
-        if yaw is not None:
-            co = np.cos(np.deg2rad(fix_shape(yaw, ws, True)))
+    def __call__(self, f, ws, yaw=None, tilt=None, **kwargs):
+        if yaw is not None or tilt is not None:
+            co = 1
+            if yaw is not None:
+                co *= np.cos(np.deg2rad(fix_shape(yaw, ws, True)))
+            if tilt is not None:
+                co *= np.cos(np.deg2rad(fix_shape(tilt, ws, True)))
             power_ct_arr = f(ws * co, **kwargs)  # calculate for reduced ws (ws projection on rotor)
             if kwargs['run_only'] == 1:  # ct
                 # multiply ct by cos(yaw)**2 to compensate for reduced thrust
