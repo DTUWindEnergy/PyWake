@@ -220,10 +220,10 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         yaw = np.zeros_like(y) + yaw
         tilt = np.zeros_like(y) + tilt
         y, z, h, D = [v / normalize_with for v in [y, z, h, self.diameter(types)]]
-        for i, (y_, z_, h_, d, t, yaw_) in enumerate(
-                zip(y, z, h, D, types, yaw)):
+        for i, (y_, z_, h_, d, t, yaw_, tilt_) in enumerate(
+                zip(y, z, h, D, types, yaw, tilt)):
             circle = Ellipse((y_, h_ + z_), d * np.sin(np.deg2rad(wd - yaw_)),
-                             d, angle=-tilt, ec=colors[t], fc="None")
+                             d, angle=-tilt_, ec=colors[t], fc="None")
             ax.add_artist(circle)
             ax.plot([y_, y_], [z_, z_ + h_], 'k')
             ax.plot(y_, h_, 'None')

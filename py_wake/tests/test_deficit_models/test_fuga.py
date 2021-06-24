@@ -30,10 +30,10 @@ def test_fuga():
                     profile_funcs=[FugaDeficit.interpolate, LUTInterpolator.__call__, GridInterpolator.__call__])(x=wt_x, y=wt_y, wd=[30], ws=[10])
 
     npt.assert_array_almost_equal(res.WS_eff_ilk.flatten(),
-                                  [10.002683492812844, 10.0, 8.413483643142389, 10.036952526815286,
-                                   9.371203842245153, 8.437429367715435, 8.012759083790058], 8)
-    npt.assert_array_almost_equal(res.ct_ilk.flatten(), [0.79285509, 0.793, 0.80641348, 0.79100456,
-                                                         0.80180315, 0.80643743, 0.80601276], 8)
+                                  [10.00669629, 10., 8.47606501, 10.03143097, 9.37288077,
+                                   8.49301941, 8.07462708], 8)
+    npt.assert_array_almost_equal(res.ct_ilk.flatten(), [0.7926384, 0.793, 0.80647607, 0.79130273, 0.80177967,
+                                                         0.80649302, 0.80607463], 8)
 
     x_j = np.linspace(-1500, 1500, 500)
     y_j = np.linspace(-1500, 1500, 300)
@@ -61,15 +61,15 @@ def test_fuga():
 
     npt.assert_array_almost_equal(
         Z70[140, 100:400:10],
-        [10.0467, 10.0473, 10.0699, 10.0093, 9.6786, 7.8589, 6.8539, 9.2199, 9.9837, 10.036, 10.0796,
-         10.0469, 10.0439, 9.1866, 7.2552, 9.1518, 10.0449, 10.0261, 10.0353, 9.9256, 9.319, 8.0062,
-         6.789, 8.3578, 9.9393, 10.0332, 10.0183, 10.0186, 10.0191, 10.0139], 4)
+        [10.0407, 10.0438, 10.0438, 10.013, 9.6847, 7.8787, 6.9561, 9.2251, 9.9686, 10.0382, 10.0498,
+         10.0569, 10.0325, 9.1787, 7.4004, 9.1384, 10.0329, 10.0297, 10.0232, 9.9265, 9.3163, 8.0768,
+         6.8858, 8.3754, 9.9592, 10.0197, 10.0118, 10.0141, 10.0118, 10.0095], 4)
 
     npt.assert_array_almost_equal(
         Z73[140, 100:400:10],
-        [10.0463, 10.0468, 10.0688, 10.0075, 9.6778, 7.9006, 6.9218, 9.228, 9.9808, 10.0354, 10.0786,
-         10.0464, 10.0414, 9.1973, 7.3099, 9.1629, 10.0432, 10.0257, 10.0344, 9.9236, 9.3274, 8.0502,
-         6.8512, 8.3813, 9.9379, 10.0325, 10.018, 10.0183, 10.019, 10.0138], 4)
+        [10.0404, 10.0435, 10.0433, 10.0113, 9.6836, 7.9206, 7.0218, 9.2326, 9.9665, 10.0376, 10.0494,
+         10.0563, 10.0304, 9.1896, 7.4515, 9.15, 10.0317, 10.0294, 10.0226, 9.9245, 9.3252, 8.1192, 6.9462,
+         8.3988, 9.9574, 10.0194, 10.0117, 10.014, 10.0117, 10.0094], 4)
 
 
 def test_fuga_blockage_wt_row():
@@ -86,8 +86,8 @@ def test_fuga_blockage_wt_row():
     sim_res_a2a = fuga_a2a(x, y, wd=[270])
     aep_blockage = sim_res_a2a.aep_ilk()[:, 0, :]
 
-    # blockage reduce aep(wd=270) by .4%
-    npt.assert_almost_equal((aep.sum() - aep_blockage.sum()) / aep.sum() * 100, 0.40927385670502436)
+    # blockage reduce aep(wd=270) by .24%
+    npt.assert_almost_equal((aep.sum() - aep_blockage.sum()) / aep.sum() * 100, 0.2433161515321294)
 
     if 0:
         plt.plot((sim_res_pdw.WS_eff_ilk[:, 0, 7] - sim_res_a2a.WS_eff_ilk[:, 0, 7]) /
@@ -107,9 +107,9 @@ def test_fuga_new_format():
     wake_model = Fuga(path, site, wts)
     res = wake_model(x=wt_x, y=wt_y, wd=[30], ws=[10])
 
-    npt.assert_array_almost_equal(res.WS_eff_ilk.flatten(), [10.00648185, 10., 8.21713811, 10.03039502, 9.36887205,
-                                                             8.23084156, 7.80661768], 8)
-    npt.assert_array_almost_equal(res.ct_ilk.flatten(), [0.79264998, 0.793, 0.80621714, 0.79135867, 0.80183579,
+    npt.assert_array_almost_equal(res.WS_eff_ilk.flatten(), [10.00647891, 10., 8.21713928, 10.03038884, 9.36889964,
+                                                             8.23084088, 7.80662141], 8)
+    npt.assert_array_almost_equal(res.ct_ilk.flatten(), [0.79265014, 0.793, 0.80621714, 0.791359, 0.80183541,
                                                          0.80623084, 0.80580662], 8)
 
     x_j = np.linspace(-1500, 1500, 500)
@@ -168,10 +168,10 @@ def test_fuga_downwind():
         fm.plot_wake_map(ax=ax, levels=levels)
         fm.min_WS_eff(fm.x, 70).plot(ax=ax, color='r')
         plt.axhline(0, color='k')
-    plot(wfm_UL, 0, ax1, 7.15850569)
-    plot(wfm_UL, 30, ax2, 7.83216849)
-    plot(wfm_ULT, 0, ax3, 7.15850569)
-    plot(wfm_ULT, 30, ax4, 8.12259776)
+    plot(wfm_UL, 0, ax1, 7.15853738)
+    plot(wfm_UL, 30, ax2, 7.83219266)
+    plot(wfm_ULT, 0, ax3, 7.15853738)
+    plot(wfm_ULT, 30, ax4, 8.12261872)
 
     if 0:
         plt.show()

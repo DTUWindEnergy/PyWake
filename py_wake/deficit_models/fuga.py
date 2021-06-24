@@ -116,7 +116,7 @@ class FugaYawDeficit(FugaDeficit):
         x, y, z, dUL = self.load()
 
         mdUT = self.load_luts(['UT'])[0]
-        dUT = -np.array(mdUT, dtype=np.float32) * self.zeta0_factor()  # minus because it is deficit
+        dUT = np.array(mdUT, dtype=np.float32) * self.zeta0_factor()
         dU = np.concatenate([dUL[:, :, :, na], dUT[:, :, :, na]], 3)
         err_msg = "Method must be 'linear' or 'spline'. Spline is supports only height level only"
         assert method == 'linear' or (method == 'spline' and len(z) == 1), err_msg

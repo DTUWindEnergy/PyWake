@@ -123,10 +123,8 @@ class XRSite(Site):
 
         # pre select, i.e. reduce input data size in case only one ws or wd is needed
         data, k_indices = pre_sel(data, 'ws')
-        if 'time' in coords:
-            data, l_indices = pre_sel(data, 'time')
-        else:
-            data, l_indices = pre_sel(data, 'wd')
+        l_name = ['wd', 'time']['time' in coords]
+        data, l_indices = pre_sel(data, l_name)
 
         if 'i' in ip_dims and 'i' in coords and len(var.i) != len(coords['i']):
             raise ValueError(
@@ -168,12 +166,8 @@ class XRSite(Site):
             ip_data_dims.append('i')
             ip_data = sel(ip_data, ip_data_dims, i_indices, 'i')
         if l_indices is not None:
-            if 'time' in coords:
-                ip_data_dims.append('time')
-                ip_data = sel(ip_data, ip_data_dims, l_indices, 'time')
-            else:
-                ip_data_dims.append('wd')
-                ip_data = sel(ip_data, ip_data_dims, l_indices, 'wd')
+            ip_data_dims.append(l_name)
+            ip_data = sel(ip_data, ip_data_dims, l_indices, l_name)
         if k_indices is not None:
             ip_data_dims.append('ws')
             ip_data = sel(ip_data, ip_data_dims, k_indices, 'ws')
