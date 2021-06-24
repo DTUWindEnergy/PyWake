@@ -162,14 +162,14 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
 
         x, y, D = [np.asarray(v) / normalize_with for v in [x, y, self.diameter(types)]]
         R = D / 2
-        for i, (x_, y_, r, t, yaw_) in enumerate(zip(x, y, R, types, yaw)):
+        for i, (x_, y_, r, t, yaw_, tilt_) in enumerate(zip(x, y, R, types, yaw, tilt)):
             if wd is None or len(np.atleast_1d(wd)) > 1:
                 circle = Circle((x_, y_), r, ec=colors[t], fc="None")
                 ax.add_artist(circle)
                 ax.plot(x_, y_, 'None', )
             else:
                 for wd_ in np.atleast_1d(wd):
-                    circle = Ellipse((x_, y), 2 * r * np.sin(np.deg2rad(tilt)), 2 * r,
+                    circle = Ellipse((x_, y_), 2 * r * np.sin(np.deg2rad(tilt_)), 2 * r,
                                      angle=90 - wd_ + yaw_, ec=colors[t], fc="None")
                     ax.add_artist(circle)
 
