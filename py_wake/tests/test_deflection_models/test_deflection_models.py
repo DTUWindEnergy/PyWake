@@ -15,9 +15,9 @@ from py_wake.tests.test_files import tfp
 
 @pytest.mark.parametrize('deflectionModel,dy10d', [
     (JimenezWakeDeflection, 0.5672964),
-    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00/')), 0.4625598937275541),
-    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/')), 0.37719131706149484),
-    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/')), 0.33771119153150087),
+    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00/')), 0.4625591892703828),
+    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/')), 0.37719329354768527),
+    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/')), 0.32787746772608933),
 ])
 def test_deflection_model(deflectionModel, dy10d):
     site = IEA37Site(16)

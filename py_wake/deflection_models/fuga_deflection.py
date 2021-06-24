@@ -24,7 +24,8 @@ class FugaDeflection(FugaUtils, DeflectionModel):
             tabs = tabs[:, 0] * (1 - t) + t * tabs[:, 1]
 
         VL, VT = tabs
-        self.VL, self.VT = tabs
+        VL = -VL
+        self.VL, self.VT = VL, VT
 
         nx0 = self.nx0
         ny = self.ny // 2

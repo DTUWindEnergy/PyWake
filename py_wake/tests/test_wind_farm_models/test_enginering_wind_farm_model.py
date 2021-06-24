@@ -14,7 +14,8 @@ from py_wake.superposition_models import SquaredSum, WeightedSum
 from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
 from py_wake.turbulence_models.stf import STF2005TurbulenceModel
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
-from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit
+from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit,\
+    BastankhahGaussian
 from numpy import newaxis as na
 import matplotlib.pyplot as plt
 from py_wake.utils.gradients import autograd, cs, fd, plot_gradients
@@ -48,20 +49,20 @@ def test_wec():
 
     site = UniformSite([1, 0, 0, 0], ti=0.075)
 
-    wake_model = Fuga(LUT_path_2MW_z0_0_03, site, wts)
+    wfm = BastankhahGaussian(site, wts)
     x_j = np.linspace(-1500, 1500, 500)
     y_j = np.linspace(-1500, 1500, 300)
 
-    flow_map_wec1 = wake_model(wt_x, wt_y, 70, wd=[30], ws=[10]).flow_map(HorizontalGrid(x_j, y_j))
+    flow_map_wec1 = wfm(wt_x, wt_y, 70, wd=[30], ws=[10]).flow_map(HorizontalGrid(x_j, y_j))
     Z_wec1 = flow_map_wec1.WS_eff_xylk[:, :, 0, 0]
-    wake_model.wec = 2
-    flow_map_wec2 = wake_model(wt_x, wt_y, 70, wd=[30], ws=[10]).flow_map(HorizontalGrid(x_j, y_j))
+    wfm.wec = 2
+    flow_map_wec2 = wfm(wt_x, wt_y, 70, wd=[30], ws=[10]).flow_map(HorizontalGrid(x_j, y_j))
     X, Y = flow_map_wec1.XY
     Z_wec2 = flow_map_wec2.WS_eff_xylk[:, :, 0, 0]
 
     if 0:
-        print(list(np.round(Z_wec1[140, 100:400:10].values, 4)))
-        print(list(np.round(Z_wec2[140, 100:400:10].values, 4)))
+        print(list(np.round(Z_wec1[140, 100:400:10].values, 2)))
+        print(list(np.round(Z_wec2[140, 100:400:10].values, 2)))
 
         flow_map_wec1.plot_wake_map(levels=np.arange(6, 10.5, .1), plot_colorbar=False)
         plt.plot(X[0], Y[140])
@@ -82,14 +83,12 @@ def test_wec():
 
     npt.assert_array_almost_equal(
         Z_wec1[140, 100:400:10],
-        [10.0467, 10.0473, 10.0699, 10.0093, 9.6786, 7.8589, 6.8539, 9.2199, 9.9837, 10.036, 10.0796,
-         10.0469, 10.0439, 9.1866, 7.2552, 9.1518, 10.0449, 10.0261, 10.0353, 9.9256, 9.319, 8.0062,
-         6.789, 8.3578, 9.9393, 10.0332, 10.0183, 10.0186, 10.0191, 10.0139], 4)
+        [10.0, 10.0, 10.0, 9.99, 9.8, 6.52, 1.47, 9.44, 9.98, 10.0, 10.0, 10.0, 10.0, 9.05, 0.03, 9.11, 10.0,
+         10.0, 10.0, 9.97, 9.25, 7.03, 2.35, 6.51, 9.99, 10.0, 10.0, 10.0, 10.0, 10.0], 2)
     npt.assert_array_almost_equal(
         Z_wec2[140, 100:400:10],
-        [10.0297, 9.9626, 9.7579, 9.2434, 8.2318, 7.008, 6.7039, 7.7303, 9.0101, 9.6877, 9.9068, 9.7497,
-         9.1127, 7.9505, 7.26, 7.9551, 9.2104, 9.7458, 9.6637, 9.1425, 8.2403, 7.1034, 6.5109, 7.2764,
-         8.7653, 9.7139, 9.9718, 10.01, 10.0252, 10.0357], 4)
+        [9.99, 9.96, 9.84, 9.47, 7.82, 2.24, 0.21, 6.21, 9.22, 9.82, 9.98, 9.92, 9.05, 4.45, 0.01, 4.53, 9.35,
+         9.95, 9.75, 9.13, 7.92, 5.14, 0.32, 2.2, 8.38, 9.94, 10.0, 10.0, 10.0, 10.0], 2)
 
 
 def test_str():
