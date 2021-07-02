@@ -203,7 +203,7 @@ class FlowMap(FlowBox):
             if True (default), lines/circles showing the wind turbine rotors are plotted
         ax : pyplot or matplotlib axes object, default None
         """
-        return self.plot(self.WS_eff.mean(['wd', 'ws']), clabel='wind speed [m/s]',
+        return self.plot((self.WS_eff * self.P / self.P.sum(['wd', 'ws'])).sum(['wd', 'ws']), clabel='wind speed [m/s]',
                          levels=levels, cmap=cmap, plot_colorbar=plot_colorbar,
                          plot_windturbines=plot_windturbines, normalize_with=normalize_with, ax=ax)
 

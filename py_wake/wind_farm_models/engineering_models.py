@@ -13,6 +13,7 @@ from py_wake.ground_models.ground_models import NoGround, GroundModel
 from tqdm import tqdm
 from py_wake.wind_turbines._wind_turbines import WindTurbine, WindTurbines
 from py_wake.utils.model_utils import check_model
+from py_wake.utils.functions import mean_deg
 
 
 class EngineeringWindFarmModel(WindFarmModel):
@@ -453,7 +454,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
             add_turb_nk = np.zeros((I * I * L, K))
 
         i_wd_l = np.arange(L)
-        wd = lw.WD_ilk.mean((0, 2))
+        wd = mean_deg(lw.WD_ilk, (0, 2))
         dw_order_indices_dl = self.site.distance.dw_order_indices(wd)
 
         # Iterate over turbines in down wind order
@@ -632,7 +633,7 @@ class All2AllIterative(EngineeringWindFarmModel):
                              I, L, K, **kwargs):
         lw = localWind
         WS_eff_ilk_last = WS_eff_ilk.copy()
-        dw_iil, hcw_iil, dh_iil = self.site.distance(lw.WD_ilk.mean(2))
+        dw_iil, hcw_iil, dh_iil = self.site.distance(mean_deg(lw.WD_ilk, 2))
 
         ct_ilk = self.windTurbines.ct(lw.WS.ilk((I, L, K)), **kwargs)
         D_src_il = D_i[:, na]
