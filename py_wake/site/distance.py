@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import newaxis as na
 import matplotlib
+from py_wake.utils.functions import mean_deg
 
 
 class StraightDistance():
@@ -15,7 +16,7 @@ class StraightDistance():
         import matplotlib.pyplot as plt
 
         dw_ijl, hcw_ijl, _ = self(wd_il)
-        wdirs = np.mean(wd_il, 0)
+        wdirs = mean_deg(wd_il, 0)
         for l, wd in enumerate(wdirs):
             plt.figure()
             ax = plt.gca()
@@ -68,7 +69,7 @@ class StraightDistance():
         else:
             # wd_il
             # mean over all source points
-            wd_l = np.mean(wd_il, (0))
+            wd_l = mean_deg(wd_il, (0))
             wd_ijl = wd_l[na, na]
             cos_ijl, sin_ijl = self._cos_sin(wd_ijl)
             dx_ijl = self.dx_ij[src_idx][:, dst_idx][:, :, na]
@@ -337,7 +338,7 @@ class TerrainFollowingDistance2():
 
         if len(wd.shape) == 2:  # pragma: no cover
             num_wds = wd.shape[1]
-            wd_mean_l = np.mean(wd, 0)
+            wd_mean_l = mean_deg(wd, 0)
             complex_flag = True
         else:
             complex_flag = False

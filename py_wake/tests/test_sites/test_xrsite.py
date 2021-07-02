@@ -11,12 +11,13 @@ from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80, wt9_x, wt9_y
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.wind_turbines import WindTurbines
 from py_wake.deficit_models.gaussian import BastankhahGaussian, BastankhahGaussianDeficit
-from py_wake.wind_farm_models.engineering_models import PropagateDownwind
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.superposition_models import LinearSum
 from py_wake.tests.check_speed import timeit
 from py_wake.site._site import LocalWind
 from py_wake.utils import weibull
-from py_wake.deficit_models.noj import NOJ
+from py_wake.deficit_models.noj import NOJ, NOJDeficit
+from py_wake.flow_map import XYGrid, Points
 
 
 f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,
@@ -189,6 +190,27 @@ def test_complex_grid_local_wind(complex_grid_site):
                                          [0.0078508, 0.01177761, 0.01557493],
                                          [0.0105829, 0.01576518, 0.02066746],
                                          [0.01079997, 0.01656828, 0.02257487]])
+
+
+@pytest.mark.parametrize('wfm', [PropagateDownwind, All2AllIterative])
+def test_turning_mean(complex_grid_site, wfm):
+
+    ds = xr.Dataset(
+        data_vars={'Turning': (['x', 'y'], np.arange(-2, 4, 1).reshape((2, 3)).T),
+                   'Sector_frequency': ('wd', f), 'Weibull_A': ('wd', A), 'Weibull_k': ('wd', k), 'TI': .1},
+        coords={'x': [0, 500, 1000], 'y': [0, 500], 'wd': np.linspace(0, 360, len(f), endpoint=False)})
+    site = XRSite(ds)
+
+    wt = V80()
+    wfm = wfm(site, wt, NOJDeficit())
+    sim_res = wfm([500, 500], [100, 400], wd=0, ws=10)
+    print(sim_res.Power)
+    if 0:
+        sim_res.flow_map(XYGrid(y=np.linspace(0, 500, 100))).plot_wake_map()
+        plt.show()
+    assert sim_res.WS_eff.sel(wt=0).item() < sim_res.WS_eff.sel(wt=1).item()
+    fm = sim_res.flow_map(Points([500, 500], [100, 400], [70, 70]))
+    assert fm.WS_eff.sel(i=0).item() < fm.WS_eff.sel(i=1).item()
 
 
 def test_GlobalWindAtlasSite():
