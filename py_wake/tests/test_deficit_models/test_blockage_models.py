@@ -13,7 +13,7 @@ from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit, SelfSim
 from py_wake.deficit_models.vortexdipole import VortexDipole
 from py_wake.deficit_models.rankinehalfbody import RankineHalfBody
 from py_wake.deficit_models.hybridinduction import HybridInduction
-from py_wake.deficit_models.rathmann import Rathmann
+from py_wake.deficit_models.rathmann import Rathmann, RathmannScaled
 from py_wake.flow_map import XYGrid
 
 debug = False
@@ -49,6 +49,9 @@ def setup():
     (Rathmann,
      [9.950432, 9.926598, 9.882538, 9.792603, 9.597037, 10.041663, 10.397465, 10.204838, 10.116258, 10.072778],
      [9.94641, 9.917526, 9.858037, 9.707178, 9.190401, 10.0, 10.0, 10.0, 10.0, 10.0]),
+    (RathmannScaled,
+     [9.929791, 9.897708, 9.838744, 9.719092, 9.456743, 10.056169, 10.535845, 10.277511, 10.159648, 10.101453],
+     [9.924278, 9.88539, 9.805788, 9.60523, 8.908535, 10.0, 10.0, 10.0, 10.0, 10.0]),
 ][::-1])
 def test_blockage_map(setup, blockage_model, center_ref, side_ref):
     site, windTurbines = setup
@@ -98,6 +101,9 @@ def test_blockage_map(setup, blockage_model, center_ref, side_ref):
     (Rathmann,
      [9.950432, 9.926598, 9.882538, 9.792603, 9.597037, 10.041663, 10.397465, 6.428758, 6.899183, 7.299176],
      [9.94641, 9.917526, 9.858037, 9.707178, 9.190401, 4.560631, 5.505472, 6.223921, 6.782925, 7.226399]),
+    (RathmannScaled,
+     [9.929791, 9.897708, 9.838744, 9.719092, 9.456743, 10.056169, 10.535845, 6.501432, 6.942573, 7.327852],
+     [9.924278, 9.88539, 9.805788, 9.60523, 8.908535, 4.560631, 5.505472, 6.223921, 6.782925, 7.226399]),
 ][::-1])
 def test_wake_and_blockage(setup, blockage_model, center_ref, side_ref):
     site, windTurbines = setup
@@ -132,7 +138,8 @@ def test_wake_and_blockage(setup, blockage_model, center_ref, side_ref):
     (VortexDipole, 0.4321021),
     (RankineHalfBody, 0.4321021),
     (HybridInduction, 0.5372064),
-    (Rathmann, 0.4233034298949511)
+    (Rathmann, 0.4233034298949511),
+    (RathmannScaled, 0.5928161590163314)
 ][::-1])
 def test_aep_two_turbines(setup, blockage_model, blockage_loss):
     site, windTurbines = setup

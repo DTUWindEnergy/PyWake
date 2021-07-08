@@ -59,16 +59,17 @@ class STF2017TurbulenceModel(TurbulenceModel):
 
     args4addturb = ['dw_ijlk', 'cw_ijlk', 'D_src_il', 'ct_ilk', 'TI_ilk']
 
-    def __init__(self, addedTurbulenceSuperpositionModel=LinearSum(),
+    def __init__(self, c=[1.5, 0.8], addedTurbulenceSuperpositionModel=LinearSum(),
                  weight_function=FrandsenWeight(), **kwargs):
         TurbulenceModel.__init__(self, addedTurbulenceSuperpositionModel, **kwargs)
+        self.c = c
         self.apply_weight = weight_function.apply_weight
 
     def max_centre_wake_turbulence(self, dw_ijlk, cw_ijlk, D_src_il, ct_ilk, **_):
         dist_ijlk = np.sqrt(dw_ijlk**2 + cw_ijlk**2) / D_src_il[:, na, :, na]
         # In the standard (see page 103), the maximal added TI is calculated as
         # TI_add = 1/(1.5 + 0.8*d/sqrt(Ct))
-        return 1 / (1.5 + 0.8 * dist_ijlk / np.sqrt(ct_ilk)[:, na])
+        return 1 / (self.c[0] + self.c[1] * dist_ijlk / np.sqrt(ct_ilk)[:, na])
 
     def calc_added_turbulence(self, dw_ijlk, cw_ijlk, D_src_il, TI_ilk, **kwargs):
         """ Calculate the added turbulence intensity at locations specified by
