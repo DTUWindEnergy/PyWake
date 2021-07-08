@@ -8,7 +8,7 @@ from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, IEA37Simp
     ZongGaussianDeficit, NiayifarGaussianDeficit, BastankhahGaussian, IEA37SimpleBastankhahGaussian, ZongGaussian,\
     NiayifarGaussian
 from py_wake.deficit_models.gcl import GCLDeficit, GCL, GCLLocal
-from py_wake.deficit_models.noj import NOJDeficit, NOJ, NOJLocalDeficit, NOJLocal
+from py_wake.deficit_models.noj import NOJDeficit, NOJ, NOJLocalDeficit, NOJLocal, TurboNOJDeficit
 from py_wake.deficit_models import VortexDipole
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 from py_wake.examples.data.iea37 import iea37_path
@@ -41,6 +41,10 @@ class GCLLocalDeficit(GCLDeficit):
                                               23558.34198, 36738.52415, 38663.44595, 21056.39764, 12042.79324,
                                               13813.46269, 30999.42279, 63947.61202, 17180.40299, 11334.12323,
                                               6972.14345])),
+     (TurboNOJDeficit(), (354154.2962989713, [9320.85263, 8138.29496, 10753.75662, 13398.00865, 21189.29438,
+                                              24190.84895, 37081.91938, 41369.66605, 23488.54863, 12938.48451,
+                                              14065.00719, 30469.75602, 71831.78532, 16886.85274, 11540.51872,
+                                              7490.70156])),
 
      (BastankhahGaussianDeficit(), (355971.9717035484,
                                     [9143.74048, 8156.71681, 11311.92915, 13955.06316, 19807.65346,
@@ -102,6 +106,8 @@ def test_IEA37_ex16(deficitModel, aep_ref):
       [3.27, 3.27, 9.0, 7.46, 7.46, 7.46, 7.46, 7.31, 7.31, 7.31, 7.31, 8.3, 8.3, 8.3, 8.3, 8.3, 8.3]),
      (NOJLocalDeficit(),
       [3.09, 3.09, 9., 9., 5.54, 5.54, 5.54, 5.54, 5.54, 5.54, 6.73, 6.73, 6.73, 6.73, 6.73, 6.73, 6.73]),
+     (TurboNOJDeficit(),
+      [3.09, 3.09, 9., 9., 5.54, 5.54, 5.54, 5.54, 5.54, 5.54, 6.73, 6.73, 6.73, 6.73, 6.73, 6.73, 6.73]),
      (BastankhahGaussianDeficit(),
       [0.18, 3.6, 7.27, 8.32, 7.61, 6.64, 5.96, 6.04, 6.8, 7.69, 8.08, 7.87, 7.59, 7.46, 7.55, 7.84, 8.19]),
      (IEA37SimpleBastankhahGaussianDeficit(),
@@ -156,6 +162,8 @@ def test_deficitModel_wake_map(deficitModel, ref):
     # test that the result is equal to last run (no evidens that  these number are correct)
     [(NOJDeficit(), [100., 75., 150., 100., 100.]),
      (NOJLocalDeficit(), [71., 46., 92., 71., 61.5]),
+     (TurboNOJDeficit(), [99.024477, 61.553917,
+      123.107833, 92.439673, 97.034049]),
      (BastankhahGaussianDeficit(),
       [83.336286, 57.895893, 115.791786, 75.266662, 83.336286]),
      (IEA37SimpleBastankhahGaussianDeficit(),
