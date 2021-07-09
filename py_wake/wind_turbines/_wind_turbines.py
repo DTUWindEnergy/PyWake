@@ -321,7 +321,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
             'mode', [PowerCtTabular(wt['WindSpeed'], wt['PowerOutput'], power_unit, wt['ThrustCoEfficient'],
                                     ws_cutin=wt['LowSpeedCutIn'], ws_cutout=wt['HighSpeedCutOut'],
                                     ct_idle=wt['ct_idle'], additional_models=[]) for wt in wt_data],
-            default_value=0, additional_models=[SimpleYawModel()])
+            default_value=default_mode, additional_models=[SimpleYawModel()])
 
         char_data_tables = [np.array([pct.ws_tab, pct.power_ct_tab[0], pct.power_ct_tab[1]]).T
                             for pct in power_ct_funcs.windTurbineFunction_lst]

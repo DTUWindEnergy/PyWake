@@ -231,6 +231,7 @@ class PowerCtTabular(PowerCtFunction):
             ws = np.r_[ws, ws_cutout + eps, 100]
             power = np.r_[power, power_idle, power_idle]
             ct = np.r_[ct, ct_idle, ct_idle]
+        self.ws_cutin, self.ws_cutout, self.ct_idle = ws_cutin, ws_cutout, ct_idle
         idx = np.argsort(ws)
         ws, power, ct = np.asarray(ws)[idx], np.asarray(power)[idx], np.asarray(ct)[idx]
 
