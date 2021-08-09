@@ -4,6 +4,7 @@ import numpy as np
 import xarray as xr
 from xarray.plot.plot import _PlotMethods
 import warnings
+from xarray.core.dataarray import DataArray
 
 
 class ilk():
@@ -52,7 +53,7 @@ class add_ilk():
                     break
         while len(np.shape(value)) > len(d) and np.shape(value)[-1] == 1:
             value = value[..., 0]
-        self.dataset[name] = (d, value)
+        self.dataset[name] = (d, da2py(value, include_dims=False))
 
 
 class add_ijlk():
@@ -127,3 +128,18 @@ if not hasattr(xr.DataArray(None), 'ilk'):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         xr.register_dataarray_accessor('plot')(plot_xy_map)
+
+
+def da2py(v, include_dims=True):
+    if isinstance(v, DataArray):
+        if include_dims:
+            return (v.dims, v.values)
+        else:
+            return v.values
+    return v
+
+
+def coords2py(v):
+    if isinstance(v, tuple):
+        return tuple([da2py(v, False) for v in v])
+    return v
