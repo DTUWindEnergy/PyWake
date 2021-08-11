@@ -4,7 +4,7 @@ from py_wake.site.shear import PowerShear
 import py_wake.utils.xarray_utils  # register ilk function @UnusedImport
 import xarray as xr
 from abc import ABC, abstractmethod
-from py_wake.utils.xarray_utils import da2py, coords2py
+from py_wake.utils.xarray_utils import da2py
 
 """
 suffixs:
@@ -49,9 +49,9 @@ class LocalWind(xr.Dataset):
         for k, v in [('x', x_i), ('y', y_i), ('h', h_i)]:
             if v is not None:
                 coords[k] = ('i', np.zeros(n_i) + v)
-        xr.Dataset.__init__(self, data_vars={k: da2py(v) for k, v in [('WD', WD), ('WS', WS),
-                                                                      ('TI', TI), ('P', P)] if v is not None},
-                            coords={k: coords2py(v) for k, v in coords.items()})
+        xr.Dataset.__init__(self, data_vars={k: da2py(v, include_dims=True) for k, v in [('WD', WD), ('WS', WS),
+                                                                                         ('TI', TI), ('P', P)] if v is not None},
+                            coords={k: da2py(v) for k, v in coords.items()})
         self.attrs['wd_bin_size'] = wd_bin_size
 
         # set localWind.WS_ilk etc.

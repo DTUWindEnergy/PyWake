@@ -60,8 +60,8 @@ class WindFarmModel(ABC):
 
         if len(x) == 0:
             lw = UniformSite([1], 0.1).local_wind(x_i=[], y_i=[], h_i=[], wd=wd, ws=ws)
-            z = xr.DataArray(np.zeros((0, len(lw.wd), len(lw.ws))), coords=[('wt', []), ('wd', da2py(lw.wd, False)),
-                                                                            ('ws', da2py(lw.ws, False))])
+            z = xr.DataArray(np.zeros((0, len(lw.wd), len(lw.ws))), coords=[('wt', []), ('wd', da2py(lw.wd)),
+                                                                            ('ws', da2py(lw.ws))])
             return SimulationResult(self, lw, [], yaw, tilt, z, z, z, z, kwargs)
         res = self.calc_wt_interaction(x_i=np.asarray(x), y_i=np.asarray(y), h_i=h, type_i=type,
                                        yaw_ilk=yaw_ilk, tilt_ilk=tilt_ilk,
@@ -170,7 +170,7 @@ class SimulationResult(xr.Dataset):
 
         ilk_dims = (['wt', 'wd', 'ws'], ['wt', 'time'])['time' in lw]
         xr.Dataset.__init__(self,
-                            data_vars={k: (ilk_dims, da2py((v, v[:, :, 0])['time' in lw], include_dims=False),
+                            data_vars={k: (ilk_dims, da2py((v, v[:, :, 0])['time' in lw]),
                                            {'Description': d})
                                        for k, v, d in [('WS_eff', WS_eff_ilk, 'Effective local wind speed [m/s]'),
                                                        ('TI_eff', np.zeros_like(WS_eff_ilk) + TI_eff_ilk,

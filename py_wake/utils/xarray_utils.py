@@ -130,16 +130,12 @@ if not hasattr(xr.DataArray(None), 'ilk'):
         xr.register_dataarray_accessor('plot')(plot_xy_map)
 
 
-def da2py(v, include_dims=True):
+def da2py(v, include_dims=False):
+    if isinstance(v, tuple):
+        return tuple([da2py(v, include_dims) for v in v])
     if isinstance(v, DataArray):
         if include_dims:
             return (v.dims, v.values)
         else:
             return v.values
-    return v
-
-
-def coords2py(v):
-    if isinstance(v, tuple):
-        return tuple([da2py(v, False) for v in v])
     return v
