@@ -9,7 +9,7 @@ class GenericWindTurbine(WindTurbine):
                  air_density=1.225, max_cp=.49, constant_ct=.8,
                  gear_loss_const=.01, gear_loss_var=.014, generator_loss=0.03, converter_loss=.03,
                  ws_lst=np.arange(.1, 30, .1), ws_cutin=None,
-                 ws_cutout=None, power_idle=0, ct_idle=0, method='linear',
+                 ws_cutout=None, power_idle=0, ct_idle=None, method='linear',
                  additional_models=[SimpleYawModel()]):
         """Wind turbine with generic standard power curve based on max_cp, rated power and losses.
         Ct is computed from the basic 1d momentum theory
@@ -64,6 +64,8 @@ class GenericWindTurbine(WindTurbine):
             u, p, ct = [v[u >= ws_cutin] for v in [u, p, ct]]
         if ws_cutout is not None:
             u, p, ct = [v[u <= ws_cutout] for v in [u, p, ct]]
+        if ct_idle is None:
+            ct_idle = ct[-1]
         powerCtFunction = PowerCtTabular(u, p * 1000, 'w', ct, ws_cutin=ws_cutin, ws_cutout=ws_cutout,
                                          power_idle=power_idle, ct_idle=ct_idle, method=method,
                                          additional_models=additional_models)
