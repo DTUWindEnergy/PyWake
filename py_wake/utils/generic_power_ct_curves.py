@@ -63,17 +63,24 @@ def standard_power_ct_curve(power_norm, diameter, turbulence_intensity=.1,
     p_gear = p_gen / (1 - generator_loss)
     p_aero = (p_gear + gear_loss_const * power_norm) / (1 - gear_loss_var)
     cp = p_aero * 1000 / (.5 * rho * area * wsp_lst ** 3)
+    # cp is too high at low ws due to constant loss, so limit to 16/27
     cp = np.minimum(cp, 16 / 27)
 
     def cp2ct(cp):
-        a = np.array([newton(lambda a, cp=cp:4 * a * (1 - a)**2 - cp, .1) for cp in cp])
+        # solve cp = 4 * a * (1 - a)**2 for a
+        y = 27.0 / 16.0 * cp
+        a = 2.0 / 3.0 * (1 - np.cos(np.arctan2(2 * np.sqrt(y * (1.0 - y)), 1 - 2 * y) / 3.0))
         return 4 * a * (1 - a)
 
     ct_lst = cp2ct(cp)
 
+    # scale ct, such that the constant region (~cut-in to rated) equals <constant_ct>
+    # First part (~0-2m/s) is constant at 8/9 due to cp limit and must be disregarded
     ct_below_lim = np.where(ct_lst < 8 / 9 - 1e-6)[0][0]
+    # find index of most constant ct after the disregarded 8/9 region
     constant_ct_idx = ct_below_lim + np.argmin(np.abs(np.diff(ct_lst[ct_below_lim:])))
-    if ct_lst[constant_ct_idx] < cp2ct([max_cp]):
+    if ct_lst[constant_ct_idx] < cp2ct(max_cp):
+        # if TI is high, then there is no constant region
         constant_ct_idx = 0
     f = constant_ct / ct_lst[constant_ct_idx]
     ct_lst = np.minimum(8 / 9, ct_lst * f)

@@ -12,12 +12,14 @@ from py_wake.site.xrsite import XRSite
 
 
 def test_GenericWindTurbine():
-    for ref, ti, p_tol, ct_tol in [(V80(), .1, 0.03, .16),
-                                   (WindTurbine.from_WAsP_wtg(wtg_path + "Vestas V112-3.0 MW.wtg"), .05, 0.035, .07),
-                                   (DTU10MW(), .05, 0.06, .13)]:
+    for ref, ti, cut_in, cut_out, p_tol, ct_tol in [(V80(), .1, 4, None, 0.03, .14),
+                                                    (WindTurbine.from_WAsP_wtg(wtg_path +
+                                                                               "Vestas V112-3.0 MW.wtg"), .05, 3, 25, 0.035, .07),
+                                                    (DTU10MW(), .05, 4, 25, 0.06, .12)]:
+
         power_norm = ref.power(np.arange(10, 20)).max()
         wt = GenericWindTurbine('Generic', ref.diameter(), ref.hub_height(), power_norm / 1e3,
-                                turbulence_intensity=ti, ws_cutin=None)
+                                turbulence_intensity=ti, ws_cutin=cut_in, ws_cutout=cut_out)
 
         if 0:
             u = np.arange(0, 30, .1)
@@ -27,10 +29,12 @@ def test_GenericWindTurbine():
             plt.plot(u, ref.power(u) / 1e6, label=ref.name())
 
             plt.ylabel('Power [MW]')
-            plt.legend()
+            plt.legend(loc='center left')
             ax = plt.twinx()
             ax.plot(u, ct, '--')
             ax.plot(u, ref.ct(u), '--')
+
+            ax.set_ylim([0, 1])
             plt.ylabel('Ct')
             plt.show()
 

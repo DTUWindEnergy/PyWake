@@ -64,7 +64,8 @@ class DTU10MW(WindTurbine):
             'DTU10MW',
             diameter=178.3,
             hub_height=119,
-            powerCtFunction=PowerCtTabular(u, p * 1000, 'w', ct_curve[:, 1], method=method))
+            powerCtFunction=PowerCtTabular(u, p * 1000, 'w', ct_curve[:, 1], ws_cutin=4, ws_cutout=25,
+                                           ct_idle=0.059, method=method))
 
 
 DTU10WM_RWT = DTU10MW
