@@ -7,7 +7,7 @@ class DeficitModel(ABC):
     deficit_initalized = False
 
     def _calc_layout_terms(self, **_):
-        pass
+        """Calculate layout dependent terms, which is not updated during simulation"""
 
     @abstractmethod
     def calc_deficit(self):

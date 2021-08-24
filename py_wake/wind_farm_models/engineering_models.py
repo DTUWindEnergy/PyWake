@@ -644,6 +644,8 @@ class All2AllIterative(EngineeringWindFarmModel):
                 'tilt_ilk': tilt_ilk,
                 'D_src_il': D_src_il,
                 'D_dst_ijl': D_src_il[na],
+                'dw_ijlk': dw_iil[..., na],
+                'hcw_ijlk': hcw_iil[..., na],
                 'cw_ijlk': np.sqrt(hcw_iil**2 + dh_iil**2)[..., na],
                 'dh_ijlk': dh_iil[..., na],
                 'h_il': h_i[:, na]
@@ -652,7 +654,7 @@ class All2AllIterative(EngineeringWindFarmModel):
         # Iterate until convergence
         for j in tqdm(range(I), disable=I <= 1 or not self.verbose, desc="Calculate flow interaction", unit="wt"):
 
-            ct_ilk = self.windTurbines.ct(WS_eff_ilk, **kwargs)
+            ct_ilk = self.windTurbines.ct(np.maximum(WS_eff_ilk, 0), **kwargs)
             args['ct_ilk'] = ct_ilk
             args['WS_eff_ilk'] = WS_eff_ilk
             if self.deflectionModel:
@@ -660,9 +662,10 @@ class All2AllIterative(EngineeringWindFarmModel):
                     dw_ijl=dw_iil, hcw_ijl=hcw_iil, dh_ijl=dh_iil, **args)
                 args.update({'dw_ijlk': dw_ijlk, 'hcw_ijlk': hcw_ijlk, 'dh_ijlk': dh_ijlk,
                              'cw_ijlk': np.hypot(dh_iil[..., na], hcw_ijlk)})
-            else:
-                args.update({'dw_ijlk': dw_iil[..., na], 'hcw_ijlk': hcw_iil[..., na], 'dh_ijlk': dh_iil[..., na]})
+                self._reset_deficit()
+            elif j == 0:
                 self._init_deficit(**args)
+
             if self.turbulenceModel:
                 args['TI_eff_ilk'] = TI_eff_ilk
                 if 'wake_radius_ijlk' in self.turbulenceModel.args4addturb:
