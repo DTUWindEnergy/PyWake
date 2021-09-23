@@ -36,8 +36,17 @@ class DeficitModel(ABC):
 
 
 class BlockageDeficitModel(DeficitModel):
-    def __init__(self, upstream_only=False):
+    def __init__(self, upstream_only=False, superpositionModel=None):
+        """Parameters
+        ----------
+        upstream_only : bool, optional
+            if true, downstream deficit from this model is set to zero
+        superpositionModel : SuperpositionModel or None
+            Superposition model used to sum blockage deficit.
+            If None, the superposition model of the wind farm model is used
+        """
         self.upstream_only = upstream_only
+        self.superpositionModel = superpositionModel
 
     def calc_blockage_deficit(self, dw_ijlk, **kwargs):
         deficit_ijlk = self.calc_deficit(dw_ijlk=dw_ijlk, **kwargs)

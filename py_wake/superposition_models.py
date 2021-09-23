@@ -8,28 +8,26 @@ class SuperpositionModel(ABC):
         pass
 
     @abstractmethod
-    def calc_effective_WS(self, WS_xxx, deficit_jxxx):
-        """Calculate effective wind speed
+    def __call__(self, value_jxxx):
+        """Calculate the sum of jxxx
 
         This method must be overridden by subclass
 
         Parameters
         ----------
-        WS_xxx : array_like
-            Local wind speed. xxx optionally includes destination turbine/site, wind directions, wind speeds
+
         deficit_jxxx : array_like
-            deficit caused by source turbines(j) on xxx (see above)
+            deficit caused by source turbines(j) on xxx (xxx optionally includes
+            destination turbine/site, wind directions, wind speeds
 
         Returns
         -------
-        WS_eff_xxx : array_like
-            Effective wind speed for xxx (see WS_xxx)
-
+        sum_xxx : array_like
+            sum for xxx (see above)
         """
 
 
 class AddedTurbulenceSuperpositionModel():
-    @abstractmethod
     def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
         """Calculate effective turbulence intensity
 
@@ -45,27 +43,25 @@ class AddedTurbulenceSuperpositionModel():
         TI_eff_xxx : array_like
             Effective turbulence intensity xxx (see TI_xxx)
         """
+        return TI_xxx + self(add_turb_jxxx)
 
 
 class SquaredSum(SuperpositionModel):
-    def calc_effective_WS(self, WS_xxx, deficit_jxxx):
-        return WS_xxx - np.sqrt(np.sum(deficit_jxxx**2, 0))
+    def __call__(self, value_jxxx):
+        return np.sqrt(np.sum(value_jxxx**2, 0))
 
 
 class LinearSum(SuperpositionModel, AddedTurbulenceSuperpositionModel):
-    def calc_effective_WS(self, WS_xxx, deficit_jxxx):
-        return WS_xxx - np.sum(deficit_jxxx, 0)
+    def __call__(self, value_jxxx):
+        return np.sum(value_jxxx, 0)
 
     def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
-        return TI_xxx + np.sum(add_turb_jxxx, 0)
+        return TI_xxx + self(add_turb_jxxx)
 
 
 class MaxSum(SuperpositionModel, AddedTurbulenceSuperpositionModel):
-    def calc_effective_WS(self, WS_xxx, deficit_jxxx):
-        return WS_xxx - np.max(deficit_jxxx, 0)
-
-    def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
-        return TI_xxx + np.max(add_turb_jxxx, 0)
+    def __call__(self, value_jxxx):
+        return np.max(value_jxxx, 0)
 
 
 class SqrMaxSum(AddedTurbulenceSuperpositionModel):
@@ -89,9 +85,9 @@ class WeightedSum(SuperpositionModel):
         # maximum number of iterations used in computing weights
         self.max_iter = max_iter
 
-    def calc_effective_WS(self, WS_xxx, centerline_deficit_jxxx,
-                          convection_velocity_jxxx,
-                          sigma_sqr_jxxx, cw_jxxx, hcw_jxxx, dh_jxxx):
+    def __call__(self, WS_xxx, centerline_deficit_jxxx,
+                 convection_velocity_jxxx,
+                 sigma_sqr_jxxx, cw_jxxx, hcw_jxxx, dh_jxxx):
 
         Ws = WS_xxx + np.zeros(centerline_deficit_jxxx.shape[1:])
 
@@ -192,4 +188,4 @@ class WeightedSum(SuperpositionModel):
                 Uc_star[Ilx] = Ws[Ilx] - (sum1 + sum2)[Ilx] / Us_int[Ilx]
 
                 count += 1
-        return Ws - Us - np.sum(np.where(~Il, us, 0), axis=0)
+        return Us + np.sum(np.where(~Il, us, 0), axis=0)

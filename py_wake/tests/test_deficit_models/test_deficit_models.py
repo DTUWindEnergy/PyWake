@@ -163,7 +163,7 @@ def test_deficitModel_wake_map(deficitModel, ref):
     [(NOJDeficit(), [100., 75., 150., 100., 100.]),
      (NOJLocalDeficit(), [71., 46., 92., 71., 61.5]),
      (TurboNOJDeficit(), [99.024477, 61.553917,
-      123.107833, 92.439673, 97.034049]),
+                          123.107833, 92.439673, 97.034049]),
      (BastankhahGaussianDeficit(),
       [83.336286, 57.895893, 115.791786, 75.266662, 83.336286]),
      (IEA37SimpleBastankhahGaussianDeficit(),
@@ -323,7 +323,7 @@ def test_deficitModel_wake_map_convection(deficitModel, ref):
     'deficitModel,ref',
     # test that the result is equal to last run (no evidens that  these number are correct)
     [(ZongGaussianDeficit(),
-      [6.34, 7.05, 7.9, 8.15, 7.45, 6.19, 5.21, 5.26, 6.38, 7.32, 7.7, 7.54, 7.34, 7.18, 7.32, 7.69, 8.14])
+      [6.34, 7.05, 8.18, 8.25, 7.49, 6.2, 5.2, 5.26, 6.37, 7.33, 7.7, 7.54, 7.34, 7.18, 7.32, 7.7, 8.16])
      ])
 def test_deficitModel_wake_map_convection_all2all(deficitModel, ref):
     site = IEA37Site(16)
@@ -348,6 +348,7 @@ def test_deficitModel_wake_map_convection_all2all(deficitModel, ref):
         windTurbines.plot(x, y)
         plt.figure()
         plt.plot(Z[49, 100:133:2], label='Actual')
+        print(np.round(Z[49, 100:133:2], 2).values.tolist())
         plt.plot(ref, label='Reference')
         plt.plot(mean_ref, label='Mean ref')
         plt.legend()

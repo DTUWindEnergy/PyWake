@@ -20,8 +20,8 @@ class VortexDipole(BlockageDeficitModel):
 
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
-    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True):
-        BlockageDeficitModel.__init__(self)
+    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None):
+        BlockageDeficitModel.__init__(self, superpositionModel=superpositionModel)
         # coefficients for BEM approximation by Madsen (1997)
         self.a0p = np.array([0.2460, 0.0586, 0.0883])
         # limiter to avoid singularities
