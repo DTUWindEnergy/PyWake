@@ -20,8 +20,8 @@ class VortexCylinder(BlockageDeficitModel):
 
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
-    def __init__(self, limiter=1e-10, exclude_wake=True):
-        BlockageDeficitModel.__init__(self)
+    def __init__(self, limiter=1e-10, exclude_wake=True, superpositionModel=None):
+        BlockageDeficitModel.__init__(self, superpositionModel=superpositionModel)
         # coefficients for BEM approximation by Madsen (1997)
         self.a0p = np.array([0.2460, 0.0586, 0.0883])
         # limiter to avoid singularities
@@ -57,7 +57,8 @@ class VortexCylinder(BlockageDeficitModel):
         ic = (cw_ijlk / R_il[:, na, :, na] < self.limiter)
         deficit_ijlk = gammat_ilk[:, na] / 2 * (1 + dw_ijlk / np.sqrt(dw_ijlk**2 + R_il[:, na, :, na]**2)) * ic
         # singularity on rotor and close to R
-        ir = (np.abs(r_ijlk / R_il[:, na, :, na] - 1.) < self.limiter) & (np.abs(dw_ijlk / R_il[:, na, :, na]) < self.limiter)
+        ir = (np.abs(r_ijlk / R_il[:, na, :, na] - 1.) <
+              self.limiter) & (np.abs(dw_ijlk / R_il[:, na, :, na]) < self.limiter)
         deficit_ijlk = deficit_ijlk * (~ir) + gammat_ilk[:, na] / 4. * ir
         # compute deficit everywhere else
         # indices outside any of the previously computed regions
@@ -79,7 +80,8 @@ class VortexCylinder(BlockageDeficitModel):
         T1[cw_ijlk < R_il[:, na, :, na]] = 1
         div = (2 * np.pi * np.sqrt(cw_ijlk * R_il[:, na, :, na]))
         div[div == 0.] = np.inf
-        deficit_ijlk[io] = (gammat_ilk[:, na] / 2 * (T1 + dw_ijlk * k / div * (KK + (R_il[:, na, :, na] - cw_ijlk) / (R_il[:, na, :, na] + cw_ijlk) * PI)))[io]
+        deficit_ijlk[io] = (gammat_ilk[:, na] / 2 * (T1 + dw_ijlk * k / div *
+                                                     (KK + (R_il[:, na, :, na] - cw_ijlk) / (R_il[:, na, :, na] + cw_ijlk) * PI)))[io]
         if self.exclude_wake:
             # indices on rotor plane and in wake region
             iw = ((dw_ijlk / R_il[:, na, :, na] >= -self.limiter) &

@@ -142,7 +142,7 @@ class EngineeringWindFarmModel(WindFarmModel):
         deficit = self.groundModel(lambda **kwargs: self.rotorAvgModel(self.wake_deficitModel.calc_deficit_downwind, **kwargs),
                                    dw_ijlk=dw_ijlk, **kwargs)
         deficit, blockage = self._add_blockage(deficit, dw_ijlk, **kwargs)
-        return deficit + blockage
+        return deficit, blockage
 
     def _calc_deficit_convection(self, dw_ijlk, **kwargs):
         """Calculate wake convection deficit (and blockage)"""
@@ -309,6 +309,7 @@ class EngineeringWindFarmModel(WindFarmModel):
             if I * J * K * 8 / 1024**2 > 10:
                 # one wt at the time to avoid memory problems
                 deficit_ijk = np.zeros((I, J, K))
+                blockage_ijk = np.zeros((I, J, K))
                 add_turb_ijk = np.zeros((I, J, K))
                 uc_ijk = np.zeros((I, J, K))
                 sigma_sqr_ijk = np.zeros((I, J, K))
@@ -322,7 +323,9 @@ class EngineeringWindFarmModel(WindFarmModel):
                         uc_ijk[i] = uc[0, :, 0]
                         sigma_sqr_ijk[i] = sigma_sqr[0, :, 0]
                     else:
-                        deficit_ijk[i] = self._calc_deficit(dw_ijlk=dw_ijlk[i][na], **args_i)[0, :, 0]
+
+                        deficit_ijk[i], blockage_ijk[i] = [v[0, :, 0]
+                                                           for v in self._calc_deficit(dw_ijlk=dw_ijlk[i][na], **args_i)]
 
                     if self.turbulenceModel:
                         add_turb_ijk[i] = self.turbulenceModel.calc_added_turbulence(
@@ -331,10 +334,12 @@ class EngineeringWindFarmModel(WindFarmModel):
                 if isinstance(self.superpositionModel, WeightedSum):
                     deficit, uc, sigma_sqr, blockage = self._calc_deficit_convection(dw_ijlk=dw_ijlk, **args)
                     deficit_ijk = deficit[:, :, 0]
+                    blockage_ijk = blockage[:, :, 0]
                     uc_ijk = uc[:, :, 0]
                     sigma_sqr_ijk = sigma_sqr[:, :, 0]
                 else:
-                    deficit_ijk = self._calc_deficit(dw_ijlk=dw_ijlk, **args)[:, :, 0]
+                    deficit_ijk, blockage_ijk = self._calc_deficit(dw_ijlk=dw_ijlk, **args)
+                    deficit_ijk, blockage_ijk = deficit_ijk[:, :, 0], blockage_ijk[:, :, 0]
                 if self.turbulenceModel:
                     add_turb_ijk = self.turbulenceModel.calc_added_turbulence(dw_ijlk=dw_ijlk, **args)[:, :, 0]
 
@@ -342,10 +347,16 @@ class EngineeringWindFarmModel(WindFarmModel):
             if isinstance(self.superpositionModel, WeightedSum):
                 cw_ijk = np.hypot(dh_ijl[..., na], hcw_ijlk)[:, :, 0]
                 hcw_ijk, dh_ijk = hcw_ijlk[:, :, 0], dh_ijl[:, :, 0, na]
-                WS_eff_jlk[:, l] = self.superpositionModel.calc_effective_WS(
+                WS_eff_jlk[:, l] = lw_j.WS_ilk[:, l_] - self.superpositionModel(
                     lw_j.WS_ilk[:, l_], deficit_ijk, uc_ijk, sigma_sqr_ijk, cw_ijk, hcw_ijk, dh_ijk)
+                if self.blockage_deficitModel:
+                    blockage_superpositionModel = self.blockage_deficitModel.superpositionModel or LinearSum()
+                    WS_eff_jlk[:, l] -= blockage_superpositionModel(blockage_ijk)
             else:
-                WS_eff_jlk[:, l] = self.superpositionModel.calc_effective_WS(lw_j.WS_ilk[:, l_], deficit_ijk)
+                WS_eff_jlk[:, l] = lw_j.WS_ilk[:, l_] - self.superpositionModel(deficit_ijk)
+                if self.blockage_deficitModel:
+                    blockage_superpositionModel = self.blockage_deficitModel.superpositionModel or self.superpositionModel
+                    WS_eff_jlk[:, l] -= blockage_superpositionModel(blockage_ijk)
 
             if self.turbulenceModel:
                 l_ = [l, 0][lw_j.TI_ilk.shape[1] == 1]
@@ -482,11 +493,11 @@ class PropagateDownwind(EngineeringWindFarmModel):
                     hcw2WT = np.array([d_nk2[i] for d_nk2, i in zip(hcw_nk, range(j)[::-1])])
                     dh2WT = np.array([d_nk2[i] for d_nk2, i in zip(dh_nk, range(j)[::-1])])
 
-                    WS_eff_lk = self.superpositionModel.calc_effective_WS(
+                    WS_eff_lk = WS_mk[m] - self.superpositionModel(
                         WS_mk[m], deficit2WT, uc2WT, sigmasqr2WT, cw2WT, hcw2WT, dh2WT)
                 else:
                     deficit2WT = np.array([d_nk2[i] for d_nk2, i in zip(deficit_nk, range(j)[::-1])])
-                    WS_eff_lk = self.superpositionModel.calc_effective_WS(WS_mk[m], deficit2WT)
+                    WS_eff_lk = WS_mk[m] - self.superpositionModel(deficit2WT)
 
                 WS_eff_mk.append(WS_eff_lk)
                 if self.turbulenceModel:
@@ -560,7 +571,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
                     uc_nk.append(uc[0])
                     sigma_sqr_nk.append(sigma_sqr[0])
                 else:
-                    deficit = self._calc_deficit(dw_ijlk=dw_ijlk, **args)
+                    deficit, _ = self._calc_deficit(dw_ijlk=dw_ijlk, **args)
                 deficit_nk.append(deficit[0])
 
                 if self.turbulenceModel:
@@ -675,19 +686,22 @@ class All2AllIterative(EngineeringWindFarmModel):
             if isinstance(self.superpositionModel, WeightedSum):
                 deficit_iilk, uc_iilk, sigmasqr_iilk, blockage_iilk = self._calc_deficit_convection(**args)
             else:
-                deficit_iilk = self._calc_deficit(**args)
+                deficit_iilk, blockage_iilk = self._calc_deficit(**args)
 
             # Calculate effective wind speed
             if isinstance(self.superpositionModel, WeightedSum):
-                WS_eff_ilk = self.superpositionModel.calc_effective_WS(lw.WS_ilk, deficit_iilk,
-                                                                       uc_iilk, sigmasqr_iilk,
-                                                                       args['cw_ijlk'],
-                                                                       args['hcw_ijlk'],
-                                                                       dh_iil[..., na])
+                WS_eff_ilk = lw.WS_ilk - self.superpositionModel(lw.WS_ilk, deficit_iilk,
+                                                                 uc_iilk, sigmasqr_iilk,
+                                                                 args['cw_ijlk'],
+                                                                 args['hcw_ijlk'],
+                                                                 dh_iil[..., na])
                 # Add blockage as linear effect
-                WS_eff_ilk -= np.sum(blockage_iilk, 0)
+                if self.blockage_deficitModel:
+                    WS_eff_ilk -= (self.blockage_deficitModel.superpositionModel or LinearSum())(blockage_iilk)
             else:
-                WS_eff_ilk = self.superpositionModel.calc_effective_WS(lw.WS_ilk, deficit_iilk)
+                WS_eff_ilk = lw.WS_ilk.astype(float) - self.superpositionModel(deficit_iilk)
+                if self.blockage_deficitModel:
+                    WS_eff_ilk -= (self.blockage_deficitModel.superpositionModel or self.superpositionModel)(blockage_iilk)
 
             if self.turbulenceModel:
                 add_turb_ijlk = self.turbulenceModel.rotorAvgModel(self.turbulenceModel.calc_added_turbulence, **args)

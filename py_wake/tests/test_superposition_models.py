@@ -9,6 +9,9 @@ from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.flow_map import HorizontalGrid
 from py_wake.tests.test_deficit_models.test_noj import NibeA0
 import xarray as xr
+from py_wake.examples.data.hornsrev1 import V80
+from py_wake.deficit_models.deficit_model import BlockageDeficitModel, WakeDeficitModel
+from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
 
 d02 = 8.1 - 5.7
 d12 = 8.1 - 4.90473373
@@ -68,3 +71,29 @@ def test_superposition_model_indices(superpositionModel, sum_func):
         WS_eff_ilk = sim_res.flow_map(HorizontalGrid(x=[0], y=y_i, h=50)).WS_eff_xylk[:, 0]
 
         npt.assert_array_almost_equal(WS_eff_ilk, ref)
+
+
+def test_diff_wake_blockage_superposition():
+    site = UniformSite([1], 0.1)
+
+    class MyWakeDeficit(WakeDeficitModel):
+        args4deficit = ['dw_ijlk']
+
+        def calc_deficit(self, dw_ijlk, **_):
+            return (dw_ijlk > 0) * 2
+
+    class MyBlockageDeficit(BlockageDeficitModel):
+        args4deficit = ['dw_ijlk']
+
+        def __init__(self, superpositionModel=None):
+            BlockageDeficitModel.__init__(self, upstream_only=True, superpositionModel=superpositionModel)
+
+        def calc_deficit(self, dw_ijlk, **_):
+            return (dw_ijlk < 0) * .3
+
+    wfm = All2AllIterative(site, V80(), wake_deficitModel=MyWakeDeficit(), superpositionModel=SquaredSum(),
+                           blockage_deficitModel=MyBlockageDeficit(superpositionModel=LinearSum()))
+    x = np.arange(5) * 160
+    y = x * 0
+    sim_res = wfm(x, y, ws=10, wd=270)
+    npt.assert_array_almost_equal(sim_res.WS_eff.squeeze(), [10 - (4 - i) * .3 - np.sqrt(i * 2**2) for i in range(5)])

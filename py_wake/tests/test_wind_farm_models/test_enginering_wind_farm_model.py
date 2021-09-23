@@ -27,7 +27,6 @@ from py_wake.wind_turbines import WindTurbines
 from py_wake.wind_turbines.wind_turbines_deprecated import DeprecatedOneTypeWindTurbines
 import pandas as pd
 import os
-from py_wake.deficit_models.deficit_model import BlockageDeficitModel
 from py_wake.rotor_avg_models.rotor_avg_model import CGIRotorAvg
 
 
@@ -157,7 +156,7 @@ def test_two_wt_aep():
 
 def test_aep_mixed_type():
     site = UniformSite([1], ti=0)
-    wt = WindTurbines.from_WindTurbines([IEA37_WindTurbines(), IEA37_WindTurbines()])
+    wt = WindTurbines.from_WindTurbine_lst([IEA37_WindTurbines(), IEA37_WindTurbines()])
 
     wfm = NOJ(site, wt)
 

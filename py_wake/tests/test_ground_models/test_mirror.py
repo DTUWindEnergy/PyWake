@@ -20,7 +20,7 @@ def test_Mirror_NOJ():
     site = UniformSite([1], ti=0.1)
     V80_D0 = V80()
     V80_D0._diameters = [0]
-    wt = WindTurbines.from_WindTurbines([V80(), V80_D0])
+    wt = WindTurbines.from_WindTurbine_lst([V80(), V80_D0])
     wfm = NOJ(site, wt, k=.5, groundModel=Mirror())
     sim_res = wfm([0], [0], h=[50], wd=0)
     fm_ref = sim_res.flow_map(YZGrid(x=0, y=np.arange(-70, 0, 20), z=10))

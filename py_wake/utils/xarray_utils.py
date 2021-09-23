@@ -86,7 +86,7 @@ class interp_all():
         self.dataArray = dataArray
 
     def __call__(self, dataArray2, **kwargs):
-        interp_coords = {d: dataArray2[d] for d in self.dataArray.dims if d in dataArray2}
+        interp_coords = {d: dataArray2[d] for d in self.dataArray.dims if d in dataArray2.coords}
         return self.dataArray.interp(**interp_coords, **kwargs)
 
 

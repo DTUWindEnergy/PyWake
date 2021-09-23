@@ -11,8 +11,8 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
     def __init__(self, ss_gamma=1.1, ss_lambda=0.587, ss_eta=1.32,
-                 ss_alpha=8. / 9., ss_beta=np.sqrt(2), limiter=1e-10):
-        super().__init__()
+                 ss_alpha=8. / 9., ss_beta=np.sqrt(2), limiter=1e-10, superpositionModel=None):
+        super().__init__(superpositionModel=superpositionModel)
         # function constants defined in [1]
         self.ss_gamma = ss_gamma
         self.ss_lambda = ss_lambda
@@ -105,8 +105,8 @@ class SelfSimilarityDeficit2020(SelfSimilarityDeficit):
                  r12p=np.array([-0.672, 0.4897]),
                  ngp=np.array([-1.381, 2.627, -1.524, 1.336]),
                  fgp=np.array([-0.06489, 0.4911, 1.116, -0.1577]),
-                 limiter=1e-10):
-        BlockageDeficitModel.__init__(self)
+                 limiter=1e-10, superpositionModel=None):
+        BlockageDeficitModel.__init__(self, superpositionModel=superpositionModel)
         # original constants from [1]
         self.ss_alpha = ss_alpha
         self.ss_beta = ss_beta
