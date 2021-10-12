@@ -649,8 +649,8 @@ class All2AllIterative(EngineeringWindFarmModel):
         ct_ilk = self.windTurbines.ct(lw.WS.ilk((I, L, K)), **kwargs)
         D_src_il = D_i[:, na]
         args = {'WS_ilk': lw.WS.ilk((I, L, K)),
-                'TI_ilk': lw.TI.ilk((I, L, K)),
-                'TI_eff_ilk': lw.TI.ilk((I, L, K)),
+                'TI_ilk': lw.TI.ilk(),
+                'TI_eff_ilk': lw.TI.ilk(),
                 'yaw_ilk': yaw_ilk,
                 'tilt_ilk': tilt_ilk,
                 'D_src_il': D_src_il,

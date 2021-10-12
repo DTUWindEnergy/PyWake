@@ -204,7 +204,7 @@ def test_turning_mean(complex_grid_site, wfm):
     wt = V80()
     wfm = wfm(site, wt, NOJDeficit())
     sim_res = wfm([500, 500], [100, 400], wd=0, ws=10)
-    print(sim_res.Power)
+    # print(sim_res.Power)
     if 0:
         sim_res.flow_map(XYGrid(y=np.linspace(0, 500, 100))).plot_wake_map()
         plt.show()
