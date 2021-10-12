@@ -56,6 +56,7 @@ setup(name='py_wake',
           'test': [
               'pytest',  # for testing
               'pytest-cov',  # for calculating coverage
+              'psutil',  # memory profiling
               'sphinx',  # generating documentation
               'sphinx_rtd_theme',  # docs theme
               'line_profiler',  # to check speed
