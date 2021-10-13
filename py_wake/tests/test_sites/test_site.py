@@ -1,11 +1,13 @@
-from py_wake.site._site import UniformWeibullSite, UniformSite
-import numpy as np
-from py_wake.tests import npt
+import os
 import pytest
-from py_wake.site.shear import PowerShear
+import numpy as np
 import matplotlib.pyplot as plt
-from py_wake.examples.data.iea37._iea37 import IEA37Site
+from py_wake.tests import npt
+from py_wake.site._site import UniformWeibullSite, UniformSite
+from py_wake.site.shear import PowerShear
 from py_wake.site.xrsite import XRSite
+from py_wake.tests.test_files import tfp
+from py_wake.examples.data.iea37._iea37 import IEA37Site
 
 f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,
      0.086432, 0.117705, 0.151576, 0.147379, 0.10012, 0.05166]
@@ -238,3 +240,26 @@ def test_uniform_site_probability():
     site = UniformSite(p_wd, ti=1)
     lw = site.local_wind(0, 0, 0, wd=np.linspace(0, 360, p_wd.size, endpoint=False), ws=12)
     npt.assert_array_almost_equal(lw.P, p_wd)
+
+
+def test_ieawind37_ontology_yaml_export(site):
+    dirname = 'test_export_temp'
+    filename = 'WindResource.yaml'
+    os.makedirs(os.path.join(tfp, dirname), exist_ok=True)
+    site.to_ieawind37_ontology(filename=os.path.join(tfp, dirname, filename), data_in_netcdf=False)
+    yml_site = XRSite.from_iea37_ontology_yml(filename=os.path.join(tfp, dirname, filename), data_in_netcdf=False)
+    os.remove(os.path.join(tfp, dirname, filename))
+    os.rmdir(os.path.join(tfp, dirname))
+    assert yml_site.ds.equals(site.ds)
+
+
+def test_ieawind37_ontology_netcdf_export(site):
+    dirname = 'test_export_temp'
+    filenames = ['WindResource.yaml', 'WindResource.nc']
+    os.makedirs(os.path.join(tfp, dirname), exist_ok=True)
+    site.to_ieawind37_ontology(filename=os.path.join(tfp, dirname, filenames[0]), data_in_netcdf=True)
+    yml_site = XRSite.from_iea37_ontology_yml(os.path.join(tfp, dirname, filenames[0]), data_in_netcdf=True)
+    for f in filenames:
+        os.remove(os.path.join(tfp, dirname, f))
+    os.rmdir(os.path.join(tfp, dirname))
+    assert yml_site.ds.equals(site.ds)
