@@ -51,8 +51,6 @@ trigger_pywake_park_test:
   only:
     - schedules
 
-
-
 # ===== Trigger PyWakeEllipSys pipeline =====
 trigger_pywake_ellipsys_test:
   stage: test_plugins
@@ -63,6 +61,15 @@ trigger_pywake_ellipsys_test:
     strategy: depend
   only:
     - schedules
+
+# ===== Trigger TriggerHub pipeline =====
+trigger_hub_test:
+  stage: test
+  variables:
+    TRIGGER_BRANCH: $CI_COMMIT_REF_NAME
+  trigger:
+    project: TOPFARMPrivate/triggerhub/pywaketriggers
+    strategy: depend
 
 # ===== build documentation =====
 pages:  # "pages" is a job specifically for GitLab pages [1]
