@@ -2,9 +2,13 @@ import numpy as np
 from numpy import newaxis as na
 import xarray as xr
 from requests import get
+import yaml
+import os
+from pathlib import Path
 from py_wake.site._site import Site
 from py_wake.site.distance import StraightDistance
 from py_wake.utils import weibull
+from py_wake.utils.ieawind37_utils import iea37_names
 from py_wake.utils.grid_interpolator import GridInterpolator, EqDistRegGrid2DInterpolator
 
 
@@ -250,6 +254,53 @@ class XRSite(Site):
                 lw['Sector_frequency'] = p_wd
                 lw['P'] = p_wd * self.weibull_weight(lw, A, k)
         return lw
+
+    def to_ieawind37_ontology(self, name='Wind Resource', filename='WindResource.yaml', data_in_netcdf=False):
+        name_map = {k: v for k, v in iea37_names()}
+        ds = self.ds.sel(wd=self.ds.wd[:-1])
+        ds_keys = list(ds.keys()) + list(ds.coords)
+        map_dict = {key: name_map[key] for key in ds_keys if key in name_map}
+        ds = ds.rename(map_dict)
+
+        def fmt(v):
+            if isinstance(v, dict):
+                return {k: fmt(v) for k, v in v.items() if fmt(v) != {}}
+            elif isinstance(v, tuple):
+                return list(v)
+            else:
+                return v
+        data_dict = fmt(ds.to_dict())
+
+        if not data_in_netcdf:
+            # yaml with all
+            yml = yaml.dump({'name': name, 'wind_resource': {**{k: v['data'] for k, v in data_dict['coords'].items()},
+                                                             **data_dict['data_vars']}})
+            Path(filename).write_text(yml)
+
+        else:
+            # yaml with data in netcdf
+            ds.to_netcdf(filename.replace('.yaml', '.nc'))
+            yml_nc = yaml.dump({'name': name, 'wind_resource': "!include %s" % os.path.basename(filename).replace('.yaml', '.nc')}).replace("'", "")
+            Path(filename).write_text(yml_nc)
+
+    def from_iea37_ontology_yml(filename, data_in_netcdf=False):
+        name_map = {v: k for k, v in iea37_names()}
+        if not data_in_netcdf:
+            with open(filename) as fid:
+                yml_dict = yaml.safe_load(fid)['wind_resource']
+                for k, v in yml_dict.items():
+                    if not isinstance(v, dict):  # its a coord
+                        yml_dict[k] = {'dims': [k], 'data': v}
+                ds = xr.Dataset.from_dict(yml_dict)
+                map_dict = {key: name_map[key] for key in list(ds.keys()) + list(ds.coords)}
+                ds = ds.rename(map_dict)
+                xr_site = XRSite(ds)
+        else:
+            with xr.open_dataset(filename.replace(".yaml", '.nc')).load() as ds:
+                map_dict = {key: name_map[key] for key in list(ds.keys()) + list(ds.coords)}
+                ds = ds.rename(map_dict)
+                xr_site = XRSite(ds)
+        return xr_site
 
 
 class UniformSite(XRSite):
