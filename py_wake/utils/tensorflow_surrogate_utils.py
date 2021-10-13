@@ -101,7 +101,7 @@ class TensorflowSurrogate():
                         mi, ma = self.input_scaler.data_min_[i], self.input_scaler.data_max_[i]
                         warnings.warn(f"Input, {k}, with value, {max_v} outside range {mi}-{ma}")
 
-        return self.output_scaler.inverse_transform(self.model.predict(x_scaled))
+        return self.output_scaler.inverse_transform(self.model.predict(x_scaled, batch_size=x.shape[0]))
 
     @property
     def input_space(self):
