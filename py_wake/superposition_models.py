@@ -46,7 +46,7 @@ class AddedTurbulenceSuperpositionModel():
         return TI_xxx + self(add_turb_jxxx)
 
 
-class SquaredSum(SuperpositionModel):
+class SquaredSum(SuperpositionModel, AddedTurbulenceSuperpositionModel):
     def __call__(self, value_jxxx):
         return np.sqrt(np.sum(value_jxxx**2, 0))
 
@@ -54,9 +54,6 @@ class SquaredSum(SuperpositionModel):
 class LinearSum(SuperpositionModel, AddedTurbulenceSuperpositionModel):
     def __call__(self, value_jxxx):
         return np.sum(value_jxxx, 0)
-
-    def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
-        return TI_xxx + self(add_turb_jxxx)
 
 
 class MaxSum(SuperpositionModel, AddedTurbulenceSuperpositionModel):

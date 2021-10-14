@@ -2,16 +2,17 @@ import pytest
 import numpy as np
 from py_wake import NOJ
 from py_wake.site._site import UniformSite
-from py_wake.superposition_models import LinearSum, SquaredSum, MaxSum
+from py_wake.superposition_models import LinearSum, SquaredSum, MaxSum, SqrMaxSum
 from py_wake.tests import npt
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.deficit_models.noj import NOJDeficit
+from py_wake.turbulence_models import TurbulenceModel
 from py_wake.flow_map import HorizontalGrid
 from py_wake.tests.test_deficit_models.test_noj import NibeA0
 import xarray as xr
 from py_wake.examples.data.hornsrev1 import V80
 from py_wake.deficit_models.deficit_model import BlockageDeficitModel, WakeDeficitModel
-from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
+from py_wake.deficit_models import SelfSimilarityDeficit, NoWakeDeficit
 
 d02 = 8.1 - 5.7
 d12 = 8.1 - 4.90473373
@@ -28,6 +29,27 @@ def test_superposition_models(superpositionModel, res):
     h_i = [50, 50, 50]
     WS_eff_ilk = wake_model.calc_wt_interaction(x_i, y_i, h_i, [0, 0, 1], 0.0, 8.1)[0]
     npt.assert_array_almost_equal(WS_eff_ilk[-1, 0, 0], res)
+
+
+@pytest.mark.parametrize('superpositionModel,res', [(LinearSum(), 0.1 + (.6 + .2)),
+                                                    (SquaredSum(), .1 + np.hypot(.6, .2)),
+                                                    (MaxSum(), .1 + .6),
+                                                    (SqrMaxSum(), np.hypot(.1, .6))])
+def test_superposition_models_TI(superpositionModel, res):
+    site = UniformSite([1], 0.1)
+
+    class MyTurbulenceModel(TurbulenceModel):
+        args4addturb = ['dw_ijlk']
+
+        def calc_added_turbulence(self, dw_ijlk, **_):
+            return 1.2 - dw_ijlk / 100
+
+    wake_model = PropagateDownwind(site, NibeA0, NoWakeDeficit(), turbulenceModel=MyTurbulenceModel(superpositionModel))
+    x_i = [0, 0, 0]
+    y_i = [0, -40, -100]
+    h_i = [50, 50, 50]
+    TI_eff_ilk = wake_model.calc_wt_interaction(x_i, y_i, h_i, [0, 0, 1], 0.0, 8.1)[1]
+    npt.assert_array_almost_equal(TI_eff_ilk[-1, 0, 0], res)
 
 
 @pytest.mark.parametrize('superpositionModel,sum_func', [(LinearSum(), np.sum),
