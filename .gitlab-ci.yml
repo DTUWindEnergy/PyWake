@@ -11,7 +11,7 @@ test_PyWake:  # name the job what we like
   stage:  # build, test, deploy defined by default [2]
     test
   script:
-  - pip install -e .[test] --timeout 60
+  - pip install -e .[test] --timeout 120 --default-timeout=120
   - pytest
   tags:  # only runners with this tag can do the job [3]
   - ci-ubuntu
