@@ -10,6 +10,7 @@ from py_wake.site.distance import StraightDistance
 from py_wake.utils import weibull
 from py_wake.utils.ieawind37_utils import iea37_names
 from py_wake.utils.grid_interpolator import GridInterpolator, EqDistRegGrid2DInterpolator
+import urllib
 
 
 class XRSite(Site):
@@ -280,7 +281,8 @@ class XRSite(Site):
         else:
             # yaml with data in netcdf
             ds.to_netcdf(filename.replace('.yaml', '.nc'))
-            yml_nc = yaml.dump({'name': name, 'wind_resource': "!include %s" % os.path.basename(filename).replace('.yaml', '.nc')}).replace("'", "")
+            yml_nc = yaml.dump({'name': name, 'wind_resource': "!include %s" % os.path.basename(
+                filename).replace('.yaml', '.nc')}).replace("'", "")
             Path(filename).write_text(yml_nc)
 
     def from_iea37_ontology_yml(filename, data_in_netcdf=False):
@@ -359,6 +361,7 @@ class UniformWeibullSite(XRSite):
 class GlobalWindAtlasSite(XRSite):
     """Site with Global Wind Climate (GWC) from the Global Wind Atlas based on
     lat and long which is interpolated at specific roughness and height.
+    NOTE: This approach is only valid for sites with homogeneous roughness at the site and far around
     """
 
     def __init__(self, lat, long, height, roughness, ti=None, **kwargs):
@@ -380,8 +383,11 @@ class GlobalWindAtlasSite(XRSite):
         XRSite.__init__(self, ds=self.gwc_ds.interp(height=height, roughness=roughness), **kwargs)
 
     def _read_gwc(self, lat, long):
-        url_str = f'https://globalwindatlas.info/api/gwa/custom/Lib/?lat={lat}&long={long}'
-        lines = get(url_str).text.strip().split('\r\n')
+
+        url_str = f'https://wps.globalwindatlas.info/?service=WPS&VERSION=1.0.0&REQUEST=Execute&IDENTIFIER=get_libfile&DataInputs=location={{"type":"Point","coordinates":[{long},{lat}]}}'
+        s = get(url_str).text  # response contains link to generated file
+        url = s[s.index('http://wps.globalwindatlas.info'):].split('"')[0]
+        lines = urllib.request.urlopen(url).read().decode().strip().split("\r\n")
 
         # Read header information one line at a time
         # desc = txt[0].strip()  # File Description
