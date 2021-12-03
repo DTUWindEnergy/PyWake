@@ -41,13 +41,8 @@ class TensorflowSurrogate():
         path = Path(path)
         with open(path / 'extra_data.json') as fid:
             extra_data = json.load(fid)
-
-        self.input_channel_names = extra_data['input_channel_names']
-        self.output_channel_name = extra_data['output_channel_name']
-        self.wind_speed_cut_in = extra_data['wind_speed_cut_in']
-        self.wind_speed_cut_out = extra_data['wind_speed_cut_out']
-        if 'wohler_exponent' in extra_data:
-            self.wohler_exponent = extra_data['wohler_exponent']
+        for k, v in extra_data.items():
+            setattr(self, k, v)
 
         # Create the MinMaxScaler scaler objects.
         def json2scaler(d):
@@ -56,8 +51,8 @@ class TensorflowSurrogate():
                 setattr(scaler, k, v)
             return scaler
 
-        self.input_scaler = json2scaler(extra_data['input_scalers'][set_name])
-        self.output_scaler = json2scaler(extra_data['output_scalers'][set_name])
+        self.input_scaler = json2scaler(self.input_scalers[set_name])
+        self.output_scaler = json2scaler(self.output_scalers[set_name])
 
         self.model = tf.keras.models.load_model(path / f'model_set_{set_name}.h5')
 

@@ -1,10 +1,15 @@
 from abc import ABC, abstractmethod
 import numpy as np
 from numpy import newaxis as na
+import inspect
 
 
 class DeficitModel(ABC):
     deficit_initalized = False
+
+    def __init__(self):
+        if not hasattr(self, 'args4deficit'):
+            self.args4deficit = set(inspect.getfullargspec(self.calc_deficit).args) - {'self'}
 
     def _calc_layout_terms(self, **_):
         """Calculate layout dependent terms, which is not updated during simulation"""
