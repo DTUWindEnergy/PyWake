@@ -14,11 +14,11 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
     A new analytical model for wind-turbine wakes.
     J. Renew. Energy. 2014;70:116-23.
     """
-    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'cw_ijlk', 'D_src_il', 'ct_ilk']
 
     def __init__(self, k=0.0324555, use_effective_ws=False):
         self._k = k
         self.use_effective_ws = use_effective_ws
+        ConvectionDeficitModel.__init__(self)
 
     def k_ilk(self, **_):
         return np.reshape(self._k, (1, 1, 1))
