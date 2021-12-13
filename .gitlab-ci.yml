@@ -11,7 +11,7 @@ test_PyWake:  # name the job what we like
   stage:  # build, test, deploy defined by default [2]
     test
   script:
-  - pip install -e .[test] --timeout 300 --default-timeout=300
+  - pip install -e .[test] --timeout 1800 --default-timeout=1800
   - pytest
   tags:  # only runners with this tag can do the job [3]
   - ci-ubuntu
@@ -79,6 +79,7 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
   - apt-get update
   - apt-get -y install make
   - pip install --upgrade pip
+  - pip install pypandoc
   - pip install sphinx --upgrade
   - pip install nbsphinx --upgrade
   - pip install -e .[test]
