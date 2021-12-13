@@ -114,6 +114,7 @@ pypi_linux:
     - test_pypi
   script:
     - apt-get update
+    - apt-get install pandoc
     - pip install --upgrade pip
     - pip install pypandoc
     - pip install -e .[test] --upgrade
