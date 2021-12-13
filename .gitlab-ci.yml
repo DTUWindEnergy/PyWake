@@ -77,7 +77,7 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
     deploy
   script:  # use sphinx to build docs, move to public page
   - apt-get update
-  - apt-get -y install make
+  - apt-get -y install make pandoc
   - pip install --upgrade pip
   - pip install pypandoc
   - pip install sphinx --upgrade
