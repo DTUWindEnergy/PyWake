@@ -7,10 +7,12 @@ import pytest
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
 from py_wake import NOJ
 from py_wake.examples.data.ParqueFicticio import ParqueFicticioSite
-from py_wake.flow_map import HorizontalGrid
+from py_wake.flow_map import HorizontalGrid, XYGrid
 import matplotlib.pyplot as plt
 from py_wake.tests.check_speed import timeit
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site
+from py_wake.utils.streamline import VectorField3D
+from py_wake.site.jit_streamline_distance import JITStreamlineDistance
 
 
 class FlatSite(UniformSite):
@@ -51,7 +53,7 @@ def test_flat_distances(distance):
 
     site = FlatSite(distance=distance)
     site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=h)
-    dw_ijl, hcw_ijl, dh_ijl = site.distance(wd_il=np.array(wdirs)[na], src_idx=[0, 1, 2, 3], dst_idx=[4])
+    dw_ijl, hcw_ijl, dh_ijl = site.distance(WD_il=np.array(wdirs)[na], src_idx=[0, 1, 2, 3], dst_idx=[4])
     dw_indices_l = site.distance.dw_order_indices(np.array(wdirs))
 
     if 0:
@@ -85,7 +87,7 @@ def test_flat_distances_src_neq_dst(distance):
 
     site = FlatSite(distance=distance)
     site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=h, dst_xyh_j=(x, y, [1, 2, 3]))
-    dw_ijl, hcw_ijl, dh_ijl = site.distance(wd_il=np.array(wdirs)[na])
+    dw_ijl, hcw_ijl, dh_ijl = site.distance(WD_il=np.array(wdirs)[na])
     dw_indices_l = distance.dw_order_indices(wdirs)
     if 0:
         distance.plot(wd_il=np.array(wdirs)[na])
@@ -124,7 +126,7 @@ def test_iea37_distances():
                          wd=site.default_wd,
                          ws=site.default_ws)
     site.distance.setup(x, y, np.zeros_like(x))
-    dw_iil, hcw_iil, _ = site.wt2wt_distances(wd_il=lw.WD_ilk.mean(2))
+    dw_iil, hcw_iil, _ = site.wt2wt_distances(WD_il=lw.WD_ilk.mean(2))
     # Wind direction.
     wdir = np.rad2deg(np.arctan2(hcw_iil, dw_iil))
     npt.assert_allclose(
@@ -150,7 +152,7 @@ def test_terrain_following_half_cylinder():
 
     hc.distance.setup(src_x_i=src_x, src_y_i=src_y, src_h_i=src_x * 0,
                       dst_xyh_j=(dst_x, dst_y, dst_x * 0))
-    dw_ijl, hcw_ijl, _ = hc.distance(wd_il=np.array([0, 90])[na])
+    dw_ijl, hcw_ijl, _ = hc.distance(WD_il=np.array([0, 90])[na])
 
     if 0:
         plt.plot(x, hc.elevation(x_i=x, y_i=x * 0))
@@ -235,7 +237,7 @@ def test_distances_ri():
     site.r_i = np.ones(len(x)) * 90
     site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
                         dst_xyh_j=(x, y, np.array([70])))
-    dw_ijl, cw_ijl, dh_ijl = site.distance(wd_il=np.array([[180]]))
+    dw_ijl, cw_ijl, dh_ijl = site.distance(WD_il=np.array([[180]]))
     npt.assert_almost_equal(dw_ijl[0, :, 0], np.array([0., -207., -477., -710., -1016., -1236., -1456., -1799.]))
     npt.assert_almost_equal(cw_ijl[:, 1, 0], np.array([-236.1, 0., 131.1, 167.8, 204.5, 131.1, 131.1, 45.4]))
     npt.assert_almost_equal(dh_ijl, np.zeros_like(dh_ijl))
@@ -249,7 +251,7 @@ def test_distance2_outside_map_WestEast():
     y = h + 6505450
     site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=h,
                         dst_xyh_j=(x, y, h * 0))
-    dw = site.distance(wd_il=[270])[0]
+    dw = site.distance(WD_il=[270])[0]
 
     if 0:
         site.ds.Elevation.plot()
@@ -268,7 +270,7 @@ def test_distance2_outside_map_NorthSouth():
     x = h + 264200
     site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=h,
                         dst_xyh_j=(x, y, h * 0))
-    dw = site.distance(wd_il=[180])[0]
+    dw = site.distance(WD_il=[180])[0]
 
     if 0:
         site.ds.Elevation.plot()
@@ -278,3 +280,32 @@ def test_distance2_outside_map_NorthSouth():
         plt.show()
     # distance between points should be >500 m due to terrain, except last point which is outside map
     npt.assert_array_equal(np.round(np.diff(dw[0, :, 0])), [510, 505, 507, 500])
+
+
+def test_JITStreamlinesparquefictio():
+    site = ParqueFicticioSite()
+    wt = IEA37_WindTurbines()
+    vf3d = VectorField3D.from_WaspGridSite(site)
+    site.distance = JITStreamlineDistance(vf3d)
+
+    x, y = site.initial_position[:].T
+    wfm = NOJ(site, wt)
+    wd = np.array([330])
+    sim_res = wfm(x, y, wd=wd, ws=10)
+    dw = site.distance(wd_l=wd, WD_il=np.repeat(wd[na], len(x), 0))[0][:, :, 0]
+    # streamline downwind distance (positive numbers, upper triangle) cannot be shorter than
+    # straight line distances in opposite direction (negative numbers, lower triangle)
+    assert (dw + dw.T).min() >= 0
+    # average downwind distance increase around 5 m
+    npt.assert_almost_equal((dw + dw.T).mean(), 5, 0)
+
+    fm = sim_res.flow_map(XYGrid(x=np.linspace(site.ds.x[0], site.ds.x[-1], 500),
+                                 y=np.linspace(site.ds.y[0], site.ds.y[-1], 500)))
+    stream_lines = vf3d.stream_lines(wd=np.full(x.shape, wd), start_points=np.array([x, y, np.full(x.shape, 70)]).T,
+                                     dw_stop=y - 6504700)
+    if 0:
+        fm.plot_wake_map()
+        for sl in stream_lines:
+            plt.plot(sl[:, 0], sl[:, 1])
+
+        plt.show()

@@ -270,7 +270,8 @@ class EngineeringWindFarmModel(WindFarmModel):
 
         for l in tqdm(range(L), disable=L <= 1 or not self.verbose, desc='Calculate flow map', unit='wd'):
 
-            dw_ijl, hcw_ijl, dh_ijl = self.site.distance(wd_il=sim_res_data.WD.ilk((I, L, K))[:, l:l + 1, :].mean(2))
+            dw_ijl, hcw_ijl, dh_ijl = self.site.distance(
+                wd_l=sim_res_data.wd[l:l + 1].values, WD_il=sim_res_data.WD.ilk((I, L, K))[:, l:l + 1, :].mean(2))
 
             if self.wec != 1:
                 hcw_ijl = hcw_ijl / self.wec
@@ -544,7 +545,8 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
                 i_dw = dw_order_indices_dl[:, j + 1:]
 
-                dw_jl, hcw_jl, dh_jl = self.site.distance(wd, src_idx=i_wt_l, dst_idx=i_dw.T)
+                dw_jl, hcw_jl, dh_jl = self.site.distance(
+                    wd_l=lw.wd.values, WD_il=wd, src_idx=i_wt_l, dst_idx=i_dw.T)
                 if self.wec != 1:
                     hcw_jl = hcw_jl / self.wec
 
@@ -644,7 +646,7 @@ class All2AllIterative(EngineeringWindFarmModel):
                              I, L, K, **kwargs):
         lw = localWind
         WS_eff_ilk_last = WS_eff_ilk.copy()
-        dw_iil, hcw_iil, dh_iil = self.site.distance(mean_deg(lw.WD_ilk, 2))
+        dw_iil, hcw_iil, dh_iil = self.site.distance(wd_l=lw.wd.values, WD_il=mean_deg(lw.WD_ilk, 2))
 
         ct_ilk = self.windTurbines.ct(lw.WS.ilk((I, L, K)), **kwargs)
         D_src_il = D_i[:, na]
