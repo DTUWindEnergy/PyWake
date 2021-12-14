@@ -219,7 +219,7 @@ def test_iea37_distances():
                          wd=site.default_wd,
                          ws=site.default_ws)
     site.distance.setup(x, y, np.zeros_like(x))
-    dw_iil, hcw_iil, _ = site.wt2wt_distances(wd_il=lw.WD_ilk.mean(2))
+    dw_iil, hcw_iil, _ = site.wt2wt_distances(WD_il=lw.WD_ilk.mean(2))
     # Wind direction.
     wdir = np.rad2deg(np.arctan2(hcw_iil, dw_iil))
     npt.assert_allclose(

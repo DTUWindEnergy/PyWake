@@ -190,8 +190,8 @@ class Site(ABC):
                 Probability/weight
         """
 
-    def wt2wt_distances(self, wd_il):
-        return self.distance(wd_il)
+    def wt2wt_distances(self, WD_il):
+        return self.distance(WD_il)
 
     @abstractmethod
     def elevation(self, x_i, y_i):

@@ -198,7 +198,7 @@ def test_distances(site, dw_ref):
     x, y = site.initial_position.T
     site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
                         dst_xyh_j=(x, y, np.array([70])))
-    dw_ijl, cw_ijl, dh_ijl = site.distance(wd_il=np.array([[0]]))
+    dw_ijl, cw_ijl, dh_ijl = site.distance(WD_il=np.array([[0]]))
     npt.assert_almost_equal(dw_ijl[0, :, 0], dw_ref)
 
     cw_ref = [236.1, 0., -131.1, -167.8, -204.5, -131.1, -131.1, -45.4]
@@ -211,7 +211,7 @@ def test_distances_different_points(site2):
     with pytest.raises(NotImplementedError):
         site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
                             dst_xyh_j=(x[1:], y[1:], np.array([70])))
-        site.distance(wd_il=np.array([[0]]))
+        site.distance(WD_il=np.array([[0]]))
 
 
 # def test_distances_wd_shape():
