@@ -1,7 +1,6 @@
 import numpy as np
 from numpy import newaxis as na
 import xarray as xr
-from requests import get
 import yaml
 import os
 from pathlib import Path
@@ -385,7 +384,7 @@ class GlobalWindAtlasSite(XRSite):
     def _read_gwc(self, lat, long):
 
         url_str = f'https://wps.globalwindatlas.info/?service=WPS&VERSION=1.0.0&REQUEST=Execute&IDENTIFIER=get_libfile&DataInputs=location={{"type":"Point","coordinates":[{long},{lat}]}}'
-        s = get(url_str).text  # response contains link to generated file
+        s = urllib.request.urlopen(url_str).read().decode()  # response contains link to generated file
         url = s[s.index('http://wps.globalwindatlas.info'):].split('"')[0]
         lines = urllib.request.urlopen(url).read().decode().strip().split("\r\n")
 
