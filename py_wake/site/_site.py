@@ -256,7 +256,8 @@ class Site(ABC):
             sector[lo + 1:up + 1] = i
         return sector
 
-    def plot_ws_distribution(self, x=0, y=0, h=70, wd=[0], include_wd_distribution=False, ax=None):
+    def plot_ws_distribution(self, x=0, y=0, h=70, wd=[0], ws=np.arange(0.05, 30.05, .1),
+                             include_wd_distribution=False, ax=None):
         """Plot wind speed distribution
 
         Parameters
@@ -269,6 +270,8 @@ class Site(ABC):
             Local height above ground
         wd : int or array_like
             Wind direction(s) (one curve pr wind direction)
+        ws : array_like, optional
+            Wind speeds to calculate for
         include_wd_distributeion : bool, default is False
             If true, the wind speed probability distributions are multiplied by
             the wind direction probability. The sector size is set to 360 / len(wd).
@@ -277,9 +280,8 @@ class Site(ABC):
 
         """
         if ax is None:
-
             ax = plt
-        ws = np.arange(0.05, 30.05, .1)
+
         lbl = "Wind direction: %d deg"
         if include_wd_distribution:
 
