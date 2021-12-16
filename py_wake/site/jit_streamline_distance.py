@@ -65,10 +65,10 @@ class JITStreamlineDistance(StraightDistance):
 
 def main():
     if __name__ == '__main__':
-        site = ParqueFicticioSite()
+
         wt = V80()
-        vf3d = VectorField3D.from_WaspGridSite(site)
-        site.distance = JITStreamlineDistance(vf3d)
+        vf3d = VectorField3D.from_WaspGridSite(ParqueFicticioSite())
+        site = ParqueFicticioSite(distance=JITStreamlineDistance(vf3d))
 
         x, y = site.initial_position[:].T
         wfm = NOJ(site, wt)
