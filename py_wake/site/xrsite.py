@@ -9,7 +9,7 @@ from py_wake.site.distance import StraightDistance
 from py_wake.utils import weibull
 from py_wake.utils.ieawind37_utils import iea37_names
 from py_wake.utils.grid_interpolator import GridInterpolator, EqDistRegGrid2DInterpolator
-import urllib
+import urllib.request
 
 
 class XRSite(Site):
