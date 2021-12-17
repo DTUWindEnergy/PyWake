@@ -39,7 +39,8 @@ class StraightDistance():
             ax.legend()
 
     def setup(self, src_x_i, src_y_i, src_h_i, dst_xyh_j=None):
-        src_x_i, src_y_i, src_h_i = map(np.asarray, [src_x_i, src_y_i, src_h_i])
+        # +.0 ensures float or complex
+        src_x_i, src_y_i, src_h_i = [np.asarray(v) + .0 for v in [src_x_i, src_y_i, src_h_i]]
         self.src_x_i, self.src_y_i, self.src_h_i = src_x_i, src_y_i, src_h_i
 
         self.dx_ii = src_x_i - src_x_i[:, na]
