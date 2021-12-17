@@ -229,7 +229,6 @@ def test_dAEP_2wt():
                                        ct_func=ct, power_func=power, power_unit='w')
     wt.set_gradient_funcs(dpower, dct)
     wfm = IEA37SimpleBastankhahGaussian(site, wt)
-    x, y = iea37_site.initial_position[np.array([0, 2, 5, 8, 14])].T
 
     # plot 2 wt case
     x, y = np.array([[0, 130 * 4], [0, 0]], dtype=float)
