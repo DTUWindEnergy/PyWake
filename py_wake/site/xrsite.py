@@ -303,6 +303,46 @@ class XRSite(Site):
                 xr_site = XRSite(ds)
         return xr_site
 
+    @classmethod
+    def from_pywasp_pwc(cls, pwc, **kwargs):
+        """ Instanciate XRSite from a pywasp predicted wind climate (PWC) xr.Dataset
+
+        Parameters
+        ----------
+        pwc : xr.Dataset
+            pywasp predicted wind climate dataset. At a minimum should contain
+            "A", "k", and "wdfreq".
+
+        """
+        renames = {
+            "wdfreq": "Sector_frequency",
+            "A": "Weibull_A",
+            "k": "Weibull_k",
+            "turbulence_intensity": "TI",
+            "sector": "wd",
+            "point": "i",
+            "west_east": "x",
+            "south_north": "y",
+            "height": "h",
+        }
+
+        pwc_renamed = pwc.rename({k: v for k, v in renames.items() if k in pwc})
+        pwc_renamed = pwc_renamed.transpose("i", "wd", ...)
+
+        ws_mean = xr.apply_ufunc(
+            weibull.mean, pwc_renamed["Weibull_A"], pwc_renamed["Weibull_k"]
+        )
+        speedup = ws_mean / ws_mean.max(dim="i")
+        if "Speedup" not in pwc_renamed.data_vars:
+            pwc_renamed["Speedup"] = speedup
+
+        # Add TI and P if not already present
+        for var in ["P", "TI"]:
+            if var not in pwc_renamed.data_vars:
+                pwc_renamed[var] = pwc_renamed["Weibull_A"] * 0.0
+
+        return cls(pwc_renamed, **kwargs)
+
 
 class UniformSite(XRSite):
     """Site with uniform (same wind over all, i.e. flat uniform terrain) and
