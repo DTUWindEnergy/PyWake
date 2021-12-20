@@ -590,5 +590,6 @@ def test_from_pywasp_pwc():
     npt.assert_array_equal(site.ds.y.values, y)
     npt.assert_array_equal(site.ds.h.values, h)
     npt.assert_array_equal(site.ds.i.values, i)
+    npt.assert_array_equal(site.ds.wd.values, wd)
     npt.assert_allclose(site.ds.Speedup.values, speedups, rtol=1e-8)
     
