@@ -50,15 +50,20 @@ class EngineeringWindFarmModel(WindFarmModel):
                  groundModel=None):
 
         WindFarmModel.__init__(self, site, windTurbines)
-        check_model(wake_deficitModel, WakeDeficitModel, 'wake_deficitModel')
-        check_model(rotorAvgModel, RotorAvgModel, 'rotorAvgModel')
-        check_model(superpositionModel, SuperpositionModel, 'superpositionModel')
-        check_model(blockage_deficitModel, BlockageDeficitModel, 'blockage_deficitModel')
-        check_model(deflectionModel, DeflectionModel, 'deflectionModel')
-        check_model(turbulenceModel, TurbulenceModel, 'turbulenceModel')
         if groundModel is None:
             groundModel = NoGround()
-        check_model(groundModel, GroundModel, 'groundModel')
+        for model, cls, name in [(wake_deficitModel, WakeDeficitModel, 'wake_deficitModel'),
+                                 (rotorAvgModel, RotorAvgModel, 'rotorAvgModel'),
+                                 (superpositionModel, SuperpositionModel, 'superpositionModel'),
+                                 (blockage_deficitModel, BlockageDeficitModel, 'blockage_deficitModel'),
+                                 (deflectionModel, DeflectionModel, 'deflectionModel'),
+                                 (turbulenceModel, TurbulenceModel, 'turbulenceModel'),
+                                 (groundModel, GroundModel, 'groundModel')]:
+            check_model(model, cls, name)
+            if model is not None:
+                setattr(model, 'windFarmModel', self)
+            setattr(self, name, model)
+
         if isinstance(superpositionModel, WeightedSum):
             assert isinstance(wake_deficitModel, ConvectionDeficitModel)
             assert rotorAvgModel.__class__ is RotorCenter, "Multiple rotor average points not implemented for WeightedSum"
