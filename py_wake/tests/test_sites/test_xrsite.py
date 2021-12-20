@@ -493,3 +493,102 @@ def test_interp_special_cases():
     ip2 = ds.TI.sel_interp_all(lw.coords)
     npt.assert_array_equal(ip1.shape, ip2.shape)
     npt.assert_array_almost_equal(ip1.data, ip2.data)
+
+
+def test_from_pywasp_pwc():
+
+    A =  np.array([
+        [ 5.757,  6.088,  5.369],
+        [ 5.584,  5.806,  5.358],
+        [ 7.506,  7.707,  7.098],
+        [ 9.383, 10.082, 11.018],
+        [ 8.835,  9.644, 10.244],
+        [ 6.464,  7.071,  7.066],
+        [ 6.265,  6.626,  5.846],
+        [ 7.562,  7.858,  7.289],
+        [10.005, 10.42 , 10.124],
+        [10.046, 11.211, 12.218],
+        [ 8.821,  9.624, 10.19 ],
+        [ 5.948,  6.504,  6.499]
+    ])
+
+    k = np.array([
+        [1.912109, 1.919922, 1.990234],
+        [2.162109, 2.166016, 2.169922],
+        [2.638672, 2.626953, 2.771484],
+        [3.033203, 3.044922, 3.044922],
+        [2.884766, 2.880859, 2.697266],
+        [2.666016, 2.666016, 2.666016],
+        [2.513672, 2.501953, 2.470703],
+        [2.529297, 2.548828, 2.509766],
+        [2.533203, 2.537109, 2.533203],
+        [2.310547, 2.333984, 2.337891],
+        [1.986328, 1.986328, 1.900391],
+        [1.767578, 1.767578, 1.767578]
+    ])
+
+    wdfreq = np.array([
+        [0.0544071 , 0.0532056 , 0.04288784],
+        [0.0376036 , 0.0355262 , 0.03168268],
+        [0.05400841, 0.05099307, 0.04538284],
+        [0.08345144, 0.08324289, 0.09760682],
+        [0.09817267, 0.102156  , 0.1072249 ],
+        [0.06296581, 0.06525171, 0.06451698],
+        [0.04901042, 0.04791974, 0.03865756],
+        [0.06785324, 0.0656789 , 0.05674313],
+        [0.1384152 , 0.1309593 , 0.1174582 ],
+        [0.1622368 , 0.1655659 , 0.1941505 ],
+        [0.1219364 , 0.1269784 , 0.1319477 ],
+        [0.06993906, 0.07252219, 0.0717409 ]
+    ])
+
+    sector = np.linspace(0.0, 330.0, 12)
+
+    x = np.array([263655.0, 263891.1, 264022.2])
+    y = np.array([6506601.0, 6506394.0, 6506124.0])
+    h = np.array([70]*3)
+
+    pwc = xr.Dataset(
+        data_vars={
+            "A": (("sector", "point"), A), 
+            "k": (("sector", "point"), k), 
+            "wdfreq": (("sector", "point"), wdfreq), 
+            "turbulence_intensity": (("sector", "point"), np.zeros_like(A)), 
+        }, 
+        coords={
+            "sector": (("sector",), sector),
+            "sector_floor": (("sector",), np.mod(sector - 15, 360)), 
+            "sector_ceil": (("sector",), np.mod(sector + 15, 360)), 
+            "point": (("point"), np.arange(len(x))), 
+            "west_east": (("point",), x), 
+            "south_north": (("point",), y), 
+            "height": (("point",), h)
+        }
+    )
+
+    site = XRSite.from_pywasp_pwc(pwc)
+
+    speedups = np.array([
+        [0.94574503, 0.96176405, 0.97405529, 0.85145872, 0.86463324,
+        0.91415641, 0.94562806, 0.962134  , 0.9601336 , 0.82210133,
+        0.86466306, 0.91451415, 0.94574503],
+        [1.        , 1.        , 1.        , 0.9150481 , 0.94375361,
+        1.        , 1.        , 1.        , 1.        , 0.91755896,
+        0.94337573, 1.        , 1.        ],
+        [0.8811313 , 0.92283872, 0.92266141, 1.        , 1.        ,
+        0.99929289, 0.88201829, 0.92721526, 0.97155348, 1.        ,
+        1.        , 0.99923124, 0.8811313 ]
+    ])
+
+    wd = np.linspace(0.0, 360.0, 13)
+    i = np.arange(3)
+
+    npt.assert_array_equal(site.ds.Weibull_A.values[..., :12], A.T)
+    npt.assert_array_equal(site.ds.Weibull_k.values[..., :12], k.T)
+    npt.assert_array_equal(site.ds.Sector_frequency.values[..., :12], wdfreq.T)
+    npt.assert_array_equal(site.ds.x.values, x)
+    npt.assert_array_equal(site.ds.y.values, y)
+    npt.assert_array_equal(site.ds.h.values, h)
+    npt.assert_array_equal(site.ds.i.values, i)
+    npt.assert_allclose(site.ds.Speedup.values, speedups, rtol=1e-8)
+    
