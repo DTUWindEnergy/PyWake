@@ -27,7 +27,7 @@ def test_memory_usage():
     x, y = site.initial_position.T
 
     for wfm, mem_min, mem_max in [(NOJ(site, wt), 65, 90),
-                                  (All2AllIterative(site, wt, wake_deficitModel=NOJDeficit()), 540, 600)]:
+                                  (All2AllIterative(site, wt, wake_deficitModel=NOJDeficit()), 530, 600)]:
         mem_usage, _ = memory_profiler.memory_usage(
             (wfm, (x, y), {'wd': np.arange(0, 360, 4)}), interval=0.001, max_usage=True, retval=True)
 
