@@ -20,15 +20,16 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
         self.use_effective_ws = use_effective_ws
         ConvectionDeficitModel.__init__(self)
 
-    def k_ilk(self, **_):
-        return np.reshape(self._k, (1, 1, 1))
+    def k_ilk(self, **kwargs):
+        shape = np.ones_like(kwargs.get('WS_ilk', np.ones((1, 1, 1))).shape)
+        return np.reshape(self._k, shape)
 
     def _calc_deficit(self, WS_ilk, WS_eff_ilk, D_src_il, dw_ijlk, ct_ilk, **kwargs):
         WS_ref_ilk = (WS_ilk, WS_eff_ilk)[self.use_effective_ws]
         sqrt1ct_ilk = np.sqrt(1 - ct_ilk)
         beta_ilk = 1 / 2 * (1 + sqrt1ct_ilk) / sqrt1ct_ilk
-        sigma_sqr_ijlk = (self.k_ilk(**kwargs)[:, na] * dw_ijlk /
-                          D_src_il[:, na, :, na] + .2 * np.sqrt(beta_ilk)[:, na])**2
+        k = self.k_ilk(WS_ilk=WS_ilk, **kwargs)[:, na]
+        sigma_sqr_ijlk = (k * dw_ijlk / D_src_il[:, na, :, na] + .2 * np.sqrt(beta_ilk)[:, na])**2
         # maximum added to avoid sqrt of negative number
         radical_ijlk = np.maximum(0, (1. - ct_ilk[:, na] / (8. * sigma_sqr_ijlk)))
         deficit_centre_ijlk = WS_ref_ilk[:, na] * (1. - np.sqrt(radical_ijlk)) * (dw_ijlk > 0)
@@ -51,7 +52,8 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
     def wake_radius(self, D_src_il, dw_ijlk, ct_ilk, **kwargs):
         sqrt1ct_ilk = np.sqrt(1 - ct_ilk)
         beta_ilk = 1 / 2 * (1 + sqrt1ct_ilk) / sqrt1ct_ilk
-        sigma_ijlk = self.k_ilk(**kwargs)[:, na] * dw_ijlk / D_src_il[:, na, :, na] + .2 * np.sqrt(beta_ilk)[:, na]
+        sigma_ijlk = self.k_ilk(**kwargs)[:, na] * dw_ijlk / \
+            D_src_il[:, na, :, na] + .2 * np.sqrt(beta_ilk)[:, na]
         return 2 * sigma_ijlk * D_src_il[:, na, :, na]
 
     def calc_deficit_convection(self, WS_ilk, WS_eff_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **kwargs):
@@ -161,7 +163,7 @@ class IEA37SimpleBastankhahGaussianDeficit(BastankhahGaussianDeficit):
 
     def _calc_layout_terms(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, **kwargs):
         eps = 1e-10
-        sigma_ijlk = self.k_ilk(**kwargs) * dw_ijlk * (dw_ijlk > eps) + (D_src_il / np.sqrt(8.))[:, na, :, na]
+        sigma_ijlk = self.k_ilk(WS_ilk=WS_ilk) * dw_ijlk * (dw_ijlk > eps) + (D_src_il / np.sqrt(8.))[:, na, :, na]
         self.layout_factor_ijlk = WS_ilk[:, na] * (dw_ijlk > eps) * \
             np.exp(-0.5 * (cw_ijlk / sigma_ijlk)**2)
         self.denominator_ijlk = 8. * (sigma_ijlk / D_src_il[:, na, :, na])**2

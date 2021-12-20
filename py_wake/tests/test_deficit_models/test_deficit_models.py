@@ -2,7 +2,7 @@ import pytest
 
 import matplotlib.pyplot as plt
 import numpy as np
-from py_wake.deficit_models.deficit_model import DeficitModel, WakeDeficitModel, BlockageDeficitModel
+from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel
 from py_wake.deficit_models.fuga import FugaDeficit, Fuga
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, IEA37SimpleBastankhahGaussianDeficit,\
     ZongGaussianDeficit, NiayifarGaussianDeficit, BastankhahGaussian, IEA37SimpleBastankhahGaussian, ZongGaussian,\
@@ -186,6 +186,7 @@ def test_wake_radius(deficitModel, wake_radius_ref):
     npt.assert_array_almost_equal(deficitModel.wake_radius(
         D_src_il=np.reshape([100, 50, 100, 100, 100], (5, 1)),
         dw_ijlk=np.reshape([500, 500, 1000, 500, 500], (5, 1, 1, 1)),
+        WS_ilk=np.reshape([10, 10, 10, 10, 10], (5, 1, 1)),
         ct_ilk=np.reshape([.8, .8, .8, .4, .8], (5, 1, 1)),
         TI_ilk=np.reshape([.1, .1, .1, .1, .05], (5, 1, 1)),
         TI_eff_ilk=np.reshape([.1, .1, .1, .1, .05], (5, 1, 1)))[:, 0, 0, 0],
