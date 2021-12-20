@@ -11,9 +11,16 @@ from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian
 from py_wake.examples.data.hornsrev1 import wt_x, wt_y, HornsrevV80, Hornsrev1Site
 from py_wake.tests import npt
 from py_wake.tests.test_files import tfp
-from pandas.plotting import register_matplotlib_converters
 import sys
-register_matplotlib_converters()
+
+path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
+
+
+def Fuga(site, wt):
+    return fuga.Fuga(path, site, wt)
+
+
+test_lst = [(NOJ, 1.2), (IEA37SimpleBastankhahGaussian, 1.5), (Fuga, 1)]
 
 
 def timeit(func, min_time=0, min_runs=1, verbose=False, line_profile=False, profile_funcs=[]):
@@ -49,13 +56,13 @@ def timeit(func, min_time=0, min_runs=1, verbose=False, line_profile=False, prof
     return newfunc
 
 
-def check_speed_Hornsrev(WFModel):
+def check_speed_Hornsrev(WFModel, max_min):
     assert getattr(sys, 'gettrace')() is None, "Skipping speed check, In debug mode!!!"
     wt = HornsrevV80()
     site = Hornsrev1Site()
     wf_model = WFModel(site, wt)
     aep, t_lst = timeit(lambda x, y: wf_model(x, y).aep().sum(), min_runs=3)(wt_x, wt_y)
-
+    assert min(t_lst) < max_min, f'{WFModel},{t_lst}'
     fn = tfp + "speed_check/%s.txt" % WFModel.__name__
     if os.path.isfile(fn):
         with open(fn) as fid:
@@ -86,32 +93,16 @@ def check_speed_Hornsrev(WFModel):
 
 
 def test_check_speed():
-    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
 
-    def Fuga(site, wt):
-        return fuga.Fuga(path, site, wt)
-
-    for WFModel in [NOJ, IEA37SimpleBastankhahGaussian, Fuga]:
+    for WFModel, max_min in test_lst:
         try:
-            check_speed_Hornsrev(WFModel)
+            check_speed_Hornsrev(WFModel, max_min)
         except Exception as e:
+            print(WFModel)
             print(e)
             raise e
-    if 1:
-        plt.show()
 
 
 if __name__ == '__main__':
-    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/'
-
-    def Fuga(site, wt):
-        return fuga.Fuga(path, site, wt)
-
-    for WFModel in [NOJ, IEA37SimpleBastankhahGaussian, Fuga]:
-        try:
-            check_speed_Hornsrev(WFModel)
-        except Exception as e:
-            print(e)
-            raise e
-
+    test_check_speed()
     plt.show()
