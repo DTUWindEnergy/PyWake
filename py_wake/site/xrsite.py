@@ -328,6 +328,9 @@ class XRSite(Site):
 
         pwc_renamed = pwc.rename({k: v for k, v in renames.items() if k in pwc})
         pwc_renamed = pwc_renamed.transpose("i", "wd", ...)
+        for coord in ["sector_floor", "sector_ceil"]:
+            if coord in pwc_renamed.coords:
+                pwc_renamed = pwc_renamed.drop_vars(coord)
 
         ws_mean = xr.apply_ufunc(
             weibull.mean, pwc_renamed["Weibull_A"], pwc_renamed["Weibull_k"]
