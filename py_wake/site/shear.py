@@ -23,7 +23,7 @@ class Shear(ABC):
         """
 
 
-class PowerShear():
+class PowerShear(Shear):
     def __init__(self, h_ref, alpha, interp_method='nearest'):
         self.h_ref = h_ref
         from py_wake.site._site import get_sector_xr
@@ -35,6 +35,20 @@ class PowerShear():
         if alpha.shape == ():
             alpha = alpha.data
         return (h / self.h_ref) ** alpha * WS
+
+
+class LogShear(Shear):
+    def __init__(self, h_ref, z0, interp_method='nearest'):
+        self.h_ref = h_ref
+        from py_wake.site._site import get_sector_xr
+        self.z0 = get_sector_xr(z0, "Roughness length")
+        self.interp_method = interp_method
+
+    def __call__(self, WS, WD, h):
+        z0 = self.z0.interp_all(WD, method=self.interp_method)
+        if z0.shape == ():
+            z0 = z0.data
+        return np.log(h / z0) / np.log(self.h_ref / z0) * WS
 
 
 # ======================================================================================================================
