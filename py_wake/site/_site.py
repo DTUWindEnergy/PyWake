@@ -117,14 +117,6 @@ class Site(ABC):
             ws = np.atleast_1d(ws)
         return wd, ws
 
-    def wref(self, wd, ws, ws_bins=None):
-        wd, ws = self.get_defaults(wd, ws)
-        WS = xr.DataArray(ws, [('ws', ws)])
-        ds = self.ws_bins(WS, ws_bins)
-        ds['WS'] = WS
-        ds['WD'] = xr.DataArray(wd, [('wd', wd)])
-        return ds
-
     def local_wind(self, x_i, y_i, h_i=None, wd=None, ws=None, time=False, wd_bin_size=None, ws_bins=None):
         """Local free flow wind conditions
 
