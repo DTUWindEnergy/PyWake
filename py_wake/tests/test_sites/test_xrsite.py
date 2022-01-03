@@ -91,6 +91,12 @@ def complex_ws_site():
     return XRSite(ds, shear=PowerShear(h_ref=100, alpha=.2), interp_method='linear')
 
 
+@pytest.fixture 
+def pywasp_pwc():
+    pwc_file = tfp + "pwc_parquo_fictio_small.nc"
+    return xr.open_dataset(pwc_file)
+    
+
 def test_uniform_local_wind(uniform_site):
     site = uniform_site
     x_i = y_i = np.arange(5)
@@ -495,7 +501,10 @@ def test_interp_special_cases():
     npt.assert_array_almost_equal(ip1.data, ip2.data)
 
 
-def test_from_pywasp_pwc():
+def test_from_pywasp_pwc(pywasp_pwc):
+
+    site = XRSite.from_pywasp_pwc(pywasp_pwc)
+
     A = np.array([
         [5.757, 6.088, 5.369],
         [5.584, 5.806, 5.358],
@@ -541,32 +550,6 @@ def test_from_pywasp_pwc():
         [0.06993906, 0.07252219, 0.0717409]
     ])
 
-    sector = np.linspace(0.0, 330.0, 12)
-
-    x = np.array([263655.0, 263891.1, 264022.2])
-    y = np.array([6506601.0, 6506394.0, 6506124.0])
-    h = np.array([70] * 3)
-
-    pwc = xr.Dataset(
-        data_vars={
-            "A": (("sector", "point"), A),
-            "k": (("sector", "point"), k),
-            "wdfreq": (("sector", "point"), wdfreq),
-            "turbulence_intensity": (("sector", "point"), np.zeros_like(A)),
-        },
-        coords={
-            "sector": (("sector",), sector),
-            "sector_floor": (("sector",), np.mod(sector - 15, 360)),
-            "sector_ceil": (("sector",), np.mod(sector + 15, 360)),
-            "point": (("point"), np.arange(len(x))),
-            "west_east": (("point",), x),
-            "south_north": (("point",), y),
-            "height": (("point",), h)
-        }
-    )
-
-    site = XRSite.from_pywasp_pwc(pwc)
-
     speedups = np.array([
         [0.94574503, 0.96176405, 0.97405529, 0.85145872, 0.86463324,
          0.91415641, 0.94562806, 0.962134, 0.9601336, 0.82210133,
@@ -578,6 +561,12 @@ def test_from_pywasp_pwc():
          0.99929289, 0.88201829, 0.92721526, 0.97155348, 1.,
          1., 0.99923124, 0.8811313]
     ])
+
+    sector = np.linspace(0.0, 330.0, 12)
+
+    x = np.array([263655.0, 263891.1, 264022.2])
+    y = np.array([6506601.0, 6506394.0, 6506124.0])
+    h = np.array([70] * 3)
 
     wd = np.linspace(0.0, 360.0, 13)
     i = np.arange(3)
