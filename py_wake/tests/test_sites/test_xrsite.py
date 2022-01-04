@@ -91,11 +91,11 @@ def complex_ws_site():
     return XRSite(ds, shear=PowerShear(h_ref=100, alpha=.2), interp_method='linear')
 
 
-@pytest.fixture 
+@pytest.fixture
 def pywasp_pwc():
     pwc_file = tfp + "pwc_parquo_fictio_small.nc"
     return xr.open_dataset(pwc_file)
-    
+
 
 def test_uniform_local_wind(uniform_site):
     site = uniform_site
