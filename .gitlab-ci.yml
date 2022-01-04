@@ -70,6 +70,8 @@ trigger_hub_test:
   trigger:
     project: TOPFARMPrivate/triggerhub/pywaketriggers
     strategy: depend
+  only:
+    - master
 
 # ===== build documentation =====
 pages:  # "pages" is a job specifically for GitLab pages [1]
