@@ -1,7 +1,8 @@
 from numpy import newaxis as na
 
 import numpy as np
-from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel
+from py_wake.deficit_models.deficit_model import DeficitModel, WakeDeficitModel, BlockageDeficitModel
+from py_wake.ground_models.ground_models import NoGround
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
 from py_wake.superposition_models import LinearSum
 from py_wake.tests.test_files import tfp
@@ -16,7 +17,7 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijlk', 'h_il', 'ct_ilk', 'D_src_il']
 
     def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/', remove_wriggles=False,
-                 method='linear'):
+                 method='linear', groundModel=NoGround()):
         """
         Parameters
         ----------
@@ -28,6 +29,7 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
             and out in the lateral direction) is set to zero.
             This means that all speed-up regions are also removed
         """
+        DeficitModel.__init__(self, groundModel=groundModel)
         BlockageDeficitModel.__init__(self, upstream_only=True)
         FugaUtils.__init__(self, LUT_path, on_mismatch='input_par')
         self.remove_wriggles = remove_wriggles
@@ -98,7 +100,7 @@ class FugaYawDeficit(FugaDeficit):
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijlk', 'h_il', 'ct_ilk', 'D_src_il', 'yaw_ilk']
 
     def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/',
-                 remove_wriggles=False, method='linear'):
+                 remove_wriggles=False, method='linear', groundModel=NoGround()):
         """
         Parameters
         ----------
@@ -110,7 +112,7 @@ class FugaYawDeficit(FugaDeficit):
             and out in the lateral direction) is set to zero.
             This means that all speed-up regions are also removed
         """
-
+        DeficitModel.__init__(self, groundModel=groundModel)
         FugaUtils.__init__(self, LUT_path, on_mismatch='input_par')
         self.remove_wriggles = remove_wriggles
         x, y, z, dUL = self.load()
@@ -133,15 +135,15 @@ class FugaYawDeficit(FugaDeficit):
                 return np.moveaxis([UL_interpolator.ev(x, y), UT_interpolator.ev(x, y)], 0, -1)
             self.lut_interpolator = interp
 
-    def calc_deficit_downwind(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk,
-                              dh_ijlk, h_il, ct_ilk, D_src_il, yaw_ilk, **_):
+    def calc_deficit_downwind(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk, dh_ijlk, h_il, ct_ilk, D_src_il, yaw_ilk, **_):
 
         mdUL_ijlk, mdUT_ijlk = np.moveaxis(self.interpolate(
             dw_ijlk, np.abs(hcw_ijlk), (h_il[:, na, :, na] + dh_ijlk)), -1, 0)
         mdUT_ijlk[hcw_ijlk < 0] *= -1  # UT is antisymmetric
         theta_ilk = np.deg2rad(yaw_ilk)
         mdu_ijlk = (mdUL_ijlk * np.cos(theta_ilk)[:, na] - mdUT_ijlk * np.sin(theta_ilk)[:, na])
-        mdu_ijlk *= ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na]))  # avoid wake on itself
+        # avoid wake on itself
+        mdu_ijlk *= ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na]))
 
         return mdu_ijlk * (ct_ilk * WS_eff_ilk**2 / WS_ilk)[:, na]
 
@@ -254,8 +256,7 @@ class Fuga(PropagateDownwind):
 
 
 class FugaBlockage(All2AllIterative):
-    def __init__(self, LUT_path, site, windTurbines,
-                 rotorAvgModel=RotorCenter(),
+    def __init__(self, LUT_path, site, windTurbines, rotorAvgModel=RotorCenter(),
                  deflectionModel=None, turbulenceModel=None, convergence_tolerance=1e-6, remove_wriggles=False):
         """
         Parameters

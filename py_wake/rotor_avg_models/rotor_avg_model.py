@@ -60,6 +60,7 @@ class GridRotorAvg(RotorAvgModel):
 
         new_kwargs['cw_ijlk'] = np.sqrt(hcw_ijlkp**2 + dh_ijlkp**2)
         new_kwargs['D_dst_ijl'] = D_dst_ijl
+        new_kwargs['dw_ijlk'] = kwargs['dw_ijlk'][..., na] * np.ones_like(new_kwargs['cw_ijlk'])
 
         new_kwargs.update({k: v[..., na] for k, v in kwargs.items() if k not in new_kwargs})
         return new_kwargs

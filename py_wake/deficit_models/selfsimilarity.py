@@ -1,7 +1,9 @@
 import numpy as np
 from numpy import newaxis as na
+from py_wake.deficit_models.deficit_model import DeficitModel
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models import BlockageDeficitModel
+from py_wake.ground_models.ground_models import NoGround
 
 
 class SelfSimilarityDeficit(BlockageDeficitModel):
@@ -10,9 +12,11 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
     """
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
-    def __init__(self, ss_gamma=1.1, ss_lambda=0.587, ss_eta=1.32,
-                 ss_alpha=8. / 9., ss_beta=np.sqrt(2), limiter=1e-10, superpositionModel=None):
-        super().__init__(superpositionModel=superpositionModel)
+    def __init__(self, ss_gamma=1.1, ss_lambda=0.587, ss_eta=1.32, ss_alpha=8. / 9., ss_beta=np.sqrt(2),
+                 limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=NoGround(),
+                 upstream_only=False):
+        DeficitModel.__init__(self, groundModel=groundModel)
+        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
         # function constants defined in [1]
         self.ss_gamma = ss_gamma
         self.ss_lambda = ss_lambda
@@ -23,6 +27,7 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
         self.a0p = np.array([0.2460, 0.0586, 0.0883])
         # limiter for singularities
         self.limiter = limiter
+        self.exclude_wake = exclude_wake
 
     def r12(self, x_ijlk):
         """
@@ -75,13 +80,27 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
         Deficit as function of axial and radial coordinates.
         Eq. (5) in [1].
         """
+        # Ensure dw and cw have the correct shape
+        if (cw_ijlk.shape[3] != ct_ilk.shape[2]):
+            cw_ijlk = np.repeat(cw_ijlk, ct_ilk.shape[2], axis=3)
+            dw_ijlk = np.repeat(dw_ijlk, ct_ilk.shape[2], axis=3)
+
         R_ijl = (D_src_il / 2)[:, na]
-        x_ijlk = dw_ijlk / R_ijl[..., na]
+        x_ijlk = - np.abs(dw_ijlk) / R_ijl[..., na]
         # radial shape function
         feps_ijlk = self.f_eps(x_ijlk, cw_ijlk, R_ijl)
         a0x_ijlk = self.a0(x_ijlk, ct_ilk) * self.a0f(x_ijlk)
+        # deficit
+        deficit_ijlk = WS_ilk[:, na] * (x_ijlk < -self.limiter) * a0x_ijlk * feps_ijlk
+        deficit_ijlk[dw_ijlk > 0] = -deficit_ijlk[dw_ijlk > 0]
         # only activate the model upstream of the rotor
-        return WS_ilk[:, na] * (x_ijlk < -self.limiter) * a0x_ijlk * feps_ijlk
+        if self.exclude_wake:
+            # indices in wake region
+            iw = ((dw_ijlk / R_ijl[..., na] >= -self.limiter) &
+                  (np.abs(cw_ijlk) <= R_ijl[..., na])) * np.full(deficit_ijlk.shape, True)
+            deficit_ijlk[iw] = 0.
+
+        return deficit_ijlk
 
 
 class SelfSimilarityDeficit2020(SelfSimilarityDeficit):
@@ -105,8 +124,10 @@ class SelfSimilarityDeficit2020(SelfSimilarityDeficit):
                  r12p=np.array([-0.672, 0.4897]),
                  ngp=np.array([-1.381, 2.627, -1.524, 1.336]),
                  fgp=np.array([-0.06489, 0.4911, 1.116, -0.1577]),
-                 limiter=1e-10, superpositionModel=None):
-        BlockageDeficitModel.__init__(self, superpositionModel=superpositionModel)
+                 limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=NoGround(),
+                 upstream_only=False):
+        DeficitModel.__init__(self, groundModel=groundModel)
+        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
         # original constants from [1]
         self.ss_alpha = ss_alpha
         self.ss_beta = ss_beta
@@ -119,6 +140,7 @@ class SelfSimilarityDeficit2020(SelfSimilarityDeficit):
         self.a0p = np.array([0.2460, 0.0586, 0.0883])
         # limiter for singularities
         self.limiter = limiter
+        self.exclude_wake = exclude_wake
 
     def r12(self, x_ijlk):
         """
@@ -201,12 +223,16 @@ def main():
 
         plt.figure()
         x, y = np.array([-2 * R]), np.arange(200)
+        X, Y = np.meshgrid(x, y)
+        x_j, y_j = X.flatten(), Y.flatten()
+        dw_ijlk = x_j.reshape((1, -1, 1, 1))
+        cw_ijlk = np.abs(y_j.reshape((1, -1, 1, 1)))
         deficit = ss.calc_deficit(WS_ilk=WS_ilk, D_src_il=D_src_il,
-                                  dw_ijlk=x.reshape((1, len(x), 1, 1)),
-                                  cw_ijlk=y.reshape((1, len(y), 1, 1)), ct_ilk=ct_ilk)
+                                  dw_ijlk=dw_ijlk,
+                                  cw_ijlk=cw_ijlk, ct_ilk=ct_ilk)
         deficit20 = ss20.calc_deficit(WS_ilk=WS_ilk, D_src_il=D_src_il,
-                                      dw_ijlk=x.reshape((1, len(x), 1, 1)),
-                                      cw_ijlk=y.reshape((1, len(y), 1, 1)), ct_ilk=ct_ilk)
+                                      dw_ijlk=dw_ijlk,
+                                      cw_ijlk=cw_ijlk, ct_ilk=ct_ilk)
         plt.title('Fig 10 from [1]')
         r12 = ss.r12(x / R)
         r12_20 = ss20.r12(x / R)
@@ -226,9 +252,9 @@ def main():
         clevels = [.9, .95, .98, .99, .995, .998, .999, 1., 1.01, 1.02, 1.03]
         flow_map.plot_wake_map()
         plt.contour(flow_map.x, flow_map.y, flow_map.WS_eff[:, :,
-                                                            0, -1, 0] / 10, levels=clevels, colors='k', linewidths=0.5)
+                    0, -1, 0] / 10, levels=clevels, colors='k', linewidths=0.5)
         plt.contour(flow_map.x, flow_map.y, flow_map20.WS_eff[:, :,
-                                                              0, -1, 0] / 10, levels=clevels, colors='r', linewidths=0.5)
+                    0, -1, 0] / 10, levels=clevels, colors='r', linewidths=0.5)
         plt.title('Original (black) vs updated (red)')
         plt.show()
 
@@ -253,7 +279,8 @@ def main():
         aep20 = sim_res20.aep().sum()
 
         # plot wake map
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 4.5), tight_layout=True)
+        fig, (ax1, ax2) = plt.subplots(
+            1, 2, figsize=(9, 4.5), tight_layout=True)
         levels = np.array([.9, .95, .98, .99, .995, .998, .999, 1., 1.01, 1.02, 1.03]) * 10.
         print(noj_ss)
         flow_map = sim_res.flow_map(wd=30, ws=10.)

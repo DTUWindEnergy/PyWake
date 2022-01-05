@@ -2,11 +2,11 @@ import pytest
 
 import matplotlib.pyplot as plt
 import numpy as np
-from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel
+from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel, DeficitModel
 from py_wake.deficit_models.fuga import FugaDeficit, Fuga
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, IEA37SimpleBastankhahGaussianDeficit,\
     ZongGaussianDeficit, NiayifarGaussianDeficit, BastankhahGaussian, IEA37SimpleBastankhahGaussian, ZongGaussian,\
-    NiayifarGaussian
+    NiayifarGaussian, CarbajofuertesGaussianDeficit, TurboGaussianDeficit
 from py_wake.deficit_models.gcl import GCLDeficit, GCL, GCLLocal
 from py_wake.deficit_models.noj import NOJDeficit, NOJ, NOJLocalDeficit, NOJLocal, TurboNOJDeficit
 from py_wake.deficit_models import VortexDipole
@@ -15,6 +15,7 @@ from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windfarm
 from py_wake.flow_map import HorizontalGrid, XYGrid
+from py_wake.ground_models.ground_models import NoGround
 from py_wake.superposition_models import SquaredSum, WeightedSum
 from py_wake.tests import npt
 from py_wake.tests.test_files import tfp
@@ -67,7 +68,7 @@ class GCLLocalDeficit(GCLDeficit):
                            26419.65189, 40603.68618, 45768.58091, 24390.71103, 14567.43106,
                            15197.82861, 32985.67922, 75062.92788, 18281.21981, 12470.01322,
                            8433.77587])),
-     (ZongGaussianDeficit(),
+     (ZongGaussianDeficit(eps_coeff=0.35),
       (354263.1062694012, [8960.58672, 8095.48341, 11328.51572, 13924.50408, 19938.78428,
                            25141.4657, 39063.84731, 41152.04065, 22580.67854, 12944.55424,
                            14778.95385, 32294.41749, 66540.62665, 17898.1109, 12126.32111,
@@ -77,6 +78,16 @@ class GCLLocalDeficit(GCLDeficit):
                            25426.07466, 39282.9259, 42344.50431, 23209.23399, 13390.08421,
                            14807.66824, 32535.89096, 69640.3283, 18031.93957, 12149.88163,
                            7752.15401])),
+     (CarbajofuertesGaussianDeficit(),
+      (362232.9643785641, [9140.59, 8399.80837, 11382.50882, 14053.32754, 20625.5118,
+                           25374.06361, 39250.03042, 42699.02591, 23034.28679, 13479.45387,
+                           14791.05027, 32446.01148, 69635.02796, 17982.12684, 12136.24637,
+                           7803.89434])),
+     (TurboGaussianDeficit(),
+      (362942.7163763603, [9152.31489, 8513.7505, 11344.72644, 14043.03361, 20480.38941,
+                           25355.47736, 39119.74634, 43278.23173, 23063.83353, 13541.60245,
+                           14949.91728, 32424.59269, 69598.37005, 17970.25619, 12266.59879,
+                           7839.8751])),
 
      ])
 def test_IEA37_ex16(deficitModel, aep_ref):
@@ -118,9 +129,13 @@ def test_IEA37_ex16(deficitModel, aep_ref):
       [2.39, 5.01, 7.74, 8.34, 7.95, 7.58, 7.29, 7.32, 7.61, 7.92, 8.11, 8.09, 7.95, 7.83, 7.92, 8.1, 8.3]),
      (GCLLocalDeficit(),
       [3.05, 5.24, 7.61, 8.36, 8.08, 7.81, 7.61, 7.63, 7.82, 8.01, 8.11, 8.07, 7.94, 7.83, 7.92, 8.1, 8.3]),
-     (ZongGaussianDeficit(),
+     (ZongGaussianDeficit(eps_coeff=0.35),
       [6.34, 7.08, 8.09, 8.36, 7.5, 6.2, 5.23, 5.34, 6.43, 7.64, 8.08, 7.75, 7.36, 7.19, 7.32, 7.69, 8.14]),
      (NiayifarGaussianDeficit(),
+      [0.18, 3.6, 7.27, 8.32, 7.61, 6.64, 5.97, 6.04, 6.8, 7.69, 8.08, 7.87, 7.59, 7.46, 7.56, 7.84, 8.19]),
+     (CarbajofuertesGaussianDeficit(),
+      [0.18, 3.6, 7.27, 8.32, 7.61, 6.64, 5.97, 6.04, 6.8, 7.69, 8.08, 7.87, 7.59, 7.46, 7.56, 7.84, 8.19]),
+     (TurboGaussianDeficit(),
       [0.18, 3.6, 7.27, 8.32, 7.61, 6.64, 5.97, 6.04, 6.8, 7.69, 8.08, 7.87, 7.59, 7.46, 7.56, 7.84, 8.19]),
      ][1:2])
 def test_deficitModel_wake_map(deficitModel, ref):
@@ -162,20 +177,16 @@ def test_deficitModel_wake_map(deficitModel, ref):
     # test that the result is equal to last run (no evidens that  these number are correct)
     [(NOJDeficit(), [100., 75., 150., 100., 100.]),
      (NOJLocalDeficit(), [71., 46., 92., 71., 61.5]),
-     (TurboNOJDeficit(), [99.024477, 61.553917,
-                          123.107833, 92.439673, 97.034049]),
-     (BastankhahGaussianDeficit(),
-      [83.336286, 57.895893, 115.791786, 75.266662, 83.336286]),
-     (IEA37SimpleBastankhahGaussianDeficit(),
-      [83.336286, 57.895893, 115.791786, 75.266662, 83.336286]),
-     (FugaDeficit(LUT_path=tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/'),
-      [100, 50, 100, 100, 100]),
-     (GCLDeficit(),
-      [156.949964, 97.763333, 195.526667, 113.225695, 111.340236]),
-     (GCLLocalDeficit(),
-      [156.949964, 97.763333, 195.526667, 113.225695, 111.340236]),
-     (ZongGaussianDeficit(), [91.15734, 66.228381, 132.456762, 94.90156, 79.198215]),
+     (TurboNOJDeficit(), [99.024477, 61.553917, 123.107833, 92.439673, 97.034049]),
+     (BastankhahGaussianDeficit(), [83.336286, 57.895893, 115.791786, 75.266662, 83.336286]),
+     (IEA37SimpleBastankhahGaussianDeficit(), [83.336286, 57.895893, 115.791786, 75.266662, 83.336286]),
+     (FugaDeficit(LUT_path=tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/'), [100, 50, 100, 100, 100]),
+     (GCLDeficit(), [156.949964, 97.763333, 195.526667, 113.225695, 111.340236]),
+     (GCLLocalDeficit(), [156.949964, 97.763333, 195.526667, 113.225695, 111.340236]),
+     (ZongGaussianDeficit(eps_coeff=0.35), [91.15734, 66.228381, 132.456762, 94.90156, 79.198215]),
      (NiayifarGaussianDeficit(), [92.880786, 67.440393, 134.880786, 84.811162, 73.880786]),
+     (CarbajofuertesGaussianDeficit(), [102.914211, 68.866465, 137.866624, 102.914211, 85.457105]),
+     (TurboGaussianDeficit(), [99.905263, 61.99431, 123.988619, 85.250835, 97.914835]),
      ])
 def test_wake_radius(deficitModel, wake_radius_ref):
 
@@ -243,7 +254,7 @@ def test_wake_radius_not_implemented():
                                      24493.53897, 38205.75284, 40045.9948, 22264.97018, 12662.90784,
                                      14650.96535, 31289.90349, 65276.92307, 17341.39229, 12021.3049,
                                      7331.15717])),
-     (ZongGaussianDeficit(),
+     (ZongGaussianDeficit(eps_coeff=0.35),
       (342944.4057168523, [8674.44232, 7806.22033, 11114.78804, 13549.48197, 18895.50866,
                            24464.34244, 38326.85532, 39681.61999, 21859.59465, 12590.25899,
                            14530.24656, 31158.81189, 63812.14454, 17268.73912, 11922.25359,
@@ -281,7 +292,7 @@ def test_IEA37_ex16_convection(deficitModel, aep_ref):
     # test that the result is equal to last run (no evidens that  these number are correct)
     [(BastankhahGaussianDeficit(),
       [0.17, 3.55, 7.61, 8.12, 7.58, 6.63, 5.93, 6.04, 6.65, 7.35, 7.69, 7.65, 7.54, 7.45, 7.55, 7.84, 8.19]),
-     (ZongGaussianDeficit(),
+     (ZongGaussianDeficit(eps_coeff=0.35),
       [6.34, 7.05, 7.9, 8.15, 7.45, 6.19, 5.21, 5.26, 6.38, 7.32, 7.7, 7.54, 7.34, 7.18, 7.32, 7.69, 8.14]),
      (NiayifarGaussianDeficit(),
       [0.17, 3.55, 7.61, 8.12, 7.58, 6.63, 5.93, 6.04, 6.65, 7.35, 7.69, 7.65, 7.55, 7.45, 7.56, 7.84, 8.19]),
@@ -323,7 +334,7 @@ def test_deficitModel_wake_map_convection(deficitModel, ref):
 @pytest.mark.parametrize(
     'deficitModel,ref',
     # test that the result is equal to last run (no evidens that  these number are correct)
-    [(ZongGaussianDeficit(),
+    [(ZongGaussianDeficit(eps_coeff=0.35),
       [6.34, 7.05, 8.18, 8.25, 7.49, 6.2, 5.2, 5.26, 6.37, 7.33, 7.7, 7.54, 7.34, 7.18, 7.32, 7.7, 8.16])
      ])
 def test_deficitModel_wake_map_convection_all2all(deficitModel, ref):
@@ -396,10 +407,10 @@ def test_deficitModel_wake_map_convection_all2all(deficitModel, ref):
                   15197.82861, 32985.67922, 75062.92788, 18281.21981, 12470.01322,
                   8433.77587])),
      (ZongGaussian,
-      (354263.1062694012, [8960.58672, 8095.48341, 11328.51572, 13924.50408, 19938.78428,
-                           25141.4657, 39063.84731, 41152.04065, 22580.67854, 12944.55424,
-                           14778.95385, 32294.41749, 66540.62665, 17898.1109, 12126.32111,
-                           7494.21561])),
+      (354835.94834511646, [8980.11244, 8114.89785, 11330.44682, 13937.09531, 19989.40257,
+                            25164.19987, 39070.50626, 41250.73072, 22629.88335, 12975.84852,
+                            14779.98654, 32311.99639, 66753.4865, 17907.85342, 12127.16844,
+                            7512.33335])),
      (NiayifarGaussian,
       (362228.4003016239, [9210.01349, 8330.06642, 11392.04851, 14082.13366, 20643.45247,
                            25426.07466, 39282.9259, 42344.50431, 23209.23399, 13390.08421,
@@ -444,11 +455,18 @@ def test_wake_blockage_split(upstream_only, ref):
     class MyWakeModel(WakeDeficitModel):
         args4deficit = []
 
+        def __init__(self):
+            DeficitModel.__init__(self, groundModel=NoGround())
+
         def calc_deficit(self, dw_ijlk, **kwargs):
             return np.ones_like(dw_ijlk) * 2
 
     class MyBlockageModel(BlockageDeficitModel):
         args4deficit = []
+
+        def __init__(self, upstream_only):
+            DeficitModel.__init__(self, groundModel=NoGround())
+            BlockageDeficitModel.__init__(self, upstream_only=upstream_only)
 
         def calc_deficit(self, dw_ijlk, **kwargs):
             return np.ones_like(dw_ijlk)

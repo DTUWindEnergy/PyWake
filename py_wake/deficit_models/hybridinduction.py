@@ -2,7 +2,9 @@ import numpy as np
 from numpy import newaxis as na
 from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit2020
 from py_wake.deficit_models.vortexdipole import VortexDipole
+from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
+from py_wake.ground_models.ground_models import NoGround
 
 
 class HybridInduction(BlockageDeficitModel):
@@ -27,8 +29,10 @@ class HybridInduction(BlockageDeficitModel):
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
     def __init__(self, switch_radius=6.,
-                 near_rotor=SelfSimilarityDeficit2020(), far_field=VortexDipole(), superpositionModel=None):
-        BlockageDeficitModel.__init__(self, superpositionModel=superpositionModel)
+                 near_rotor=SelfSimilarityDeficit2020(), far_field=VortexDipole(), superpositionModel=None,
+                 groundModel=NoGround(), upstream_only=False):
+        DeficitModel.__init__(self, groundModel=groundModel)
+        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
         self.switch_radius = switch_radius
         self.near_rotor = near_rotor
         self.far_field = far_field
@@ -36,10 +40,12 @@ class HybridInduction(BlockageDeficitModel):
     def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):
 
         # deficit given by near-rotor model
-        dnr_ijlk = self.near_rotor.calc_deficit(WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk)
+        dnr_ijlk = self.near_rotor.calc_deficit(
+            WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk)
 
         # deficit given by far-field model
-        dff_ijlk = self.far_field.calc_deficit(WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk)
+        dff_ijlk = self.far_field.calc_deficit(
+            WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk)
 
         # apply deficits in specified regions
         R_il = (D_src_il / 2)

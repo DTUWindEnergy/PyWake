@@ -1,6 +1,8 @@
 import numpy as np
 from numpy import newaxis as na
+from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
+from py_wake.ground_models.ground_models import NoGround
 
 
 class Rathmann(BlockageDeficitModel):
@@ -22,8 +24,10 @@ class Rathmann(BlockageDeficitModel):
 
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
-    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None):
-        BlockageDeficitModel.__init__(self, superpositionModel=superpositionModel)
+    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=NoGround(),
+                 upstream_only=False):
+        DeficitModel.__init__(self, groundModel=groundModel)
+        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
         # coefficients for BEM approximation by Madsen (1997)
         self.a0p = np.array([0.2460, 0.0586, 0.0883])
         # limiter to avoid singularities
@@ -68,7 +72,7 @@ class Rathmann(BlockageDeficitModel):
     def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):
         """
         The deficit is determined from a streamwise and radial shape function, whereas
-        the strength is given vom vortex and BEM theory.
+        the strength is given from vortex and BEM theory.
         """
         # Ensure dw and cw have the correct shape
         if (cw_ijlk.shape[3] != ct_ilk.shape[2]):
@@ -88,7 +92,7 @@ class Rathmann(BlockageDeficitModel):
         G_ijlk = self.G(xi_ijlk, rho_ijlk)
         # deficit
         deficit_ijlk = gammat_ilk[:, na] / 2. * dmu_ijlk * G_ijlk
-        # turn deficiti into speed-up downstream
+        # turn deficit into speed-up downstream
         deficit_ijlk[dw_ijlk > 0] = -deficit_ijlk[dw_ijlk > 0]
 
         if self.exclude_wake:
@@ -115,8 +119,10 @@ class RathmannScaled(Rathmann):
 
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
-    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True):
-        BlockageDeficitModel.__init__(self)
+    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=NoGround(),
+                 upstream_only=False):
+        DeficitModel.__init__(self, groundModel=groundModel)
+        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
         # coefficients for BEM approximation by Madsen (1997)
         self.a0p = np.array([0.2460, 0.0586, 0.0883])
         # limiter to avoid singularities
@@ -139,8 +145,7 @@ class RathmannScaled(Rathmann):
         fac[fac > 1.] = 1.
         mval = 1. - 4. * self.sd[4]
         fac[fac < mval] = mval
-        boost_ijlk = self.sd[0] * \
-            np.exp(self.sd[1] * fac * ct_ilk[:, na]) + \
+        boost_ijlk = self.sd[0] * np.exp(self.sd[1] * fac * ct_ilk[:, na]) + \
             self.sd[2] * np.exp(self.sd[3] * fac * ct_ilk[:, na])
 
         return boost_ijlk
@@ -196,11 +201,9 @@ def main():
         print(t2 - t1, t3 - t2, t4 - t3, t5 - t4)
 
         plt.figure()
-        clevels = np.array(
-            [.6, .7, .8, .9, .95, .98, .99, .995, .998, .999, 1., 1.005, 1.01, 1.02, 1.05]) * 10.
+        clevels = np.array([.6, .7, .8, .9, .95, .98, .99, .995, .998, .999, 1., 1.005, 1.01, 1.02, 1.05]) * 10.
         flow_map.plot_wake_map(levels=clevels)
-        plt.contour(flow_map.x, flow_map.y,
-                    flow_map.WS_eff[:, :, 0, -1, 0], levels=clevels, colors='k', linewidths=1)
+        plt.contour(flow_map.x, flow_map.y, flow_map.WS_eff[:, :, 0, -1, 0], levels=clevels, colors='k', linewidths=1)
         plt.contour(flow_map.x, flow_map.y, flow_map_ras.WS_eff[:, :, 0, -1, 0],
                     levels=clevels, colors='g', linewidths=1, linestyles='dashed')
         plt.contour(flow_map.x, flow_map.y, flow_map_vc.WS_eff[:, :, 0, -1, 0],
@@ -243,9 +246,8 @@ def main():
 
         class epfl_model_wt(OneTypeWindTurbines):
             def __init__(self):
-                OneTypeWindTurbines.__init__(self, 'NREL 5MW', diameter=2,
-                                             hub_height=1, ct_func=self._ct,
-                                             power_func=self._power, power_unit='W')
+                OneTypeWindTurbines.__init__(self, 'NREL 5MW', diameter=2, hub_height=1,
+                                             ct_func=self._ct, power_func=self._power, power_unit='W')
 
             def _ct(self, u):
                 ct = 0.798
@@ -278,17 +280,15 @@ def main():
 
         def pywake_run(blockage_models):
 
-            grid = HorizontalGrid(x=np.linspace(-10 * d, 10 * d, 100),
-                                  y=np.linspace(-15, 2 * d, 100))
+            grid = HorizontalGrid(x=np.linspace(-10 * d, 10 * d, 100), y=np.linspace(-15, 2 * d, 100))
 
             res = {}
             out = {}
             for nam, blockage_model in blockage_models:
                 print(nam, blockage_model)
                 # for dum, rotor_avg_model in rotor_avg_models:
-                wm = All2AllIterative(site, wt, wake_deficitModel=NoWakeDeficit(),
-                                      superpositionModel=LinearSum(), blockage_deficitModel=blockage_model,
-                                      rotorAvgModel=RotorCenter())
+                wm = All2AllIterative(site, wt, wake_deficitModel=NoWakeDeficit(), superpositionModel=LinearSum(),
+                                      blockage_deficitModel=blockage_model, rotorAvgModel=RotorCenter())
                 res[nam] = wm(wt_x, wt_y, wd=[180., 195., 210., 225.], ws=[1.])
                 tic = time.perf_counter()
                 flow_map = res[nam].flow_map(grid=grid, ws=[1.], wd=225.)
@@ -301,10 +301,8 @@ def main():
         out, res = pywake_run(blockage_models)
         # CFD data from Meyer Forsting et al. 2017
         p_cfd = np.array([[-1.12511646713429, 0.268977884040651, 0.712062872514373, 1.08033923355738, 1.97378837188847],
-                          [-0.610410399845213, 0.355339771667814,
-                              0.670255435929930, 0.915154608331424, 1.52808830519513],
-                          [-0.0988002822865217, 0.451698279664756,
-                              0.636987630794206, 0.751760283763044, 1.03629687168984],
+                          [-0.610410399845213, 0.355339771667814, 0.670255435929930, 0.915154608331424, 1.52808830519513],
+                          [-0.0988002822865217, 0.451698279664756, 0.636987630794206, 0.751760283763044, 1.03629687168984],
                           [0.477918399858401, 0.628396438496795, 0.663799054750132, 0.628396438496795, 0.479688468006036]])
 
         plt.figure()
@@ -315,19 +313,17 @@ def main():
         tno = np.arange(1, 6, 1)
         for i in range(4):
             ii = len(theta) - i - 1
-            plt.plot(tno, ((p_cfd[ii, :] / 100. + 1.) / (p_cfd[ii, 0] / 100. + 1.) - 1.) * 100, 's:', color=viridis[i], label='CFD: ' + str(theta[i]) + 'deg',
-                     lw=2)
+            plt.plot(tno, ((p_cfd[ii, :] / 100. + 1.) / (p_cfd[ii, 0] / 100. + 1.) - 1.) * 100,
+                     's:', color=viridis[i], label='CFD: ' + str(theta[i]) + 'deg', lw=2)
 
         for nam, blockage_model in blockage_models:
             for i in range(4):
                 if i == 3:
                     plt.plot(tno, (res[nam].Power[:, i, 0] - res[nam].Power[0, i, 0]) / res[nam].Power[0, i, 0] * 100, lines[jj],
-                             label=nam, color=viridis[i],
-                             lw=1, alpha=0.8)
+                             label=nam, color=viridis[i], lw=1, alpha=0.8)
                 else:
                     plt.plot(tno, (res[nam].Power[:, i, 0] - res[nam].Power[0, i, 0]) / res[nam].Power[0, i, 0] * 100, lines[jj],
-                             color=viridis[i],
-                             lw=1, alpha=0.8)
+                             color=viridis[i], lw=1, alpha=0.8)
             jj += 1
 
         plt.grid(alpha=0.2)

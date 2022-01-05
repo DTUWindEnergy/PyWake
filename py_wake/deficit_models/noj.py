@@ -1,20 +1,25 @@
 from numpy import newaxis as na
 import numpy as np
+from py_wake.ground_models.ground_models import NoGround
 from py_wake.superposition_models import SquaredSum, LinearSum
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.utils.area_overlapping_factor import AreaOverlappingFactor
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.deficit_models.gaussian import NiayifarGaussianDeficit
+from py_wake.deficit_models import DeficitModel
 
 
 class NOJDeficit(NiayifarGaussianDeficit, AreaOverlappingFactor):
 
-    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il', 'D_dst_ijl', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
+    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il', 'D_dst_ijl',
+                    'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
-    def __init__(self, k=.1, use_effective_ws=False):
+    def __init__(self, k=.1, use_effective_ws=False, groundModel=NoGround()):
+        DeficitModel.__init__(self, groundModel=groundModel)
         self.a = [0, k]
         self.use_effective_ws = use_effective_ws
+        self.use_effective_ti = False
 
     def _calc_layout_terms(self, WS_ilk, WS_eff_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk, **kwargs):
         WS_ref_ilk = (WS_ilk, WS_eff_ilk)[self.use_effective_ws]
@@ -25,19 +30,25 @@ class NOJDeficit(NiayifarGaussianDeficit, AreaOverlappingFactor):
         A_ol_factor_ijlk = self.overlapping_area_factor(wake_radius_ijlk, dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl)
 
         with np.warnings.catch_warnings():
-            np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
+            np.warnings.filterwarnings(
+                'ignore', r'invalid value encountered in true_divide')
             self.layout_factor_ijlk = WS_ref_ilk[:, na] * (dw_ijlk > 0) * (A_ol_factor_ijlk / term_denominator_ijlk)
 
     def calc_deficit(self, WS_ilk, WS_eff_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk, ct_ilk, **kwargs):
         if not self.deficit_initalized:
             kwargs['ct_ilk'] = ct_ilk
-            self._calc_layout_terms(WS_ilk, WS_eff_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk, **kwargs)
+            self._calc_layout_terms(
+                WS_ilk, WS_eff_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk, **kwargs)
         ct_ilk = np.minimum(ct_ilk, 1)   # treat ct_ilk for np.sqrt()
         term_numerator_ilk = (1 - np.sqrt(1 - ct_ilk))
         return term_numerator_ilk[:, na] * self.layout_factor_ijlk
 
     def wake_radius(self, D_src_il, dw_ijlk, **kwargs):
-        k_ijlk = np.atleast_3d(self.k_ilk(kwargs.get('TI_eff_ilk', 0)))[:, na]
+        # k_ijlk = np.atleast_3d(self.k_ilk(kwargs.get('TI_eff_ilk', 0)))[:, na]
+        if 'TI_eff_ilk' not in kwargs:
+            kwargs['TI_eff_ilk'] = 0.0
+            kwargs['TI_ilk'] = 0.0
+        k_ijlk = np.atleast_3d(self.k_ilk(**kwargs))[:, na]
         wake_radius_ijlk = (k_ijlk * dw_ijlk + D_src_il[:, na, :, na] / 2)
         return wake_radius_ijlk
 
@@ -47,9 +58,8 @@ class NOJDeficit(NiayifarGaussianDeficit, AreaOverlappingFactor):
 
 class NOJ(PropagateDownwind):
     def __init__(self, site, windTurbines, rotorAvgModel=RotorCenter(),
-                 k=.1, superpositionModel=SquaredSum(),
-                 deflectionModel=None, turbulenceModel=None,
-                 groundModel=None):
+                 k=.1, superpositionModel=SquaredSum(), deflectionModel=None, turbulenceModel=None,
+                 groundModel=NoGround()):
         """
         Parameters
         ----------
@@ -69,12 +79,11 @@ class NOJ(PropagateDownwind):
             Model describing the amount of added turbulence in the wake
         """
         PropagateDownwind.__init__(self, site, windTurbines,
-                                   wake_deficitModel=NOJDeficit(k),
+                                   wake_deficitModel=NOJDeficit(k, groundModel=groundModel),
                                    rotorAvgModel=rotorAvgModel,
                                    superpositionModel=superpositionModel,
                                    deflectionModel=deflectionModel,
-                                   turbulenceModel=turbulenceModel,
-                                   groundModel=groundModel)
+                                   turbulenceModel=turbulenceModel)
 
 
 class NOJLocalDeficit(NOJDeficit, AreaOverlappingFactor):
@@ -86,11 +95,14 @@ class NOJLocalDeficit(NOJDeficit, AreaOverlappingFactor):
     Niayifar and Porte-Agel (2016) estbalished for the Gaussian wake model.
     The expansion rates in the Jensen and Gaussian describe the same process.
     """
-    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il', 'D_dst_ijl', 'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_eff_ilk']
+    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il', 'D_dst_ijl',
+                    'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_ilk', 'TI_eff_ilk']
 
-    def __init__(self, a=[0.38, 4e-3], use_effective_ws=True):
+    def __init__(self, a=[0.38, 4e-3], use_effective_ws=True, use_effective_ti=True, groundModel=NoGround()):
+        DeficitModel.__init__(self, groundModel=groundModel)
         self.a = a
         self.use_effective_ws = use_effective_ws
+        self.use_effective_ti = use_effective_ti
 
 
 class NOJLocal(PropagateDownwind):
@@ -98,7 +110,8 @@ class NOJLocal(PropagateDownwind):
                  a=[0.38, 4e-3], use_effective_ws=True,
                  superpositionModel=LinearSum(),
                  deflectionModel=None,
-                 turbulenceModel=STF2017TurbulenceModel()):
+                 turbulenceModel=STF2017TurbulenceModel(),
+                 groundModel=NoGround()):
         """
         Parameters
         ----------
@@ -118,7 +131,8 @@ class NOJLocal(PropagateDownwind):
             Model describing the amount of added turbulence in the wake
         """
         PropagateDownwind.__init__(self, site, windTurbines,
-                                   wake_deficitModel=NOJLocalDeficit(a=a, use_effective_ws=use_effective_ws),
+                                   wake_deficitModel=NOJLocalDeficit(
+                                       a=a, use_effective_ws=use_effective_ws, groundModel=groundModel),
                                    rotorAvgModel=rotorAvgModel,
                                    superpositionModel=superpositionModel,
                                    deflectionModel=deflectionModel,
@@ -143,17 +157,17 @@ class TurboNOJDeficit(NOJDeficit, AreaOverlappingFactor):
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il', 'D_dst_ijl',
                     'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_ilk', 'TI_eff_ilk']
 
-    def __init__(self, A=.6, cTI=[1.5, 0.8], use_effective_ws=False, use_effective_ti=False):
+    def __init__(self, A=.6, cTI=[1.5, 0.8], use_effective_ws=False, use_effective_ti=False, groundModel=NoGround()):
+        DeficitModel.__init__(self, groundModel=groundModel)
         self.A = A
         self.use_effective_ws = use_effective_ws
         self.use_effective_ti = use_effective_ti
+        # default constants from Frandsen
         self.cTI = cTI
 
     def wake_radius(self, D_src_il, dw_ijlk, **kwargs):
-        TI_ref_ilk = (kwargs['TI_ilk'], kwargs['TI_eff_ilk'])[
-            self.use_effective_ti]
+        TI_ref_ilk = (kwargs['TI_ilk'], kwargs['TI_eff_ilk'])[self.use_effective_ti]
         ct_ilk = kwargs['ct_ilk']
-        # constants from Frandsen
         c1, c2 = self.cTI
 
         # constants related to ambient turbulence
@@ -163,15 +177,14 @@ class TurboNOJDeficit(NOJDeficit, AreaOverlappingFactor):
         beta_ilk = c2 * TI_ref_ilk / np.sqrt(ct_ilk)
 
         fac_ilk = self.A * TI_ref_ilk * D_src_il[..., na] / beta_ilk
-        term1_ijlk = np.sqrt(
-            (alpha_ilk[:, na] + beta_ilk[:, na] * dw_ijlk / D_src_il[:, na, :, na])**2 + 1)
+        term1_ijlk = np.sqrt((alpha_ilk[:, na] + beta_ilk[:, na] * dw_ijlk / D_src_il[:, na, :, na])**2 + 1)
         term2_ilk = np.sqrt(1 + alpha_ilk**2)
         term3_ijlk = (term1_ijlk + 1) * alpha_ilk[:, na]
         term4_ijlk = (term2_ilk[:, na] + 1) * (alpha_ilk[:, na] +
                                                beta_ilk[:, na] * np.abs(dw_ijlk) / D_src_il[:, na, :, na])
 
-        wake_radius_ijlk = 0.5 * (D_src_il[:, na, :, na] + fac_ilk[:, na] * (
-            term1_ijlk - term2_ilk[:, na] - np.log(term3_ijlk / term4_ijlk)))
+        wake_radius_ijlk = 0.5 * (D_src_il[:, na, :, na] + fac_ilk[:, na] *
+                                  (term1_ijlk - term2_ilk[:, na] - np.log(term3_ijlk / term4_ijlk)))
 
         return wake_radius_ijlk
 
@@ -188,13 +201,13 @@ def main():
         x, y = site.initial_position.T
         windTurbines = IEA37_WindTurbines()
 
-        wf_model = NOJ(site, windTurbines)
+        wf_model = NOJ(site, windTurbines, k=0.04)
         wf_model_local = NOJLocal(site, windTurbines, turbulenceModel=STF2017TurbulenceModel())
         wf_model_turbo = PropagateDownwind(site, windTurbines, rotorAvgModel=RotorCenter(),
                                            wake_deficitModel=TurboNOJDeficit(
-                                               use_effective_ws=True, use_effective_ti=False),
-                                           superpositionModel=LinearSum(),
-                                           turbulenceModel=STF2017TurbulenceModel())
+            use_effective_ws=True, use_effective_ti=False),
+            superpositionModel=LinearSum(),
+            turbulenceModel=STF2017TurbulenceModel())
         # wf_model_turbo = NOJLocal(
         #     site, windTurbines, turbulenceModel=STF2017TurbulenceModel())
         # run wind farm simulation
@@ -207,8 +220,7 @@ def main():
         aep_turbo = sim_res_turbo.aep().sum()
 
         # plot wake map
-        fig, (ax1, ax2, ax3) = plt.subplots(
-            1, 3, figsize=(11, 4.5), tight_layout=True)
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(11, 4.5), tight_layout=True)
         levels = np.arange(0, 10.5, 0.5)
         print(wf_model)
         flow_map = sim_res.flow_map(wd=30, ws=9.8)
@@ -248,12 +260,10 @@ def main():
         TI_ilk = np.array([[[0.06]]])
         TI_eff_ilk = np.array([[[0.06]]])
         tj = TurboNOJDeficit()
-        tj_wr = tj.wake_radius(
-            D_src_il, dw_ijlk, ct_ilk=ct_ilk, TI_ilk=TI_ilk, TI_eff_ilk=TI_eff_ilk)
+        tj_wr = tj.wake_radius(D_src_il, dw_ijlk, ct_ilk=ct_ilk, TI_ilk=TI_ilk, TI_eff_ilk=TI_eff_ilk)
 
         plt.figure()
-        plt.title(
-            'Wake width comparison, NOJ orig and TurboNOJ (Nygaard2020) TI=6%')
+        plt.title('Wake width comparison, NOJ orig and TurboNOJ (Nygaard2020) TI=6%')
         plt.plot(x, noj_wr[0, :, 0, 0], label='NOJ, k=0.04')
         plt.plot(x, tj_wr[0, :, 0, 0], label='TurboNOJ')
         plt.xlabel('x/D')
