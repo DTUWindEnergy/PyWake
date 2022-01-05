@@ -14,8 +14,7 @@ from py_wake.superposition_models import SquaredSum, WeightedSum
 from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
 from py_wake.turbulence_models.stf import STF2005TurbulenceModel
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
-from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit,\
-    BastankhahGaussian
+from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit, BastankhahGaussian
 from numpy import newaxis as na
 import matplotlib.pyplot as plt
 from py_wake.utils.gradients import autograd, cs, fd, plot_gradients
@@ -82,14 +81,12 @@ def test_wec():
         plt.legend()
         plt.show()
 
-    npt.assert_array_almost_equal(
-        Z_wec1[140, 100:400:10],
-        [10.0, 10.0, 10.0, 9.99, 9.8, 6.52, 1.47, 9.44, 9.98, 10.0, 10.0, 10.0, 10.0, 9.05, 0.03, 9.11, 10.0,
-         10.0, 10.0, 9.97, 9.25, 7.03, 2.35, 6.51, 9.99, 10.0, 10.0, 10.0, 10.0, 10.0], 2)
-    npt.assert_array_almost_equal(
-        Z_wec2[140, 100:400:10],
-        [9.99, 9.96, 9.84, 9.47, 7.82, 2.24, 0.21, 6.21, 9.22, 9.82, 9.98, 9.92, 9.05, 4.45, 0.01, 4.53, 9.35,
-         9.95, 9.75, 9.13, 7.92, 5.14, 0.32, 2.2, 8.38, 9.94, 10.0, 10.0, 10.0, 10.0], 2)
+    npt.assert_array_almost_equal(Z_wec1[140, 100:400:10],
+                                  [10.0, 10.0, 10.0, 9.99, 9.8, 6.52, 1.47, 9.44, 9.98, 10.0, 10.0, 10.0, 10.0, 9.05, 0.03, 9.11, 10.0,
+                                   10.0, 10.0, 9.97, 9.25, 7.03, 2.35, 6.51, 9.99, 10.0, 10.0, 10.0, 10.0, 10.0], 2)
+    npt.assert_array_almost_equal(Z_wec2[140, 100:400:10],
+                                  [9.99, 9.96, 9.84, 9.47, 7.82, 2.24, 0.21, 6.21, 9.22, 9.82, 9.98, 9.92, 9.05, 4.45, 0.01, 4.53, 9.35,
+                                   9.95, 9.75, 9.13, 7.92, 5.14, 0.32, 2.2, 8.38, 9.94, 10.0, 10.0, 10.0, 10.0], 2)
 
 
 def test_str():
@@ -144,7 +141,8 @@ def test_two_wt_aep():
     sim_res2 = wake_model([0, 0], [0, 500], wd=270)
 
     # one wt, wind from west ~ 5845 hours of full load
-    npt.assert_almost_equal(sim_res1.aep(normalize_probabilities=True).sum(), 3.35 * 5.845, 2)
+    npt.assert_almost_equal(sim_res1.aep(
+        normalize_probabilities=True).sum(), 3.35 * 5.845, 2)
 
     # No wake, two wt = 2 x one wt
     npt.assert_almost_equal(sim_res1.aep().sum() * 2, sim_res2.aep().sum())
@@ -156,7 +154,8 @@ def test_two_wt_aep():
 
 def test_aep_mixed_type():
     site = UniformSite([1], ti=0)
-    wt = WindTurbines.from_WindTurbine_lst([IEA37_WindTurbines(), IEA37_WindTurbines()])
+    wt = WindTurbines.from_WindTurbine_lst(
+        [IEA37_WindTurbines(), IEA37_WindTurbines()])
 
     wfm = NOJ(site, wt)
 
@@ -187,10 +186,12 @@ def test_All2AllIterativeDeflection(deflection_model, count):
                                 blockage_deficitModel=SelfSimilarityDeficit(),
                                 rotorAvgModel=CGIRotorAvg(4),
                                 deflectionModel=deflection_model, convergence_tolerance=None)
-    sim_res = wf_model([0, 500, 1000, 1500], [0, 0, 0, 0], wd=270, ws=10, yaw=[30, -30, 30, -30])
+    sim_res = wf_model([0, 500, 1000, 1500], [0, 0, 0, 0],
+                       wd=270, ws=10, yaw=[30, -30, 30, -30])
     assert wf_model.wake_deficitModel.counter == count
     if 0:
-        sim_res.flow_map(XYGrid(x=np.linspace(-200, 2000, 100))).plot_wake_map()
+        sim_res.flow_map(
+            XYGrid(x=np.linspace(-200, 2000, 100))).plot_wake_map()
         plt.show()
 
 
@@ -219,8 +220,8 @@ def test_dAEP_2wt():
 
     def dpower(wsp):
         return np.where((wsp > wsp_cut_in) & (wsp <= wsp_rated),
-                        3 * power_rated * (wsp - wsp_cut_in)**2 / (wsp_rated - wsp_cut_in)**3,
-                        0)
+                        3 * power_rated * (wsp - wsp_cut_in)**2 /
+                        (wsp_rated - wsp_cut_in)**3, 0)
 
     def dct(wsp):
         return wsp * 0  # constant ct

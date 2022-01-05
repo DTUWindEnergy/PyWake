@@ -22,10 +22,11 @@ def test_get_models():
 
 
 def test_get_signature():
-    assert get_signature(NOJDeficit) == "NOJDeficit(k=0.1, use_effective_ws=False)"
+    assert get_signature(NOJDeficit) == "NOJDeficit(k=0.1, use_effective_ws=False, groundModel=NoGround())"
     assert get_signature(NOJDeficit, indent_level=1) == """NOJDeficit(
     k=0.1,
-    use_effective_ws=False)"""
+    use_effective_ws=False,
+    groundModel=NoGround())"""
     assert (get_signature(STF2017TurbulenceModel) ==
             "STF2017TurbulenceModel(c=[1.5, 0.8], addedTurbulenceSuperpositionModel=LinearSum(), weight_function=FrandsenWeight())")
     assert (get_signature(STF2017TurbulenceModel, {'addedTurbulenceSuperpositionModel': SqrMaxSum}) ==

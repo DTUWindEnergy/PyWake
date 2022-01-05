@@ -26,8 +26,7 @@ def test_Mirror_NOJ():
     fm_ref = sim_res.flow_map(YZGrid(x=0, y=np.arange(-70, 0, 20), z=10))
     ref = fm_ref.WS_eff_xylk[:, 0, 0, 0].values
 
-    res = np.array([wfm([0, 0], [0, y], [50, 10], type=[0, 1], wd=0).WS_eff.sel(wt=1).item()
-                    for y in fm_ref.X[0]])
+    res = np.array([wfm([0, 0], [0, y], [50, 10], type=[0, 1], wd=0).WS_eff.sel(wt=1).item() for y in fm_ref.X[0]])
 
     if 0:
         fm_res = sim_res.flow_map(YZGrid(x=0, y=np.arange(-100, 10, 1)))
@@ -48,14 +47,13 @@ def test_Mirror(wfm_cls):
     # and therefore this cannot be tested above
     site = UniformSite([1], ti=0.1)
     wt = V80()
-    wfm = wfm_cls(site, wt, ZongGaussianDeficit(a=[0, 1]),
-                  turbulenceModel=STF2017TurbulenceModel(), groundModel=Mirror())
+    wfm = wfm_cls(site, wt, ZongGaussianDeficit(a=[0, 1], groundModel=Mirror()),
+                  turbulenceModel=STF2017TurbulenceModel())
     sim_res = wfm([0], [0], h=[50], wd=0,)
     fm_ref = sim_res.flow_map(YZGrid(x=0, y=np.arange(-70, 0, 20), z=10))
     ref = fm_ref.WS_eff_xylk[:, 0, 0, 0].values
 
-    res = np.array([wfm([0, 0], [0, y], [50, 10], wd=0).WS_eff.sel(wt=1).item()
-                    for y in fm_ref.X[0]])
+    res = np.array([wfm([0, 0], [0, y], [50, 10], wd=0).WS_eff.sel(wt=1).item() for y in fm_ref.X[0]])
 
     if 0:
         fm_res = sim_res.flow_map(YZGrid(x=0, y=np.arange(-100, 10, 1)))
@@ -84,7 +82,8 @@ def test_Mirror_flow_map(wfm_cls, groundModel, superpositionModel):
     plt.title("Underground WT added manually")
 
     plt.figure()
-    wfm = wfm_cls(site, wt, NOJDeficit(k=.5), groundModel=groundModel, superpositionModel=superpositionModel)
+    wfm = wfm_cls(site, wt, NOJDeficit(k=.5, groundModel=groundModel),
+                  superpositionModel=superpositionModel)
     fm_res = wfm([0], [0], wd=0, h=[50]).flow_map(YZGrid(x=0, y=np.arange(-100, 100, 1) + .1, z=np.arange(1, 100)))
     fm_res.plot_wake_map()
     plt.title("With Mirror GroundModel")

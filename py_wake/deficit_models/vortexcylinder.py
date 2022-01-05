@@ -1,7 +1,9 @@
 import numpy as np
 from numpy import newaxis as na
 from scipy.special import ellipk
+from py_wake.ground_models.ground_models import NoGround
 from py_wake.utils.elliptic import ellipticPiCarlson
+from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
 
 
@@ -20,8 +22,10 @@ class VortexCylinder(BlockageDeficitModel):
 
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
-    def __init__(self, limiter=1e-10, exclude_wake=True, superpositionModel=None):
-        BlockageDeficitModel.__init__(self, superpositionModel=superpositionModel)
+    def __init__(self, limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=NoGround(),
+                 upstream_only=False):
+        DeficitModel.__init__(self, groundModel=groundModel)
+        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
         # coefficients for BEM approximation by Madsen (1997)
         self.a0p = np.array([0.2460, 0.0586, 0.0883])
         # limiter to avoid singularities

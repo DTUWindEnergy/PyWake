@@ -1,5 +1,7 @@
 import numpy as np
+from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models.deficit_model import WakeDeficitModel
+from py_wake.ground_models.ground_models import NoGround
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.superposition_models import LinearSum
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
@@ -163,7 +165,8 @@ class GCLDeficit(WakeDeficitModel):
         on the rotor thrust and the ambient turbulence conditions, respectively.
     """
 
-    def __init__(self, use_effective_ws=False, use_effective_ti=False):
+    def __init__(self, use_effective_ws=False, use_effective_ti=False, groundModel=NoGround()):
+        DeficitModel.__init__(self, groundModel=groundModel)
         self.use_effective_ws = use_effective_ws
         self.use_effective_ti = use_effective_ti
         self.args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_ilk']
@@ -188,29 +191,27 @@ class GCLDeficit(WakeDeficitModel):
         eps = 1e-10
         dw_ijlk_gt0 = np.maximum(dw_ijlk, eps)
         R_src_il = D_src_il / 2.
-        dU = -get_dU(x=dw_ijlk_gt0, r=cw_ijlk, R=R_src_il[:, na, :, na],
-                     CT=ct_ilk[:, na], TI=TI_ilk[:, na])
+        dU = -get_dU(x=dw_ijlk_gt0, r=cw_ijlk, R=R_src_il[:, na, :, na], CT=ct_ilk[:, na], TI=TI_ilk[:, na])
         return WS_ilk[:, na] * dU * (dw_ijlk > eps)
 
 
 class GCL(PropagateDownwind):
     def __init__(self, site, windTurbines, rotorAvgModel=RotorCenter(), superpositionModel=LinearSum(),
-                 deflectionModel=None, turbulenceModel=None, groundModel=None):
-        PropagateDownwind.__init__(self, site, windTurbines, wake_deficitModel=GCLDeficit(),
+                 deflectionModel=None, turbulenceModel=None, groundModel=NoGround()):
+        PropagateDownwind.__init__(self, site, windTurbines, wake_deficitModel=GCLDeficit(groundModel=groundModel),
                                    rotorAvgModel=rotorAvgModel, superpositionModel=superpositionModel,
-                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel,
-                                   groundModel=groundModel)
+                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
 
 
 class GCLLocal(PropagateDownwind):
     def __init__(self, site, windTurbines, rotorAvgModel=RotorCenter(), superpositionModel=LinearSum(),
-                 deflectionModel=None, turbulenceModel=None, groundModel=None):
+                 deflectionModel=None, turbulenceModel=None, groundModel=NoGround()):
 
         PropagateDownwind.__init__(self, site, windTurbines,
-                                   wake_deficitModel=GCLDeficit(use_effective_ws=True, use_effective_ti=True),
+                                   wake_deficitModel=GCLDeficit(
+                                       use_effective_ws=True, use_effective_ti=True, groundModel=groundModel),
                                    rotorAvgModel=rotorAvgModel, superpositionModel=superpositionModel,
-                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel,
-                                   groundModel=groundModel)
+                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
 
 
 def main():
@@ -235,7 +236,8 @@ def main():
         aep_local = sim_res_local.aep().sum()
 
         # plot wake map
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 4.5), tight_layout=True)
+        fig, (ax1, ax2) = plt.subplots(
+            1, 2, figsize=(9, 4.5), tight_layout=True)
         levels = np.arange(0, 10.5, 0.5)
         print(wf_model)
         flow_map = sim_res.flow_map(wd=30, ws=9.8)

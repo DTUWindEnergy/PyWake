@@ -1,6 +1,8 @@
 import pytest
 import numpy as np
 from py_wake import NOJ
+from py_wake.deficit_models import DeficitModel
+from py_wake.ground_models.ground_models import NoGround
 from py_wake.site._site import UniformSite
 from py_wake.superposition_models import LinearSum, SquaredSum, MaxSum, SqrMaxSum
 from py_wake.tests import npt
@@ -101,6 +103,9 @@ def test_diff_wake_blockage_superposition():
     class MyWakeDeficit(WakeDeficitModel):
         args4deficit = ['dw_ijlk']
 
+        def __init__(self):
+            DeficitModel.__init__(self, groundModel=NoGround())
+
         def calc_deficit(self, dw_ijlk, **_):
             return (dw_ijlk > 0) * 2
 
@@ -108,6 +113,7 @@ def test_diff_wake_blockage_superposition():
         args4deficit = ['dw_ijlk']
 
         def __init__(self, superpositionModel=None):
+            DeficitModel.__init__(self, groundModel=NoGround())
             BlockageDeficitModel.__init__(self, upstream_only=True, superpositionModel=superpositionModel)
 
         def calc_deficit(self, dw_ijlk, **_):

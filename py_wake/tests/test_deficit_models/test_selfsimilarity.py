@@ -41,13 +41,18 @@ def test_selfsimilarity_reference_figures(setup):
                                              dw_ijlk=x1.reshape((1, len(x1), 1, 1)),
                                              cw_ijlk=y1.reshape((1, len(y1), 1, 1)), ct_ilk=ct_ilk)[0, :, 0, 0]
 
-    x2, y2 = np.array([-2 * R]), np.arange(200)
+    x, y = np.array([-2 * R]), np.arange(200)
+    x2, y2 = x, y
+    X, Y = np.meshgrid(x, y)
+    x_j, y_j = X.flatten(), Y.flatten()
+    dw_ijlk = x_j.reshape((1, -1, 1, 1))
+    cw_ijlk = np.abs(y_j.reshape((1, -1, 1, 1)))
     deficit_radial = ss.calc_deficit(WS_ilk=WS_ilk, D_src_il=D_src_il,
-                                     dw_ijlk=x2.reshape((1, len(x2), 1, 1)),
-                                     cw_ijlk=y2.reshape((1, len(y2), 1, 1)), ct_ilk=ct_ilk)[0, :, 0, 0]
+                                     dw_ijlk=dw_ijlk,
+                                     cw_ijlk=cw_ijlk, ct_ilk=ct_ilk)[0, :, 0, 0]
     deficit20_radial = ss20.calc_deficit(WS_ilk=WS_ilk, D_src_il=D_src_il,
-                                         dw_ijlk=x2.reshape((1, len(x2), 1, 1)),
-                                         cw_ijlk=y2.reshape((1, len(y2), 1, 1)), ct_ilk=ct_ilk)[0, :, 0, 0]
+                                         dw_ijlk=dw_ijlk,
+                                         cw_ijlk=cw_ijlk, ct_ilk=ct_ilk)[0, :, 0, 0]
 
     # r12 = np.sqrt(ss.lambda_ * (ss.eta + (x2 / R) ** 2))   # Eq. (13) from [1]
     r12 = ss.r12(x2 / R)
