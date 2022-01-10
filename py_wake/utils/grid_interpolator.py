@@ -68,7 +68,7 @@ class GridInterpolator(object):
             irreg_dx = irreg_x1 - irreg_x0
             xpi[:, self.irregular_axes] = irreg_i.T + (xp[:, self.irregular_axes] - irreg_x0.T) / irreg_dx.T
 
-        if bounds == 'check' and (np.any(xpi < 0) or np.any(xpi + 1 > self.n[na])):
+        if method == 'linear' and bounds == 'check' and (np.any(xpi < 0) or np.any(xpi + 1 > self.n[na])):
             if -xpi.min() > (xpi + 1 - self.n[na]).max():
                 point, dimension = np.unravel_index(xpi.argmin(), np.atleast_2d(xpi).shape)
             else:
