@@ -71,26 +71,22 @@ class FlowMap(FlowBox):
     def XY(self):
         return self.X, self.Y
 
-    def power_xylk(self, wt_type=0, with_wake_loss=True):
+    def power_xylk(self, with_wake_loss=True, **wt_kwargs):
         if with_wake_loss:
             ws = self.WS_eff_xylk
 
         else:
             ws = self.WS_xylk
 
-        type = {'type': wt_type} if wt_type != 0 else {}
-
-        power_xylk = self.windFarmModel.windTurbines.power(ws, **type)
+        power_xylk = self.windFarmModel.windTurbines.power(ws, **wt_kwargs)
         return xr.DataArray(power_xylk[:, :, na], self.coords, dims=['y', 'x', 'h', 'wd', 'ws'])
 
-    def aep_xylk(self, wt_type=0, normalize_probabilities=False, with_wake_loss=True):
+    def aep_xylk(self, normalize_probabilities=False, with_wake_loss=True, **wt_kwargs):
         """Anual Energy Production of a potential wind turbine at all grid positions (x,y)
         for all wind directions (l) and wind speeds (k) in GWh.
 
         Parameters
         ----------
-        wt_type : Optional int, defaults to 0
-            Type of potential wind turbine
         normalize_propabilities : Optional bool, defaults to False
             In case only a subset of all wind speeds and/or wind directions is simulated,
             this parameter determines whether the returned AEP represents the energy produced in the fraction
@@ -103,20 +99,22 @@ class FlowMap(FlowBox):
         with_wake_loss : Optional bool, defaults to True
             If True, wake loss is included, i.e. power is calculated using local effective wind speed\n
             If False, wake loss is neglected, i.e. power is calculated using local free flow wind speed
+        wt_type : Optional arguments
+            Additional required/optional arguments needed by the WindTurbines to computer power, e.g. type, Air_density
          """
-        power_xylk = self.power_xylk(wt_type, with_wake_loss)
+        power_xylk = self.power_xylk(with_wake_loss, **wt_kwargs)
         P_xylk = self.P_xylk  # .isel.ilk((1,) + power_xylk.shape[2:])
         if normalize_probabilities:
             P_xylk = P_xylk / P_xylk.sum(['wd', 'ws'])
         return power_xylk * P_xylk * 24 * 365 * 1e-9
 
-    def aep_xy(self, wt_type=0, normalize_probabilities=False, with_wake_loss=True):
+    def aep_xy(self, normalize_probabilities=False, with_wake_loss=True, **wt_kwargs):
         """Anual Energy Production of a potential wind turbine at all grid positions (x,y)
         (sum of all wind directions and wind speeds)  in GWh.
 
         see aep_xylk
         """
-        return self.aep_xylk(wt_type, normalize_probabilities, with_wake_loss).sum(['wd', 'ws'])
+        return self.aep_xylk(normalize_probabilities, with_wake_loss, **wt_kwargs).sum(['wd', 'ws'])
 
     def plot(self, data, clabel, levels=100, cmap=None, plot_colorbar=True, plot_windturbines=True,
              normalize_with=1, ax=None):

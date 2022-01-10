@@ -8,6 +8,8 @@ from py_wake.examples.data.iea37 import IEA37Site, IEA37_WindTurbines
 from py_wake import IEA37SimpleBastankhahGaussian
 import pytest
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
+from py_wake.wind_turbines._wind_turbines import WindTurbines
+from py_wake.examples.data import wtg_path
 
 
 @pytest.fixture(autouse=True)
@@ -29,6 +31,35 @@ def test_power_xylk():
     simulation_result = wind_farm_model(x, y)
     fm = simulation_result.flow_map(grid=HorizontalGrid(resolution=3))
     npt.assert_array_almost_equal(fm.power_xylk(with_wake_loss=False)[:, :, 0, 0] * 1e-6, 3.35)
+
+
+def test_power_xylk_wt_args():
+    site = IEA37Site(16)
+    x, y = site.initial_position.T
+    windTurbines = WindTurbines.from_WAsP_wtg(wtg_path + "Vestas V112-3.0 MW.wtg", default_mode=None)
+
+    # NOJ wake model
+    wind_farm_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
+    simulation_result = wind_farm_model(x, y, wd=[0, 270], ws=[6, 8, 10], mode=0)
+    fm = simulation_result.flow_map(XYGrid(resolution=3))
+    npt.assert_array_almost_equal(fm.power_xylk(mode=1).sum(['wd', 'ws']).isel(h=0),
+                                  [[7030000., 6378864., 7029974.],
+                                   [7030000., 6144918., 4902029.],
+                                   [7030000., 7030000., 7029974.]], 0)
+    npt.assert_array_almost_equal(fm.power_xylk(mode=8).sum(['wd', 'ws']).isel(h=0),
+                                  [[8330000., 7577910., 8329970.],
+                                   [8330000., 7304188., 5837139.],
+                                   [8330000., 8330000., 8329970.]], 0)
+    # print(np.round(fm.power_xylk(mode=8).sum(['wd', 'ws']).squeeze()))
+
+    npt.assert_array_almost_equal(fm.aep_xylk(mode=1).sum(['x', 'y']).isel(h=0),
+                                  [[10., 24., 47.],
+                                   [75., 191., 375.]], 0)
+
+    npt.assert_array_almost_equal(fm.aep_xy(mode=1).isel(h=0),
+                                  [[88., 86., 88.],
+                                   [88., 68., 40.],
+                                   [88., 88., 88.]], 0)
 
 
 def test_YZGrid_perpendicular():
