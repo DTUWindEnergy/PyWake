@@ -239,6 +239,17 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
     def plot(self, x, y, type=None, wd=None, yaw=0, tilt=0, normalize_with=1, ax=None):
         return self.plot_xy(x, y, type, wd, yaw, tilt, normalize_with, ax)
 
+    def plot_power_ct(self, ax=None):
+        import matplotlib.pyplot as plt
+        ws = np.linspace(0, 30, 1000)
+        if ax is None:
+            ax = plt.gca()
+        power, ct = self.power_ct(ws)
+        ax.plot(ws, power)
+        ax.grid()
+        ax2 = ax.twinx()
+        ax2.plot(ws, ct, '--')
+
     @staticmethod
     def from_WindTurbine_lst(wt_lst):
         """Generate a WindTurbines object from a list of (Onetype)WindTurbines

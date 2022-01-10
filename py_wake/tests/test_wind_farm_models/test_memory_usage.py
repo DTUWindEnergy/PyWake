@@ -26,7 +26,7 @@ def test_memory_usage():
     site = Hornsrev1Site()
     x, y = site.initial_position.T
 
-    for wfm, mem_min, mem_max in [(NOJ(site, wt), 60, 90),
+    for wfm, mem_min, mem_max in [(NOJ(site, wt), 59, 90),
                                   (All2AllIterative(site, wt, wake_deficitModel=NOJDeficit()), 525, 600)]:
         mem_usage, _ = memory_profiler.memory_usage(
             (wfm, (x, y), {'wd': np.arange(0, 360, 4)}), interval=0.001, max_usage=True, retval=True)

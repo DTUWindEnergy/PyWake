@@ -236,6 +236,13 @@ def test_plot_yz2_types():
     plt.close('all')
 
 
+def test_plot_power_ct():
+    wt = V80()
+    wt.plot_power_ct()
+    if 0:
+        plt.show()
+
+
 def test_set_gradients():
     wt = IEA37_WindTurbines()
 
