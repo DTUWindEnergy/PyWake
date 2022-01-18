@@ -7,7 +7,7 @@ import pytest
 import matplotlib.pyplot as plt
 from numpy import newaxis as na
 from py_wake.tests.test_files import tfp
-from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80, wt9_x, wt9_y
+from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.wind_turbines import WindTurbines
 from py_wake.deficit_models.gaussian import BastankhahGaussian, BastankhahGaussianDeficit
@@ -18,6 +18,7 @@ from py_wake.site._site import LocalWind
 from py_wake.utils import weibull
 from py_wake.deficit_models.noj import NOJ, NOJDeficit
 from py_wake.flow_map import XYGrid, Points
+import warnings
 
 
 f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,
@@ -167,6 +168,15 @@ def test_complex_fixed_pos_local_wind(complex_fixed_pos_site):
                                          [0.0078508, 0.01177761, 0.01557493],
                                          [0.0105829, 0.01576518, 0.02066746],
                                          [0.01079997, 0.01656828, 0.02257487]])
+
+
+def test_complex_fixed_pos_flow_map(complex_fixed_pos_site):
+    site = complex_fixed_pos_site
+    x_i, y_i = site.initial_position.T
+    sim_res = NOJ(site, V80())(x_i, y_i, wd=270, ws=10)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        sim_res.flow_map(XYGrid(resolution=3))
 
 
 def test_complex_grid_local_wind(complex_grid_site):

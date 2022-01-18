@@ -3,7 +3,7 @@ import pytest
 import matplotlib.pyplot as plt
 import numpy as np
 from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel, DeficitModel
-from py_wake.deficit_models.fuga import FugaDeficit, Fuga
+from py_wake.deficit_models.fuga import FugaDeficit, Fuga, FugaYawDeficit
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, IEA37SimpleBastankhahGaussianDeficit,\
     ZongGaussianDeficit, NiayifarGaussianDeficit, BastankhahGaussian, IEA37SimpleBastankhahGaussian, ZongGaussian,\
     NiayifarGaussian, CarbajofuertesGaussianDeficit, TurboGaussianDeficit
@@ -110,6 +110,57 @@ def test_IEA37_ex16(deficitModel, aep_ref):
 
     npt.assert_almost_equal(aep_MW_l.sum(), aep_ref[0], 5)
     npt.assert_array_almost_equal(aep_MW_l, aep_ref[1], 5)
+
+
+@pytest.mark.parametrize('deficitModel', get_models(WakeDeficitModel))
+def test_huge_distance(deficitModel):
+    ref = {"NOJDeficit": 9.799728,
+           "FugaDeficit": 9.8,
+           "FugaYawDeficit": 9.8,
+           "BastankhahGaussianDeficit": 9.799146,
+           "CarbajofuertesGaussianDeficit": 9.798708,
+           "IEA37SimpleBastankhahGaussianDeficit": 9.799151,
+           "NiayifarGaussianDeficit": 9.799148,
+           "TurboGaussianDeficit": 9.793684,
+           "ZongGaussianDeficit": 9.799146,
+           "GCLDeficit": 9.728704,
+           "NoWakeDeficit": 9.8,
+           "NOJLocalDeficit": 9.797488,
+           "TurboNOJDeficit": 9.795231, }
+    site = IEA37Site(16)
+
+    windTurbines = IEA37_WindTurbines()
+    wfm = All2AllIterative(site, windTurbines, wake_deficitModel=deficitModel(), turbulenceModel=GCLTurbulence())
+    sim_res = wfm([0, 100000], [0, 0], wd=[0, 90, 180, 270])
+    # print(f'"{deficitModel.__name__}": {np.round(sim_res.WS_eff.sel(wt=1, ws=9.8, wd=270).item(),6)},')
+
+    npt.assert_array_almost_equal([9.8, 9.8, 9.8, ref[deficitModel.__name__]], sim_res.WS_eff.sel(wt=1).squeeze())
+
+
+@pytest.mark.parametrize('deficitModel', get_models(BlockageDeficitModel))
+def test_huge_distance_blockage(deficitModel):
+    if deficitModel is None:
+        return
+    ref = {"FugaDeficit": 9.8,
+           "FugaYawDeficit": 9.8,
+           "HybridInduction": 9.799999,
+           "SelfSimilarityDeficit2020": 9.799999,
+           "VortexDipole": 9.799999,
+           "RankineHalfBody": 9.799999,
+           "Rathmann": 9.799999,
+           "RathmannScaled": 9.799999,
+           "SelfSimilarityDeficit": 9.799999,
+           "VortexCylinder": 9.799999, }
+    site = IEA37Site(16)
+
+    windTurbines = IEA37_WindTurbines()
+    wfm = All2AllIterative(site, windTurbines, wake_deficitModel=NoWakeDeficit(),
+                           blockage_deficitModel=deficitModel(),
+                           turbulenceModel=GCLTurbulence())
+    sim_res = wfm([0, 100000], [0, 0], wd=[0, 90, 180, 270])
+    # print(f'"{deficitModel.__name__}": {np.round(sim_res.WS_eff.sel(wt=0, ws=9.8, wd=270).item(),6)},')
+
+    npt.assert_array_almost_equal([9.8, 9.8, 9.8, ref[deficitModel.__name__]], sim_res.WS_eff.sel(wt=1).squeeze())
 
 
 @pytest.mark.parametrize(

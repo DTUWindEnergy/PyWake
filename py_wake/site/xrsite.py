@@ -10,6 +10,7 @@ from py_wake.utils import weibull
 from py_wake.utils.ieawind37_utils import iea37_names
 from py_wake.utils.grid_interpolator import GridInterpolator, EqDistRegGrid2DInterpolator
 import urllib.request
+import warnings
 
 
 class XRSite(Site):
@@ -214,7 +215,10 @@ class XRSite(Site):
         WS, WD, TI, TI_std = [get(n, d) for n, d in [('WS', lw.ws), ('WD', lw.wd), ('TI', None), ('TI_std', None)]]
 
         if 'Speedup' in self.ds:
-            WS = self.interp(self.ds.Speedup, lw.coords) * WS
+            if 'i' in lw.dims and 'i' in self.ds.Speedup.dims and len(lw.i) != len(self.ds.i):
+                warnings.warn("Speedup ignored")
+            else:
+                WS = self.interp(self.ds.Speedup, lw.coords) * WS
 
         if self.shear:
             assert 'h' in lw and np.all(lw.h.data != None), "Height must be specified and not None"  # nopep8
@@ -226,7 +230,10 @@ class XRSite(Site):
             WS = self.shear(WS, lw.wd, h)
 
         if 'Turning' in self.ds:
-            WD = (self.interp(self.ds.Turning, lw.coords) + WD) % 360
+            if 'i' in lw.dims and 'i' in self.ds.Turning.dims and len(lw.i) != len(self.ds.i):
+                warnings.warn("Turning ignored")
+            else:
+                WD = (self.interp(self.ds.Turning, lw.coords) + WD) % 360
 
         lw.set_W(WS, WD, TI, ws_bins, self.use_WS_bins)
         lw.set_data_array(TI_std, 'TI_std', 'Standard deviation of turbulence intensity')

@@ -313,8 +313,9 @@ class ZongGaussianDeficit(NiayifarGaussianDeficit):
         # initial size is here a combination of epsilon and the near-wake (needed modification, to ensure
         # the intial wake width is identical to the original formulation. Zong just used a fixed value)
         # non-dimensional wake expansion
-        sigmaD_ijlk = self.epsilon_ilk(ct_ilk)[:, na] + k_ilk[:, na, :, :] * \
-            np.log(1 + np.exp((dw_ijlk - xnw_ilk[:, na, :, :]) / D_src_il[:, na, :, na]))
+        # logaddexp(0,x) ~ log(1+exp(x)) without overflow
+        sigmaD_ijlk = (self.epsilon_ilk(ct_ilk)[:, na] + k_ilk[:, na, :, :] *
+                       np.logaddexp(0, (dw_ijlk - xnw_ilk[:, na, :, :]) / D_src_il[:, na, :, na]))
 
         return sigmaD_ijlk * D_src_il[:, na, :, na]
 
