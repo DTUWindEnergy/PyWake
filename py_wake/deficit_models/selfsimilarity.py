@@ -39,14 +39,7 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
 
         return r12_ijlk
 
-    def gamma(self, x_ijlk, ct_ilk):
-        """
-        Compute thrust coefficient scaling factor
-        Refer to Eq. (8) from [1]
-        """
-        return self.ss_gamma * np.ones_like(x_ijlk)
-
-    def f_eps(self, x_ijlk, cw_ijlk, R_ijl):
+    def f_eps(self, x_ijlk, cw_ijlk, R_ijlk):
         """
         Radial induction shape function
         Eq. (6) from [1]
@@ -54,9 +47,9 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
         r12_ijlk = self.r12(x_ijlk)
         with np.warnings.catch_warnings():
             np.warnings.filterwarnings('ignore', r'overflow encountered in cosh')
-            feps_ijlk = (1 / np.cosh(self.ss_beta * cw_ijlk / (R_ijl[..., na] * r12_ijlk))) ** self.ss_alpha
+            feps_ijlk = (1 / np.cosh(self.ss_beta * cw_ijlk / (R_ijlk * r12_ijlk))) ** self.ss_alpha
 
-        return feps_ijlk
+        return feps_ijlk * (x_ijlk < -self.limiter)
 
     def a0f(self, x_ijlk):
         """
@@ -71,33 +64,43 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
         BEM axial induction approximation by Madsen (1997). Here the effective
         CT is used instead, which is gamma*CT as shown in Eq. (8) in [1].
         """
-        gamma_ct_ijlk = self.gamma(x_ijlk, ct_ilk) * ct_ilk[:, na]
-        a0_ijlk = self.a0p[2] * gamma_ct_ijlk**3 + self.a0p[1] * gamma_ct_ijlk**2 + self.a0p[0] * gamma_ct_ijlk
-        return a0_ijlk
+        gamma_ct_ilk = self.ss_gamma * ct_ilk
+        # a0_ilk = self.a0p[2] * gamma_ct_ilk**3 + self.a0p[1] * gamma_ct_ilk**2 + self.a0p[0] * gamma_ct_ilk
+        a0_ilk = gamma_ct_ilk * (self.a0p[0] + gamma_ct_ilk * (self.a0p[1] + self.a0p[2] * gamma_ct_ilk))
+        return a0_ilk[:, na]
+
+    def _calc_layout_terms(self, dw_ijlk, cw_ijlk, D_src_il, **_):
+        # radial shape function
+        R_ijlk = (D_src_il / 2)[:, na, :, na]
+        x_ijlk = - np.abs(dw_ijlk) / R_ijlk
+
+        self.feps_ijlk = self.f_eps(x_ijlk, cw_ijlk, R_ijlk)
+        self.a0f_ijlk = self.a0f(x_ijlk)
 
     def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):
         """
         Deficit as function of axial and radial coordinates.
         Eq. (5) in [1].
         """
-        # Ensure dw and cw have the correct shape
-        if (cw_ijlk.shape[3] != ct_ilk.shape[2]):
-            cw_ijlk = np.repeat(cw_ijlk, ct_ilk.shape[2], axis=3)
-            dw_ijlk = np.repeat(dw_ijlk, ct_ilk.shape[2], axis=3)
+        R_ijlk = (D_src_il / 2)[:, na, :, na]
+        x_ijlk = - np.abs(dw_ijlk) / R_ijlk
 
-        R_ijl = (D_src_il / 2)[:, na]
-        x_ijlk = - np.abs(dw_ijlk) / R_ijl[..., na]
-        # radial shape function
-        feps_ijlk = self.f_eps(x_ijlk, cw_ijlk, R_ijl)
-        a0x_ijlk = self.a0(x_ijlk, ct_ilk) * self.a0f(x_ijlk)
+        if not self.deficit_initalized:
+            # calculate layout term, self.feps_ijlk and self.a0f_ijlk
+            self.feps_ijlk = self.f_eps(x_ijlk, cw_ijlk, R_ijlk)
+            self.a0f_ijlk = self.a0f(x_ijlk)
+
+        a0x_ijlk = self.a0(x_ijlk, ct_ilk) * self.a0f_ijlk
         # deficit
-        deficit_ijlk = WS_ilk[:, na] * (x_ijlk < -self.limiter) * a0x_ijlk * feps_ijlk
-        deficit_ijlk[dw_ijlk > 0] = -deficit_ijlk[dw_ijlk > 0]
+        deficit_ijlk = WS_ilk[:, na] * a0x_ijlk * self.feps_ijlk
+        m = np.broadcast_to(dw_ijlk > 0, deficit_ijlk.shape)
+        np.negative(deficit_ijlk, out=deficit_ijlk, where=dw_ijlk > 0)  # deficit[m] = -deficit[m]
+
         # only activate the model upstream of the rotor
         if self.exclude_wake:
             # indices in wake region
-            iw = ((dw_ijlk / R_ijl[..., na] >= -self.limiter) &
-                  (np.abs(cw_ijlk) <= R_ijl[..., na])) * np.full(deficit_ijlk.shape, True)
+            iw = ((dw_ijlk / R_ijlk >= -self.limiter) &
+                  (np.abs(cw_ijlk) <= R_ijlk)) * np.full(deficit_ijlk.shape, True)
             deficit_ijlk[iw] = 0.
 
         return deficit_ijlk
@@ -162,7 +165,8 @@ class SelfSimilarityDeficit2020(SelfSimilarityDeficit):
         """
         gamma(CT) @ x/R = -1
         """
-        fn_ilk = self.ngp[0] * ct_ilk**3 + self.ngp[1] * ct_ilk**2 + self.ngp[2] * ct_ilk + self.ngp[3]
+        # fn_ilk = self.ngp[0] * ct_ilk**3 + self.ngp[1] * ct_ilk**2 + self.ngp[2] * ct_ilk + self.ngp[3]
+        fn_ilk = ((self.ngp[0] * ct_ilk + self.ngp[1]) * ct_ilk + self.ngp[2]) * ct_ilk + self.ngp[3]
         return fn_ilk
 
     def inter_gamma_fac(self, x_ijlk):
@@ -173,6 +177,16 @@ class SelfSimilarityDeficit2020(SelfSimilarityDeficit):
         finter_ijlk[x_ijlk < -6] = 1.
         finter_ijlk[x_ijlk > -1] = 0.
         return finter_ijlk
+
+    def a0(self, x_ijlk, ct_ilk):
+        """
+        BEM axial induction approximation by Madsen (1997). Here the effective
+        CT is used instead, which is gamma*CT as shown in Eq. (8) in [1].
+        """
+        gamma_ct_ijlk = self.gamma(x_ijlk, ct_ilk) * ct_ilk[:, na]
+        # a0_ijlk = self.a0p[2] * gamma_ct_ijlk**3 + self.a0p[1] * gamma_ct_ijlk**2 + self.a0p[0] * gamma_ct_ijlk
+        a0_ijlk = ((self.a0p[2] * gamma_ct_ijlk + self.a0p[1]) * gamma_ct_ijlk + self.a0p[0]) * gamma_ct_ijlk
+        return a0_ijlk
 
     def gamma(self, x_ijlk, ct_ilk):
         """
@@ -252,9 +266,9 @@ def main():
         clevels = [.9, .95, .98, .99, .995, .998, .999, 1., 1.01, 1.02, 1.03]
         flow_map.plot_wake_map()
         plt.contour(flow_map.x, flow_map.y, flow_map.WS_eff[:, :,
-                    0, -1, 0] / 10, levels=clevels, colors='k', linewidths=0.5)
+                                                            0, -1, 0] / 10, levels=clevels, colors='k', linewidths=0.5)
         plt.contour(flow_map.x, flow_map.y, flow_map20.WS_eff[:, :,
-                    0, -1, 0] / 10, levels=clevels, colors='r', linewidths=0.5)
+                                                              0, -1, 0] / 10, levels=clevels, colors='r', linewidths=0.5)
         plt.title('Original (black) vs updated (red)')
         plt.show()
 

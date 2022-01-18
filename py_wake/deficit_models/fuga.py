@@ -81,7 +81,6 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
         return self.lut_interpolator((x, y, z))
 
     def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_il, dh_ijlk, D_src_il, **_):
-
         self.mdu_ijlk = self.interpolate(dw_ijlk, np.abs(hcw_ijlk), (h_il[:, na, :, na] + dh_ijlk)) * \
             ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na])  # avoid wake on itself
               )
@@ -113,6 +112,7 @@ class FugaYawDeficit(FugaDeficit):
             This means that all speed-up regions are also removed
         """
         DeficitModel.__init__(self, groundModel=groundModel)
+        BlockageDeficitModel.__init__(self, upstream_only=True)
         FugaUtils.__init__(self, LUT_path, on_mismatch='input_par')
         self.remove_wriggles = remove_wriggles
         x, y, z, dUL = self.load()
@@ -135,7 +135,13 @@ class FugaYawDeficit(FugaDeficit):
                 return np.moveaxis([UL_interpolator.ev(x, y), UT_interpolator.ev(x, y)], 0, -1)
             self.lut_interpolator = interp
 
-    def calc_deficit_downwind(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk, dh_ijlk, h_il, ct_ilk, D_src_il, yaw_ilk, **_):
+    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_il, dh_ijlk, D_src_il, **_):
+        self.mdu_ijlk = (self.interpolate(dw_ijlk, np.abs(hcw_ijlk), (h_il[:, na, :, na] + dh_ijlk)) *
+                         ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na]))[..., na]  # avoid wake on itself
+                         )
+
+    def calc_deficit_downwind(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk,
+                              dh_ijlk, h_il, ct_ilk, D_src_il, yaw_ilk, **_):
 
         mdUL_ijlk, mdUT_ijlk = np.moveaxis(self.interpolate(
             dw_ijlk, np.abs(hcw_ijlk), (h_il[:, na, :, na] + dh_ijlk)), -1, 0)
@@ -146,6 +152,10 @@ class FugaYawDeficit(FugaDeficit):
         mdu_ijlk *= ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na]))
 
         return mdu_ijlk * (ct_ilk * WS_eff_ilk**2 / WS_ilk)[:, na]
+
+    def calc_deficit(self, **kwargs):
+        # fuga result is already downwind
+        return self.calc_deficit_downwind(**kwargs)
 
 
 class LUTInterpolator(object):
@@ -203,9 +213,9 @@ class LUTInterpolator(object):
         v000, v001, v010, v011, v100, v101, v110, v111 = self.V000[:, zi0 * nx * ny + yi0 * nx + xi0]
         if len(self.V000.shape) == 3:
             # Both UL and UT
-            xif = xif[:, :, :, :, na]
-            yif = yif[:, :, :, :, na]
-            zif = zif[:, :, :, :, na]
+            xif = xif[..., na]
+            yif = yif[..., na]
+            zif = zif[..., na]
         v_00 = v000 + (v100 - v000) * zif
         v_01 = v001 + (v101 - v001) * zif
         v_10 = v010 + (v110 - v010) * zif

@@ -24,6 +24,8 @@ from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.utils.model_utils import get_models
 from numpy import newaxis as na
+from py_wake.deficit_models.no_wake import NoWakeDeficit
+from py_wake.rotor_avg_models.rotor_avg_model import CGIRotorAvg
 
 
 class GCLLocalDeficit(GCLDeficit):
@@ -483,3 +485,20 @@ def test_wake_blockage_split(upstream_only, ref):
         plt.show()
 
     npt.assert_array_equal(fm.WS_eff.values.squeeze().T, ref)
+
+
+@pytest.mark.parametrize('deficitModel', get_models(WakeDeficitModel))
+def test_All2AllIterative_WakeDeficit_RotorAvg(deficitModel):
+    site = IEA37Site(16)
+    windTurbines = IEA37_WindTurbines()
+    wf_model = All2AllIterative(site, windTurbines,
+                                wake_deficitModel=deficitModel(),
+                                turbulenceModel=STF2017TurbulenceModel(),
+                                rotorAvgModel=CGIRotorAvg(4))
+    sim_res = wf_model([0, 500, 1000, 1500], [0, 0, 0, 0],
+                       wd=270, ws=10)
+
+    if 0:
+        sim_res.flow_map(
+            XYGrid(x=np.linspace(-200, 2000, 100))).plot_wake_map()
+        plt.show()
