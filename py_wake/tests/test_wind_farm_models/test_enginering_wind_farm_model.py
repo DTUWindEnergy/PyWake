@@ -165,36 +165,6 @@ def test_aep_mixed_type():
                             2 * wfm([0], [0], wd=270).aep(with_wake_loss=False).sum())
 
 
-@pytest.mark.parametrize('deflection_model,count',
-                         [(None, 1),
-                          (JimenezWakeDeflection(), 4)])
-def test_All2AllIterativeDeflection(deflection_model, count):
-
-    class FugaDeficitCount(FugaDeficit):
-        counter = 0
-
-        def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_il, dh_ijlk, D_src_il, **_):
-            self.counter += 1
-            return FugaDeficit._calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_il, dh_ijlk, D_src_il, **_)
-
-    site = IEA37Site(16)
-    windTurbines = IEA37_WindTurbines()
-    deficit_model = FugaDeficitCount()
-    wf_model = All2AllIterative(site, windTurbines,
-                                wake_deficitModel=deficit_model,
-                                superpositionModel=LinearSum(),
-                                blockage_deficitModel=SelfSimilarityDeficit(),
-                                rotorAvgModel=CGIRotorAvg(4),
-                                deflectionModel=deflection_model, convergence_tolerance=None)
-    sim_res = wf_model([0, 500, 1000, 1500], [0, 0, 0, 0],
-                       wd=270, ws=10, yaw=[30, -30, 30, -30])
-    assert wf_model.wake_deficitModel.counter == count
-    if 0:
-        sim_res.flow_map(
-            XYGrid(x=np.linspace(-200, 2000, 100))).plot_wake_map()
-        plt.show()
-
-
 def test_dAEP_2wt():
     site = Hornsrev1Site()
     iea37_site = IEA37Site(16)

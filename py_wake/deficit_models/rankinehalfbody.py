@@ -42,7 +42,7 @@ class RankineHalfBody(BlockageDeficitModel):
         """
         cos_ijlk = dw_ijlk / r_ijlk
         # avoid division by zero
-        f_ilk = a0_ilk * R_il[:, na]
+        f_ilk = a0_ilk * R_il[:, :, na]
         f_ilk[f_ilk == 0.] = np.inf
         # replaced sin**2 and m of expression given in [1]
         val = cos_ijlk - 1 / f_ilk[:, na] * cw_ijlk**2
@@ -53,7 +53,7 @@ class RankineHalfBody(BlockageDeficitModel):
         # source strength as given on p.7
         a0_ilk = self.a0(ct_ilk)
         R_il = D_src_il / 2.
-        m_ilk = 2. * WS_ilk * a0_ilk * np.pi * R_il[:, na]**2
+        m_ilk = 2. * WS_ilk * a0_ilk * np.pi * R_il[:, :, na]**2
         # radial distance
         r_ijlk = np.hypot(dw_ijlk, cw_ijlk)
         # find points lying outside RHB, the only ones to be computed

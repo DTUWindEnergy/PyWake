@@ -1,7 +1,6 @@
 from abc import abstractmethod
 from numpy import newaxis as na
 import numpy as np
-from py_wake.deficit_models import DeficitModel
 from py_wake.superposition_models import SuperpositionModel, LinearSum, WeightedSum
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.deflection_models.deflection_model import DeflectionModel
@@ -9,9 +8,8 @@ from py_wake.utils.gradients import use_autograd_in, autograd
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter, RotorAvgModel
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel
 from py_wake.deficit_models.deficit_model import ConvectionDeficitModel, BlockageDeficitModel, WakeDeficitModel
-from py_wake.ground_models.ground_models import NoGround, GroundModel
 from tqdm import tqdm
-from py_wake.wind_turbines._wind_turbines import WindTurbine, WindTurbines
+from py_wake.wind_turbines._wind_turbines import WindTurbines
 from py_wake.utils.model_utils import check_model
 from py_wake.utils.functions import mean_deg
 
@@ -119,7 +117,7 @@ class EngineeringWindFarmModel(WindFarmModel):
         self.wake_deficitModel.deficit_initalized = True
         if self.blockage_deficitModel:
             if self.blockage_deficitModel != self.wake_deficitModel:
-                self.blockage_deficitModel._calc_layout_terms(**kwargs)
+                self.rotorAvgModel._calc_layout_terms(self.blockage_deficitModel, **kwargs)
             self.blockage_deficitModel.deficit_initalized = True
 
     def _reset_deficit(self):
@@ -645,13 +643,23 @@ class All2AllIterative(EngineeringWindFarmModel):
                              WS_eff_ilk, TI_eff_ilk,
                              x_i, y_i, h_i, D_i, yaw_ilk, tilt_ilk,
                              I, L, K, **kwargs):
+
+        # calculate WS_eff without blockage as a first guess
+        WS_eff_ilk = PropagateDownwind._calc_wt_interaction(self, localWind, WS_eff_ilk, TI_eff_ilk, x_i, y_i, h_i, D_i,
+                                                            yaw_ilk, tilt_ilk, I, L, K, **kwargs)[0]
         lw = localWind
         WS_eff_ilk_last = WS_eff_ilk.copy()
+        diff_lk = np.zeros((L, K))
+        diff_lk_last, diff_lk_lastlast = None, None
         dw_iil, hcw_iil, dh_iil = self.site.distance(wd_l=lw.wd.values, WD_il=mean_deg(lw.WD_ilk, 2))
 
         ct_ilk = self.windTurbines.ct(lw.WS.ilk((I, L, K)), **kwargs)
+        ct_ilk_idle = self.windTurbines.ct(0.1 * np.ones_like(lw.WS.ilk((I, L, K))), **kwargs)
+        unstable_lk = np.zeros((L, K), dtype=bool)
+        ioff = ct_ilk < -1  # index of off/idling turbines
         D_src_il = D_i[:, na]
         args = {'WS_ilk': lw.WS.ilk((I, L, K)),
+                'WS_eff_ilk': WS_eff_ilk,
                 'TI_ilk': lw.TI.ilk(),
                 'TI_eff_ilk': lw.TI.ilk(),
                 'yaw_ilk': yaw_ilk,
@@ -665,10 +673,16 @@ class All2AllIterative(EngineeringWindFarmModel):
                 'h_il': h_i[:, na]
                 }
 
+        if not self.deflectionModel:
+            self._init_deficit(**args)
+
         # Iterate until convergence
-        for j in tqdm(range(I), disable=I <= 1 or not self.verbose, desc="Calculate flow interaction", unit="wt"):
+        for j in tqdm(range(I), disable=I <= 1 or not self.verbose,
+                      desc="Calculate flow interaction", unit="Iteration"):
 
             ct_ilk = self.windTurbines.ct(np.maximum(WS_eff_ilk, 0), **kwargs)
+            ioff |= (unstable_lk)[na] & (ct_ilk <= ct_ilk_idle)
+
             args['ct_ilk'] = ct_ilk
             args['WS_eff_ilk'] = WS_eff_ilk
             if self.deflectionModel:
@@ -677,8 +691,6 @@ class All2AllIterative(EngineeringWindFarmModel):
                 args.update({'dw_ijlk': dw_ijlk, 'hcw_ijlk': hcw_ijlk, 'dh_ijlk': dh_ijlk,
                              'cw_ijlk': np.hypot(dh_iil[..., na], hcw_ijlk)})
                 self._reset_deficit()
-            elif j == 0:
-                self._init_deficit(**args)
 
             if self.turbulenceModel:
                 args['TI_eff_ilk'] = TI_eff_ilk
@@ -702,10 +714,13 @@ class All2AllIterative(EngineeringWindFarmModel):
                 if self.blockage_deficitModel:
                     WS_eff_ilk -= (self.blockage_deficitModel.superpositionModel or LinearSum())(blockage_iilk)
             else:
-                WS_eff_ilk = lw.WS_ilk.astype(
-                    float) - self.superpositionModel(deficit_iilk)
+                WS_eff_ilk = lw.WS_ilk.astype(float) - self.superpositionModel(deficit_iilk)
                 if self.blockage_deficitModel:
                     WS_eff_ilk -= (self.blockage_deficitModel.superpositionModel or self.superpositionModel)(blockage_iilk)
+
+            # ensure idling wt in unstable flow cases do not cutin even if ws increases due to speedup
+            # this helps to converge
+            WS_eff_ilk[ioff] = np.minimum(WS_eff_ilk[ioff], WS_eff_ilk_last[ioff])
 
             if self.turbulenceModel:
                 add_turb_ijlk = self.turbulenceModel.rotorAvgModel(
@@ -714,14 +729,26 @@ class All2AllIterative(EngineeringWindFarmModel):
                     lw.TI_ilk, add_turb_ijlk)
 
             # Check if converged
-            diff = np.abs(WS_eff_ilk_last - WS_eff_ilk)
-            max_diff = np.max(diff)
-            if self.convergence_tolerance and max_diff < self.convergence_tolerance:
-                # print("All2AllIterative converge after %d iterations" % j)
+            diff_ilk = np.abs(WS_eff_ilk_last - WS_eff_ilk)
+            diff_lk = diff_ilk.max(0)
+            max_diff = np.max(diff_lk)
+
+            if (self.convergence_tolerance and max_diff < self.convergence_tolerance):
                 break
-            # i_, l_, k_ = list(zip(*np.where(diff == max_diff)))[0]
-            # print("Iteration: %d, max diff: %f, WT: %d, WD: %d, WS: %d" % (j, max_diff, i_, l_, WS_ilk[i_, l_, k_]))
+            # i_, l_, k_ = list(zip(*np.where(diff_ilk == max_diff)))[0]
+            # print("Iteration: %d, max diff_ilk: %.8f, WT: %d, WD: %d, WS: %f, WS_eff: %f" %
+            #       (j, max_diff, i_, lw.wd[l_], lw.ws[k_], WS_eff_ilk[i_, l_, k_]))
+
+            # assume flow case to be unstable if slope of improvement of two iterations is lower than
+            # needed to converge within next 20 iteration
+            if j > 1:
+                unstable_lk |= (diff_lk_lastlast - diff_lk) / 2 <= (diff_lk -
+                                                                    self.convergence_tolerance) / min(20, (I - j))
             WS_eff_ilk_last = WS_eff_ilk.copy()
+            diff_lk_lastlast = diff_lk_last
+            diff_lk_last = diff_lk
+
+        # print("All2AllIterative converge after %d iterations" % j)
         self._reset_deficit()
         return WS_eff_ilk, TI_eff_ilk, ct_ilk
 

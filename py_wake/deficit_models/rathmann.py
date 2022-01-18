@@ -38,6 +38,20 @@ class Rathmann(BlockageDeficitModel):
         # zero, as here the wake model is active
         self.exclude_wake = exclude_wake
 
+    def _calc_layout_terms(self, D_src_il, dw_ijlk, cw_ijlk, **_):
+        R_ijlk = (D_src_il / 2)[:, na, :, na]
+        # determine dimensionless radial and streamwise coordinates
+        rho_ijlk = cw_ijlk / R_ijlk
+        xi_ijlk = dw_ijlk / R_ijlk
+        # mirror the bahaviour in the rotor-plane
+        xi_ijlk[xi_ijlk > 0] = -xi_ijlk[xi_ijlk > 0]
+        # centerline shape function
+        dmu_ijlk = self.dmu(xi_ijlk)
+        # radial shape function
+        G_ijlk = self.G(xi_ijlk, rho_ijlk)
+        # layout term
+        self.dmu_G_ijlk = dmu_ijlk * G_ijlk
+
     def a0(self, ct_ilk):
         """
         BEM axial induction approximation by Madsen (1997).
@@ -74,31 +88,21 @@ class Rathmann(BlockageDeficitModel):
         The deficit is determined from a streamwise and radial shape function, whereas
         the strength is given from vortex and BEM theory.
         """
-        # Ensure dw and cw have the correct shape
-        if (cw_ijlk.shape[3] != ct_ilk.shape[2]):
-            cw_ijlk = np.repeat(cw_ijlk, ct_ilk.shape[2], axis=3)
-            dw_ijlk = np.repeat(dw_ijlk, ct_ilk.shape[2], axis=3)
-        R_il = (D_src_il / 2)
+        if not self.deficit_initalized:
+            # calculate layout term, self.dmu_G_ijlk
+            self._calc_layout_terms(D_src_il, dw_ijlk, cw_ijlk)
+
         # circulation/strength of vortex dipole Eq. (1) in [1]
         gammat_ilk = WS_ilk * 2. * self.a0(ct_ilk * self.sct)
-        # determine dimensionless radial and streamwise coordinates
-        rho_ijlk = cw_ijlk / R_il[:, na, :, na]
-        xi_ijlk = dw_ijlk / R_il[:, na, :, na]
-        # mirror the bahaviour in the rotor-plane
-        xi_ijlk[xi_ijlk > 0] = -xi_ijlk[xi_ijlk > 0]
-        # centerline shape function
-        dmu_ijlk = self.dmu(xi_ijlk)
-        # radial shape function
-        G_ijlk = self.G(xi_ijlk, rho_ijlk)
-        # deficit
-        deficit_ijlk = gammat_ilk[:, na] / 2. * dmu_ijlk * G_ijlk
+
+        deficit_ijlk = gammat_ilk[:, na] / 2. * self.dmu_G_ijlk
         # turn deficit into speed-up downstream
-        deficit_ijlk[dw_ijlk > 0] = -deficit_ijlk[dw_ijlk > 0]
+        np.negative(deficit_ijlk, out=deficit_ijlk, where=dw_ijlk > 0)
 
         if self.exclude_wake:
+            R_ijlk = (D_src_il / 2)[:, na, :, na]
             # indices in wake region
-            iw = ((dw_ijlk / R_il[:, na, :, na] >= -self.limiter) &
-                  (np.abs(cw_ijlk) <= R_il[:, na, :, na])) * np.full(deficit_ijlk.shape, True)
+            iw = np.broadcast_to((dw_ijlk / R_ijlk >= -self.limiter) & (np.abs(cw_ijlk) <= R_ijlk), deficit_ijlk.shape)
             deficit_ijlk[iw] = 0.
 
         return deficit_ijlk

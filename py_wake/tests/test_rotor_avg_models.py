@@ -11,7 +11,7 @@ from py_wake.superposition_models import SquaredSum, LinearSum
 import pytest
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 
-from py_wake.deficit_models.deficit_model import DeficitModel, WakeDeficitModel
+from py_wake.deficit_models.deficit_model import WakeDeficitModel
 from py_wake.utils.model_utils import get_models
 
 EngineeringWindFarmModel.verbose = False

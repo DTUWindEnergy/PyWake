@@ -9,6 +9,9 @@ from py_wake.wind_farm_models.engineering_models import All2AllIterative
 import memory_profiler
 from py_wake.tests import npt
 import pytest
+from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
+from py_wake.deficit_models.rathmann import Rathmann
+from py_wake.tests.check_speed import timeit
 
 
 def get_memory_usage():
@@ -25,15 +28,24 @@ def test_memory_usage():
     wt = V80()
     site = Hornsrev1Site()
     x, y = site.initial_position.T
+    tol = 20
 
-    for wfm, mem_min, mem_max in [(NOJ(site, wt), 59, 90),
-                                  (All2AllIterative(site, wt, wake_deficitModel=NOJDeficit()), 525, 600)]:
-        mem_usage, _ = memory_profiler.memory_usage(
-            (wfm, (x, y), {'wd': np.arange(0, 360, 4)}), interval=0.001, max_usage=True, retval=True)
+    for wfm, wd_step, mem_min, mem_max in [
+        (NOJ(site, wt), 4, 60 - tol, 74 + tol),
+        (All2AllIterative(site, wt, wake_deficitModel=NOJDeficit(),
+                          blockage_deficitModel=SelfSimilarityDeficit()), 10, 288 - tol, 361 + tol)]:
+        lst = []
+        for _ in range(1):
+            initial_mem_usage = get_memory_usage()
+            gc.collect()
+            mem_usage, _ = memory_profiler.memory_usage(
+                (wfm, (x, y), {'wd': np.arange(0, 360, wd_step)}), interval=.01, max_usage=True, retval=True)
 
-        mem_usage -= initial_mem_usage
-        print(initial_mem_usage, mem_usage)
-        assert mem_min < mem_usage < mem_max, (initial_mem_usage, mem_usage)
+            mem_usage -= initial_mem_usage
+            lst.append(mem_usage)
+
+#        print(np.min(lst), np.max(lst), np.mean(lst), np.std(lst))
+        assert mem_min < mem_usage < mem_max
 
     return
 

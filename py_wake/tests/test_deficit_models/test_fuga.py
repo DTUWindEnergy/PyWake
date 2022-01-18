@@ -87,7 +87,7 @@ def test_fuga_blockage_wt_row():
     aep_blockage = sim_res_a2a.aep_ilk()[:, 0, :]
 
     # blockage reduce aep(wd=270) by .24%
-    npt.assert_almost_equal((aep.sum() - aep_blockage.sum()) / aep.sum() * 100, 0.2433161515321294)
+    npt.assert_almost_equal((aep.sum() - aep_blockage.sum()) / aep.sum() * 100, 0.2439044187161459)
 
     if 0:
         plt.plot((sim_res_pdw.WS_eff_ilk[:, 0, 7] - sim_res_a2a.WS_eff_ilk[:, 0, 7]) /

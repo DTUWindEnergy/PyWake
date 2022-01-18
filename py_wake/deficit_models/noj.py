@@ -36,9 +36,8 @@ class NOJDeficit(NiayifarGaussianDeficit, AreaOverlappingFactor):
 
     def calc_deficit(self, WS_ilk, WS_eff_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk, ct_ilk, **kwargs):
         if not self.deficit_initalized:
-            kwargs['ct_ilk'] = ct_ilk
             self._calc_layout_terms(
-                WS_ilk, WS_eff_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk, **kwargs)
+                WS_ilk, WS_eff_ilk, D_src_il, D_dst_ijl, dw_ijlk, cw_ijlk, ct_ilk=ct_ilk, **kwargs)
         ct_ilk = np.minimum(ct_ilk, 1)   # treat ct_ilk for np.sqrt()
         term_numerator_ilk = (1 - np.sqrt(1 - ct_ilk))
         return term_numerator_ilk[:, na] * self.layout_factor_ijlk
@@ -165,9 +164,17 @@ class TurboNOJDeficit(NOJDeficit, AreaOverlappingFactor):
         # default constants from Frandsen
         self.cTI = cTI
 
-    def wake_radius(self, D_src_il, dw_ijlk, **kwargs):
-        TI_ref_ilk = (kwargs['TI_ilk'], kwargs['TI_eff_ilk'])[self.use_effective_ti]
-        ct_ilk = kwargs['ct_ilk']
+    def _calc_layout_terms(self, *args, **kwargs):
+        """Wake radius depends on CT, i.e. it cannot be precalculated"""
+
+    def calc_deficit(self, **kwargs):
+        NOJDeficit._calc_layout_terms(self, **kwargs)
+        self.deficit_initalized = True
+        return NOJDeficit.calc_deficit(self, **kwargs)
+
+    def wake_radius(self, D_src_il, dw_ijlk, ct_ilk, TI_ilk, TI_eff_ilk, **kwargs):
+        TI_ref_ilk = (TI_ilk, TI_eff_ilk)[self.use_effective_ti]
+        ct_ilk = ct_ilk
         c1, c2 = self.cTI
 
         # constants related to ambient turbulence
