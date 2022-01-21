@@ -86,10 +86,10 @@ class GCLLocalDeficit(GCLDeficit):
                            14791.05027, 32446.01148, 69635.02796, 17982.12684, 12136.24637,
                            7803.89434])),
      (TurboGaussianDeficit(),
-      (362942.7163763603, [9152.31489, 8513.7505, 11344.72644, 14043.03361, 20480.38941,
-                           25355.47736, 39119.74634, 43278.23173, 23063.83353, 13541.60245,
-                           14949.91728, 32424.59269, 69598.37005, 17970.25619, 12266.59879,
-                           7839.8751])),
+      (344495.05909742677, [8378.84801, 8092.77403, 11185.38929, 13683.78411, 18404.13628,
+                            24706.83241, 38570.30789, 41138.26797, 21114.69699, 12835.33001,
+                            14707.78063, 31935.50905, 62543.30153, 17699.19779, 12067.92257,
+                            7430.98053])),
 
      ])
 def test_IEA37_ex16(deficitModel, aep_ref):
@@ -121,7 +121,7 @@ def test_huge_distance(deficitModel):
            "CarbajofuertesGaussianDeficit": 9.798708,
            "IEA37SimpleBastankhahGaussianDeficit": 9.799151,
            "NiayifarGaussianDeficit": 9.799148,
-           "TurboGaussianDeficit": 9.793684,
+           "TurboGaussianDeficit": 9.786208,
            "ZongGaussianDeficit": 9.799146,
            "GCLDeficit": 9.728704,
            "NoWakeDeficit": 9.8,
@@ -239,7 +239,7 @@ def test_deficitModel_wake_map(deficitModel, ref):
      (ZongGaussianDeficit(eps_coeff=0.35), [91.15734, 66.228381, 132.456762, 94.90156, 79.198215]),
      (NiayifarGaussianDeficit(), [92.880786, 67.440393, 134.880786, 84.811162, 73.880786]),
      (CarbajofuertesGaussianDeficit(), [102.914211, 68.866465, 137.866624, 102.914211, 85.457105]),
-     (TurboGaussianDeficit(), [99.905263, 61.99431, 123.988619, 85.250835, 97.914835]),
+     (TurboGaussianDeficit(), [83.563771, 49.809671, 99.619342, 71.104277, 82.236819]),
      ])
 def test_wake_radius(deficitModel, wake_radius_ref):
 
@@ -491,9 +491,9 @@ def test_IEA37_ex16_windFarmModel(windFarmModel, aep_ref):
 
 
 def test_own_deficit_is_zero():
+    site = Hornsrev1Site()
+    windTurbines = IEA37_WindTurbines()
     for deficitModel in get_models(WakeDeficitModel):
-        site = Hornsrev1Site()
-        windTurbines = IEA37_WindTurbines()
         wf_model = All2AllIterative(site, windTurbines, wake_deficitModel=deficitModel(),
                                     turbulenceModel=STF2017TurbulenceModel())
         sim_res = wf_model([0], [0])
