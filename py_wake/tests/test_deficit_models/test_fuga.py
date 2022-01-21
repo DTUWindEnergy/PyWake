@@ -1,5 +1,5 @@
 import numpy as np
-from py_wake.examples.data.hornsrev1 import HornsrevV80
+from py_wake.examples.data.hornsrev1 import HornsrevV80, V80
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
 from py_wake.tests.test_files import tfp
@@ -314,6 +314,16 @@ def test_interpolation():
     if plot:
         plt.show()
         plt.close('all')
+
+
+@pytest.mark.parametrize('case,ti', [('Z0=0.00001000Zi=00400Zeta0=0.00E+00', .06),
+                                     ('Z0=0.00408599Zi=00400Zeta0=0.00E+00/', .10),
+                                     ('Z0=0.03000000Zi=00401Zeta0=0.00E+00/', .12), ])
+def test_ti(case, ti):
+    path = tfp + f'fuga/2MW/{case}'
+    fuga_utils = FugaUtils(path, on_mismatch='input_par')
+    npt.assert_almost_equal(fuga_utils.TI, ti, 2)
+
 
 # def cmp_fuga_with_colonel():
 #     from py_wake.aep_calculator import AEPCalculator

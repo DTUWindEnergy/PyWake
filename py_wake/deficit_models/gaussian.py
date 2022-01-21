@@ -394,11 +394,12 @@ class CarbajofuertesGaussianDeficit(ZongGaussianDeficit):
 
 
 class TurboGaussianDeficit(NiayifarGaussianDeficit):
+    """Implemented similar to Ørsted's TurbOPark model (https://github.com/OrstedRD/TurbOPark)"""
 
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il',
                     'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_ilk', 'TI_eff_ilk']
 
-    def __init__(self, A=.6, cTI=[1.5, 0.8], ceps=.2, use_effective_ws=False,
+    def __init__(self, A=.4, cTI=[1.5, 0.8], ceps=.2, use_effective_ws=False,
                  use_effective_ti=False, groundModel=NoGround()):
         DeficitModel.__init__(self, groundModel=groundModel)
         self.A = A
