@@ -3,6 +3,7 @@ from numpy import newaxis as na
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
 from py_wake.ground_models.ground_models import NoGround
+from py_wake.utils.gradients import hypot
 
 
 class Rathmann(BlockageDeficitModel):
@@ -44,7 +45,7 @@ class Rathmann(BlockageDeficitModel):
         rho_ijlk = cw_ijlk / R_ijlk
         xi_ijlk = dw_ijlk / R_ijlk
         # mirror the bahaviour in the rotor-plane
-        xi_ijlk[xi_ijlk > 0] = -xi_ijlk[xi_ijlk > 0]
+        np.negative(xi_ijlk, out=xi_ijlk, where=xi_ijlk > 0)
         # centerline shape function
         dmu_ijlk = self.dmu(xi_ijlk)
         # radial shape function
@@ -56,7 +57,9 @@ class Rathmann(BlockageDeficitModel):
         """
         BEM axial induction approximation by Madsen (1997).
         """
-        a0_ilk = self.a0p[2] * ct_ilk**3 + self.a0p[1] * ct_ilk**2 + self.a0p[0] * ct_ilk
+        # Evaluate with Horner's rule.
+        # a0_ilk = self.a0p[2] * ct_ilk**3 + self.a0p[1] * ct_ilk**2 + self.a0p[0] * ct_ilk
+        a0_ilk = ct_ilk * (self.a0p[0] + ct_ilk * (self.a0p[1] + ct_ilk * self.a0p[2]))
         return a0_ilk
 
     def dmu(self, xi_ijlk):
@@ -144,7 +147,7 @@ class RathmannScaled(Rathmann):
         Scaling function defined in [1], Eq. 11-13 forcing the output closer to the
         CFD results.
         """
-        r = np.hypot(cw_ijlk, dw_ijlk) / D_src_il[:, na, :, na]
+        r = hypot(cw_ijlk, dw_ijlk) / D_src_il[:, na, :, na]
         fac = 1. + self.sd[4] * (r - 5.)
         fac[fac > 1.] = 1.
         mval = 1. - 4. * self.sd[4]

@@ -3,6 +3,7 @@ from numpy import newaxis as na
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
 from py_wake.ground_models.ground_models import NoGround
+from py_wake.utils.gradients import hypot
 
 
 class VortexDipole(BlockageDeficitModel):
@@ -40,7 +41,9 @@ class VortexDipole(BlockageDeficitModel):
         """
         BEM axial induction approximation by Madsen (1997).
         """
-        a0_ilk = self.a0p[2] * ct_ilk**3 + self.a0p[1] * ct_ilk**2 + self.a0p[0] * ct_ilk
+        # Evaluate with Horner's rule.
+        # a0_ilk = self.a0p[2] * ct_ilk**3 + self.a0p[1] * ct_ilk**2 + self.a0p[0] * ct_ilk
+        a0_ilk = ct_ilk * (self.a0p[0] + ct_ilk * (self.a0p[1] + ct_ilk * self.a0p[2]))
         return a0_ilk
 
     def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):
@@ -49,7 +52,7 @@ class VortexDipole(BlockageDeficitModel):
         """
         R_il = (D_src_il / 2)
         # radial distance
-        r_ijlk = np.hypot(dw_ijlk, cw_ijlk)
+        r_ijlk = hypot(dw_ijlk, cw_ijlk)
         # circulation/strength of vortex dipole Eq. (1) in [1]
         gammat_ilk = WS_ilk * 2. * self.a0(ct_ilk * self.sct)
         # Eq. (2) in [1], induced velocities away from centreline, however

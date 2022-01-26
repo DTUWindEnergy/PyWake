@@ -12,6 +12,7 @@ from tqdm import tqdm
 from py_wake.wind_turbines._wind_turbines import WindTurbines
 from py_wake.utils.model_utils import check_model
 from py_wake.utils.functions import mean_deg
+from py_wake.utils.gradients import hypot
 
 
 class EngineeringWindFarmModel(WindFarmModel):
@@ -299,7 +300,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                     ** {k: arg_funcs[k]() for k in self.deflectionModel.args4deflection})
             else:
                 dw_ijlk, hcw_ijlk, dh_ijlk = dw_ijl[..., na], hcw_ijl[..., na], dh_ijl[..., na]
-            arg_funcs.update({'cw_ijlk': lambda: np.hypot(dh_ijlk, hcw_ijlk),
+            arg_funcs.update({'cw_ijlk': lambda: hypot(dh_ijlk, hcw_ijlk),
                               'dw_ijlk': lambda: dw_ijlk, 'hcw_ijlk': lambda: hcw_ijlk, 'dh_ijlk': lambda: dh_ijlk})
 
             args = {k: arg_funcs[k]() for k in self.args4deficit if k != 'dw_ijlk'}
@@ -347,7 +348,7 @@ class EngineeringWindFarmModel(WindFarmModel):
 
             l_ = [l, 0][lw_j.WS_ilk.shape[1] == 1]
             if isinstance(self.superpositionModel, WeightedSum):
-                cw_ijk = np.hypot(dh_ijl[..., na], hcw_ijlk)[:, :, 0]
+                cw_ijk = hypot(dh_ijl[..., na], hcw_ijlk)[:, :, 0]
                 hcw_ijk, dh_ijk = hcw_ijlk[:, :, 0], dh_ijl[:, :, 0, na]
                 WS_eff_jlk[:, l] = lw_j.WS_ilk[:, l_] - self.superpositionModel(lw_j.WS_ilk[:, l_], deficit_ijk, uc_ijk,
                                                                                 sigma_sqr_ijk, cw_ijk, hcw_ijk, dh_ijk)
@@ -689,7 +690,7 @@ class All2AllIterative(EngineeringWindFarmModel):
                 dw_ijlk, hcw_ijlk, dh_ijlk = self.deflectionModel.calc_deflection(
                     dw_ijl=dw_iil, hcw_ijl=hcw_iil, dh_ijl=dh_iil, **args)
                 args.update({'dw_ijlk': dw_ijlk, 'hcw_ijlk': hcw_ijlk, 'dh_ijlk': dh_ijlk,
-                             'cw_ijlk': np.hypot(dh_iil[..., na], hcw_ijlk)})
+                             'cw_ijlk': hypot(dh_iil[..., na], hcw_ijlk)})
                 self._reset_deficit()
 
             if self.turbulenceModel:

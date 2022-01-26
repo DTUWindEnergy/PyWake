@@ -5,6 +5,7 @@ from py_wake.deficit_models.vortexdipole import VortexDipole
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
 from py_wake.ground_models.ground_models import NoGround
+from py_wake.utils.gradients import hypot
 
 
 class HybridInduction(BlockageDeficitModel):
@@ -50,8 +51,8 @@ class HybridInduction(BlockageDeficitModel):
         # apply deficits in specified regions
         R_il = (D_src_il / 2)
         # radial distance from rotor centre
-        r_ijlk = np.hypot(dw_ijlk, cw_ijlk)
-        rcut_ijlk = (R_il * self.switch_radius)[:, na, :, na] * np.ones_like(dff_ijlk)
+        r_ijlk = hypot(dw_ijlk, cw_ijlk)
+        rcut_ijlk = np.broadcast_to((R_il * self.switch_radius)[:, na, :, na], dff_ijlk.shape)
         # region where to apply the far-field deficit
         iff = (r_ijlk > rcut_ijlk) | (dw_ijlk > 0)
         deficit_ijlk = dnr_ijlk.copy()

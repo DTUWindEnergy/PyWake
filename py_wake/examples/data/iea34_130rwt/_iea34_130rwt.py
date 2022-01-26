@@ -7,6 +7,7 @@ from py_wake.wind_turbines.power_ct_functions import PowerCtSurrogate
 from py_wake.wind_turbines.wind_turbine_functions import FunctionSurrogates
 from py_wake.examples.data import example_data_path
 from py_wake.utils.model_utils import fix_shape
+from py_wake.utils.gradients import hypot
 
 
 class IEA34_130_PowerCtSurrogate(PowerCtSurrogate):
@@ -109,7 +110,7 @@ class IEA34_130_2WT_Surrogate(IEA34_130_Base):
 
     def get_input(self, ws, dw_ijl, hcw_ijl, TI, Alpha=0):
         # ['ws','ti', 'shear', 'wdir', 'dist']
-        dist = np.atleast_1d((np.hypot(dw_ijl, hcw_ijl) / 130))
+        dist = np.atleast_1d((hypot(dw_ijl, hcw_ijl) / 130))
         wd = np.atleast_1d(np.rad2deg(np.arctan2(hcw_ijl, dw_ijl)))
         unwaked = (dist == 0) | (dist > self.max_dist) | (np.abs(wd) > self.max_angle)
         dist[unwaked] = 20

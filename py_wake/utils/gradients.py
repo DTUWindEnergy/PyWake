@@ -106,3 +106,25 @@ def plot_gradients(f, dfdx, x, label, step=1, ax=None):
     if label not in color_dict:
         color_dict[label] = c
     plt.legend()
+
+
+def hypot(a, b):
+    """
+    Given the “legs” of a right triangle, return its hypotenuse.
+
+    Calls numpy.hypot(a, b) for real arguments and np.sqrt(a**2 + b**2) for complex arguments.
+
+    Parameters
+    ----------
+    a, b : real or complex array_like
+        Leg of the triangle(s).
+
+    Returns
+    -------
+    c : real or complex array_like
+        The hypotenuse of the triangle(s).
+    """
+    if np.isrealobj(a) and np.isrealobj(b):
+        return np.hypot(a, b)
+    else:
+        return np.sqrt(a**2 + b**2)

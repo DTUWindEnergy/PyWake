@@ -3,6 +3,7 @@ from numpy import newaxis as na
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
 from py_wake.ground_models.ground_models import NoGround
+from py_wake.utils.gradients import hypot
 
 
 class RankineHalfBody(BlockageDeficitModel):
@@ -33,7 +34,9 @@ class RankineHalfBody(BlockageDeficitModel):
         """
         BEM axial induction approximation by Madsen (1997).
         """
-        a0_ilk = self.a0p[2] * ct_ilk**3 + self.a0p[1] * ct_ilk**2 + self.a0p[0] * ct_ilk
+        # Evaluate with Horner's rule.
+        # a0_ilk = self.a0p[2] * ct_ilk**3 + self.a0p[1] * ct_ilk**2 + self.a0p[0] * ct_ilk
+        a0_ilk = ct_ilk * (self.a0p[0] + ct_ilk * (self.a0p[1] + ct_ilk * self.a0p[2]))
         return a0_ilk
 
     def outside_body(self, WS_ilk, a0_ilk, R_il, dw_ijlk, cw_ijlk, r_ijlk):
@@ -55,7 +58,7 @@ class RankineHalfBody(BlockageDeficitModel):
         R_il = D_src_il / 2.
         m_ilk = 2. * WS_ilk * a0_ilk * np.pi * R_il[:, :, na]**2
         # radial distance
-        r_ijlk = np.hypot(dw_ijlk, cw_ijlk)
+        r_ijlk = hypot(dw_ijlk, cw_ijlk)
         # find points lying outside RHB, the only ones to be computed
         # remove singularities
         r_ijlk[2 * r_ijlk / D_src_il[:, na, :, na] < self.limiter] = np.inf
