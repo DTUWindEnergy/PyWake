@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from autograd import numpy as anp
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
-from py_wake.utils.gradients import use_autograd_in, autograd, plot_gradients, fd, cs
+from py_wake.utils.gradients import use_autograd_in, autograd, plot_gradients, fd, cs, hypot
 from py_wake.tests import npt
 from py_wake.wind_turbines import WindTurbines
 from py_wake.wind_turbines import _wind_turbines
@@ -218,3 +218,14 @@ def test_plot_gradients():
     if 0:
         plt.show()
     plt.close('all')
+
+
+def test_hypot():
+    # Test real.
+    a = np.array([3, 9])
+    b = np.array([4, 40])
+    npt.assert_equal(hypot(a, b), np.array([5, 41]))
+    # Test complex.
+    a = 3 + 4j
+    b = 1 - 2j
+    npt.assert_array_almost_equal(hypot(a, b), 2.486028939392892 + 4.022479320953552j)

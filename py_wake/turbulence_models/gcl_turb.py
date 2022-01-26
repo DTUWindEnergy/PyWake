@@ -41,8 +41,7 @@ class GCLTurbulence(TurbulenceModel, AreaOverlappingFactor):
             Added turbulence intensity [-]
         """
         dw_ijlk_gt0 = np.maximum(dw_ijlk, 1e-10)
-        r = 0.29 * np.sqrt(1 - np.sqrt(1 - ct_ilk))[:, na] / \
-            ((dw_ijlk_gt0 / D_src_il[:, na, :, na])**(1 / 3))
+        r = 0.29 * np.sqrt(1 - np.sqrt(1 - ct_ilk))[:, na] / np.cbrt(dw_ijlk_gt0 / D_src_il[:, na, :, na])
         area_overlap_ijlk = self.overlapping_area_factor(wake_radius_ijlk, dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl)
         return area_overlap_ijlk * r * (dw_ijlk > 0)
 

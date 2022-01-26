@@ -2,6 +2,7 @@ from numpy import newaxis as na
 import numpy as np
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel
 from py_wake.superposition_models import LinearSum
+from py_wake.utils.gradients import hypot
 
 
 class FrandsenWeight():
@@ -29,7 +30,7 @@ class FrandsenWeight():
         # I0 is added in the LinearSum TurbulenceSuperpositionModel
         # so we need to multiply the weight to I0 * alpha
         # 3.17: I0 * alpha = sqrt(Iadd^2 + I0^2) - I0
-        return weights_ijlk * (np.sqrt(TI_add_ijlk**2 + TI_ilk[:, na]**2) - TI_ilk[:, na])
+        return weights_ijlk * (hypot(TI_add_ijlk, TI_ilk[:, na]) - TI_ilk[:, na])
 
 
 class IECWeight():
@@ -50,7 +51,7 @@ class IECWeight():
         angleSpread = 21.6 / 2  # half angle
         r = np.tan(angleSpread * np.pi / 180.0) * dw_ijlk
         weights_ijlk = ((np.abs(cw_ijlk) < np.abs(r)) & (dw_ijlk > -1e-10) &
-                        (np.sqrt(dw_ijlk**2 + cw_ijlk**2) < (self.dist_limit * D_src_il)[:, na, :, na]))
+                        (hypot(dw_ijlk, cw_ijlk) < (self.dist_limit * D_src_il)[:, na, :, na]))
         return TI_add_ijlk * weights_ijlk
 
 
@@ -66,7 +67,7 @@ class STF2017TurbulenceModel(TurbulenceModel):
         self.apply_weight = weight_function.apply_weight
 
     def max_centre_wake_turbulence(self, dw_ijlk, cw_ijlk, D_src_il, ct_ilk, **_):
-        dist_ijlk = np.sqrt(dw_ijlk**2 + cw_ijlk**2) / D_src_il[:, na, :, na]
+        dist_ijlk = hypot(dw_ijlk, cw_ijlk) / D_src_il[:, na, :, na]
         # In the standard (see page 103), the maximal added TI is calculated as
         # TI_add = 1/(1.5 + 0.8*d/sqrt(Ct))
         return 1 / (self.c[0] + self.c[1] * dist_ijlk / np.sqrt(ct_ilk)[:, na])

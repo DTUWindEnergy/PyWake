@@ -1,6 +1,7 @@
 from numpy import newaxis as na
 import numpy as np
 from py_wake.deflection_models import DeflectionModel
+from py_wake.utils.gradients import hypot
 
 
 class GCLHillDeflection(DeflectionModel):
@@ -47,7 +48,7 @@ class GCLHillDeflection(DeflectionModel):
             **{k: v[..., na] for k, v in kwargs.items()})
 
         theta_yaw_ilk, theta_tilt_ilk = np.deg2rad(yaw_ilk), np.deg2rad(-tilt_ilk)
-        theta_ilk = np.sqrt(theta_yaw_ilk**2 + theta_tilt_ilk**2)
+        theta_ilk = hypot(theta_yaw_ilk, theta_tilt_ilk)
         theta_deflection_ilk = np.arctan2(theta_tilt_ilk, theta_yaw_ilk)
 
         U_d_ijlkx = -0.4 * U_w_ijlx * np.sin(theta_ilk)[:, na, :, :, na]

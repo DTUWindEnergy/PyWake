@@ -1,6 +1,7 @@
 from numpy import newaxis as na
 import numpy as np
 from py_wake.deflection_models import DeflectionModel
+from py_wake.utils.gradients import hypot
 
 
 class JimenezWakeDeflection(DeflectionModel):
@@ -19,7 +20,7 @@ class JimenezWakeDeflection(DeflectionModel):
         dw_lst = (np.logspace(0, 1.1, self.N) - 1) / (10**1.1 - 1)
         dw_ijxl = dw_ijl[:, :, na] * dw_lst[na, na, :, na]
         theta_yaw_ilk, theta_tilt_ilk = np.deg2rad(yaw_ilk), np.deg2rad(-tilt_ilk)
-        theta_ilk = np.sqrt(theta_yaw_ilk**2 + theta_tilt_ilk**2)
+        theta_ilk = hypot(theta_yaw_ilk, theta_tilt_ilk)
         theta_deflection_ilk = np.arctan2(theta_tilt_ilk, theta_yaw_ilk)
         denominator_ilk = np.cos(theta_ilk)**2 * np.sin(theta_ilk) * (ct_ilk / 2)
         nominator_ijxl = (1 + (self.beta / D_src_il)[:, na, na, :] * np.maximum(dw_ijxl, 0))**2

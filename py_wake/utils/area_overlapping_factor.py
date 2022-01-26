@@ -89,7 +89,7 @@ class AreaOverlappingFactor():
         # -1.0, cause problem to arccos(), resulting nan values, here fix this
         # issue.
         def arccos_lim(x):
-            return np.arccos(np.maximum(np.minimum(x, 1), -1))
+            return np.arccos(np.clip(x, -1.0, +1.0))
 
         alpha = arccos_lim((Rmax[mask]**2.0 + d[mask]**2 - Rmin[mask]**2) /
                            (2.0 * Rmax[mask] * d[mask]))

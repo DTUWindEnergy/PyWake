@@ -11,6 +11,8 @@ from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit
 from py_wake.superposition_models import SquaredSum
 from py_wake.rotor_avg_models import RotorCenter
 import xarray as xr
+from py_wake.utils.gradients import hypot
+
 
 # -----------------------------------------------------
 # Default values
@@ -66,8 +68,8 @@ def gauss(mu, sigma, x):
 
 
 def sigmaVarDist(x, y, xref, yref):
-    dist = np.hypot(x - xref, y - yref)
-    sigma = np.hypot(0.00035 * dist + 2.1, 2.5)
+    dist = hypot(x - xref, y - yref)
+    sigma = hypot(0.00035 * dist + 2.1, 2.5)
     return sigma
 
 
