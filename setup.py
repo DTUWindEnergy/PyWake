@@ -40,6 +40,8 @@ setup(name='py_wake',
                       'examples/data/iea34_130rwt/*/*/*.h5',
                       'examples/data/iea34_130rwt/*/*/*.json',
                       'examples/data/ParqueFicticio/*.grd',
+                      'examples/data/NEG-Micon-2750.wtg', # added by Andreas
+                      'examples/data/Vestas V112-3.0 MW.wtg' # added by Andreas
                       ],
       },
       install_requires=[
