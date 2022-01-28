@@ -35,13 +35,13 @@ setup(name='py_wake',
       packages=find_packages(),
       package_data={
           'py_wake': ['examples/data/iea37/*.yaml',
-					  'examples/data/*.npz'
+					  'examples/data/*.npz',
                       'tests/test_files/fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+0/*.*',
                       'examples/data/iea34_130rwt/*/*/*.h5',
                       'examples/data/iea34_130rwt/*/*/*.json',
                       'examples/data/ParqueFicticio/*.grd',
-                      'examples/data/NEG-Micon-2750.wtg', # added by Andreas
-                      'examples/data/Vestas V112-3.0 MW.wtg' # added by Andreas
+                      'examples/data/NEG-Micon-2750.wtg', 
+                      'examples/data/Vestas V112-3.0 MW.wtg'
                       ],
       },
       install_requires=[
