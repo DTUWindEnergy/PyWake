@@ -23,7 +23,7 @@ class VortexCylinder(BlockageDeficitModel):
 
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
-    def __init__(self, limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=NoGround(),
+    def __init__(self, limiter=1e-3, exclude_wake=True, superpositionModel=None, groundModel=NoGround(),
                  upstream_only=False):
         DeficitModel.__init__(self, groundModel=groundModel)
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
@@ -34,6 +34,43 @@ class VortexCylinder(BlockageDeficitModel):
         # if used in a wind farm simulation, set deficit in wake region to
         # zero, as here the wake model is active
         self.exclude_wake = exclude_wake
+
+    def _k2(self, xi, rho, eps=1e-1):
+        """
+        [k(x,r)]^2 function with regularization parameter epsilon to avoid singularites
+        """
+        return 4. * rho / ((1. + rho)**2 + xi**2 + eps**2)
+
+    def _calc_layout_terms(self, D_src_il, dw_ijlk, cw_ijlk, **_):
+
+        R_ijlk = (D_src_il / 2)[:, na, :, na]
+        # determine dimensionless radial and streamwise coordinates
+        rho_ijlk = cw_ijlk / R_ijlk
+        # formulation is invalid for r==R therefore avoid this condition
+        rho_ijlk[abs(rho_ijlk - 1.) < self.limiter] = 1. + self.limiter
+        xi_ijlk = dw_ijlk / R_ijlk
+
+        # term 1
+        # non-zero for rho < R
+        term1_ijlk = np.zeros_like(rho_ijlk)
+        term1_ijlk[rho_ijlk < 1.] = 1.
+        # term 2
+        # zero for xi==0, thus avoid computation
+        ic = (abs(xi_ijlk) > self.limiter)
+        # compute k(xi, rho)**2 and k(0, rho)**2
+        keps2_ijlk = self._k2(xi_ijlk, rho_ijlk, eps=0.0)
+        keps20_ijlk = self._k2(0.0, rho_ijlk, eps=0.0)
+        # elliptical integrals
+        PI = ellipticPiCarlson(keps20_ijlk, keps2_ijlk)
+        KK = ellipk(keps2_ijlk)
+        # zero everywhere else
+        term2_ijlk = np.zeros_like(rho_ijlk)
+        # simplified terms by inserting k
+        term2_ijlk[ic] = xi_ijlk[ic] / np.pi * np.sqrt(1. / ((1. + rho_ijlk[ic])**2 + xi_ijlk[ic]**2)) * \
+            (KK[ic] + (1. - rho_ijlk[ic]) / (1. + rho_ijlk[ic]) * PI[ic])
+
+        # deficit shape function
+        self.dmu_ijlk = term1_ijlk + term2_ijlk
 
     def a0(self, ct_ilk):
         """
@@ -48,51 +85,19 @@ class VortexCylinder(BlockageDeficitModel):
         """
         The analytical relationships can be found in [1,2], in particular equations (7-8) from [1].
         """
-        # Ensure dw and cw have the correct shape
-        if (cw_ijlk.shape[3] != ct_ilk.shape[2]):
-            cw_ijlk = np.repeat(cw_ijlk, ct_ilk.shape[2], axis=3)
-            dw_ijlk = np.repeat(dw_ijlk, ct_ilk.shape[2], axis=3)
+        if not self.deficit_initalized:
+            # calculate layout term, self.dmu_G_ijlk
+            self._calc_layout_terms(D_src_il, dw_ijlk, cw_ijlk)
 
-        R_il = D_src_il / 2
-        # radial distance from turbine centre
-        r_ijlk = hypot(dw_ijlk, cw_ijlk)
         # circulation/strength of vortex cylinder
         gammat_ilk = WS_ilk * 2. * self.a0(ct_ilk)
-        # initialize deficit
-        deficit_ijlk = np.zeros_like(dw_ijlk)
-        # deficit along centreline
-        ic = (cw_ijlk / R_il[:, na, :, na] < self.limiter)
-        deficit_ijlk = gammat_ilk[:, na] / 2 * (1 + dw_ijlk / np.sqrt(dw_ijlk**2 + R_il[:, na, :, na]**2)) * ic
-        # singularity on rotor and close to R
-        ir = (np.abs(r_ijlk / R_il[:, na, :, na] - 1.) <
-              self.limiter) & (np.abs(dw_ijlk / R_il[:, na, :, na]) < self.limiter)
-        deficit_ijlk = deficit_ijlk * (~ir) + gammat_ilk[:, na] / 4. * ir
-        # compute deficit everywhere else
-        # indices outside any of the previously computed regions
-        io = np.logical_not(np.logical_or(ic, ir))
-        # elliptic integrals
-        k_2 = 4 * cw_ijlk * R_il[:, na, :, na] / ((R_il[:, na, :, na] + cw_ijlk)**2 + dw_ijlk**2)
-        k0_2 = 4 * cw_ijlk * R_il[:, na, :, na] / (R_il[:, na, :, na] + cw_ijlk)**2
-        k = np.sqrt(k_2)
-        KK = ellipk(k_2)
-        k_2[k_2 > 1.] = 1.  # Safety purely for numerical precision
-        PI = ellipticPiCarlson(k0_2, k_2)
-        # --- Special values
-        PI[PI == np.inf] = 0
-        PI[(cw_ijlk == R_il[:, na, :, na])] = 0  # when r==R, PI=0
-        KK[KK == np.inf] = 0  # when r==R, K=0
-        # Term 1 has a singularity at r=R, # T1 = (R-r + np.abs(R-r))/(2*np.abs(R-r))
-        T1 = np.zeros_like(cw_ijlk)
-        T1[cw_ijlk == R_il[:, na, :, na]] = 1 / 2
-        T1[cw_ijlk < R_il[:, na, :, na]] = 1
-        div = (2 * np.pi * np.sqrt(cw_ijlk * R_il[:, na, :, na]))
-        div[div == 0.] = np.inf
-        deficit_ijlk[io] = (gammat_ilk[:, na] / 2 * (T1 + dw_ijlk * k / div *
-                                                     (KK + (R_il[:, na, :, na] - cw_ijlk) / (R_il[:, na, :, na] + cw_ijlk) * PI)))[io]
+
+        deficit_ijlk = gammat_ilk[:, na] / 2. * self.dmu_ijlk
+
         if self.exclude_wake:
-            # indices on rotor plane and in wake region
-            iw = ((dw_ijlk / R_il[:, na, :, na] >= -self.limiter) &
-                  (np.abs(cw_ijlk) <= R_il[:, na, :, na])) * np.full(deficit_ijlk.shape, True)
+            R_ijlk = (D_src_il / 2)[:, na, :, na]
+            # indices in wake region
+            iw = np.broadcast_to((dw_ijlk / R_ijlk >= -self.limiter) & (np.abs(cw_ijlk) <= R_ijlk), deficit_ijlk.shape)
             deficit_ijlk[iw] = 0.
 
         return deficit_ijlk
