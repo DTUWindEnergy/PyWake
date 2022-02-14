@@ -48,6 +48,10 @@ class FlowMap(FlowBox):
             H = Y.T[:, na, :]
             Y = X.T[:, na, :]
             X = np.reshape(localWind_j.x.data, Y.shape)
+        elif plane[0] == 'XZ':
+            H = Y.T[:, na, :]
+            X = X.T[na, :, :]
+            Y = np.reshape(localWind_j.y.data, X.shape)
         elif plane[0] == 'xyz':
             X = None
             Y = None
@@ -56,16 +60,20 @@ class FlowMap(FlowBox):
             raise NotImplementedError()
         FlowBox.__init__(self, simulationResult, X, Y, H, localWind_j, WS_eff_jlk, TI_eff_jlk)
 
+        # set flowMap.WS_xylk etc.
         if plane[0] == "XY":
-            # set flowMap.WS_xylk etc.
             for k in ['WS_eff', 'TI_eff', 'WS', 'WD', 'TI', 'P']:
                 setattr(self.__class__, "%s_xylk" % k, property(lambda self, k=k: self[k].isel(h=0)))
-        if plane[0] == "YZ":
-            # set flowMap.WS_xylk etc.
+        elif plane[0] == "YZ":
             for k in ['WS_eff', 'TI_eff', 'WS', 'WD', 'TI', 'P']:
                 self[k] = self[k].transpose('h', 'y', ...)
                 setattr(self.__class__, "%s_xylk" % k,
                         property(lambda self, k=k: self[k].isel(x=0).transpose('y', 'h', ...)))
+        elif plane[0] == "XZ":
+            for k in ['WS_eff', 'TI_eff', 'WS', 'WD', 'TI', 'P']:
+                self[k] = self[k].transpose('h', 'x', ...)
+                setattr(self.__class__, "%s_xylk" % k,
+                        property(lambda self, k=k: self[k].isel(x=0).transpose('x', 'h', ...)))
 
     @property
     def XY(self):
@@ -145,11 +153,18 @@ class FlowMap(FlowBox):
         if ax is None:
             ax = plt.gca()
         n = normalize_with
-        if self.plane[0] == "YZ":
-            y = self.X[0]
-            x = np.zeros_like(y) + self.plane[1]
-            z = self.simulationResult.windFarmModel.site.elevation(x, y)
-            c = ax.contourf(self.X, self.Y + z, data.isel(x=0), levels=levels, cmap=cmap)
+        if self.plane[0] in ['XZ', 'YZ']:
+            if self.plane[0] == "YZ":
+                y = self.y.values
+                x = np.zeros_like(y) + self.plane[1]
+                z = self.simulationResult.windFarmModel.site.elevation(x, y)
+                c = ax.contourf(self.X, self.Y + z, data.isel(x=0), levels=levels, cmap=cmap)
+            elif self.plane[0] == 'XZ':
+                x = self.x.values
+                y = np.zeros_like(x) + self.plane[1]
+                z = self.simulationResult.windFarmModel.site.elevation(x, y)
+                c = ax.contourf(self.X, self.Y + z, data.isel(y=0), levels=levels, cmap=cmap)
+
             if plot_colorbar:
                 plt.colorbar(c, label=clabel, ax=ax)
             # plot terrain
@@ -173,13 +188,19 @@ class FlowMap(FlowBox):
         fm = self.windFarmModel
         yaw = self.simulationResult.yaw.sel(wd=self.wd[0]).mean(['ws']).data
         tilt = self.simulationResult.tilt.sel(wd=self.wd[0]).mean(['ws']).data
-        if self.plane[0] == "YZ":
-            x_i, y_i = self.simulationResult.x.values, self.simulationResult.y.values
+        x_i, y_i = self.simulationResult.x.values, self.simulationResult.y.values
+        type_i = self.simulationResult.type.data
+        if self.plane[0] in ['XZ', "YZ"]:
             h_i = self.simulationResult.h.values
             z_i = self.simulationResult.windFarmModel.site.elevation(x_i, y_i)
-            fm.windTurbines.plot_yz(y_i, z_i, h_i, wd=self.wd, yaw=yaw, tilt=tilt, normalize_with=normalize_with, ax=ax)
+            if self.plane[0] == 'XZ':
+                fm.windTurbines.plot_yz(x_i, z_i, h_i, types=type_i, wd=self.wd, yaw=yaw + 90, tilt=tilt,
+                                        normalize_with=normalize_with, ax=ax)
+            else:
+                fm.windTurbines.plot_yz(y_i, z_i, h_i, types=type_i, wd=self.wd, yaw=yaw, tilt=tilt,
+                                        normalize_with=normalize_with, ax=ax)
         else:  # self.plane[0] == "XY":
-            fm.windTurbines.plot_xy(self.simulationResult.x, self.simulationResult.y, self.simulationResult.type.data,
+            fm.windTurbines.plot_xy(x_i, y_i, type_i,
                                     wd=self.wd, yaw=yaw, tilt=tilt, normalize_with=normalize_with, ax=ax)
 
     def plot_wake_map(self, levels=100, cmap=None, plot_colorbar=True, plot_windturbines=True,
@@ -346,7 +367,7 @@ class YZGrid(Grid):
         Parameters
         ----------
         x : array_like, optional
-            x coordinates for the yz-grid\n
+            x coordinate for the yz-grid\n
         y : array_like, optional
             y coordinates used for generating meshgrid
         z : array_like, optional
@@ -384,6 +405,49 @@ class YZGrid(Grid):
         Y, Z = np.meshgrid(y, z)
         X = np.zeros_like(Y) + x
         return Y, Z, X.T.flatten(), Y.T.flatten(), Z.T.flatten()
+
+
+class XZGrid(YZGrid):
+    def __init__(self, y, x=None, z=None, resolution=None, extend=.2):
+        """Generate a vertical grid for a flow map in the xz-plane
+
+        Parameters
+        ----------
+        y : array_like, optional
+            y coordinate used for generating meshgrid
+        x : array_like, optional
+            x coordinatex for the yz-grid\n
+        z : array_like, optional
+            z coordinates(height above ground) used for generating meshgrid
+        resolution : int or None, optional
+            grid resolution if x or y is not specified. defaults to self.default_resolution
+        extend : float, optional
+            defines the oversize of the grid if x or y is not specified
+
+        Notes
+        -----
+        if x or z is not specified then a grid with <resolution> number of points
+        covering the wind turbines + <extend> * range
+        """
+        YZGrid.__init__(self, x, y=y, z=z, resolution=resolution, extend=extend)
+        self.plane = "XZ", y
+
+    def __call__(self, x_i, y_i, h_i, d_i):
+        # setup horizontal X,Y grid
+        def f(x, N=self.resolution, ext=self.extend):
+            ext *= max(1000, (max(x) - min(x)))
+            return np.linspace(min(x) - ext, max(x) + ext, N)
+        x, y, z = self.x, self.y, self.z
+        if x is None:
+            x = f(x_i)
+        if self.z is None:
+            z = np.arange(0, (1 + self.extend) * (h_i.max() + d_i.max() / 2), np.diff(x[:2])[0])
+        else:
+            z = self.z
+
+        X, Z = np.meshgrid(x, z)
+        Y = np.zeros_like(X) + y
+        return X, Z, X.T.flatten(), Y.T.flatten(), Z.T.flatten()
 
 
 class Points(Grid):

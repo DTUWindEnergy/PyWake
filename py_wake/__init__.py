@@ -8,7 +8,7 @@ from .deficit_models.noj import NOJ, NOJLocal
 from .deficit_models.fuga import Fuga, FugaBlockage
 from .deficit_models.gaussian import BastankhahGaussian, IEA37SimpleBastankhahGaussian
 from .deficit_models.gcl import GCL, GCLLocal
-from py_wake.flow_map import HorizontalGrid, XYGrid, YZGrid
+from py_wake.flow_map import HorizontalGrid, XYGrid, YZGrid, XZGrid
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.deficit_models.deficit_model import DeficitModel
 

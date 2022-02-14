@@ -396,9 +396,9 @@ class SimulationResult(xr.Dataset):
         if isinstance(grid, Grid):
             if isinstance(grid, HorizontalGrid):
                 plane = "XY", self.h
-            if isinstance(grid, YZGrid):
-                plane = 'YZ', grid.x
-            if isinstance(grid, Points):
+            elif isinstance(grid, YZGrid):
+                plane = grid.plane
+            elif isinstance(grid, Points):
                 plane = 'xyz', None
             grid = grid(x_i=self.x, y_i=self.y, h_i=self.h,
                         d_i=self.windFarmModel.windTurbines.diameter(self.type))

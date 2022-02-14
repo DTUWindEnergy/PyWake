@@ -2,7 +2,7 @@ from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian
 from py_wake.examples.data.hornsrev1 import V80
 from py_wake.examples.data.iea37._iea37 import IEA37Site
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
-from py_wake.flow_map import YZGrid, XYGrid, Points
+from py_wake.flow_map import YZGrid, XYGrid, Points, XZGrid
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -25,7 +25,7 @@ def test_yaw_tilt(yaw, tilt, cx, cz):
     z_lst = np.arange(10, 200, 1)
 
     fm_yz = wfm(x, y, wd=270, ws=10, yaw=yaw, tilt=tilt).flow_map(YZGrid(x=5 * D, y=y_lst, z=z_lst))
-    fm_xz = wfm(x, y, wd=180, ws=10, yaw=yaw, tilt=tilt).flow_map(YZGrid(x=0, y=x_lst, z=z_lst))
+    fm_xz = wfm(x, y, wd=270, ws=10, yaw=yaw, tilt=tilt).flow_map(XZGrid(y=0, x=x_lst, z=z_lst))
     fm_xy = wfm(x, y, wd=270, ws=10, yaw=yaw, tilt=tilt).flow_map(XYGrid(x=x_lst))
     if 0:
         axes = plt.subplots(3, 1)[1].flatten()
