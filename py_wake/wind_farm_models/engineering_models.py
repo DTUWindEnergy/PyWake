@@ -4,7 +4,7 @@ import numpy as np
 from py_wake.superposition_models import SuperpositionModel, LinearSum, WeightedSum
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.deflection_models.deflection_model import DeflectionModel
-from py_wake.utils.gradients import use_autograd_in, autograd
+from py_wake.utils.gradients import autograd, cabs
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter, RotorAvgModel
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel
 from py_wake.deficit_models.deficit_model import ConvectionDeficitModel, BlockageDeficitModel, WakeDeficitModel
@@ -367,34 +367,23 @@ class EngineeringWindFarmModel(WindFarmModel):
         return lw_j, WS_eff_jlk, TI_eff_jlk
 
     def _validate_input(self, x_i, y_i):
-        i1, i2 = np.where((np.abs(
-            x_i[:, na] - x_i[na]) + np.abs(y_i[:, na] - y_i[na]) + np.eye(len(x_i))) == 0)
+        i1, i2 = np.where((cabs(
+            x_i[:, na] - x_i[na]) + cabs(y_i[:, na] - y_i[na]) + np.eye(len(x_i))) == 0)
         if len(i1):
             msg = "\n".join(["Turbines %d and %d are at the same position" % (i1[i], i2[i]) for i in range(len(i1))])
             raise ValueError(msg)
 
     def dAEPdn(self, argnum, gradient_method):
-        def aep(x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None):  # @ReservedAssignment
-            if gradient_method == autograd:
-                with use_autograd_in():
-                    return self.aep(x, y, h, type, wd, ws, yaw_ilk)
-            else:
-                return self.aep(x, y, h, type, wd, ws, yaw_ilk)
-        return gradient_method(aep, True, argnum)
+        return gradient_method(self.aep, True, argnum)
 
     def dAEPdxy(self, gradient_method, normalize_probabilities=False, with_wake_loss=True, gradient_method_kwargs={}):
 
         def wrap(x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None):  # @ReservedAssignment
-            def aep(x, y, h, type, wd, ws, yaw_ilk):  # @ReservedAssignment
-                if gradient_method == autograd:
-                    with use_autograd_in():
-                        return self.aep(x, y, h, type, wd, ws, yaw_ilk,
-                                        normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss)
-                else:
-                    return self.aep(x, y, h, type, wd, ws, yaw_ilk,
-                                    normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss)
-            return (gradient_method(aep, True, 0, **gradient_method_kwargs)(x, y, h, type, wd, ws, yaw_ilk),
-                    gradient_method(aep, True, 1, **gradient_method_kwargs)(x, y, h, type, wd, ws, yaw_ilk))
+            h, _ = self.windTurbines.get_defaults(len(x), type, h)
+            return [gradient_method(self.aep, True, i, **gradient_method_kwargs)(
+                x, y, h, type, wd, ws, yaw_ilk,
+                normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss) for i in [0, 1]]
+
         return wrap
 
 
@@ -452,8 +441,6 @@ class PropagateDownwind(EngineeringWindFarmModel):
         def ilk2mk(x_ilk):
             return np.broadcast_to(x_ilk.astype(float), (I, L, K)).reshape((I * L, K))
 
-        indices = np.arange(I * I * L).reshape((I, I, L))
-
         TI_mk = ilk2mk(lw.TI_ilk)
         WS_mk = ilk2mk(lw.WS_ilk)
         WS_eff_mk = []
@@ -463,7 +450,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
         ct_jlk = []
 
         if self.turbulenceModel:
-            add_turb_nk = np.zeros((I * I * L, K))
+            add_turb_nk = []
 
         i_wd_l = np.arange(L)
         wd = mean_deg(lw.WD_ilk, (0, 2))
@@ -475,17 +462,14 @@ class PropagateDownwind(EngineeringWindFarmModel):
             # current wt (j'th most upstream wts for all wdirs)
             m = i_wt_l * L + i_wd_l
 
-            # generate indexes of up wind(n_uw) and down wind(n_dw) turbines
-            n_uw = indices[:, i_wt_l, i_wd_l][dw_order_indices_dl[:, :j].T, np.arange(L)]
-            n_dw = indices[i_wt_l, :, i_wd_l][np.arange(L), dw_order_indices_dl[:, j + 1:].T]
-
             # Calculate effectiv wind speed at current turbines(all wind directions and wind speeds) and
             # look up power and thrust coefficient
             if j == 0:  # Most upstream turbines (no wake)
                 WS_eff_lk = WS_mk[m]
                 WS_eff_mk.append(WS_eff_lk)
                 if self.turbulenceModel:
-                    TI_eff_mk.append(TI_mk[m])
+                    TI_eff_lk = TI_mk[m]
+                    TI_eff_mk.append(TI_eff_lk)
             else:  # 2..n most upstream turbines (wake)
                 if isinstance(self.superpositionModel, WeightedSum):
                     deficit2WT = np.array([d_nk2[i] for d_nk2, i in zip(deficit_nk, range(j)[::-1])])
@@ -500,10 +484,12 @@ class PropagateDownwind(EngineeringWindFarmModel):
                 else:
                     deficit2WT = np.array([d_nk2[i] for d_nk2, i in zip(deficit_nk, range(j)[::-1])])
                     WS_eff_lk = WS_mk[m] - self.superpositionModel(deficit2WT)
-
                 WS_eff_mk.append(WS_eff_lk)
+
                 if self.turbulenceModel:
-                    TI_eff_mk.append(self.turbulenceModel.calc_effective_TI(TI_mk[m], add_turb_nk[n_uw]))
+                    add_turb2WT = np.array([d_nk2[i] for d_nk2, i in zip(add_turb_nk, range(j)[::-1])])
+                    TI_eff_lk = self.turbulenceModel.calc_effective_TI(TI_mk[m], add_turb2WT)
+                    TI_eff_mk.append(TI_eff_lk)
 
             # Calculate Power/CT
             def mask(k, v):
@@ -514,12 +500,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
                     return v[i_wt_l]
                 elif v.shape[:2] == (I, L):
                     return v[i_wt_l, i_wd_l]
-#                 elif v.shape == (L,):
-#                     return v[i_wd_l]
-#                 else:
-#                     valid_shapes = f"(), ({I}), ({I},{L}), ({I},{L},{K}), ({L}), ({L},{K})"
-#                     raise ValueError(
-#                         f"Argument, {k}(shape={v.shape}), has unsupported shape. Valid shapes are {valid_shapes}")
+
             keys = self.windTurbines.powerCtFunction.required_inputs + self.windTurbines.powerCtFunction.optional_inputs
             _kwargs = {k: mask(k, v) for k, v in kwargs.items() if k in keys}
             if 'TI_eff' in _kwargs:
@@ -587,8 +568,8 @@ class PropagateDownwind(EngineeringWindFarmModel):
                     turb_args = {k: arg_funcs[k]() for k in self.args4addturb if k != "dw_ijlk"}
 
                     # Calculate added turbulence
-                    add_turb_nk[n_dw] = self.turbulenceModel.rotorAvgModel(
-                        self.turbulenceModel.calc_added_turbulence, dw_ijlk=dw_ijlk, **turb_args)
+                    add_turb_nk.append(self.turbulenceModel.rotorAvgModel(
+                        self.turbulenceModel.calc_added_turbulence, dw_ijlk=dw_ijlk, **turb_args)[0])
 
         WS_eff_jlk, ct_jlk = np.array(WS_eff_mk), np.array(ct_jlk)
 
@@ -597,7 +578,8 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
         ct_ilk = ct_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))
         if self.turbulenceModel:
-            TI_eff_ilk = np.reshape(TI_eff_mk, (I * L, K))[dw_inv_indices].reshape((I, L, K))
+            TI_eff_jlk = np.array(TI_eff_mk)
+            TI_eff_ilk = TI_eff_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))
 
         return WS_eff_ilk, TI_eff_ilk, ct_ilk
 
@@ -644,12 +626,21 @@ class All2AllIterative(EngineeringWindFarmModel):
                              WS_eff_ilk, TI_eff_ilk,
                              x_i, y_i, h_i, D_i, yaw_ilk, tilt_ilk,
                              I, L, K, **kwargs):
+        if any([np.iscomplexobj(v) for v in [x_i, y_i, h_i, D_i, yaw_ilk, tilt_ilk]]):
+            dtype = np.complex128
+        else:
+            dtype = float
 
         # calculate WS_eff without blockage as a first guess
+        blockage_deficitModel = self.blockage_deficitModel
+        self.blockage_deficitModel = None
         WS_eff_ilk = PropagateDownwind._calc_wt_interaction(self, localWind, WS_eff_ilk, TI_eff_ilk, x_i, y_i, h_i, D_i,
                                                             yaw_ilk, tilt_ilk, I, L, K, **kwargs)[0]
+        self.blockage_deficitModel = blockage_deficitModel
+
+        WS_eff_ilk = WS_eff_ilk.astype(dtype)
         lw = localWind
-        WS_eff_ilk_last = WS_eff_ilk.copy()
+        WS_eff_ilk_last = WS_eff_ilk + 0  # fast autograd-friendly copy
         diff_lk = np.zeros((L, K))
         diff_lk_last, diff_lk_lastlast = None, None
         dw_iil, hcw_iil, dh_iil = self.site.distance(wd_l=lw.wd.values, WD_il=mean_deg(lw.WD_ilk, 2))
@@ -715,13 +706,14 @@ class All2AllIterative(EngineeringWindFarmModel):
                 if self.blockage_deficitModel:
                     WS_eff_ilk -= (self.blockage_deficitModel.superpositionModel or LinearSum())(blockage_iilk)
             else:
-                WS_eff_ilk = lw.WS_ilk.astype(float) - self.superpositionModel(deficit_iilk)
+                WS_eff_ilk = lw.WS_ilk.astype(dtype) - self.superpositionModel(deficit_iilk)
                 if self.blockage_deficitModel:
                     WS_eff_ilk -= (self.blockage_deficitModel.superpositionModel or self.superpositionModel)(blockage_iilk)
 
             # ensure idling wt in unstable flow cases do not cutin even if ws increases due to speedup
             # this helps to converge
-            WS_eff_ilk[ioff] = np.minimum(WS_eff_ilk[ioff], WS_eff_ilk_last[ioff])
+            # WS_eff_ilk[ioff] = np.minimum(WS_eff_ilk[ioff], WS_eff_ilk_last[ioff])
+            WS_eff_ilk = np.minimum(WS_eff_ilk, WS_eff_ilk_last, out=WS_eff_ilk, where=ioff)
 
             if self.turbulenceModel:
                 add_turb_ijlk = self.turbulenceModel.rotorAvgModel(
@@ -730,7 +722,7 @@ class All2AllIterative(EngineeringWindFarmModel):
                     lw.TI_ilk, add_turb_ijlk)
 
             # Check if converged
-            diff_ilk = np.abs(WS_eff_ilk_last - WS_eff_ilk)
+            diff_ilk = cabs(WS_eff_ilk_last - WS_eff_ilk)
             diff_lk = diff_ilk.max(0)
             max_diff = np.max(diff_lk)
 
@@ -745,7 +737,7 @@ class All2AllIterative(EngineeringWindFarmModel):
             if j > 1:
                 unstable_lk |= (diff_lk_lastlast - diff_lk) / 2 <= (diff_lk -
                                                                     self.convergence_tolerance) / min(20, (I - j))
-            WS_eff_ilk_last = WS_eff_ilk.copy()
+            WS_eff_ilk_last = WS_eff_ilk + 0  # fast autograd-friendly copy
             diff_lk_lastlast = diff_lk_last
             diff_lk_last = diff_lk
 

@@ -1,6 +1,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
 from numpy import newaxis as na
+from py_wake.utils.gradients import cabs
 
 
 class SuperpositionModel(ABC):
@@ -129,7 +130,7 @@ class WeightedSum(SuperpositionModel):
             sum1_pre = usc[Il]**2 * np.pi * sigma_sqr[Il]
             n_wt = us.shape[0]
             # Iterate until combined convection velocity converges
-            while (np.max(np.abs((Uc[Ilx] - Uc_star[Ilx]) / Uc_star[Ilx])) > self.max_err) and (count < self.max_iter):
+            while (np.max(cabs((Uc[Ilx] - Uc_star[Ilx]) / Uc_star[Ilx])) > self.max_err) and (count < self.max_iter):
                 # Initialize combined convection velocity
                 if count == 0:
                     # Take maximum across all turbines to initilize global convection velocity
@@ -171,8 +172,8 @@ class WeightedSum(SuperpositionModel):
                             # Instead of a dummy one could use a loop, but this seemed faster
                             tmp2 = np.zeros(((len(k),) + sigma_sqr.shape[1:]))
                             s1, s2 = np.repeat(sigma_sqr[j][na], len(k), axis=0)[Ilxx], sigma_sqr[k][Ilxx]
-                            w2w_hcw = np.abs(hcw[j][na] - hcw[k])[Ilxx]
-                            w2w_dh = np.abs(dh[j][na] - dh[k])[Ilxx]
+                            w2w_hcw = cabs(hcw[j][na] - hcw[k])[Ilxx]
+                            w2w_dh = cabs(dh[j][na] - dh[k])[Ilxx]
                             cross_sigma_jk = 2 * np.exp(-(w2w_hcw**2 + w2w_dh**2) /
                                                         (2 * (s1 + s2))) * np.pi * s1 * s2 / (s1 + s2)
                             tmp2[Ilxx] = 2 * np.repeat((ucn[j] * usc[j])[na], len(k), axis=0)[Ilxx] * \

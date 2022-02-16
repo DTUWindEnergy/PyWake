@@ -24,7 +24,7 @@ except ModuleNotFoundError:
             raise Exception('Error in ', os.path.relpath(filename)) from e
 
     def __repr__(self):
-        return "hej"
+        return self.filename
 
     def load_notebook(self, filename):
         with open(filename, encoding='utf-8') as fid:
@@ -123,9 +123,12 @@ except ModuleNotFoundError:
 
                     code_str = "def test():\n    " + "\n    ".join(lines) + "\ntest()"
                     exec(code_str, l, {})
-                    plt.close('all')
         except Exception as e:
+            for i, l in enumerate(code_str.split("\n")):
+                print(i, l)
             raise type(e)("Code error in %s\n%s\n" % (self.filename, str(e))).with_traceback(sys.exc_info()[2])
+        finally:
+            plt.close('all')
 
     def check_links(self):
         txt = "\n".join(self.get_text())

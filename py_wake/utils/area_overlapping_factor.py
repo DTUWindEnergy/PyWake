@@ -1,6 +1,7 @@
 from numpy import newaxis as na
 
 import numpy as np
+from py_wake.utils.gradients import cabs
 
 
 class AreaOverlappingFactor():
@@ -32,11 +33,11 @@ class AreaOverlappingFactor():
                 return self._cal_overlapping_area_factor(
                     np.broadcast_to(wake_radius_ijlk, cw_ijlk.shape),
                     np.broadcast_to(D_dst_ijl[..., na, na] / 2, cw_ijlk.shape),
-                    np.abs(cw_ijlk))
+                    cabs(cw_ijlk))
             else:
                 return self._cal_overlapping_area_factor(wake_radius_ijlk,
                                                          (D_dst_ijl[..., na] / 2),
-                                                         np.abs(cw_ijlk))
+                                                         cabs(cw_ijlk))
 
     def _cal_overlapping_area_factor(self, R1, R2, d):
         """ Calculate the overlapping area of two circles with radius R1 and

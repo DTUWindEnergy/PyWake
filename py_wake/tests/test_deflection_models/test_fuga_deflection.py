@@ -96,4 +96,3 @@ def test_fuga_deflection_time_series_gradient_evaluation():
     yaw_step = np.eye(10, 10) * 1e-6 + yaw_ref
     yaw = np.concatenate([yaw_step, yaw_ref], axis=1)
     sim_res = wfm(np.arange(10) * wt.diameter() * 4, [0] * 10, yaw=yaw, wd=[270] * 11, ws=[WS] * 11, time=True)
-    print(sim_res)

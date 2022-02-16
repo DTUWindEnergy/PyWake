@@ -8,13 +8,12 @@ from py_wake.tests import npt
 from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt, DensityScale, \
     PowerCtTabular, PowerCtFunction, PowerCtFunctionList, PowerCtNDTabular, PowerCtXr
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80
-from py_wake.wind_turbines import WindTurbine, WindTurbines, power_ct_functions, wind_turbines_deprecated
+from py_wake.wind_turbines import WindTurbine, WindTurbines
 from py_wake.deficit_models.noj import NOJ
 from py_wake.site.xrsite import XRSite
 from py_wake.tests.test_windturbines.test_power_ct_curves import get_continuous_curve
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
-from py_wake.utils.gradients import use_autograd_in, autograd, plot_gradients, cs, fd
-from py_wake.examples.data.iea37 import iea37_reader
+from py_wake.utils.gradients import autograd, plot_gradients, cs, fd
 from types import FunctionType
 from py_wake.utils import gradients
 
@@ -418,19 +417,19 @@ def test_TIFromWFM():
     ('CubePowerSimpleCt_MW', WindTurbine('Test', 130, 110, CubePowerSimpleCt(4, 25, 9.8, 3.35, 'MW', 8 / 9, 0, [])),
      lambda ws_pts: np.where((ws_pts > 4) & (ws_pts <= 9.8), 3 * 3350000 * (ws_pts - 4)**2 / (9.8 - 4)**3, 0),
      lambda ws_pts: [0, 0, 0, 2 * 12 * 0.0038473376423514938 + -0.1923668821175747]),
-    ('PowerCtTabular_linear', V80(), [66600.00000931, 178000.00001444, 344999.99973923, 91999.99994598],
+    ('PowerCtTabular_linear', V80(), [66600, 178000, 345000, 92000],
      [0.818, 0.001, -0.014, -0.3]),
     ('PowerCtTabular_pchip', V80(method='pchip'), [58518.7948, 148915.03267974, 320930.23255814, 127003.36700337],
      [1.21851, 0., 0., -0.05454545]),
     ('PowerCtTabular_spline', V80(method='spline'), [69723.7929, 158087.18190692, 324012.9604669, 156598.55856862],
      [8.176490e-01, -3.31076624e-05, -7.19353708e-03, -1.66006862e-01]),
     ('PowerCtTabular_kW', get_wt(PowerCtTabular(v80_upct[0], v80_upct[1] / 1000, 'kW', v80_upct[2])),
-     [66600.00000931, 178000.00001444, 344999.99973923, 91999.99994598], [0.818, 0.001, -0.014, -0.3]),
+     [66600, 178000, 345000, 92000], [0.818, 0.001, -0.014, -0.3]),
     ('PowerCtFunctionList',
      get_wt(PowerCtFunctionList('mode', [
          PowerCtTabular(ws=v80_upct[0], power=v80_upct[1], power_unit='w', ct=v80_upct[2]),
          PowerCtTabular(ws=v80_upct[0], power=v80_upct[1] * 1.1, power_unit='w', ct=v80_upct[2] + .1)])),
-     [73260., 195800., 379499.9998, 101199.9999], [0.818, 0.001, -0.014, -0.3])
+     [73260., 195800., 379500, 101200], [0.818, 0.001, -0.014, -0.3])
 ])
 @pytest.mark.parametrize('grad_method', [autograd, cs, fd])
 def test_gradients(case, wt, dpdu_ref, dctdu_ref, grad_method):
@@ -439,13 +438,10 @@ def test_gradients(case, wt, dpdu_ref, dctdu_ref, grad_method):
     if isinstance(dpdu_ref, FunctionType):
         dpdu_ref, dctdu_ref = dpdu_ref(ws_pts), dctdu_ref(ws_pts)
 
-    with use_autograd_in([WindTurbines, iea37_reader, power_ct_functions, wind_turbines_deprecated]):
-        if grad_method == autograd:
-            wt.enable_autograd()
-        ws_lst = np.arange(2, 25, .1)
-        kwargs = {k: 1 for k in wt.function_inputs[0]}
-        dpdu_lst = grad_method(wt.power)(ws_pts, **kwargs)
-        dctdu_lst = grad_method(wt.ct)(ws_pts, **kwargs)
+    ws_lst = np.arange(2, 25, .1)
+    kwargs = {k: 1 for k in wt.function_inputs[0]}
+    dpdu_lst = grad_method(wt.power)(ws_pts, **kwargs)
+    dctdu_lst = grad_method(wt.ct)(ws_pts, **kwargs)
 
     if 0:
         gradients.color_dict = {'power': 'b', 'ct': 'r'}

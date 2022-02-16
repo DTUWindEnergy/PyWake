@@ -4,8 +4,7 @@ from matplotlib.patches import Ellipse
 import warnings
 import inspect
 from py_wake.wind_turbines.power_ct_functions import PowerCtFunctionList, PowerCtTabular, SimpleYawModel, CubePowerSimpleCt
-import xarray as xr
-from numpy import newaxis as na
+from xarray.core.dataarray import DataArray
 
 
 class WindTurbines():
@@ -125,8 +124,8 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
             d_i = np.zeros(N) + d_i
         return np.asarray(h_i), np.asarray(d_i)
 
-    def enable_autograd(self):
-        self.powerCtFunction.enable_autograd()
+    # def enable_autograd(self):
+    #     self.powerCtFunction.enable_autograd()
 
     def plot_xy(self, x, y, types=None, wd=None, yaw=0, tilt=0, normalize_with=1, ax=None):
         """Plot wind farm layout including type name and diameter
@@ -215,17 +214,20 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         markers = np.array(list("213v^<>o48spP*hH+xXDd|_"))
         colors = ['gray', 'k', 'r', 'g', 'k'] * 5
 
-        from matplotlib.patches import Circle
-
         yaw = np.zeros_like(y) + yaw
         tilt = np.zeros_like(y) + tilt
         y, z, h, D = [v / normalize_with for v in [y, z, h, self.diameter(types)]]
+        if isinstance(wd, DataArray):
+            wd = wd.item()
         for i, (y_, z_, h_, d, t, yaw_, tilt_) in enumerate(
                 zip(y, z, h, D, types, yaw, tilt)):
+            ty = y_ - np.cos(np.deg2rad(wd)) * d / 20
+            ax.plot([ty, ty], [z_, z_ + h_], 'k')
+            ax.plot([ty, y_], [z_ + h_, z_ + h_], 'k')
+
             circle = Ellipse((y_, h_ + z_), d * np.sin(np.deg2rad(wd - yaw_)),
-                             d, angle=-tilt_, ec=colors[t], fc="None")
+                             d, angle=-tilt_, ec=colors[t], fc="None", zorder=32)
             ax.add_artist(circle)
-            ax.plot([y_, y_], [z_, z_ + h_], 'k')
             ax.plot(y_, h_, 'None')
 
         for t, m, c in zip(np.unique(types), markers, colors):

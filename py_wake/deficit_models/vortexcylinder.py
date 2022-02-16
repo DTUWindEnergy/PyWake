@@ -5,7 +5,7 @@ from py_wake.ground_models.ground_models import NoGround
 from py_wake.utils.elliptic import ellipticPiCarlson
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
-from py_wake.utils.gradients import hypot
+from py_wake.utils.gradients import hypot, cabs
 
 
 class VortexCylinder(BlockageDeficitModel):
@@ -95,9 +95,10 @@ class VortexCylinder(BlockageDeficitModel):
         deficit_ijlk = gammat_ilk[:, na] / 2. * self.dmu_ijlk
 
         if self.exclude_wake:
-            R_ijlk = (D_src_il / 2)[:, na, :, na]
-            # indices in wake region
-            iw = np.broadcast_to((dw_ijlk / R_ijlk >= -self.limiter) & (np.abs(cw_ijlk) <= R_ijlk), deficit_ijlk.shape)
+            # indices on rotor plane and in wake region
+            R_il = D_src_il / 2
+            iw = ((dw_ijlk / R_il[:, na, :, na] >= -self.limiter) &
+                  (cabs(cw_ijlk) <= R_il[:, na, :, na])) * np.full(deficit_ijlk.shape, True)
             deficit_ijlk[iw] = 0.
 
         return deficit_ijlk

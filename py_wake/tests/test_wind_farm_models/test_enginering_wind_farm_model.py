@@ -239,7 +239,7 @@ def test_dAEPdx():
     iea37_site = IEA37Site(16)
 
     wt = IEA37_WindTurbines()
-    wt.enable_autograd()
+    # wt.enable_autograd()
     wfm = IEA37SimpleBastankhahGaussian(site, wt)
     x, y = iea37_site.initial_position[np.array([0, 2, 5, 8, 14])].T
 

@@ -3,7 +3,7 @@ import numpy as np
 from py_wake import NOJ
 from py_wake.examples.data import hornsrev1
 from py_wake.examples.data.hornsrev1 import wt9_x, wt9_y, Hornsrev1Site
-from py_wake.utils.gradients import use_autograd_in, autograd, plot_gradients, fd
+from py_wake.utils.gradients import autograd, plot_gradients, fd
 from py_wake.tests import npt
 from py_wake.wind_turbines import WindTurbines, WindTurbine, OneTypeWindTurbines
 

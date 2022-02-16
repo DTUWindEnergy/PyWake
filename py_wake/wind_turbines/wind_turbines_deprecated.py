@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.interpolate.fitpack2 import UnivariateSpline
+from scipy.interpolate import UnivariateSpline
 from autograd.core import defvjp, primitive
 from inspect import signature
 from py_wake.wind_turbines._wind_turbines import WindTurbines

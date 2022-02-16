@@ -55,8 +55,7 @@ class HybridInduction(BlockageDeficitModel):
         rcut_ijlk = np.broadcast_to((R_il * self.switch_radius)[:, na, :, na], dff_ijlk.shape)
         # region where to apply the far-field deficit
         iff = (r_ijlk > rcut_ijlk) | (dw_ijlk > 0)
-        deficit_ijlk = dnr_ijlk.copy()
-        deficit_ijlk[iff] = dff_ijlk[iff]
+        deficit_ijlk = np.where(iff, dff_ijlk, dnr_ijlk)
 
         return deficit_ijlk
 

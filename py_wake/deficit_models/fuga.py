@@ -8,7 +8,9 @@ from py_wake.superposition_models import LinearSum
 from py_wake.tests.test_files import tfp
 from py_wake.utils.fuga_utils import FugaUtils
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
-from scipy.interpolate.fitpack2 import RectBivariateSpline
+from scipy.interpolate import RectBivariateSpline
+from py_wake.utils import gradients
+from py_wake.utils.gradients import cabs
 
 
 class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
@@ -81,7 +83,7 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
         return self.lut_interpolator((x, y, z))
 
     def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_il, dh_ijlk, D_src_il, **_):
-        self.mdu_ijlk = self.interpolate(dw_ijlk, np.abs(hcw_ijlk), (h_il[:, na, :, na] + dh_ijlk)) * \
+        self.mdu_ijlk = self.interpolate(dw_ijlk, cabs(hcw_ijlk), (h_il[:, na, :, na] + dh_ijlk)) * \
             ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na])  # avoid wake on itself
               )
 
@@ -136,7 +138,7 @@ class FugaYawDeficit(FugaDeficit):
             self.lut_interpolator = interp
 
     def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_il, dh_ijlk, D_src_il, **_):
-        self.mdu_ijlk = (self.interpolate(dw_ijlk, np.abs(hcw_ijlk), (h_il[:, na, :, na] + dh_ijlk)) *
+        self.mdu_ijlk = (self.interpolate(dw_ijlk, cabs(hcw_ijlk), (h_il[:, na, :, na] + dh_ijlk)) *
                          ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na]))[..., na]  # avoid wake on itself
                          )
 
@@ -144,9 +146,10 @@ class FugaYawDeficit(FugaDeficit):
                               dh_ijlk, h_il, ct_ilk, D_src_il, yaw_ilk, **_):
 
         mdUL_ijlk, mdUT_ijlk = np.moveaxis(self.interpolate(
-            dw_ijlk, np.abs(hcw_ijlk), (h_il[:, na, :, na] + dh_ijlk)), -1, 0)
-        mdUT_ijlk[hcw_ijlk < 0] *= -1  # UT is antisymmetric
+            dw_ijlk, cabs(hcw_ijlk), (h_il[:, na, :, na] + dh_ijlk)), -1, 0)
+        mdUT_ijlk = np.negative(mdUT_ijlk, out=mdUT_ijlk, where=hcw_ijlk < 0)  # UT is antisymmetric
         theta_ilk = np.deg2rad(yaw_ilk)
+
         mdu_ijlk = (mdUL_ijlk * np.cos(theta_ilk)[:, na] - mdUT_ijlk * np.sin(theta_ilk)[:, na])
         # avoid wake on itself
         mdu_ijlk *= ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na]))
@@ -197,20 +200,24 @@ class LUTInterpolator(object):
         xp = np.maximum(np.minimum(xp, self.x[-1]), self.x[0])
         yp = np.maximum(np.minimum(yp, self.y[-1]), self.y[0])
         # zp = np.maximum(np.minimum(zp, self.z[-1]), self.z[0])
+        from autograd.numpy.numpy_boxes import ArrayBox
 
         def i0f(_i):
-            _i0 = np.asarray(_i).astype(int)
+            if isinstance(_i, ArrayBox):
+                _i0 = _i._value.astype(int)
+            else:
+                _i0 = np.real(_i).astype(int)
             _if = _i - _i0
             return _i0, _if
 
         xi0, xif = i0f((xp - self.x0) / self.dx)
         yi0, yif = i0f((yp - self.y0) / self.dy)
 
-        zi0, zif = i0f(np.interp(zp, self.z, np.arange(self.nz)))
+        zi0, zif = i0f(gradients.interp(zp, self.z, np.arange(self.nz)))
 
         nx, ny = self.nx, self.ny
-
-        v000, v001, v010, v011, v100, v101, v110, v111 = self.V000[:, zi0 * nx * ny + yi0 * nx + xi0]
+        idx = zi0 * nx * ny + yi0 * nx + xi0
+        v000, v001, v010, v011, v100, v101, v110, v111 = self.V000[:, idx]
         if len(self.V000.shape) == 3:
             # Both UL and UT
             xif = xif[..., na]

@@ -1,15 +1,13 @@
 import numpy as np
-from scipy.interpolate._cubic import PchipInterpolator
-from scipy.interpolate.interpolate import RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator
 from abc import abstractmethod, ABC
 from autograd.core import defvjp, primitive
-from py_wake.utils.gradients import fd
-from scipy.interpolate.fitpack2 import UnivariateSpline
-from autograd.numpy.numpy_boxes import ArrayBox
 from py_wake.wind_turbines.wind_turbine_functions import WindTurbineFunction, FunctionSurrogates,\
     WindTurbineFunctionList
 from py_wake.utils.check_input import check_input
 from py_wake.utils.model_utils import check_model, fix_shape
+from py_wake.utils import gradients
+from py_wake.utils.gradients import PchipInterpolator, UnivariateSpline, set_vjp
 
 
 """
@@ -165,9 +163,6 @@ class PowerCtFunction(PowerCtModelContainer, ABC):
         self.power_scale = {'w': 1, 'kw': 1e3, 'mw': 1e6, 'gw': 1e9}[power_unit.lower()]
         self.power_ct = power_ct_func
 
-    def enable_autograd(self):
-        self.set_gradient_funcs(self.get_power_ct_grad_func())
-
     def __call__(self, ws, run_only=slice(None), **kwargs):
         if run_only not in [0, 1]:
             return np.array([self.__call__(ws, i, **kwargs) for i in np.arange(2)[run_only]])
@@ -178,16 +173,6 @@ class PowerCtFunction(PowerCtModelContainer, ABC):
             return power_ct_arr * self.power_scale
         else:
             return power_ct_arr
-
-    def set_gradient_funcs(self, power_ct_grad_func):
-
-        def get_grad(ans, ws, **kwargs):
-            def grad(g):
-                return g * power_ct_grad_func(ws, **kwargs)
-            return grad
-        primitive_power_ct = primitive(self.power_ct)
-        defvjp(primitive_power_ct, get_grad)
-        self.power_ct = primitive_power_ct
 
 
 class PowerCtTabular(PowerCtFunction):
@@ -240,44 +225,23 @@ class PowerCtTabular(PowerCtFunction):
 
         assert method in ['linear', 'pchip', 'spline']
         if method == 'linear':
-            interp = self.np_interp
+            power_ct_func = self.np_interp
         elif method == 'pchip':
             self._pchip_interpolator = [PchipInterpolator(ws, self.power_ct_tab[0]),
                                         PchipInterpolator(ws, self.power_ct_tab[1])]
-            self._pchip_derivative = [pi.derivative() for pi in self._pchip_interpolator]
-            interp = self.pchip_interp
+            power_ct_func = self.pchip_interp
         else:
             self.make_splines()
-            interp = self.spline_interp
-        self.interp = interp
+            power_ct_func = self.spline_interp
+
         self.method = method
-        PowerCtFunction.__init__(self, ['ws'], self.handle_cs, power_unit, [], additional_models)
-
-    def handle_cs(self, ws, run_only, **_):
-        if np.asarray(ws).dtype == np.complex128:
-            return np.asarray(self.interp(ws.real, run_only)) + \
-                ws.imag * self.get_power_ct_grad_func()(ws.real, run_only) * 1j
-        else:
-            return np.asarray(self.interp(ws, run_only))
-
-    def get_power_ct_grad_func(self):
-        if self.method == 'linear':
-            def power_ct_grad_func(ws, run_only):
-                # fd is fine for linear interpolation
-                return fd(lambda ws, run_only=run_only, self=self: self.np_interp(ws, run_only))(ws)
-        elif self.method == 'pchip':
-            def power_ct_grad_func(ws, run_only):
-                return self._pchip_derivative[run_only](ws)
-        else:
-            def power_ct_grad_func(ws, run_only):
-                return self.power_ct_spline_derivative[run_only](ws)
-        return power_ct_grad_func
+        PowerCtFunction.__init__(self, ['ws'], power_ct_func, power_unit, [], additional_models)
 
     def pchip_interp(self, ws, run_only):
         return self._pchip_interpolator[run_only](ws)
 
     def np_interp(self, ws, run_only):
-        return np.interp(ws, self.ws_tab, self.power_ct_tab[run_only])
+        return gradients.interp(ws, self.ws_tab, self.power_ct_tab[run_only])
 
     def spline_interp(self, ws, run_only):
         return [self.power_spline, self.ct_spline][run_only](ws)
@@ -307,7 +271,6 @@ class PowerCtTabular(PowerCtFunction):
         # make spline
         self.power_spline, self.ct_spline = [UnivariateSpline(ws, curve, s=(curve.max() * err_tol_factor)**2)
                                              for curve in [power, ct]]
-        self.power_ct_spline_derivative = self.power_spline.derivative(), self.ct_spline.derivative()
 
 
 class PowerCtFunctionList(WindTurbineFunctionList, PowerCtFunction):
@@ -484,9 +447,6 @@ class CubePowerSimpleCt(PowerCtFunction):
 
         return ct
 
-    def get_power_ct_grad_func(self):
-        return self._power_ct_grad
-
     def _power_ct_grad(self, ws, run_only):
         if run_only == 0:
             return np.where((ws > self.ws_cutin) & (ws <= self.ws_rated),
@@ -499,6 +459,10 @@ class CubePowerSimpleCt(PowerCtFunction):
                                self.dct_rated2cutout(ws),
                                0)  # constant ct
             return dct
+
+    @set_vjp(_power_ct_grad)
+    def _power_ct_withgrad(self, ws, run_only):
+        return (self._power, self._ct)[run_only](ws)
 
 
 class PowerCtSurrogate(PowerCtFunction, FunctionSurrogates):

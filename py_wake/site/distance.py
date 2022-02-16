@@ -78,7 +78,8 @@ class StraightDistance():
 
             dw_ijl = -cos_ijl * dx_ijl - sin_ijl * dy_ijl
             hcw_ijl = sin_ijl * dx_ijl - cos_ijl * dy_ijl
-            dh_ijl = np.broadcast_to(self.dh_ij[src_idx][:, dst_idx][:, :, na], dw_ijl.shape).copy()
+            # +0 ~ autograd safe copy (broadcast_to returns readonly array)
+            dh_ijl = np.broadcast_to(self.dh_ij[src_idx][:, dst_idx][:, :, na], dw_ijl.shape) + 0
             return dw_ijl, hcw_ijl, dh_ijl
 
     def dw_order_indices(self, wd_l):

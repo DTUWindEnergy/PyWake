@@ -45,6 +45,7 @@ Contents:
         notebooks/EngineeringWindFarmModels
         notebooks/RunWindFarmSimulation
         notebooks/Optimization
+        notebooks/Gradients        
         notebooks/YawMisalignment
         notebooks/exercises/CombineModels
         notebooks/exercises/Validation

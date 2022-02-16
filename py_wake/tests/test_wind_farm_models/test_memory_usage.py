@@ -10,8 +10,6 @@ import memory_profiler
 from py_wake.tests import npt
 import pytest
 from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
-from py_wake.deficit_models.rathmann import Rathmann
-from py_wake.tests.check_speed import timeit
 
 
 def get_memory_usage():

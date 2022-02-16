@@ -12,7 +12,7 @@ from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37WindTurb
 from py_wake.superposition_models import SquaredSum
 from py_wake.tests import npt
 from py_wake.utils import gradients
-from py_wake.utils.gradients import use_autograd_in, autograd, plot_gradients
+from py_wake.utils.gradients import autograd, plot_gradients
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.wind_turbines import WindTurbines, WindTurbine, OneTypeWindTurbines, wind_turbines_deprecated,\
     power_ct_functions
@@ -243,47 +243,17 @@ def test_plot_power_ct():
         plt.show()
 
 
-def test_set_gradients():
-    wt = IEA37_WindTurbines()
-
-    def dpctdu(ws, run_only):
-        if run_only == 0:
-            return np.where((ws > 4) & (ws <= 9.8),
-                            100000 * ws,  # not the right gradient, but similar to the reference
-                            0)
-        else:
-            return np.full(ws.shape, 0)
-    wt.powerCtFunction.set_gradient_funcs(dpctdu)
-    with use_autograd_in([WindTurbines, iea37_reader, power_ct_functions, wind_turbines_deprecated]):
-        ws_lst = np.arange(3, 25, .1)
-        plt.plot(ws_lst, wt.power(ws_lst))
-
-        ws_pts = np.array([3., 6., 9., 12.])
-        dpdu_lst = autograd(wt.power)(ws_pts)
-        if 0:
-            for dpdu, ws in zip(dpdu_lst, ws_pts):
-                plot_gradients(wt.power(ws), dpdu, ws, "", 1)
-
-            plt.show()
-        dpdu_ref = np.where((ws_pts > 4) & (ws_pts <= 9.8),
-                            100000 * ws_pts,
-                            0)
-        npt.assert_array_almost_equal(dpdu_lst, dpdu_ref)
-
-
 def test_method():
     wt_linear = V80()
     wt_pchip = V80(method='pchip')
     wt_spline = V80(method='spline')
     ws_lst = np.arange(3, 25, .001)
-    for wt in [wt_linear, wt_pchip, wt_spline]:
-        wt.enable_autograd()
 
     ws_pts = [6.99, 7.01]
-    with use_autograd_in():
-        dpdu_linear_pts = autograd(wt_linear.power)(np.array(ws_pts))
-        dpdu_pchip_pts = autograd(wt_pchip.power)(np.array(ws_pts))
-        dpdu_spline_pts = autograd(wt_spline.power)(np.array(ws_pts))
+
+    dpdu_linear_pts = autograd(wt_linear.power)(np.array(ws_pts))
+    dpdu_pchip_pts = autograd(wt_pchip.power)(np.array(ws_pts))
+    dpdu_spline_pts = autograd(wt_spline.power)(np.array(ws_pts))
 
     if 0:
         wt_dp_label_lst = [(wt_linear, dpdu_linear_pts, 'linear'),
@@ -319,7 +289,7 @@ def test_method():
         assert np.abs((wt_linear.power(ws_lst) - wt.power(ws_lst)).mean()) < absmean_tol
         assert np.abs((wt_linear.power(ws_lst) - wt.power(ws_lst)).max()) < max_tol
 
-    for wt, diff_grad_max, dpdu_pts, ref_dpdu_pts in [(wt_linear, 64, dpdu_linear_pts, [178000.00007264, 236000.00003353]),
+    for wt, diff_grad_max, dpdu_pts, ref_dpdu_pts in [(wt_linear, 64, dpdu_linear_pts, [178000, 236000]),
                                                       (wt_pchip, 0.2, dpdu_pchip_pts, [
                                                        202520.16516056, 203694.66294614]),
                                                       (wt_spline, 0.8, dpdu_spline_pts, [205555.17794162, 211859.45965873])]:

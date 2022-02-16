@@ -2,6 +2,7 @@
 import numpy as np
 import unittest
 from scipy.special import ellipk, ellipe
+from py_wake.utils.gradients import cabs
 
 
 def ellipticPiCarlson(n, m):
@@ -45,7 +46,7 @@ def ellipticPiCarlson(n, m):
             s13 = s12 * s1
             r = 5. / 26 * s13 + 3. / 26 * s2**2
             RF = (mu**-0.5) * (1 + s1 / 5 + s2 / 7 + s12 / 6 + 3 / 11 * s1 * s2 + r)
-            res = np.amax(np.abs(RF - RFo))
+            res = np.amax(cabs(RF - RFo))
             RFo = RF
             xo = xn
             yo = yn
@@ -107,7 +108,8 @@ def ellipticPiCarlson(n, m):
                 alfa = (rhoo * (xo**0.5 + yo**0.5 + zo**0.5) + (xo * yo * zo)**0.5)**2
                 bet = rhoo * (rhoo + lambda_)**2
                 rhs1 = rhs1 + 3 * 4 ** - nIt * ellipticRC(alfa, bet)
-                rhs2 = (4**-(nIt + 1) * mu**-1.5) * (1 + 3 / 7 * s1 + s2 / 3 + 3 / 22 * s12 + 3 / 11 * s3 + 3 / 13 * (s1 * s2 + s4) + r)
+                rhs2 = (4**-(nIt + 1) * mu**-1.5) * (1 + 3 / 7 * s1 + s2 / 3 +
+                                                     3 / 22 * s12 + 3 / 11 * s3 + 3 / 13 * (s1 * s2 + s4) + r)
                 RJLoc = rhs1 + rhs2
                 res = np.amax(np.abs(RJLoc - RJo))
                 RJo = RJLoc
@@ -141,7 +143,7 @@ def ellipticPiCarlson(n, m):
             s5 = s4 * s
             s6 = s5 * s
             RC = (mu**-0.5) * (1 + 3 / 10 * s2 + s3 / 7 + 3 / 8 * s4 + 9 / 22 * s5 + 159 / 208 * s6)
-            res = np.amax(np.abs(RC - RCo))
+            res = np.amax(cabs(RC - RCo))
             RCo = RC
             xo = xn
             yo = yn
@@ -149,7 +151,7 @@ def ellipticPiCarlson(n, m):
         return RC
 
     # --- Main corpus
-    if type(m) is not np.ndarray:
+    if not isinstance(m, np.ndarray):
         m = np.array(m)
         n = np.array(n)
     if m.shape == (0,):
