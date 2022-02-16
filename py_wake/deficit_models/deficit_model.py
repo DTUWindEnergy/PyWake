@@ -3,6 +3,7 @@ import numpy as np
 from numpy import newaxis as na
 from py_wake.ground_models.ground_models import NoGround
 import inspect
+from py_wake.utils.gradients import cabs
 
 
 class DeficitModel(ABC):
@@ -61,6 +62,12 @@ class BlockageDeficitModel(DeficitModel):
             rotor_pos = -1e-10
             deficit_ijlk *= (dw_ijlk < rotor_pos)
         return deficit_ijlk
+
+    def remove_wake(self, deficit_ijlk, dw_ijlk, cw_ijlk, D_src_il):
+        # indices in wake region
+        R_ijlk = (D_src_il / 2)[:, na, :, na]
+        iw = ((dw_ijlk / R_ijlk >= -self.limiter) & (cabs(cw_ijlk) <= R_ijlk))
+        return np.where(iw, 0., deficit_ijlk)
 
 
 class WakeDeficitModel(DeficitModel, ABC):

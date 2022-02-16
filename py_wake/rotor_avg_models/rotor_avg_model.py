@@ -45,7 +45,8 @@ class RotorCenter(RotorAvgModel):
 class GridRotorAvg(RotorAvgModel):
     nodes_weight = None
 
-    def __init__(self, nodes_x, nodes_y, nodes_weight=None):
+    def __init__(self, nodes_x=[-1 / 3, 1 / 3, -1 / 3, 1 / 3],
+                 nodes_y=[-1 / 3, -1 / 3, 1 / 3, 1 / 3], nodes_weight=None):
         self.nodes_x = np.asarray(nodes_x)
         self.nodes_y = np.asarray(nodes_y)
         if nodes_weight is not None:
@@ -71,7 +72,7 @@ class GridRotorAvg(RotorAvgModel):
 
 
 class EqGridRotorAvg(GridRotorAvg):
-    def __init__(self, n):
+    def __init__(self, n=4):
         X, Y = np.meshgrid(np.linspace(-1, 1, n + 2)[1:-1], np.linspace(-1, 1, n + 2)[1:-1])
         m = (X**2 + Y**2) < 1
         GridRotorAvg.__init__(self,
@@ -82,7 +83,7 @@ class EqGridRotorAvg(GridRotorAvg):
 class GQGridRotorAvg(GridRotorAvg):
     """Gauss Quadrature grid rotor average model"""
 
-    def __init__(self, n_x, n_y):
+    def __init__(self, n_x=4, n_y=4):
         x, y, w = gauss_quadrature(n_x, n_y)
         m = (x**2 + y**2) < 1
         w = w[m]
@@ -91,7 +92,7 @@ class GQGridRotorAvg(GridRotorAvg):
 
 
 class PolarGridRotorAvg(GridRotorAvg):
-    def __init__(self, nodes_r, nodes_theta, nodes_weight):
+    def __init__(self, nodes_r=2 / 3, nodes_theta=np.linspace(-np.pi, np.pi, 6, endpoint=False), nodes_weight=None):
         self.nodes_x = nodes_r * np.cos(-nodes_theta - np.pi / 2)
         self.nodes_y = nodes_r * np.sin(-nodes_theta - np.pi / 2)
         self.nodes_weight = nodes_weight

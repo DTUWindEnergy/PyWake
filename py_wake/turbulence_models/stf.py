@@ -2,7 +2,7 @@ from numpy import newaxis as na
 import numpy as np
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel
 from py_wake.superposition_models import LinearSum
-from py_wake.utils.gradients import hypot
+from py_wake.utils.gradients import hypot, cabs
 
 
 class FrandsenWeight():
@@ -17,12 +17,13 @@ class FrandsenWeight():
         s_ijlk = dw_ijlk / D_src_il[:, na, :, na]
         with np.warnings.catch_warnings():
             np.warnings.filterwarnings('ignore', r'divide by zero encountered in true_divide')
+            np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
 
             # Theta_w is the characteristic view angle defined in Eq. (3.18)
-            theta_w = (180.0 / np.pi * np.arctan2(1, s_ijlk) + 10) / 2
+            theta_w = (180.0 / np.pi * np.arctan(1 / s_ijlk) + 10) / 2
 
             # thetq denotes the acutally view angles
-            theta = np.arctan2(cw_ijlk, dw_ijlk) * 180.0 / np.pi
+            theta = np.where(dw_ijlk > 0, np.arctan(cw_ijlk / dw_ijlk) * 180.0 / np.pi, 0)
         weights_ijlk = np.where(theta < theta_w, np.exp(-(theta / theta_w)**2), 0) * (dw_ijlk > 1e-10)
 
         # In Frandsens thesis, the weight is multiplied to I0 * alpha:
@@ -50,7 +51,7 @@ class IECWeight():
 
         angleSpread = 21.6 / 2  # half angle
         r = np.tan(angleSpread * np.pi / 180.0) * dw_ijlk
-        weights_ijlk = ((np.abs(cw_ijlk) < np.abs(r)) & (dw_ijlk > -1e-10) &
+        weights_ijlk = ((cabs(cw_ijlk) < cabs(r)) & (dw_ijlk > -1e-10) &
                         (hypot(dw_ijlk, cw_ijlk) < (self.dist_limit * D_src_il)[:, na, :, na]))
         return TI_add_ijlk * weights_ijlk
 
@@ -88,7 +89,8 @@ class STF2017TurbulenceModel(TurbulenceModel):
             np.warnings.filterwarnings('ignore', r'divide by zero encountered in true_divide')
             np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
             TI_add_ijlk = self.max_centre_wake_turbulence(dw_ijlk=dw_ijlk, cw_ijlk=cw_ijlk, D_src_il=D_src_il, **kwargs)
-        TI_add_ijlk[np.isnan(TI_add_ijlk)] = 0
+        # TI_add_ijlk[np.isnan(TI_add_ijlk)] = 0
+        TI_add_ijlk = np.where(np.isnan(TI_add_ijlk), 0, TI_add_ijlk)
 
         return self.apply_weight(dw_ijlk, cw_ijlk, D_src_il, TI_ilk=TI_ilk, TI_add_ijlk=TI_add_ijlk)
 

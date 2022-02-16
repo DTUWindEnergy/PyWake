@@ -46,7 +46,7 @@ class RankineHalfBody(BlockageDeficitModel):
         cos_ijlk = dw_ijlk / r_ijlk
         # avoid division by zero
         f_ilk = a0_ilk * R_il[:, :, na]
-        f_ilk[f_ilk == 0.] = np.inf
+        f_ilk = np.where(f_ilk == 0., np.inf, f_ilk)
         # replaced sin**2 and m of expression given in [1]
         val = cos_ijlk - 1 / f_ilk[:, na] * cw_ijlk**2
         iout = val <= -1.
@@ -61,20 +61,18 @@ class RankineHalfBody(BlockageDeficitModel):
         r_ijlk = hypot(dw_ijlk, cw_ijlk)
         # find points lying outside RHB, the only ones to be computed
         # remove singularities
-        r_ijlk[2 * r_ijlk / D_src_il[:, na, :, na] < self.limiter] = np.inf
-        iout = self.outside_body(WS_ilk, a0_ilk, R_il, dw_ijlk, cw_ijlk, r_ijlk)
+        iout = self.outside_body(*(np.real(v) for v in [WS_ilk, a0_ilk, R_il, dw_ijlk, cw_ijlk, r_ijlk]))
         # deficit, p.3 equation for u, negative to get deficit
-        deficit_ijlk = -m_ilk[:, na] / (4 * np.pi) * dw_ijlk / r_ijlk**3 * (iout)
+
+        deficit_ijlk = np.where(((2 * r_ijlk / D_src_il[:, na, :, na]) < self.limiter) | ~iout, 0,
+                                -m_ilk[:, na] / (4 * np.pi) * dw_ijlk / (r_ijlk + (r_ijlk == 0))**3)
 
         if self.exclude_wake:
-            # indices on rotor plane and in wake region
-            iw = ((dw_ijlk / R_il[:, na, :, na] >= -self.limiter) &
-                  (np.abs(cw_ijlk) <= R_il[:, na, :, na])) * np.full(deficit_ijlk.shape, True)
-            deficit_ijlk[iw] = 0.
+            deficit_ijlk = self.remove_wake(deficit_ijlk, dw_ijlk, cw_ijlk, D_src_il)
             # Close to the rotor the induced velocities become unphysical and are
             # limited to the induction in the rotor plane estimated by BEM.
-            ilim = deficit_ijlk > (WS_ilk * self.a0(ct_ilk))[:, na]
-            deficit_ijlk[ilim] = ((WS_ilk * self.a0(ct_ilk))[:, na] * np.sign(deficit_ijlk))[ilim]
+            induc = (WS_ilk * self.a0(ct_ilk))[:, na]
+            deficit_ijlk = np.where(deficit_ijlk > induc, induc * np.sign(deficit_ijlk), deficit_ijlk)
 
         return deficit_ijlk
 

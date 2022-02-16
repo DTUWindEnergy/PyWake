@@ -27,21 +27,9 @@ import inspect
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter, EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
+from py_wake.utils.model_utils import get_models
 
 WindFarmModel.verbose = False
-
-
-def get_all_turbulence_models():
-    all_turbulence_modules = []
-    for loader, module_name, _ in pkgutil.walk_packages([os.path.dirname(turbulence_models.__file__)]):
-
-        _module = loader.find_module(module_name).load_module(module_name)
-        for n in dir(_module):
-            v = _module.__dict__[n]
-            if inspect.isclass(v) and issubclass(v, TurbulenceModel) and \
-                    v not in [TurbulenceModel]:
-                all_turbulence_modules.append(v)
-    return all_turbulence_modules
 
 
 @pytest.mark.parametrize('turbulence_model,ref_ti', [
@@ -150,12 +138,14 @@ def test_superposition_model_indices():
         npt.assert_array_almost_equal(TI_eff_ilk, ref_TI_eff_ilk)
 
 
-@pytest.mark.parametrize('turbulenceModel', get_all_turbulence_models())
+@pytest.mark.parametrize('turbulenceModel', get_models(TurbulenceModel))
 def test_own_turbulence_is_zero(turbulenceModel):
     site = Hornsrev1Site()
     windTurbines = IEA37_WindTurbines()
+    if turbulenceModel:
+        turbulenceModel = turbulenceModel()
     wf_model = All2AllIterative(site, windTurbines, wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
-                                turbulenceModel=turbulenceModel())
+                                turbulenceModel=turbulenceModel)
     sim_res = wf_model([0], [0])
     npt.assert_array_equal(sim_res.TI_eff, sim_res.TI.broadcast_like(sim_res.TI_eff))
 
@@ -201,10 +191,12 @@ def test_RotorAvg_deficit():
 
 
 @pytest.mark.parametrize('WFM', [All2AllIterative, PropagateDownwind])
-@pytest.mark.parametrize('turbulenceModel', get_all_turbulence_models())
+@pytest.mark.parametrize('turbulenceModel', get_models(TurbulenceModel))
 def test_with_all_turbulence_models(WFM, turbulenceModel):
     site = IEA37Site(16)
     windTurbines = IEA37_WindTurbines()
+    if turbulenceModel is None:
+        return
 
     wfm = WFM(site, windTurbines, wake_deficitModel=NoWakeDeficit(),
               rotorAvgModel=CGIRotorAvg(4),
@@ -216,3 +208,23 @@ def test_with_all_turbulence_models(WFM, turbulenceModel):
                turbulenceModel=turbulenceModel(rotorAvgModel=CGIRotorAvg(4)))
     kwargs = {'x': [0, 0, 500, 500], 'y': [0, 500, 0, 500], 'wd': [0], 'ws': [8]}
     npt.assert_array_equal(wfm(**kwargs).TI_eff, wfm2(**kwargs).TI_eff, turbulenceModel.__name__)
+
+
+@pytest.mark.parametrize('turbulenceModel', get_models(TurbulenceModel))
+def test_turbulence_models_upstream(turbulenceModel):
+    site = IEA37Site(16)
+    windTurbines = IEA37_WindTurbines()
+    if turbulenceModel is None:
+        return
+
+    wfm = All2AllIterative(site, windTurbines, wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
+                           rotorAvgModel=CGIRotorAvg(4),
+                           superpositionModel=LinearSum(),
+                           turbulenceModel=turbulenceModel())
+    kwargs = {'x': [0, 0, 500, 500], 'y': [0, 500, 0, 500], 'wd': [0], 'ws': [8]}
+
+    fm = wfm(**kwargs).flow_map()
+    assert np.all(fm.TI_eff.isel(y=(fm.y > 500)) == 0.075)
+    if 1:
+        fm.plot_ti_map()
+        plt.show()

@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 from numpy import newaxis as na
-from scipy.interpolate.fitpack2 import InterpolatedUnivariateSpline
+from scipy.interpolate import InterpolatedUnivariateSpline
 import matplotlib.pyplot as plt
 
 
@@ -194,7 +194,7 @@ class FlowMap(FlowBox):
             h_i = self.simulationResult.h.values
             z_i = self.simulationResult.windFarmModel.site.elevation(x_i, y_i)
             if self.plane[0] == 'XZ':
-                fm.windTurbines.plot_yz(x_i, z_i, h_i, types=type_i, wd=self.wd, yaw=yaw + 90, tilt=tilt,
+                fm.windTurbines.plot_yz(x_i, z_i, h_i, types=type_i, wd=self.wd - 90, yaw=yaw, tilt=tilt,
                                         normalize_with=normalize_with, ax=ax)
             else:
                 fm.windTurbines.plot_yz(y_i, z_i, h_i, types=type_i, wd=self.wd, yaw=yaw, tilt=tilt,

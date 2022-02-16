@@ -7,6 +7,8 @@ from py_wake.ground_models.ground_models import NoGround
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
 from py_wake.superposition_models import SquaredSum
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
+from py_wake.utils.gradients import cabs
+from py_wake.utils import gradients
 
 
 class BastankhahGaussianDeficit(ConvectionDeficitModel):
@@ -315,7 +317,7 @@ class ZongGaussianDeficit(NiayifarGaussianDeficit):
         # non-dimensional wake expansion
         # logaddexp(0,x) ~ log(1+exp(x)) without overflow
         sigmaD_ijlk = (self.epsilon_ilk(ct_ilk)[:, na] + k_ilk[:, na, :, :] *
-                       np.logaddexp(0, (dw_ijlk - xnw_ilk[:, na, :, :]) / D_src_il[:, na, :, na]))
+                       gradients.logaddexp(0, (dw_ijlk - xnw_ilk[:, na, :, :]) / D_src_il[:, na, :, na]))
 
         return sigmaD_ijlk * D_src_il[:, na, :, na]
 
@@ -427,7 +429,7 @@ class TurboGaussianDeficit(NiayifarGaussianDeficit):
         term2_ilk = np.sqrt(1 + alpha_ilk**2)
         term3_ijlk = (term1_ijlk + 1) * alpha_ilk[:, na]
         term4_ijlk = (term2_ilk[:, na] + 1) * (alpha_ilk[:, na] +
-                                               beta_ilk[:, na] * np.abs(dw_ijlk) / D_src_il[:, na, :, na])
+                                               beta_ilk[:, na] * cabs(dw_ijlk) / D_src_il[:, na, :, na])
 
         wake_radius_ijlk = 0.5 * (D_src_il[:, na, :, na] + fac_ilk[:, na] *
                                   (term1_ijlk - term2_ilk[:, na] - np.log(term3_ijlk / term4_ijlk)))

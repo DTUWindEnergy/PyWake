@@ -4,6 +4,7 @@ from py_wake.deficit_models.deficit_model import DeficitModel
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models import BlockageDeficitModel
 from py_wake.ground_models.ground_models import NoGround
+from py_wake.utils.gradients import cabs
 
 
 class SelfSimilarityDeficit(BlockageDeficitModel):
@@ -72,7 +73,7 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
     def _calc_layout_terms(self, dw_ijlk, cw_ijlk, D_src_il, **_):
         # radial shape function
         R_ijlk = (D_src_il / 2)[:, na, :, na]
-        x_ijlk = - np.abs(dw_ijlk) / R_ijlk
+        x_ijlk = - cabs(dw_ijlk) / R_ijlk
 
         self.feps_ijlk = self.f_eps(x_ijlk, cw_ijlk, R_ijlk)
         self.a0f_ijlk = self.a0f(x_ijlk)
@@ -83,7 +84,7 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
         Eq. (5) in [1].
         """
         R_ijlk = (D_src_il / 2)[:, na, :, na]
-        x_ijlk = - np.abs(dw_ijlk) / R_ijlk
+        x_ijlk = - cabs(dw_ijlk) / R_ijlk
 
         if not self.deficit_initalized:
             # calculate layout term, self.feps_ijlk and self.a0f_ijlk
@@ -93,15 +94,11 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
         a0x_ijlk = self.a0(x_ijlk, ct_ilk) * self.a0f_ijlk
         # deficit
         deficit_ijlk = WS_ilk[:, na] * a0x_ijlk * self.feps_ijlk
-        m = np.broadcast_to(dw_ijlk > 0, deficit_ijlk.shape)
-        np.negative(deficit_ijlk, out=deficit_ijlk, where=dw_ijlk > 0)  # deficit[m] = -deficit[m]
+        deficit_ijlk = np.negative(deficit_ijlk, out=deficit_ijlk, where=dw_ijlk > 0)  # deficit[dw] = -deficit[dw]
 
         # only activate the model upstream of the rotor
         if self.exclude_wake:
-            # indices in wake region
-            iw = ((dw_ijlk / R_ijlk >= -self.limiter) &
-                  (np.abs(cw_ijlk) <= R_ijlk)) * np.full(deficit_ijlk.shape, True)
-            deficit_ijlk[iw] = 0.
+            deficit_ijlk = self.remove_wake(deficit_ijlk, dw_ijlk, cw_ijlk, D_src_il)
 
         return deficit_ijlk
 
@@ -173,9 +170,9 @@ class SelfSimilarityDeficit2020(SelfSimilarityDeficit):
         """
         Interpolation coefficient between near- and far-field gamma(CT)
         """
-        finter_ijlk = np.abs(self.a0f(x_ijlk) - self.a0f(-1.)) / np.ptp(self.a0f(np.array([-6, -1])))
-        finter_ijlk[x_ijlk < -6] = 1.
-        finter_ijlk[x_ijlk > -1] = 0.
+        finter_ijlk = cabs(self.a0f(x_ijlk) - self.a0f(-1.)) / np.ptp(self.a0f(np.array([-6, -1])))
+        finter_ijlk = np.where(x_ijlk < -6, 1., finter_ijlk)
+        finter_ijlk = np.where(x_ijlk > -1, 0., finter_ijlk)
         return finter_ijlk
 
     def a0(self, x_ijlk, ct_ilk):
@@ -240,7 +237,7 @@ def main():
         X, Y = np.meshgrid(x, y)
         x_j, y_j = X.flatten(), Y.flatten()
         dw_ijlk = x_j.reshape((1, -1, 1, 1))
-        cw_ijlk = np.abs(y_j.reshape((1, -1, 1, 1)))
+        cw_ijlk = cabs(y_j.reshape((1, -1, 1, 1)))
         deficit = ss.calc_deficit(WS_ilk=WS_ilk, D_src_il=D_src_il,
                                   dw_ijlk=dw_ijlk,
                                   cw_ijlk=cw_ijlk, ct_ilk=ct_ilk)

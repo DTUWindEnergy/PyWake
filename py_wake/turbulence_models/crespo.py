@@ -3,6 +3,7 @@ import numpy as np
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel
 from py_wake.utils.area_overlapping_factor import AreaOverlappingFactor
 from py_wake.superposition_models import SqrMaxSum
+from py_wake.utils.gradients import cabs
 
 
 class CrespoHernandez(TurbulenceModel, AreaOverlappingFactor):
@@ -33,7 +34,7 @@ class CrespoHernandez(TurbulenceModel, AreaOverlappingFactor):
         # added turbulence (Eq. 21)
         dw_ijlk_gt0 = np.maximum(dw_ijlk, 1e-10)  # avoid divide by zero and sqrt of negative number
         TI_add_ijlk = 0.73 * a_ilk[:, na, :, :]**0.8325 * TI_ilk[:, na, :, :]**0.0325 * \
-            np.abs(D_src_il[:, na, :, na] / dw_ijlk_gt0)**(0.32) * (dw_ijlk > 0)
+            cabs(D_src_il[:, na, :, na] / dw_ijlk_gt0)**(0.32) * (dw_ijlk > 0)
 
         area_overlap_ijlk = self.overlapping_area_factor(wake_radius_ijlk, dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl)
 

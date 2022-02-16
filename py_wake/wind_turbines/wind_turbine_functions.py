@@ -102,10 +102,6 @@ class WindTurbineFunctionList(WindTurbineFunction):
             return arr
         return np.broadcast_to(arr.reshape(arr.shape + (1,) * (len(mask.shape) - len(arr.shape))), mask.shape)[mask]
 
-    def enable_autograd(self):
-        for f in self.windTurbineFunction_lst:
-            f.enable_autograd()
-
     def __call__(self, ws, run_only=slice(None), **kwargs):
         try:
             idx = kwargs.pop(self.key)

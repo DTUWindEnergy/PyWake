@@ -3,7 +3,7 @@ from numpy import newaxis as na
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
 from py_wake.ground_models.ground_models import NoGround
-from py_wake.utils.gradients import hypot
+from py_wake.utils.gradients import hypot, cabs
 
 
 class VortexDipole(BlockageDeficitModel):
@@ -59,19 +59,22 @@ class VortexDipole(BlockageDeficitModel):
         # here it is simplified. Effectively the equations are the same as for
         # a Rankine Half Body.
         # avoid devision by zero
-        r_ijlk[r_ijlk / R_il[:, na, :, na] < self.limiter] = np.inf
+        r_ijlk = np.where((r_ijlk / R_il[:, na, :, na]) < self.limiter, np.inf, r_ijlk)
         # deficit
-        deficit_ijlk = gammat_ilk[:, na] / 4. * R_il[:, na, :, na]**2 * (-dw_ijlk / r_ijlk**3)
+        with np.warnings.catch_warnings():
+            np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
+            np.warnings.filterwarnings('ignore', r'invalid value encountered in power')
+            deficit_ijlk = gammat_ilk[:, na] / 4. * R_il[:, na, :, na]**2 * (-dw_ijlk / r_ijlk**3)
 
         if self.exclude_wake:
             # indices on rotor plane and in wake region
             iw = ((dw_ijlk / R_il[:, na, :, na] >= -self.limiter) &
-                  (np.abs(cw_ijlk) <= R_il[:, na, :, na])) * np.full(deficit_ijlk.shape, True)
-            deficit_ijlk[iw] = 0.
+                  (cabs(cw_ijlk) <= R_il[:, na, :, na])) * np.full(deficit_ijlk.shape, True)
+            deficit_ijlk = np.where(iw, 0., deficit_ijlk)
             # Close to the rotor the induced velocities become unphysical and are
             # limited to the induction in the rotor plane estimated by BEM.
             ilim = deficit_ijlk > gammat_ilk[:, na] / 2.
-            deficit_ijlk[ilim] = (gammat_ilk[:, na] / 2. * np.sign(deficit_ijlk))[ilim]
+            deficit_ijlk = np.where(ilim, gammat_ilk[:, na] / 2. * np.sign(deficit_ijlk), deficit_ijlk)
 
         return deficit_ijlk
 

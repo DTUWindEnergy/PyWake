@@ -2,6 +2,7 @@ import numpy as np
 from numpy import newaxis as na
 from scipy.optimize.zeros import newton
 import matplotlib.pyplot as plt
+from py_wake.utils import gradients
 
 
 def standard_power_ct_curve(power_norm, diameter, turbulence_intensity=.1,
@@ -78,7 +79,7 @@ def standard_power_ct_curve(power_norm, diameter, turbulence_intensity=.1,
     # First part (~0-2m/s) is constant at 8/9 due to cp limit and must be disregarded
     ct_below_lim = np.where(ct_lst < 8 / 9 - 1e-6)[0][0]
     # find index of most constant ct after the disregarded 8/9 region
-    constant_ct_idx = ct_below_lim + np.argmin(np.abs(np.diff(ct_lst[ct_below_lim:])))
+    constant_ct_idx = ct_below_lim + np.argmin(gradients.cabs(np.diff(ct_lst[ct_below_lim:])))
     if ct_lst[constant_ct_idx] < cp2ct(max_cp):
         # if TI is high, then there is no constant region
         constant_ct_idx = 0

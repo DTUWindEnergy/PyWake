@@ -5,6 +5,7 @@ import pytest
 from py_wake.tests.notebook import Notebook
 import py_wake
 from py_wake.flow_map import Grid
+from pathlib import Path
 
 
 def get_notebooks():
@@ -20,6 +21,9 @@ notebooks = get_notebooks()
 @pytest.mark.parametrize("notebook", notebooks, ids=[os.path.basename(nb.filename) for nb in notebooks])
 def test_notebooks(notebook):
     import matplotlib.pyplot as plt
+    if (str(Path(notebook.filename).relative_to(os.path.dirname(py_wake.__file__) + "/../docs/notebooks/")) in
+            ['Gradients.ipynb']):
+        return
 
     def no_show(*args, **kwargs):
         pass

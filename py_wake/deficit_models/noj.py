@@ -8,6 +8,7 @@ from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.deficit_models.gaussian import NiayifarGaussianDeficit
 from py_wake.deficit_models import DeficitModel
+from py_wake.utils.gradients import cabs
 
 
 class NOJDeficit(NiayifarGaussianDeficit, AreaOverlappingFactor):
@@ -188,7 +189,7 @@ class TurboNOJDeficit(NOJDeficit, AreaOverlappingFactor):
         term2_ilk = np.sqrt(1 + alpha_ilk**2)
         term3_ijlk = (term1_ijlk + 1) * alpha_ilk[:, na]
         term4_ijlk = (term2_ilk[:, na] + 1) * (alpha_ilk[:, na] +
-                                               beta_ilk[:, na] * np.abs(dw_ijlk) / D_src_il[:, na, :, na])
+                                               beta_ilk[:, na] * cabs(dw_ijlk) / D_src_il[:, na, :, na])
 
         wake_radius_ijlk = 0.5 * (D_src_il[:, na, :, na] + fac_ilk[:, na] *
                                   (term1_ijlk - term2_ilk[:, na] - np.log(term3_ijlk / term4_ijlk)))

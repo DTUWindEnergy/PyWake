@@ -1,87 +1,75 @@
 import inspect
 import os
 import pkgutil
-import py_wake
-from pathlib import Path
 import numpy as np
 from numpy import newaxis as na
 
 
 def get_exclude_dict():
-    from py_wake.deficit_models.deficit_model import DeficitModel, ConvectionDeficitModel, WakeDeficitModel,\
+    from py_wake.deficit_models.deficit_model import ConvectionDeficitModel, WakeDeficitModel,\
         BlockageDeficitModel
     from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel, RotorCenter
-    from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
     from py_wake.wind_farm_models.engineering_models import EngineeringWindFarmModel, PropagateDownwind
 
-    from py_wake.superposition_models import SuperpositionModel, LinearSum
-    from py_wake.deflection_models.deflection_model import DeflectionModel
-    from py_wake.turbulence_models.turbulence_model import TurbulenceModel
-    from py_wake.ground_models import GroundModel
+    from py_wake.superposition_models import LinearSum
     from py_wake.deficit_models.noj import NOJDeficit
     from py_wake.ground_models.ground_models import NoGround
     return {
-        WindFarmModel: ([EngineeringWindFarmModel], [], PropagateDownwind),
-        DeficitModel: ([ConvectionDeficitModel, BlockageDeficitModel, WakeDeficitModel], [RotorAvgModel], NOJDeficit),
-        WakeDeficitModel: ([ConvectionDeficitModel], [RotorAvgModel], NOJDeficit),
-        RotorAvgModel: ([], [], RotorCenter),
-        SuperpositionModel: ([], [], LinearSum),
-        BlockageDeficitModel: ([], [], None),
-        DeflectionModel: ([], [], None),
-        TurbulenceModel: ([], [], None),
-        GroundModel: ([], [], NoGround)
-
+        "WindFarmModel": ([EngineeringWindFarmModel], [], PropagateDownwind),
+        "DeficitModel": ([ConvectionDeficitModel, BlockageDeficitModel, WakeDeficitModel], [RotorAvgModel], NOJDeficit),
+        "WakeDeficitModel": ([ConvectionDeficitModel], [RotorAvgModel], NOJDeficit),
+        "RotorAvgModel": ([], [], RotorCenter),
+        "SuperpositionModel": ([], [], LinearSum),
+        "BlockageDeficitModel": ([], [], None),
+        "DeflectionModel": ([], [], None),
+        "TurbulenceModel": ([], [], None),
+        "AddedTurbulenceSuperpositionModel": ([], [], None),
+        "GroundModel": ([], [], NoGround),
+        "Shear": ([], [], None),
+        "StraightDistance": ([], [], None),
     }
 
 
-def cls_name(cls):
-    if cls is None:
-        return "None"
-    return cls.__name__
-
-
 def cls_in(A, cls_lst):
-    def path(c):
-        return str(Path(inspect.getsourcefile(c)).resolve())
-
-    pywake_path = str(Path(py_wake.__file__).parent.resolve())
-    pywake_classes = [c for c in cls_lst
-                      if c is not object and cls_name(c) == cls_name(A) and
-                      path(c).startswith(pywake_path)]
-
-    return any([path(A) in [path(c) for c in pywake_classes]])
+    return str(A) in map(str, cls_lst)
 
 
 def get_models(base_class):
 
-    exclude_cls_lst, exclude_subcls_lst, default = get_exclude_dict()[base_class]
+    exclude_cls_lst, exclude_subcls_lst, default = get_exclude_dict()[base_class.__name__]
 
     model_lst = []
-    for loader, module_name, _ in pkgutil.walk_packages([os.path.dirname(inspect.getabsfile(base_class))]):
+    base_class_module = inspect.getmodule(base_class)
+    for loader, module_name, is_pkg in pkgutil.walk_packages([os.path.dirname(base_class_module.__file__)]):
         if 'test' in module_name:
             continue
-        _module = loader.find_module(module_name).load_module(module_name)
-        for n in dir(_module):
-            v = _module.__dict__[n]
-            if inspect.isclass(v):
-                if (cls_in(base_class, v.mro()) and
-                    not cls_in(v, exclude_cls_lst + [base_class]) and
-                    not any([issubclass(v, cls) for cls in exclude_subcls_lst]) and
-                        not cls_in(v, model_lst)):
-                    model_lst.append(v)
+        module_name = base_class_module.__package__ + '.' + module_name
+        import importlib
+        try:
+            _module = importlib.import_module(module_name)
+            for n in dir(_module):
+                v = _module.__dict__[n]
+                if inspect.isclass(v):
+                    if (cls_in(base_class, v.mro()) and
+                        not cls_in(v, exclude_cls_lst + [base_class]) and
+                        not any([issubclass(v, cls) for cls in exclude_subcls_lst]) and
+                            not cls_in(v, model_lst)):
+                        model_lst.append(v)
+        except ModuleNotFoundError:  # pragma: no cover
+            pass
 
     if default is not None:
-        model_lst.remove(model_lst[[cls_name(m) for m in model_lst].index(cls_name(default))])
+        model_lst.remove(model_lst[[m.__name__ for m in model_lst].index(default.__name__)])
     model_lst.insert(0, default)
     return model_lst
 
 
-def list_models():
-    for model_type in list(get_exclude_dict().keys()):
-        print("%s (from %s import *)" % (model_type.__name__, ".".join(model_type.__module__.split(".")[:2])))
-        for model in get_models(model_type):
-            if model is not None:
-                print("\t%s%s" % (model.__name__, str(inspect.signature(model.__init__)).replace('self, ', '')))
+# def list_models():
+#     for model_type in list(get_exclude_dict().keys()):
+#         print("%s (from %s import *)" % (model_type.__name__, ".".join(model_type.__module__.split(".")[:2])))
+#         for model in get_models(model_type):
+#             if model is not None:
+#                 print("\t%s%s" % (model.__name__, str(inspect.signature(model.__init__)).replace('self, ', '')))
 
 
 def get_signature(cls, kwargs={}, indent_level=0):
@@ -163,7 +151,10 @@ def fix_shape(arr, shape_or_arr_to_match, allow_number=False, allow_None=False):
 
 def main():
     if __name__ == '__main__':
-        list_models()
+        from py_wake.superposition_models import SuperpositionModel
+        print(get_models(SuperpositionModel))
+        for c in get_models(SuperpositionModel):
+            print(isinstance(c(), SuperpositionModel), c)
 
 
 main()

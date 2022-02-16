@@ -36,6 +36,6 @@ class TurbulenceModel():
 
 # Aliases for backward compatibility. Use
 # from py_wake.super_position_models import LinearSum, SqrMaxSum, MaxSum
-LinearSum = LinearSum
-SqrMaxSum = SqrMaxSum
-MaxSum = MaxSum
+# LinearSum = LinearSum
+# SqrMaxSum = SqrMaxSum
+# MaxSum = MaxSum

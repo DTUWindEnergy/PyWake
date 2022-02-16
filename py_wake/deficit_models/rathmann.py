@@ -103,10 +103,7 @@ class Rathmann(BlockageDeficitModel):
         np.negative(deficit_ijlk, out=deficit_ijlk, where=dw_ijlk > 0)
 
         if self.exclude_wake:
-            R_ijlk = (D_src_il / 2)[:, na, :, na]
-            # indices in wake region
-            iw = np.broadcast_to((dw_ijlk / R_ijlk >= -self.limiter) & (np.abs(cw_ijlk) <= R_ijlk), deficit_ijlk.shape)
-            deficit_ijlk[iw] = 0.
+            deficit_ijlk = self.remove_wake(deficit_ijlk, dw_ijlk, cw_ijlk, D_src_il)
 
         return deficit_ijlk
 
@@ -148,10 +145,9 @@ class RathmannScaled(Rathmann):
         CFD results.
         """
         r = hypot(cw_ijlk, dw_ijlk) / D_src_il[:, na, :, na]
-        fac = 1. + self.sd[4] * (r - 5.)
-        fac[fac > 1.] = 1.
         mval = 1. - 4. * self.sd[4]
-        fac[fac < mval] = mval
+        fac = np.clip(1. + self.sd[4] * (r - 5.), mval, 1)
+
         boost_ijlk = self.sd[0] * np.exp(self.sd[1] * fac * ct_ilk[:, na]) + \
             self.sd[2] * np.exp(self.sd[3] * fac * ct_ilk[:, na])
 
