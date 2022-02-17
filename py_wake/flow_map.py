@@ -186,8 +186,17 @@ class FlowMap(FlowBox):
 
     def plot_windturbines(self, normalize_with=1, ax=None):
         fm = self.windFarmModel
-        yaw = self.simulationResult.yaw.sel(wd=self.wd[0]).mean(['ws']).data
-        tilt = self.simulationResult.tilt.sel(wd=self.wd[0]).mean(['ws']).data
+
+        def get(k):
+            v = self.simulationResult[k]
+            if 'wd' in v.dims:
+                v = v.sel(wd=self.wd[0])
+            if 'ws' in v.dims:
+                v = v.mean(['ws'])
+            return v.data
+
+        yaw, tilt = get('yaw'), get('tilt')
+
         x_i, y_i = self.simulationResult.x.values, self.simulationResult.y.values
         type_i = self.simulationResult.type.data
         if self.plane[0] in ['XZ', "YZ"]:

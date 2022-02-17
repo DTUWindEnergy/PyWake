@@ -439,7 +439,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
         dh_nk = []
 
         def ilk2mk(x_ilk):
-            return np.broadcast_to(x_ilk.astype(float), (I, L, K)).reshape((I * L, K))
+            return np.broadcast_to(np.asarray(x_ilk).astype(float), (I, L, K)).reshape((I * L, K))
 
         TI_mk = ilk2mk(lw.TI_ilk)
         WS_mk = ilk2mk(lw.WS_ilk)
@@ -496,8 +496,8 @@ class PropagateDownwind(EngineeringWindFarmModel):
                 if v is None or isinstance(v, (int, float)) or len(np.asarray(v).shape) == 0:
                     return v
                 v = np.asarray(v)
-                if len(v.shape) == 1 and len(v) == I:
-                    return v[i_wt_l]
+                if np.product(v.shape) == I:
+                    return v[i_wt_l].flatten()
                 elif v.shape[:2] == (I, L):
                     return v[i_wt_l, i_wd_l]
 

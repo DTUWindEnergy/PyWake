@@ -224,7 +224,7 @@ def test_turning_mean(complex_grid_site, k):
     s = 100
     WD = sim_res.flow_map(XYGrid(x=[0, 500], y=np.arange(0, 400 + s, s))).WD.squeeze()
 
-    if 1:
+    if 0:
         for wd in WD.T:
             ((wd + 180) % 360 - 180).plot()
         plt.plot([0, 400], [-10, 10])
