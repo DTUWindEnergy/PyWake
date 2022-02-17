@@ -51,12 +51,13 @@ class WindFarmModel(ABC):
         assert len(x) == len(y)
         self.verbose = verbose
         h, _ = self.windTurbines.get_defaults(len(x), type, h)
+        wd, ws = self.site.get_defaults(wd, ws)
         I, L, K, = len(x), len(np.atleast_1d(wd)), (1, len(np.atleast_1d(ws)))[time is False]
         if len([k for k in kwargs if 'yaw' in k.lower() and k != 'yaw' and not k.startswith('yawc_')]):
             raise ValueError(
                 'Custom *yaw*-keyword arguments not allowed to avoid confusion with the default "yaw" keyword')
-        yaw_ilk = fix_shape(yaw, (I, L, K), allow_None=True)
-        tilt_ilk = fix_shape(tilt, (I, L, K), allow_None=True)
+        yaw_ilk = fix_shape(yaw, (I, L, K), allow_None=True, allow_number=True)
+        tilt_ilk = fix_shape(tilt, (I, L, K), allow_None=True, allow_number=True)
 
         if len(x) == 0:
             lw = UniformSite([1], 0.1).local_wind(x_i=[], y_i=[], h_i=[], wd=wd, ws=ws)
