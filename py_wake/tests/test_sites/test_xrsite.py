@@ -208,25 +208,34 @@ def test_complex_grid_local_wind(complex_grid_site):
                                          [0.01079997, 0.01656828, 0.02257487]])
 
 
-@pytest.mark.parametrize('wfm', [PropagateDownwind, All2AllIterative])
-def test_turning_mean(complex_grid_site, wfm):
+@pytest.mark.parametrize('k', ['WD', 'Turning'])
+def test_turning_mean(complex_grid_site, k):
 
     ds = xr.Dataset(
-        data_vars={'Turning': (['x', 'y'], np.arange(-2, 4, 1).reshape((2, 3)).T),
-                   'Sector_frequency': ('wd', f), 'Weibull_A': ('wd', A), 'Weibull_k': ('wd', k), 'TI': .1},
-        coords={'x': [0, 500, 1000], 'y': [0, 500], 'wd': np.linspace(0, 360, len(f), endpoint=False)})
+        data_vars={k: (['x', 'y'], [[350, 10], [-30, 30]]),
+                   'P': 1, 'TI': .1},
+        coords={'x': [0, 500], 'y': [0, 400], 'wd': np.linspace(0, 360, len(f), endpoint=False)})
     site = XRSite(ds)
 
     wt = V80()
-    wfm = wfm(site, wt, NOJDeficit())
-    sim_res = wfm([500, 500], [100, 400], wd=0, ws=10)
+    wfm = NOJ(site, wt)
+    sim_res = wfm([], [], wd=0, ws=10)
     # print(sim_res.Power)
-    if 0:
-        sim_res.flow_map(XYGrid(y=np.linspace(0, 500, 100))).plot_wake_map()
+    s = 100
+    WD = sim_res.flow_map(XYGrid(x=[0, 500], y=np.arange(0, 400 + s, s))).WD.squeeze()
+
+    if 1:
+        for wd in WD.T:
+            ((wd + 180) % 360 - 180).plot()
+        plt.plot([0, 400], [-10, 10])
+        plt.plot([0, 400], [-30, 30])
         plt.show()
-    assert sim_res.WS_eff.sel(wt=0).item() < sim_res.WS_eff.sel(wt=1).item()
-    fm = sim_res.flow_map(Points([500, 500], [100, 400], [70, 70]))
-    assert fm.WS_eff.sel(i=0).item() < fm.WS_eff.sel(i=1).item()
+
+    npt.assert_array_almost_equal(WD, [[350., 330.],
+                                       [355, 345],
+                                       [0., 0.],
+                                       [5, 15],
+                                       [10., 30.]])
 
 
 def test_GlobalWindAtlasSite():

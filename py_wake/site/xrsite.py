@@ -92,7 +92,7 @@ class XRSite(Site):
         else:
             return x_i * 0
 
-    def interp(self, var, coords):
+    def interp(self, var, coords, deg=False):
 
         # Interpolate via EqDistRegGridInterpolator (equidistance regular grid interpolator) which is much faster
         # than xarray.interp.
@@ -161,7 +161,7 @@ class XRSite(Site):
             elif 'ws' in data_dims:
                 shape.append(data.shape[data_dims.index('ws')])
 
-            ip_data = grid_interp(np.array(xp).T)
+            ip_data = grid_interp(np.array(xp).T, deg=deg)
             ip_data = ip_data.reshape(shape)
         else:
             ip_data = data
@@ -208,7 +208,7 @@ class XRSite(Site):
 
         def get(n, default=None):
             if n in self.ds:
-                return self.interp(self.ds[n], lw.coords)
+                return self.interp(self.ds[n], lw.coords, deg=(n == 'WD'))
             else:
                 return default
 
@@ -233,7 +233,7 @@ class XRSite(Site):
             if 'i' in lw.dims and 'i' in self.ds.Turning.dims and len(lw.i) != len(self.ds.i):
                 warnings.warn("Turning ignored")
             else:
-                WD = (self.interp(self.ds.Turning, lw.coords) + WD) % 360
+                WD = (self.interp(self.ds.Turning, lw.coords, deg=True) + WD) % 360
 
         lw.set_W(WS, WD, TI, ws_bins, self.use_WS_bins)
         lw.set_data_array(TI_std, 'TI_std', 'Standard deviation of turbulence intensity')
