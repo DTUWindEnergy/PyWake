@@ -41,7 +41,7 @@ class GridInterpolator(object):
         ui[:, dx == 0] = 0
         self.ui = ui
 
-    def __call__(self, xp, method=None, bounds=None):
+    def __call__(self, xp, method=None, bounds=None, deg=False):
         """Interpolate points
 
         Parameters
@@ -86,6 +86,8 @@ class GridInterpolator(object):
 
         indexes = np.minimum(indexes, (self.n - 1)[:, na, na])
         v = np.moveaxis(self.V[tuple(indexes)], [0, 1], [-2, -1])
+        if deg:
+            v = (v + 180) % 360 - 180
 
         xpif1 = 1 - xpif
         # w = np.product([xpif10_.T[ui] for xpif10_, ui in zip(np.array([xpif1, xpif]).T, self.ui.T)], 0).T # slower
@@ -100,7 +102,10 @@ class GridInterpolator(object):
 
         w = np.reshape(mul_weight(1, 0), (-1, xpif.shape[0]))
 
-        return np.moveaxis((w * v).sum(-2), -1, 0)
+        res = np.moveaxis((w * v).sum(-2), -1, 0)
+        if deg:
+            res = res % 360
+        return res
 
 
 class EqDistRegGrid2DInterpolator():

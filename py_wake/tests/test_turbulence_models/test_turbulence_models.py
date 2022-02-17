@@ -225,6 +225,6 @@ def test_turbulence_models_upstream(turbulenceModel):
 
     fm = wfm(**kwargs).flow_map()
     assert np.all(fm.TI_eff.isel(y=(fm.y > 500)) == 0.075)
-    if 1:
+    if 0:
         fm.plot_ti_map()
         plt.show()
