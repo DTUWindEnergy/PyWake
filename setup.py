@@ -41,7 +41,7 @@ setup(name='py_wake',
                       'examples/data/iea34_130rwt/*/*/*.h5',
                       'examples/data/iea34_130rwt/*/*/*.json',
                       'examples/data/ParqueFicticio/*.grd',
-                      'examples/data/NEG-Micon-2750.wtg', 
+                      'examples/data/NEG-Micon-2750.wtg',
                       'examples/data/Vestas V112-3.0 MW.wtg'
                       ],
       },
@@ -53,7 +53,6 @@ setup(name='py_wake',
           'pyyaml',  # for reading yaml files
           'scipy',  # constraints
           'tqdm',  # progressbar
-          'ipywidgets',  # notebook widgets
       ],
       extras_require={
           'test': [
@@ -66,6 +65,7 @@ setup(name='py_wake',
               'line_profiler',  # to check speed
               'sklearn',  # MinMaxScaler
               'tensorflow',  # load surrogates
+              'ipywidgets',  # notebook widgets
           ],
           'loads': [
               'sklearn',  # MinMaxScaler
