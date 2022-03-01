@@ -93,8 +93,14 @@ def complex_ws_site():
 
 
 @pytest.fixture
-def pywasp_pwc():
+def pywasp_pwc_point():
     pwc_file = tfp + "pwc_parquo_fictio_small.nc"
+    return xr.open_dataset(pwc_file)
+
+
+@pytest.fixture
+def pywasp_pwc_cuboid():
+    pwc_file = tfp + "pwc_cuboid_small.nc"
     return xr.open_dataset(pwc_file)
 
 
@@ -520,9 +526,9 @@ def test_interp_special_cases():
     npt.assert_array_almost_equal(ip1.data, ip2.data)
 
 
-def test_from_pywasp_pwc(pywasp_pwc):
+def test_from_pywasp_pwc_point(pywasp_pwc_point):
 
-    site = XRSite.from_pywasp_pwc(pywasp_pwc)
+    site = XRSite.from_pywasp_pwc(pywasp_pwc_point)
 
     A = np.array([
         [5.757, 6.088, 5.369],
@@ -590,6 +596,8 @@ def test_from_pywasp_pwc(pywasp_pwc):
     wd = np.linspace(0.0, 360.0, 13)
     i = np.arange(3)
 
+    assert "i" in site.ds.dims
+
     npt.assert_array_equal(site.ds.Weibull_A.values[..., :12], A.T)
     npt.assert_array_equal(site.ds.Weibull_k.values[..., :12], k.T)
     npt.assert_array_equal(site.ds.Sector_frequency.values[..., :12], wdfreq.T)
@@ -599,3 +607,14 @@ def test_from_pywasp_pwc(pywasp_pwc):
     npt.assert_array_equal(site.ds.i.values, i)
     npt.assert_array_equal(site.ds.wd.values, wd)
     npt.assert_allclose(site.ds.Speedup.values, speedups, rtol=1e-8)
+
+
+def test_from_pywasp_pwc_cuboid(pywasp_pwc_cuboid):
+
+    site = XRSite.from_pywasp_pwc(pywasp_pwc_cuboid)
+
+    assert all(d in site.ds.dims for d in ["x", "y", "h"])
+    assert site.ds.wd.size == 13
+    npt.assert_almost_equal(site.ds.Weibull_A.values[0, 0, 0, 0], 6.208063)
+    npt.assert_almost_equal(site.ds.Weibull_k.values[1, 1, 0, 1], 2.4550781)
+    npt.assert_almost_equal(site.ds.Sector_frequency.values[0, 0, 0, 0], 0.05975334)
