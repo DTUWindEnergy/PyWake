@@ -29,7 +29,7 @@ def test_memory_usage():
     tol = 20
 
     for wfm, wd_step, mem_min, mem_max in [
-        (NOJ(site, wt), 4, 60 - tol, 74 + tol),
+        (NOJ(site, wt), 4, 40 - tol, 74 + tol),
         (All2AllIterative(site, wt, wake_deficitModel=NOJDeficit(),
                           blockage_deficitModel=SelfSimilarityDeficit()), 10, 288 - tol, 361 + tol)]:
         lst = []
