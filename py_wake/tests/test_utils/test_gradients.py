@@ -371,7 +371,7 @@ def test_manual_vs_autograd_speed():
         autograd(method)(x, 1)
     t_autograd = np.mean(timeit(t, min_time=0.2)(cubePowerSimpleCt._power_ct)[1])
     t_manual = np.mean(timeit(t, min_time=.2)(cubePowerSimpleCt._power_ct_withgrad)[1])
-    assert np.abs(t_manual - t_autograd) / t_manual < 0.05, (t_manual, t_autograd)
+    assert np.abs(t_manual - t_autograd) / t_manual < 0.08, (t_manual, t_autograd)
 
 
 def test_multiple_inputs():
