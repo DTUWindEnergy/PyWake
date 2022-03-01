@@ -93,7 +93,6 @@ class XRSite(Site):
             return x_i * 0
 
     def interp(self, var, coords, deg=False):
-
         # Interpolate via EqDistRegGridInterpolator (equidistance regular grid interpolator) which is much faster
         # than xarray.interp.
         # This function is comprehensive because var can contain any combinations of coordinates (i or (xy,h)) and wd,ws
@@ -312,7 +311,7 @@ class XRSite(Site):
 
     @classmethod
     def from_pywasp_pwc(cls, pwc, **kwargs):
-        """ Instanciate XRSite from a pywasp predicted wind climate (PWC) xr.Dataset
+        """Instanciate XRSite from a pywasp predicted wind climate (PWC) xr.Dataset
 
         Parameters
         ----------
@@ -321,35 +320,54 @@ class XRSite(Site):
             "A", "k", and "wdfreq".
 
         """
-        renames = {
+        pwc = pwc.copy()
+
+        # Drop coordinates that are not needed
+        for coord in ["sector_floor", "sector_ceil", "crs"]:
+            if coord in pwc.coords:
+                pwc = pwc.drop_vars(coord)
+
+        # Get the spatial dims
+        if "point" in pwc.dims:
+            xyz_dims = ("point",)
+            xy_dims = ("point",)
+        elif all(d in pwc.dims for d in ["west_east", "south_north"]):
+            xyz_dims = ("west_east", "south_north", "height")
+            xy_dims = ("west_east", "south_north")
+        else:  # pragma: no cover
+            raise ValueError(f"No spatial dimensions found on dataset!")
+
+        # Make the dimensin order as needed
+        pwc = pwc.transpose(*xyz_dims, "sector", ...)
+
+        ws_mean = xr.apply_ufunc(
+            weibull.mean, pwc["A"], pwc["k"], dask="allowed"
+        )
+
+        pwc["Speedup"] = ws_mean / ws_mean.max(dim=xy_dims)
+
+        # Add TI if not already present
+        for var in ["turbulence_intensity"]:
+            if var not in pwc.data_vars:
+                pwc[var] = pwc["A"] * 0.0
+
+        new_names = {
             "wdfreq": "Sector_frequency",
             "A": "Weibull_A",
             "k": "Weibull_k",
             "turbulence_intensity": "TI",
             "sector": "wd",
             "point": "i",
+            "stacked_point": "i",
             "west_east": "x",
             "south_north": "y",
             "height": "h",
         }
 
-        pwc_renamed = pwc.rename({k: v for k, v in renames.items() if k in pwc})
-        pwc_renamed = pwc_renamed.transpose("i", "wd", ...)
-        for coord in ["sector_floor", "sector_ceil"]:
-            if coord in pwc_renamed.coords:
-                pwc_renamed = pwc_renamed.drop_vars(coord)
-
-        ws_mean = xr.apply_ufunc(
-            weibull.mean, pwc_renamed["Weibull_A"], pwc_renamed["Weibull_k"]
-        )
-        speedup = ws_mean / ws_mean.max(dim="i")
-        if "Speedup" not in pwc_renamed.data_vars:
-            pwc_renamed["Speedup"] = speedup
-
-        # Add TI and P if not already present
-        for var in ["P", "TI"]:
-            if var not in pwc_renamed.data_vars:
-                pwc_renamed[var] = pwc_renamed["Weibull_A"] * 0.0
+        pwc_renamed = pwc.rename({
+            old_name: new_name for old_name, new_name in new_names.items()
+            if old_name in pwc or old_name in pwc.dims
+        })
 
         return cls(pwc_renamed, **kwargs)
 
