@@ -128,11 +128,8 @@ def set_vjp(df):
             df_lst = [df_lst]
 
         pf = primitive(f)
-
-        if inspect.getfullargspec(f).args[0] == 'self':
-            defvjp(pf, *[lambda ans, *args: lambda g: g * df(*args) for df in df_lst], argnums=count(1))
-        else:
-            defvjp(pf, *[lambda ans, *args: lambda g: g * df(*args) for df in df_lst], argnums=count())
+        first_arg = int(inspect.getfullargspec(f).args[0] == 'self')
+        defvjp(pf, *[lambda ans, *args: lambda g: g * df(*args) for df in df_lst], argnums=count(first_arg))
         return pf
     return get_func
 
@@ -150,7 +147,7 @@ def _step_grad(f, argnum, step_func, step, vector_interdependence):
             args, kwargs = bound_arguments.args, bound_arguments.kwargs
             x = np.atleast_1d(args[argnum]).astype(float)
             if 'ref' in inspect.getfullargspec(step_func).args:
-                ref = np.asarray(f(*args, **kwargs))
+                ref = np.asarray(f(*(args[:argnum] + (x,) + args[argnum + 1:]), **kwargs))
             else:
                 ref = None
             if vector_interdependence:
@@ -301,3 +298,7 @@ class UnivariateSpline(scipy_UnivariateSpline):
             dy = scipy_UnivariateSpline.__call__(self, np.real(x), nu=1, ext=ext)
             y = y + x.imag * dy * 1j
         return y
+
+
+# def get_dtype(arg_lst):
+#     return (float, np.complex128)[any([np.iscomplexobj(v) for v in arg_lst])]

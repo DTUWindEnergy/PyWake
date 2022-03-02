@@ -28,13 +28,14 @@ from py_wake.ground_models.ground_models import GroundModel
 from py_wake.examples.data.ParqueFicticio._parque_ficticio import ParqueFicticioSite
 from py_wake.site.shear import Shear, LogShear, PowerShear
 from py_wake.site.distance import StraightDistance
-from xarray.core.dataarray import DataArray
 from py_wake.tests.check_speed import timeit
 from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt
+from py_wake.examples.data.iea34_130rwt._iea34_130rwt import IEA34_130_1WT_Surrogate
 
 
 @pytest.mark.parametrize('obj', [_wind_turbines, WindTurbines, V80().power, _wind_turbines.__dict__])
 def test_use_autograd_in(obj):
+    _wind_turbines.np = np
     assert _wind_turbines.np == np
     with _use_autograd_in([obj]):
         assert _wind_turbines.np == anp
@@ -383,7 +384,7 @@ def test_multiple_inputs():
                                       [[4, 5], [2, 3]], 8)
 
 
-def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110, 110, 110]):
+def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110, 110, 110], fd_step=1e-6, fd_decimal=6):
     if wfm is None:
         return
     site = IEA37Site(16)
@@ -398,16 +399,19 @@ def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110,
 
         xp, yp, hp = x_lst[20], y_lst[25], h_lst[2]
 
-        dAEPdx_lst = [wfm.dAEPdn(0, grad)(xp, wt_y, **kwargs)[2] for grad in [fd, cs, autograd]]
-        npt.assert_almost_equal(dAEPdx_lst[0], dAEPdx_lst[1])
+        def fdstep(*args, **kwargs):
+            return fd(*args, **kwargs, step=fd_step)
+
+        dAEPdx_lst = [grad(wfm.aep, True, 0)(xp, wt_y, **kwargs)[2] for grad in [fdstep, cs, autograd]]
+        npt.assert_almost_equal(dAEPdx_lst[0], dAEPdx_lst[1], fd_decimal)
         npt.assert_almost_equal(dAEPdx_lst[1], dAEPdx_lst[2], 10)
 
-        dAEPdy_lst = [wfm.dAEPdn(1, grad)(wt_x, yp, **kwargs)[2] for grad in [fd, cs, autograd]]
-        npt.assert_almost_equal(dAEPdy_lst[0], dAEPdy_lst[1])
+        dAEPdy_lst = [grad(wfm.aep, True, 1)(wt_x, yp, **kwargs)[2] for grad in [fdstep, cs, autograd]]
+        npt.assert_almost_equal(dAEPdy_lst[0], dAEPdy_lst[1], fd_decimal)
         npt.assert_almost_equal(dAEPdy_lst[1], dAEPdy_lst[2], 10)
 
-        dAEPdh_lst = [wfm.dAEPdn(2, grad)(wt_x, wt_y, hp, **kwargs)[2] for grad in [fd, cs, autograd]]
-        npt.assert_almost_equal(dAEPdh_lst[0], dAEPdh_lst[1])
+        dAEPdh_lst = [grad(wfm.aep, True, 2)(wt_x, wt_y, hp, **kwargs)[2] for grad in [fdstep, cs, autograd]]
+        npt.assert_almost_equal(dAEPdh_lst[0], dAEPdh_lst[1], fd_decimal)
         npt.assert_almost_equal(dAEPdh_lst[1], dAEPdh_lst[2], 10)
 
         if 0:
@@ -564,10 +568,12 @@ def test_distance_models(model):
     print(model)
 
 
-@pytest.mark.parametrize('wt', [IEA37WindTurbines(), V80()])
+@pytest.mark.parametrize('wt', [IEA37WindTurbines, V80, IEA34_130_1WT_Surrogate])
 def test_windturbines(wt):
-    check_gradients(lambda site, wt, wt_=wt: PropagateDownwind(
-        site, wt_, wake_deficitModel=BastankhahGaussianDeficit(),
-    ),
-        wt.__class__.__name__,
-    )
+    wt = wt()
+
+    def get_wfm(site, wt, wt_=wt):
+        return PropagateDownwind(site, wt_, wake_deficitModel=BastankhahGaussianDeficit(),
+                                 turbulenceModel=STF2017TurbulenceModel())
+    iea34 = wt.name() == 'IEA 3.4MW'
+    check_gradients(get_wfm, wt.__class__.__name__, fd_step=(1e-6, 1e-3)[iea34], fd_decimal=(6, 2)[iea34])

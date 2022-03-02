@@ -1,14 +1,17 @@
 import os
 import json
 from sklearn.preprocessing import MinMaxScaler
-import tensorflow as tf
+
 import pickle
 from pathlib import Path
 import warnings
+from py_wake.utils.gradients import set_vjp
+import numpy as np
+from numpy import newaxis as na
 
 
 def extra_data_pkl2json(path):  # pragma: no cover
-
+    import tensorflow as tf
     file_list = [x[0] for x in os.walk(path)]
     file_list.pop(0)
     for f in file_list:
@@ -53,8 +56,24 @@ class TensorflowSurrogate():
 
         self.input_scaler = json2scaler(self.input_scalers[set_name])
         self.output_scaler = json2scaler(self.output_scalers[set_name])
-
+        import tensorflow as tf
         self.model = tf.keras.models.load_model(path / f'model_set_{set_name}.h5')
+
+    def predict_output_gradients_scaled(self, x_scaled):
+        import tensorflow as tf
+        inp_ = tf.constant(list(x_scaled))
+        with tf.GradientTape() as tape:
+            tape.watch(inp_)
+            out_ = self.model(inp_)
+        gradient = tape.gradient(out_, inp_).numpy()
+        return out_.numpy().astype(float), gradient.astype(float)
+
+    def predict_gradients_scaled(self, x_scaled):
+        return self.predict_output_gradients_scaled(x_scaled)[1]
+
+    @set_vjp(predict_gradients_scaled)
+    def predict_output_scaled(self, x_scaled):
+        return self.model.predict(x_scaled, batch_size=x_scaled[0].shape[0]).astype(float)
 
     def predict_output(self, x, bounds='warn'):
         """
@@ -80,7 +99,10 @@ class TensorflowSurrogate():
         """
 
         # Scale the input.
-        x_scaled = self.input_scaler.transform(x)
+        if np.iscomplexobj(x):
+            x_scaled = self.input_scaler.transform(x.real)
+        else:
+            x_scaled = self.input_scaler.transform(x)
         assert bounds in ['warn', 'ignore']
         if bounds == 'warn':
             if x_scaled.min() < self.input_scaler.feature_range[0]:
@@ -96,7 +118,12 @@ class TensorflowSurrogate():
                         mi, ma = self.input_scaler.data_min_[i], self.input_scaler.data_max_[i]
                         warnings.warn(f"Input, {k}, with value, {max_v} outside range {mi}-{ma}")
 
-        return self.output_scaler.inverse_transform(self.model.predict(x_scaled, batch_size=x.shape[0]))
+        if np.iscomplexobj(x):
+            output, gradients = self.predict_output_gradients_scaled(x_scaled)
+            return (self.output_scaler.inverse_transform(output) +
+                    1j * np.sum(x.imag * gradients * self.input_scaler.scale_ / self.output_scaler.scale_, 1)[:, na])
+        else:
+            return self.output_scaler.inverse_transform(self.predict_output_scaled(x_scaled))
 
     @property
     def input_space(self):

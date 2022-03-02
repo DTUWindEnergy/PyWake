@@ -28,4 +28,4 @@ def test_bounds_warning():
     with pytest.raises(UserWarning, match='Input, ws, with value, 25.0 outside range 4.0056388753-24.9807585868'):
         surrogate.predict_output(np.array([25., .1, .1])[na])
 
-    assert surrogate.predict_output(np.array([25., .1, .1])[na], bounds='ignore') == 3399991.2
+    npt.assert_almost_equal(surrogate.predict_output(np.array([25., .1, .1])[na], bounds='ignore'), 3399991.35441946)

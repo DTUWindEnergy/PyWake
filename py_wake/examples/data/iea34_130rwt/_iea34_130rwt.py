@@ -8,6 +8,7 @@ from py_wake.wind_turbines.wind_turbine_functions import FunctionSurrogates
 from py_wake.examples.data import example_data_path
 from py_wake.utils.model_utils import fix_shape
 from py_wake.utils.gradients import hypot
+from autograd.numpy.numpy_boxes import ArrayBox
 
 
 class IEA34_130_PowerCtSurrogate(PowerCtSurrogate):
@@ -27,18 +28,28 @@ class IEA34_130_PowerCtSurrogate(PowerCtSurrogate):
         self.ct_idle = thrust_idle / (1 / 2 * 1.225 * (65**2 * np.pi) * self.ws_cutout**2)
 
     def _power_ct(self, ws, run_only, **kwargs):
+        ws = np.atleast_1d(ws)
         m = (ws > self.ws_cutin) & (ws < self.ws_cutout)
-        kwargs = {k: fix_shape(v, ws)[m] for k, v in kwargs.items()}
-        arr_m = PowerCtSurrogate._power_ct(self, ws[m], run_only=run_only, **kwargs)
-        if run_only == 0:
-            power = np.zeros_like(ws)
-            power[m] = arr_m
-            return power
+        if any([isinstance(v, ArrayBox) for v in [ws] + list(kwargs.values())]):
+            # look up all values to avoid item assignment which is not supported by autograd
+            arr = PowerCtSurrogate._power_ct(self, ws, run_only=run_only, **kwargs)
+            if run_only == 0:
+                return np.where(m, arr, 0)
+            else:
+                return np.where(m, arr * 1000 / (1 / 2 * 1.225 * (65**2 * np.pi) * ws**2), self.ct_idle)
         else:
-            ct = np.full(ws.shape, self.ct_idle)
-            ct_m = arr_m * 1000 / (1 / 2 * 1.225 * (65**2 * np.pi) * ws[m]**2)
-            ct[m] = ct_m
-            return ct
+            # look up only needed values
+            kwargs = {k: fix_shape(v, ws)[m] for k, v in kwargs.items()}
+            arr_m = PowerCtSurrogate._power_ct(self, ws[m], run_only=run_only, **kwargs)
+            if run_only == 0:
+                power = np.zeros_like(ws, dtype=arr_m.dtype)
+                power[m] = arr_m
+                return power
+            else:
+                ct = np.full(ws.shape, self.ct_idle, dtype=arr_m.dtype)
+                ct_m = arr_m * 1000 / (1 / 2 * 1.225 * (65**2 * np.pi) * ws[m]**2)
+                ct[m] = ct_m
+                return ct
 
 
 class ThreeRegionLoadSurrogates(FunctionSurrogates):
