@@ -21,6 +21,8 @@ from scipy.interpolate._cubic import PchipInterpolator as scipy_PchipInterpolato
 
 from itertools import count
 from scipy.interpolate import UnivariateSpline as scipy_UnivariateSpline
+from scipy.special import erf as scipy_erf
+from autograd.scipy.special import erf as autograd_erf
 
 
 def asarray(x, dtype=None, order=None):
@@ -304,6 +306,15 @@ class UnivariateSpline(scipy_UnivariateSpline):
         return y
 
 
+def erf(z):
+    if isinstance(z, ArrayBox):
+        return autograd_erf(z)
+    else:
+        return scipy_erf(z)
+
+
+# def get_dtype(arg_lst):
+#     return (float, np.complex128)[any([np.iscomplexobj(v) for v in arg_lst])]
 def trapz(y, x, axis=-1):
     if isinstance(y, ArrayBox) or isinstance(x, ArrayBox):
         x, y = asarray(x), asarray(y)

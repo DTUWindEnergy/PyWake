@@ -1,5 +1,5 @@
 from numpy import newaxis as na
-from scipy.special import erf
+from py_wake.utils.gradients import erf
 import numpy as np
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models.deficit_model import ConvectionDeficitModel
