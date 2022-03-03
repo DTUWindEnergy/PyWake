@@ -31,6 +31,7 @@ from py_wake.site.distance import StraightDistance
 from py_wake.tests.check_speed import timeit
 from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt
 from py_wake.examples.data.iea34_130rwt._iea34_130rwt import IEA34_130_1WT_Surrogate
+from py_wake.deflection_models.jimenez import JimenezWakeDeflection
 
 
 @pytest.mark.parametrize('obj', [_wind_turbines, WindTurbines, V80().power, _wind_turbines.__dict__])
@@ -361,6 +362,44 @@ def test_Interpolators(interpolator):
             gradients.plot_gradients(interp(x), dfdx, x, label=method.__name__, step=1)
         plt.legend()
         plt.show()
+
+
+@pytest.mark.parametrize('y,x,axis', [([2, 3, 7, 9], [1, 2, 4, 8], 0),
+                                      (lambda x:-x**2 + 9, np.linspace(-3, 3, 10), 0)])
+def test_trapz(y, x, axis):
+    if callable(y):
+        y = y(x)
+
+    npt.assert_array_equal(np.trapz(y, x, axis), gradients.trapz(y, x, axis))
+    dtrapz_dy_lst = [method(gradients.trapz, True)(y, x, axis) for method in [fd, cs, autograd]]
+    npt.assert_array_almost_equal(dtrapz_dy_lst[0], dtrapz_dy_lst[1])
+    npt.assert_array_equal(dtrapz_dy_lst[1], dtrapz_dy_lst[2])
+
+    if x is not None:
+        dtrapz_dx_lst = [method(gradients.trapz, True, argnum=1)(y, x, axis) for method in [fd, cs, autograd]]
+        npt.assert_array_almost_equal(dtrapz_dx_lst[0], dtrapz_dx_lst[1])
+        npt.assert_array_almost_equal(dtrapz_dx_lst[1], dtrapz_dx_lst[2], 14)
+
+
+@pytest.mark.parametrize('test', [
+    lambda y, x: gradients.trapz(np.reshape(y, (2, 4)), np.reshape(x, (2, 4)), axis=1),
+    lambda y, x: gradients.trapz(np.reshape(y, (2, 4)).T, np.reshape(x, (2, 4)).T, axis=0),
+    lambda y, x: gradients.trapz(np.reshape(y, (1, 2, 4, 1)), np.reshape(x, (1, 2, 4, 1)), axis=2)
+])
+def test_trapz_axis(test):
+    y, x = [2, 3, 7, 9] * 2, [1, 2, 4, 8] * 2
+
+    autograd(test, True, argnum=1)(y, x)
+    autograd(test, True)(y, x)
+    dtrapz_dy_lst = [method(test, True)(y, x) for method in [fd, cs, autograd]]
+    npt.assert_array_almost_equal(dtrapz_dy_lst[0], dtrapz_dy_lst[1])
+    npt.assert_array_equal(dtrapz_dy_lst[1], dtrapz_dy_lst[2])
+
+    if x is not None:
+
+        dtrapz_dx_lst = [method(test, True, argnum=1)(y, x) for method in [fd, cs, autograd]]
+        npt.assert_array_almost_equal(dtrapz_dx_lst[0], dtrapz_dx_lst[1])
+        npt.assert_array_almost_equal(dtrapz_dx_lst[1], dtrapz_dx_lst[2], 14)
 
 
 def test_manual_vs_autograd_speed():
