@@ -6,7 +6,7 @@ import autograd.numpy as anp
 from autograd.numpy.numpy_boxes import ArrayBox
 import inspect
 from autograd.core import defvjp, primitive
-from autograd.differential_operators import grad, jacobian, elementwise_grad
+from autograd.differential_operators import jacobian, elementwise_grad
 import matplotlib.pyplot as plt
 import sys
 import os
@@ -128,8 +128,9 @@ def set_vjp(df):
             df_lst = [df_lst]
 
         pf = primitive(f)
-        first_arg = int(inspect.getfullargspec(f).args[0] == 'self')
-        defvjp(pf, *[lambda ans, *args: lambda g: g * df(*args) for df in df_lst], argnums=count(first_arg))
+        first_arg = int(len(inspect.getfullargspec(f).args) > 0 and inspect.getfullargspec(f).args[0] == 'self')
+        defvjp(pf, *[lambda ans, *args, df=df, **kwargs: lambda g: g * df(*args, **kwargs)
+                     for df in df_lst], argnums=count(first_arg))
         return pf
     return get_func
 
@@ -243,24 +244,27 @@ def cabs(a):
         return np.where(a < 0, -a, a)
 
 
-def dinterp(xp, x, y):
+def dinterp_dxp(xp, x, y):
     if len(x) > 1:
         return np.interp(xp, np.repeat(x, 2)[1:-1], np.repeat(np.diff(y) / np.diff(x), 2))
     else:
         return np.ones_like(xp)
 
 
-@primitive
+@set_vjp([dinterp_dxp])
 def interp(xp, x, y, *args, **kwargs):
-    if np.isrealobj(xp):
+    if all([np.isrealobj(v) for v in [xp, x, y]]):
         return np.interp(xp, x, y, *args, **kwargs)
     else:
+        # yp = np.interp(xp.real, x.real, y.real, *args, **kwargs)
+        # dyp_dxp = dinterp_dxp(xp.real, x.real, y.real)
+        # dyp_dx = fd(np.interp, True, 1)(xp.real, x.real, y.real)
+        # dyp_dy = fd(np.interp, True, 2)(xp.real, x.real, y.real)
+        # return yp + 1j * (xp.imag * dyp_dxp + x.imag * dyp_dx + y.imag * dyp_dy)
+
         yp = np.interp(xp.real, x, y, *args, **kwargs)
-        dyp = dinterp(xp.real, x, y)
+        dyp = dinterp_dxp(xp.real, x, y)
         return yp + xp.imag * 1j * dyp
-
-
-defvjp(interp, lambda ans, xp, x, y: lambda g: g * dinterp(xp, x, y))
 
 
 def logaddexp(x, y):
@@ -300,5 +304,21 @@ class UnivariateSpline(scipy_UnivariateSpline):
         return y
 
 
-# def get_dtype(arg_lst):
-#     return (float, np.complex128)[any([np.iscomplexobj(v) for v in arg_lst])]
+def trapz(y, x, axis=-1):
+    if isinstance(y, ArrayBox) or isinstance(x, ArrayBox):
+        x, y = asarray(x), asarray(y)
+        axis = np.arange(len(np.shape(y)))[axis]
+        # Silly implementation but np.take, np.diff and np.trapz did not seem to work with autograd
+        # I tried to implement gradients of np.trapz manually but failed to make it work for arbitrary axis
+        if axis == 0:
+            return ((y[:-1] + y[1:]) / 2 * (x[1:] - x[:-1])).sum(0)
+        elif axis == 1:
+            return ((y[:, :-1] + y[:, 1:]) / 2 * (x[:, 1:] - x[:, :-1])).sum(1)
+        elif axis == 2:
+            return ((y[:, :, :-1] + y[:, :, 1:]) / 2 * (x[:, :, 1:] - x[:, :, :-1])).sum(2)
+        elif axis == 4:
+            return ((y[:, :, :, :, :-1] + y[:, :, :, :, 1:]) / 2 * (x[:, :, :, :, 1:] - x[:, :, :, :, :-1])).sum(4)
+        else:   # pragma: no cover
+            raise NotImplementedError()
+    else:
+        return np.trapz(y, x, axis=axis)
