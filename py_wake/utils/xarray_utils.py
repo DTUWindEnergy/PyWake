@@ -107,16 +107,16 @@ class sel_interp_all():
         return da.interp(**interp_coords, method=method, kwargs=kwargs)
 
 
-class plot_xy_map():
-    def __init__(self, dataArray):
-        self.dataArray = dataArray
+class plot_xy_map(_PlotMethods):
+    def __init__(self, darray):
+        _PlotMethods.__init__(self, darray)
 
     def __call__(self, **kwargs):
-        if ('x' in self.dataArray.coords and 'y' in self.dataArray.coords and 'x' not in kwargs and
+        if ('x' in self._da.coords and 'y' in self._da.coords and 'x' not in kwargs and
 
-                self.dataArray.squeeze().shape == (len(np.atleast_1d(self.dataArray.x)), len(np.atleast_1d(self.dataArray.y)))):
+                self._da.squeeze().shape == (len(np.atleast_1d(self._da.x)), len(np.atleast_1d(self._da.y)))):
             kwargs['x'] = 'x'
-        _PlotMethods(self.dataArray)(**kwargs)
+        _PlotMethods(self._da)(**kwargs)
 
 
 if not hasattr(xr.DataArray(None), 'ilk'):
