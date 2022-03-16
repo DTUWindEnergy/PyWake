@@ -7,7 +7,6 @@ from autograd.numpy.numpy_boxes import ArrayBox
 import inspect
 from autograd.core import defvjp, primitive
 from autograd.differential_operators import jacobian, elementwise_grad
-import matplotlib.pyplot as plt
 import sys
 import os
 import py_wake
@@ -199,6 +198,7 @@ color_dict = {}
 
 
 def plot_gradients(f, dfdx, x, label, step=1, ax=None):
+    import matplotlib.pyplot as plt
     global color_dict
     if ax is None:
         ax = plt
