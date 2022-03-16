@@ -397,6 +397,7 @@ def test_time_series_aep():
     wfm = NOJ(site, wt)
     sim_res = wfm(x, y, ws=ws, wd=wd, time=True, verbose=False)
     npt.assert_allclose(sim_res.aep().sum(), 545, atol=1)
+    npt.assert_allclose(sim_res.aep().sum() / sim_res.aep(with_wake_loss=False).sum(), 0.94, atol=1)
 
 
 def test_time_series_operating():
