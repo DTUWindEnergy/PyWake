@@ -423,7 +423,8 @@ def test_multiple_inputs():
                                       [[4, 5], [2, 3]], 8)
 
 
-def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110, 110, 110], fd_step=1e-6, fd_decimal=6):
+def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110, 110, 110], fd_step=1e-6, fd_decimal=6,
+                    output=(lambda wfm: wfm.aep, 'AEP [GWh]')):
     if wfm is None:
         return
     site = IEA37Site(16)
@@ -440,18 +441,20 @@ def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110,
 
         def fdstep(*args, **kwargs):
             return fd(*args, **kwargs, step=fd_step)
+        output_func, output_label = output
+        output_func = output_func(wfm)
 
-        dAEPdx_lst = [grad(wfm.aep, True, 0)(xp, wt_y, **kwargs)[2] for grad in [fdstep, cs, autograd]]
-        npt.assert_almost_equal(dAEPdx_lst[0], dAEPdx_lst[1], fd_decimal)
-        npt.assert_almost_equal(dAEPdx_lst[1], dAEPdx_lst[2], 10)
+        dOutputdx_lst = [grad(output_func, True, 0)(xp, wt_y, **kwargs)[2] for grad in [fdstep, cs, autograd]]
+        npt.assert_almost_equal(dOutputdx_lst[0], dOutputdx_lst[1], fd_decimal)
+        npt.assert_almost_equal(dOutputdx_lst[1], dOutputdx_lst[2], 10)
 
-        dAEPdy_lst = [grad(wfm.aep, True, 1)(wt_x, yp, **kwargs)[2] for grad in [fdstep, cs, autograd]]
-        npt.assert_almost_equal(dAEPdy_lst[0], dAEPdy_lst[1], fd_decimal)
-        npt.assert_almost_equal(dAEPdy_lst[1], dAEPdy_lst[2], 10)
+        dOutputdy_lst = [grad(output_func, True, 1)(wt_x, yp, **kwargs)[2] for grad in [fdstep, cs, autograd]]
+        npt.assert_almost_equal(dOutputdy_lst[0], dOutputdy_lst[1], fd_decimal)
+        npt.assert_almost_equal(dOutputdy_lst[1], dOutputdy_lst[2], 10)
 
-        dAEPdh_lst = [grad(wfm.aep, True, 2)(wt_x, wt_y, hp, **kwargs)[2] for grad in [fdstep, cs, autograd]]
-        npt.assert_almost_equal(dAEPdh_lst[0], dAEPdh_lst[1], fd_decimal)
-        npt.assert_almost_equal(dAEPdh_lst[1], dAEPdh_lst[2], 10)
+        dOutputdh_lst = [grad(output_func, True, 2)(wt_x, wt_y, hp, **kwargs)[2] for grad in [fdstep, cs, autograd]]
+        npt.assert_almost_equal(dOutputdh_lst[0], dOutputdh_lst[1], fd_decimal)
+        npt.assert_almost_equal(dOutputdh_lst[1], dOutputdh_lst[2], 10)
 
         if 0:
             wfm(wt_x, wt_y, **kwargs).flow_map().plot_wake_map()
@@ -459,29 +462,29 @@ def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110,
             _, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=False)
             ax1.set_title("Center line")
             ax1.set_xlabel('Downwind distance [m]')
-            ax1.set_ylabel('AEP [GWh]')
+            ax1.set_ylabel(output_label)
 
-            ax1.plot(x_lst[:, 2], [wfm.aep(xp, wt_y, **kwargs) for xp in x_lst])
+            ax1.plot(x_lst[:, 2], [output_func(xp, wt_y, **kwargs) for xp in x_lst])
             ax1.axvline(wt_x[1], color='k')
-            for grad, dAEPdx in zip([fd, cs, autograd], dAEPdx_lst):
-                plot_gradients(wfm.aep(xp, wt_y, **kwargs), dAEPdx, xp[2], grad.__name__, step=100, ax=ax1)
+            for grad, dOutputdx in zip([fd, cs, autograd], dOutputdx_lst):
+                plot_gradients(output_func(xp, wt_y, **kwargs), dOutputdx, xp[2], grad.__name__, step=100, ax=ax1)
 
             ax2.set_xlabel('Crosswind distance [m]')
-            ax2.set_ylabel('AEP [GWh]')
+            ax2.set_ylabel(output_label)
             ax2.set_title("%d m downstream" % wt_x[1])
 
-            ax2.plot(y_lst[:, 2], [wfm.aep(wt_x, yp, **kwargs) for yp in y_lst])
+            ax2.plot(y_lst[:, 2], [output_func(wt_x, yp, **kwargs) for yp in y_lst])
             gradients.color_dict = {}
-            for grad, dAEPdy in zip([fd, cs, autograd], dAEPdy_lst):
-                plot_gradients(wfm.aep(wt_x, yp, **kwargs), dAEPdy, yp[2], grad.__name__, step=50, ax=ax2)
+            for grad, dOutputdy in zip([fd, cs, autograd], dOutputdy_lst):
+                plot_gradients(output_func(wt_x, yp, **kwargs), dOutputdy, yp[2], grad.__name__, step=50, ax=ax2)
 
             ax3.set_xlabel('hubheight [m]')
-            ax3.set_ylabel('AEP [GWh]')
+            ax3.set_ylabel(output_label)
 
-            ax3.plot(h_lst[:, 2], [wfm.aep(wt_x, wt_y, hp, **kwargs) for hp in h_lst])
+            ax3.plot(h_lst[:, 2], [output_func(wt_x, wt_y, hp, **kwargs) for hp in h_lst])
             gradients.color_dict = {}
-            for grad, dAEPdh in zip([fd, cs, autograd], dAEPdh_lst):
-                plot_gradients(wfm.aep(wt_x, wt_y, hp, **kwargs), dAEPdh, hp[2], grad.__name__, step=10, ax=ax3)
+            for grad, dOutputdh in zip([fd, cs, autograd], dOutputdh_lst):
+                plot_gradients(output_func(wt_x, wt_y, hp, **kwargs), dOutputdh, hp[2], grad.__name__, step=10, ax=ax3)
 
             plt.suptitle(name)
             plt.show()
@@ -616,3 +619,19 @@ def test_windturbines(wt):
                                  turbulenceModel=STF2017TurbulenceModel())
     iea34 = wt.name() == 'IEA 3.4MW'
     check_gradients(get_wfm, wt.__class__.__name__, fd_step=(1e-6, 1e-3)[iea34], fd_decimal=(6, 2)[iea34])
+
+
+output_lst = ['WS_eff', 'TI_eff', 'power', 'ct']
+
+
+@pytest.mark.parametrize('output', output_lst)
+def test_output(output):
+    argnum = output_lst.index(output)
+    # WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, localWind, wt_inputs = calc_wt_interaction
+
+    def output_func(wfm):
+        return lambda *args, argnum=argnum, **kwargs: wfm.calc_wt_interaction(*args, **kwargs)[argnum].mean()
+
+    wake_deficitModel = BastankhahGaussianDeficit
+    check_gradients(lambda site, wt: PropagateDownwind(site, V80(), wake_deficitModel(), turbulenceModel=STF2005TurbulenceModel()),
+                    name=output, output=(output_func, output), fd_decimal=[6, 2][output == 'power'])
