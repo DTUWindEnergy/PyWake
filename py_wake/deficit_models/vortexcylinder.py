@@ -6,6 +6,7 @@ from py_wake.utils.elliptic import ellipticPiCarlson
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
 from py_wake.utils.gradients import hypot, cabs
+from py_wake.deficit_models.utils import a0
 
 
 class VortexCylinder(BlockageDeficitModel):
@@ -27,8 +28,6 @@ class VortexCylinder(BlockageDeficitModel):
                  upstream_only=False):
         DeficitModel.__init__(self, groundModel=groundModel)
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
-        # coefficients for BEM approximation by Madsen (1997)
-        self.a0p = np.array([0.2460, 0.0586, 0.0883])
         # limiter to avoid singularities
         self.limiter = limiter
         # if used in a wind farm simulation, set deficit in wake region to
@@ -72,15 +71,6 @@ class VortexCylinder(BlockageDeficitModel):
         # deficit shape function
         self.dmu_ijlk = term1_ijlk + term2_ijlk
 
-    def a0(self, ct_ilk):
-        """
-        BEM axial induction approximation by Madsen (1997).
-        """
-        # Evaluate with Horner's rule.
-        # a0_ilk = self.a0p[2] * ct_ilk**3 + self.a0p[1] * ct_ilk**2 + self.a0p[0] * ct_ilk
-        a0_ilk = ct_ilk * (self.a0p[0] + ct_ilk * (self.a0p[1] + ct_ilk * self.a0p[2]))
-        return a0_ilk
-
     def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):
         """
         The analytical relationships can be found in [1,2], in particular equations (7-8) from [1].
@@ -90,7 +80,7 @@ class VortexCylinder(BlockageDeficitModel):
             self._calc_layout_terms(D_src_il, dw_ijlk, cw_ijlk)
 
         # circulation/strength of vortex cylinder
-        gammat_ilk = WS_ilk * 2. * self.a0(ct_ilk)
+        gammat_ilk = WS_ilk * 2. * a0(ct_ilk)
 
         deficit_ijlk = gammat_ilk[:, na] / 2. * self.dmu_ijlk
 

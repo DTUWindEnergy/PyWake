@@ -4,6 +4,7 @@ from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
 from py_wake.ground_models.ground_models import NoGround
 from py_wake.utils.gradients import hypot
+from py_wake.deficit_models.utils import a0
 
 
 class Rathmann(BlockageDeficitModel):
@@ -29,8 +30,6 @@ class Rathmann(BlockageDeficitModel):
                  upstream_only=False):
         DeficitModel.__init__(self, groundModel=groundModel)
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
-        # coefficients for BEM approximation by Madsen (1997)
-        self.a0p = np.array([0.2460, 0.0586, 0.0883])
         # limiter to avoid singularities
         self.limiter = limiter
         # coefficient for scaling the effective forcing
@@ -52,15 +51,6 @@ class Rathmann(BlockageDeficitModel):
         G_ijlk = self.G(xi_ijlk, rho_ijlk)
         # layout term
         self.dmu_G_ijlk = dmu_ijlk * G_ijlk
-
-    def a0(self, ct_ilk):
-        """
-        BEM axial induction approximation by Madsen (1997).
-        """
-        # Evaluate with Horner's rule.
-        # a0_ilk = self.a0p[2] * ct_ilk**3 + self.a0p[1] * ct_ilk**2 + self.a0p[0] * ct_ilk
-        a0_ilk = ct_ilk * (self.a0p[0] + ct_ilk * (self.a0p[1] + ct_ilk * self.a0p[2]))
-        return a0_ilk
 
     def dmu(self, xi_ijlk):
         """
@@ -96,7 +86,7 @@ class Rathmann(BlockageDeficitModel):
             self._calc_layout_terms(D_src_il, dw_ijlk, cw_ijlk)
 
         # circulation/strength of vortex dipole Eq. (1) in [1]
-        gammat_ilk = WS_ilk * 2. * self.a0(ct_ilk * self.sct)
+        gammat_ilk = WS_ilk * 2. * a0(ct_ilk * self.sct)
 
         deficit_ijlk = gammat_ilk[:, na] / 2. * self.dmu_G_ijlk
         # turn deficit into speed-up downstream
