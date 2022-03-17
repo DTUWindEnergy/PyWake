@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from py_wake.site._site import Site
 from py_wake.site.distance import StraightDistance
-from py_wake.utils import weibull
+from py_wake.utils import weibull, gradients
 from py_wake.utils.ieawind37_utils import iea37_names
 from py_wake.utils.grid_interpolator import GridInterpolator, EqDistRegGrid2DInterpolator
 import urllib.request
@@ -232,7 +232,7 @@ class XRSite(Site):
             if 'i' in lw.dims and 'i' in self.ds.Turning.dims and len(lw.i) != len(self.ds.i):
                 warnings.warn("Turning ignored")
             else:
-                WD = (self.interp(self.ds.Turning, lw.coords, deg=True) + WD) % 360
+                WD = gradients.mod((self.interp(self.ds.Turning, lw.coords, deg=True) + WD), 360)
 
         lw.set_W(WS, WD, TI, ws_bins, self.use_WS_bins)
         lw.set_data_array(TI_std, 'TI_std', 'Standard deviation of turbulence intensity')

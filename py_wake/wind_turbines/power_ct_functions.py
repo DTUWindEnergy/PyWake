@@ -8,6 +8,7 @@ from py_wake.utils.check_input import check_input
 from py_wake.utils.model_utils import check_model, fix_shape
 from py_wake.utils import gradients
 from py_wake.utils.gradients import PchipInterpolator, UnivariateSpline, set_vjp
+from py_wake.utils.grid_interpolator import GridInterpolator
 
 
 """
@@ -105,9 +106,9 @@ class SimpleYawModel(AdditionalModel):
         if yaw is not None or tilt is not None:
             co = 1
             if yaw is not None:
-                co *= np.cos(np.deg2rad(fix_shape(yaw, ws, True)))
+                co *= np.cos(gradients.deg2rad(fix_shape(yaw, ws, True)))
             if tilt is not None:
-                co *= np.cos(np.deg2rad(fix_shape(tilt, ws, True)))
+                co *= np.cos(gradients.deg2rad(fix_shape(tilt, ws, True)))
             power_ct_arr = f(ws * co, **kwargs)  # calculate for reduced ws (ws projection on rotor)
             if kwargs['run_only'] == 1:  # ct
                 # multiply ct by cos(yaw)**2 to compensate for reduced thrust
@@ -128,7 +129,8 @@ class DensityScale(AdditionalModel):
     def __call__(self, f, ws, Air_density=None, **kwargs):
         power_ct_arr = np.asarray(f(ws, **kwargs))
         if Air_density is not None:
-            power_ct_arr *= fix_shape(Air_density, ws, True) / self.air_density_ref
+            # cannot used *= if Air_density is complex
+            power_ct_arr = power_ct_arr * fix_shape(Air_density, ws, True) / self.air_density_ref
         return power_ct_arr
 
 
@@ -332,20 +334,21 @@ class PowerCtNDTabular(PowerCtFunction):
             list of additional models.
         """
         self.default_value_dict = default_value_dict
-        self.interp = [RegularGridInterpolator(value_lst, power_arr),
-                       RegularGridInterpolator(value_lst, ct_arr)]
+        self.interp = [GridInterpolator(value_lst, power_arr),
+                       GridInterpolator(value_lst, ct_arr)]
+
         PowerCtFunction.__init__(self, input_keys, self._power_ct, power_unit,
                                  default_value_dict.keys(), additional_models)
 
     def _power_ct(self, ws, run_only, **kwargs):
         kwargs = {**self.default_value_dict, 'ws': ws, **{k: v for k, v in kwargs.items() if v is not None}}
 
-        args = np.moveaxis([fix_shape(kwargs[k], ws)
-                            for k in self.input_keys], 0, -1)
+        args = np.moveaxis(np.array([fix_shape(kwargs[k], ws)
+                                     for k in self.input_keys]), 0, -1)
         try:
             return self.interp[run_only](args)
         except ValueError:
-            check_input(self.interp[run_only].grid, args.T, self.input_keys)
+            check_input(self.interp[run_only].x, args.T, self.input_keys)
 
 
 class PowerCtXr(PowerCtNDTabular):

@@ -9,6 +9,15 @@ from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt, PowerCtN
     PowerCtTabular, PowerCtFunction, PowerCtFunctionList, PowerCtXr
 from py_wake.wind_turbines.wind_turbine_functions import WindTurbineFunction
 from py_wake.utils.model_utils import fix_shape
+from py_wake.utils.gradients import cs, autograd, fd
+
+
+def ExamplePowerCtTabular(method='linear', unit='w', p_scale=1):
+    u_p, p = np.asarray(hornsrev1.power_curve).T.copy()
+    p *= p_scale
+    u_ct, ct = hornsrev1.ct_curve.T
+    npt.assert_array_equal(u_p, u_ct)
+    return PowerCtTabular(ws=u_p, power=p, power_unit=unit, ct=ct, ws_cutin=4, ws_cutout=25, method=method)
 
 
 @pytest.mark.parametrize('method,unit,p_scale,p_ref,ct_ref', [
@@ -25,11 +34,7 @@ from py_wake.utils.model_utils import fix_shape
      [0.0, 0.0, 364247.229, 1167112.52, 1922219.683, 1998242.424, 2000000.0, 2000000.0, 2000000.0, 0.0],
      [0.0, 0.0, 0.804, 0.803, 0.57, 0.224, 0.129, 0.082, 0.058, 0.0])])
 def test_TabularPowerCtCurve(method, unit, p_scale, p_ref, ct_ref):
-    u_p, p = np.asarray(hornsrev1.power_curve).T.copy()
-    p *= p_scale
-    u_ct, ct = hornsrev1.ct_curve.T
-    npt.assert_array_equal(u_p, u_ct)
-    curve = PowerCtTabular(ws=u_p, power=p, power_unit=unit, ct=ct, ws_cutin=4, ws_cutout=25, method=method)
+    curve = ExamplePowerCtTabular(method, unit, p_scale)
     npt.assert_array_equal(curve.optional_inputs, ['Air_density', 'tilt', 'yaw'])
     npt.assert_array_equal(curve.required_inputs, [])
 
@@ -52,6 +57,11 @@ def test_TabularPowerCtCurve(method, unit, p_scale, p_ref, ct_ref):
     p, ct = curve(u, run_only=0), curve(u, run_only=1)
     npt.assert_array_almost_equal(p[s], p_ref, 3)
     npt.assert_array_almost_equal(ct[s], ct_ref, 3)
+
+    for run_only in [0, 1]:
+        dpctdu_lst = [grad(curve)([10, 12], run_only=run_only) for grad in [fd, cs, autograd]]
+        npt.assert_allclose(dpctdu_lst[0], dpctdu_lst[1], rtol=1e-4)
+        npt.assert_allclose(dpctdu_lst[1], dpctdu_lst[2])
 
 
 def test_MultiPowerCtCurve():
@@ -83,6 +93,11 @@ def test_MultiPowerCtCurve():
     for m in [mode_16, mode_16_360, mode_16_360_23]:
         p, ct = curve(u, mode=m)
         npt.assert_array_almost_equal(p, ref_p)
+
+    for run_only in [0, 1]:
+        dpctdu_lst = [grad(curve)([10, 12], mode=0, run_only=run_only) for grad in [fd, cs, autograd]]
+        npt.assert_allclose(dpctdu_lst[0], dpctdu_lst[1], rtol=1e-4)
+        npt.assert_allclose(dpctdu_lst[1], dpctdu_lst[2])
 
 
 def test_MultiMultiPowerCtCurve_subset():
@@ -158,6 +173,14 @@ def test_2d_tabular():
         p, ct = curve(u, boost=b)
         npt.assert_array_almost_equal(p, ref_p)
 
+    for run_only in [0, 1]:
+        for argnum in [0, 1]:
+            def t(u, boost):
+                return curve(u, boost=boost, run_only=run_only)
+            dpctdu_lst = [grad(t, argnum=argnum)([10, 12], boost=[.5, .5]) for grad in [fd, cs, autograd]]
+            npt.assert_allclose(dpctdu_lst[0], dpctdu_lst[1], rtol=1e-4)
+            npt.assert_allclose(dpctdu_lst[1], dpctdu_lst[2])
+
 
 def test_2d_tabular_default_value():
     u_p, p_c = np.asarray(hornsrev1.power_curve).T.copy()
@@ -194,6 +217,14 @@ def test_FunctionalPowerCtCurve():
                                                   5000000.0, 5000000.0, 5000000.0, 0.0]) * 1.3 / 1.225, 3)
     npt.assert_array_almost_equal(ct[s], np.array([0.03, 0.889, 0.889, 0.889, 0.824, 0.489,
                                                    0.245, 0.092, 0.031, 0.03]) * 1.3 / 1.225, 3)
+
+    for run_only in [0, 1]:
+        for argnum in [0, 1]:
+            def t(u, Air_density):
+                return curve(u, Air_density=Air_density, run_only=run_only)
+            dpctdu_lst = [grad(t, argnum=argnum)([10, 13], Air_density=[1.225, 1.5]) for grad in [fd, cs, autograd]]
+            npt.assert_allclose(dpctdu_lst[0], dpctdu_lst[1], rtol=1e-4)
+            npt.assert_allclose(dpctdu_lst[1], dpctdu_lst[2])
 
 
 def get_continuous_curve(key, optional):
@@ -252,6 +283,13 @@ def test_PowerCtXr():
         coords={'boost': [0, 10], 'ws': u_p})
     curve = PowerCtXr(ds, 'w')
     npt.assert_array_almost_equal(curve(u_p, boost=0), curve(u_p, boost=10) / 1.1)
+    for run_only in [0, 1]:
+        for argnum in [0, 1]:
+            def t(u, boost):
+                return curve(u, boost=boost, run_only=run_only)
+            dpctdu_lst = [grad(t, argnum=argnum)([10, 12], boost=[.5, .5]) for grad in [fd, cs, autograd]]
+            npt.assert_allclose(dpctdu_lst[0], dpctdu_lst[1], rtol=1e-4)
+            npt.assert_allclose(dpctdu_lst[1], dpctdu_lst[2])
 
 
 def test_missing_input_PowerCtFunctionList():
@@ -285,6 +323,14 @@ def test_density_scale():
         npt.assert_array_almost_equal(p, np.interp(u, u_p, p_c) * 1.3 / rho_ref)
         npt.assert_array_almost_equal(ct, np.interp(u, u_p, ct_c) * 1.3 / rho_ref)
 
+    for run_only in [0, 1]:
+        for argnum in [0, 1]:
+            def t(u, Air_density):
+                return curve(u, Air_density=Air_density, run_only=run_only)
+            dpctdu_lst = [grad(t, argnum=argnum)([10, 13], Air_density=[1.225, 1.5]) for grad in [fd, cs, autograd]]
+            npt.assert_allclose(dpctdu_lst[0], dpctdu_lst[1], rtol=1e-4)
+            npt.assert_allclose(dpctdu_lst[1], dpctdu_lst[2])
+
 
 def test_SimpleYawModel():
     u_p, p_c = np.asarray(hornsrev1.power_curve).T.copy()
@@ -298,6 +344,14 @@ def test_SimpleYawModel():
     npt.assert_array_almost_equal(p, np.interp(u * co, u_p, p_c))
     npt.assert_array_almost_equal(ct, np.interp(u * co, u_p, ct_c) * co**2)
 
+    for run_only in [0, 1]:
+        for argnum in [0, 1]:
+            def t(u, yaw):
+                return curve(u, yaw=yaw, run_only=run_only)
+            dpctdu_lst = [grad(t, argnum=argnum)([10, 13], yaw=[10, 20]) for grad in [fd, cs, autograd]]
+            npt.assert_allclose(dpctdu_lst[0], dpctdu_lst[1], rtol=1e-4)
+            npt.assert_allclose(dpctdu_lst[1], dpctdu_lst[2])
+
 
 def test_DensityScaleAndSimpleYawModel():
     u_p, p_c = np.asarray(hornsrev1.power_curve).T.copy()
@@ -310,6 +364,15 @@ def test_DensityScaleAndSimpleYawModel():
     p, ct = curve(u, yaw=yaw, Air_density=1.3)
     npt.assert_array_almost_equal(p, np.interp(u * co, u_p, p_c) * 1.3 / 1.225)
     npt.assert_array_almost_equal(ct, np.interp(u * co, u_p, ct_c) * co**2 * 1.3 / 1.225)
+
+    for run_only in [0, 1]:
+        for argnum in [0, 1, 2]:
+            def t(u, Air_density, yaw):
+                return curve(u, Air_density=Air_density, yaw=yaw, run_only=run_only)
+            dpctdu_lst = [grad(t, argnum=argnum)([10, 13], Air_density=[1.225, 1.5], yaw=[10, 20])
+                          for grad in [fd, cs, autograd]]
+            npt.assert_allclose(dpctdu_lst[0], dpctdu_lst[1], rtol=1e-4)
+            npt.assert_allclose(dpctdu_lst[1], dpctdu_lst[2])
 
 
 if __name__ == '__main__':

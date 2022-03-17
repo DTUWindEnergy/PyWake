@@ -2,12 +2,13 @@ import numpy as np
 from numpy import newaxis as na
 import matplotlib
 from py_wake.utils.functions import mean_deg
+from py_wake.utils import gradients
 
 
 class StraightDistance():
 
     def _cos_sin(self, wd):
-        theta = np.deg2rad(90 - wd)
+        theta = gradients.deg2rad(90 - wd)
         cos = np.cos(theta)
         sin = np.sin(theta)
         return cos, sin
@@ -61,6 +62,7 @@ class StraightDistance():
 
     def __call__(self, WD_il, wd_l=None, src_idx=slice(None), dst_idx=slice(None)):
         assert hasattr(self, 'dx_ij'), "method setup must be called first"
+        WD_il = np.asarray(WD_il)
         if len(np.shape(WD_il)) == 1:
             cos_l, sin_l = self._cos_sin(WD_il)
             dx_ij, dy_ij = self.dx_ii[src_idx, dst_idx], self.dy_ii[src_idx, dst_idx]
@@ -132,7 +134,7 @@ class TerrainFollowingDistance(StraightDistance):
         else:
             d_ij = s.reshape(self.dx_ij.shape)
         self.d_ij = d_ij
-        self.theta_ij = np.arctan2(self.dst_y_j - self.src_y_i[:, na], self.dst_x_j - self.src_x_i[:, na])
+        self.theta_ij = gradients.arctan2(self.dst_y_j - self.src_y_i[:, na], self.dst_x_j - self.src_x_i[:, na])
 
     def __call__(self, WD_il, wd_l=None, src_idx=slice(None), dst_idx=slice(None)):
         # instead of projecting the distances onto first x,y and then onto down wind direction

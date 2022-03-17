@@ -199,21 +199,11 @@ class LUTInterpolator(object):
         xp, yp, zp = xyz
         xp = np.maximum(np.minimum(xp, self.x[-1]), self.x[0])
         yp = np.maximum(np.minimum(yp, self.y[-1]), self.y[0])
-        # zp = np.maximum(np.minimum(zp, self.z[-1]), self.z[0])
-        from autograd.numpy.numpy_boxes import ArrayBox
 
-        def i0f(_i):
-            if isinstance(_i, ArrayBox):
-                _i0 = _i._value.astype(int)
-            else:
-                _i0 = np.real(_i).astype(int)
-            _if = _i - _i0
-            return _i0, _if
+        xif, xi0 = gradients.modf((xp - self.x0) / self.dx)
+        yif, yi0 = gradients.modf((yp - self.y0) / self.dy)
 
-        xi0, xif = i0f((xp - self.x0) / self.dx)
-        yi0, yif = i0f((yp - self.y0) / self.dy)
-
-        zi0, zif = i0f(gradients.interp(zp, self.z, np.arange(self.nz)))
+        zif, zi0 = gradients.modf(gradients.interp(zp, self.z, np.arange(self.nz)))
 
         nx, ny = self.nx, self.ny
         idx = zi0 * nx * ny + yi0 * nx + xi0

@@ -1,5 +1,7 @@
 import numpy as np
 from numpy import newaxis as na
+from py_wake.utils import gradients
+from autograd.numpy.numpy_boxes import ArrayBox
 
 
 class GridInterpolator(object):
@@ -57,7 +59,10 @@ class GridInterpolator(object):
         bounds = bounds or self.bounds
         assert method in ['linear', 'nearest'], 'method must be "linear" or "nearest"'
         assert bounds in ['check', 'limit', 'ignore'], 'bounds must be "check", "limit" or "ignore"'
-        xp = np.asarray(xp)
+        xp = np.atleast_2d(xp)
+        xp_shape = xp.shape
+        assert xp_shape[-1] == len(self.x), xp_shape
+        xp = np.reshape(xp, (-1, xp_shape[-1]))
         xpi = (xp - self.x0) / self.dx
         if len(self.irregular_axes):
             irreg_i = np.array([np.searchsorted(self.x[i], xp[:, i], side='right') - 1
@@ -77,8 +82,9 @@ class GridInterpolator(object):
                              (point, dimension, np.atleast_2d(xp)[point, dimension], self.x[dimension][0], self.x[dimension][-1]))
         if bounds == 'limit':
             xpi = np.minimum(np.maximum(xpi, 0), self.n - 1)
-        xpi0 = xpi.astype(int)
-        xpif = xpi - xpi0
+
+        xpif, xpi0 = gradients.modf(xpi)
+
         if method == 'nearest':
             xpif = np.round(xpif)
 
@@ -87,7 +93,7 @@ class GridInterpolator(object):
         indexes = np.minimum(indexes, (self.n - 1)[:, na, na])
         v = np.moveaxis(self.V[tuple(indexes)], [0, 1], [-2, -1])
         if deg:
-            v = (v + 180) % 360 - 180
+            v = (v + 180) % 360 - 180  # -180..180 > 0-360
 
         xpif1 = 1 - xpif
         # w = np.product([xpif10_.T[ui] for xpif10_, ui in zip(np.array([xpif1, xpif]).T, self.ui.T)], 0).T # slower
@@ -98,14 +104,14 @@ class GridInterpolator(object):
                 return weights
             else:
 
-                return [mul_weight(weights * xpif1[:, i], i + 1), mul_weight(weights * xpif[:, i], i + 1)]
+                return np.array([mul_weight(weights * xpif1[:, i], i + 1), mul_weight(weights * xpif[:, i], i + 1)])
 
         w = np.reshape(mul_weight(1, 0), (-1, xpif.shape[0]))
 
         res = np.moveaxis((w * v).sum(-2), -1, 0)
         if deg:
-            res = res % 360
-        return res
+            res = gradients.mod(res, 360)
+        return np.reshape(res, xp_shape[:-1] + self.V.shape[len(self.x):])
 
 
 class EqDistRegGrid2DInterpolator():
@@ -123,13 +129,10 @@ class EqDistRegGrid2DInterpolator():
 
     def __call__(self, x, y, mode='valid'):
         xp, yp = x, y
-        xi = (xp - self.x0) / self.dx
-        xif, xi0 = np.modf(xi)
-        xi0 = xi0.astype(int)
 
-        yi = (yp - self.y0) / self.dy
-        yif, yi0 = np.modf(yi)
-        yi0 = yi0.astype(int)
+        xif, xi0 = gradients.modf((xp - self.x0) / self.dx)
+        yif, yi0 = gradients.modf((yp - self.y0) / self.dy)
+
         if mode == 'extrapolate':
             xif[xi0 < self.xi_valid_min] = 0
             xif[xi0 > self.xi_valid_max - 2] = 1

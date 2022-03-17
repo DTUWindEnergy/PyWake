@@ -1,4 +1,5 @@
 import numpy as np
+from py_wake.utils import gradients
 
 
 def mean_deg(dir, axis=0):
@@ -16,7 +17,7 @@ def mean_deg(dir, axis=0):
     mean_deg : float
         Mean angle
     """
-    return np.rad2deg(mean_rad(np.deg2rad(dir), axis))
+    return gradients.rad2deg(mean_rad(gradients.deg2rad(dir), axis))
 
 
 def mean_rad(dir, axis=0):
@@ -34,4 +35,4 @@ def mean_rad(dir, axis=0):
     mean_rad : float
         Mean angle
     """
-    return np.arctan2(np.nanmean(np.sin(dir[:]), axis), np.nanmean(np.cos(dir[:]), axis))
+    return gradients.arctan2(np.nanmean(np.sin(dir[:]), axis), np.nanmean(np.cos(dir[:]), axis))
