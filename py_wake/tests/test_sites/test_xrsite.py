@@ -19,6 +19,7 @@ from py_wake.utils import weibull
 from py_wake.deficit_models.noj import NOJ, NOJDeficit
 from py_wake.flow_map import XYGrid, Points
 import warnings
+from urllib.error import HTTPError
 
 
 f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,
@@ -248,7 +249,10 @@ def test_GlobalWindAtlasSite():
     ref = Hornsrev1Site()
     lat, long = 55.52972, 7.906111  # hornsrev
 
-    site = GlobalWindAtlasSite(lat, long, height=70, roughness=0.001, ti=0.075)
+    try:
+        site = GlobalWindAtlasSite(lat, long, height=70, roughness=0.001, ti=0.075)
+    except HTTPError:
+        pytest.xfail('HTTPError in GlobalWindAtlasSite')
     ref_mean = weibull.mean(ref.ds.Weibull_A, ref.ds.Weibull_k)
     gwa_mean = weibull.mean(site.ds.Weibull_A, site.ds.Weibull_k)
 
