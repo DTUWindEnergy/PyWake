@@ -5,6 +5,7 @@ import xarray as xr
 from xarray.plot.plot import _PlotMethods
 import warnings
 from xarray.core.dataarray import DataArray
+from autograd.numpy.numpy_boxes import ArrayBox
 
 
 class ilk():
@@ -14,7 +15,12 @@ class ilk():
     def __call__(self, shape=None):
         dims = self.dataArray.dims
         squeeze_dims = [d for d in self.dataArray.dims if d not in ['i', 'wt', 'wd', 'ws', 'time']]
-        v = self.dataArray.squeeze(squeeze_dims, drop=True).data
+        if isinstance(self.dataArray.values, ArrayBox):
+            assert not squeeze_dims
+            v = self.dataArray.values
+        else:
+            v = self.dataArray.squeeze(squeeze_dims, drop=True).data
+
         if 'wt' not in dims and 'i' not in dims:
             v = v[na]
         if 'time' in dims:
@@ -139,3 +145,19 @@ def da2py(v, include_dims=False):
         else:
             return v.values
     return v
+
+
+class DataArrayILK(DataArray):
+    pass
+
+
+for op_name in ['__mul__', '__add__', '__pow__']:
+    def op_func(self, other, op_name=op_name):
+        if isinstance(self.values, ArrayBox):
+            if isinstance(other, DataArray):
+                other = other.ilk()
+            return DataArrayILK(xr.DataArray(getattr(self.ilk(), op_name)(other), dims=('i', 'wd', 'ws')))
+        else:
+            return getattr(DataArray, op_name)(self, other)
+
+    setattr(DataArrayILK, op_name, op_func)

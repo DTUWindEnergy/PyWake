@@ -171,8 +171,8 @@ class EngineeringWindFarmModel(WindFarmModel):
             if v in kwargs:
                 lw.add_ilk(v, kwargs[v])
 
-        WS_eff_ilk = lw.WS.ilk((I, L, K)).copy()
-        TI_eff_ilk = lw.TI.ilk((I, L, K)).copy()
+        WS_eff_ilk = lw.WS.ilk((I, L, K)) + 0  # fast autograd-friendly copy
+        TI_eff_ilk = lw.TI.ilk((I, L, K)) + 0  # fast autograd-friendly copy
 
         # add eps to avoid non-differentiable 0
 #        eps = 2 * np.finfo(float).eps ** 2 if 'autograd' in np.__name__ else 0
@@ -439,7 +439,8 @@ class PropagateDownwind(EngineeringWindFarmModel):
         dh_nk = []
 
         def ilk2mk(x_ilk):
-            return np.broadcast_to(np.asarray(x_ilk).astype(float), (I, L, K)).reshape((I * L, K))
+            dtype = (float, np.complex128)[np.iscomplexobj(x_ilk)]
+            return np.broadcast_to(np.asarray(x_ilk).astype(dtype), (I, L, K)).reshape((I * L, K))
 
         TI_mk = ilk2mk(lw.TI_ilk)
         WS_mk = ilk2mk(lw.WS_ilk)

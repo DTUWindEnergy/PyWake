@@ -49,6 +49,7 @@ def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110,
         output_func, output_label = output
         output_func = output_func(wfm)
         autograd(output_func, True, 0)(xp, wt_y, **kwargs)[2]
+
         dOutputdx_lst = [grad(output_func, True, 0)(xp, wt_y, **kwargs)[2] for grad in [fdstep, cs, autograd]]
         npt.assert_almost_equal(dOutputdx_lst[0], dOutputdx_lst[1], fd_decimal)
         npt.assert_almost_equal(dOutputdx_lst[1], dOutputdx_lst[2], 10)
@@ -193,19 +194,8 @@ def test_sites(site):
     ),
         site.__class__.__name__,
         wt_x=[x - 1040, x - 520, x],
-        wt_y=[y, y, y]
-    )
-
-
-def test_sites2():
-    site = ParqueFicticioSite(distance=StraightDistance())
-    x, y = site.initial_position[3]
-    check_gradients(lambda site, wt, s=site: PropagateDownwind(
-        s, wt, wake_deficitModel=BastankhahGaussianDeficit(),
-    ),
-        site.__class__.__name__,
-        wt_x=[x - 1040, x - 520, x],
-        wt_y=[y, y, y]
+        wt_y=[y, y, y],
+        fd_decimal=4,
     )
 
 
