@@ -42,7 +42,7 @@ def asarray(x, dtype=None, order=None):
 
 def minimum(x1, x2, out=None, where=True, **kwargs):
     if isinstance(x1, ArrayBox) or isinstance(x2, ArrayBox):
-        return anp.where((x2 < x1) & where, x2, x1)
+        return anp.where((x2 < x1) & where, x2, x1)  # @UndefinedVariable
     else:
         return numpy.minimum(x1, x2, out=out, where=where, **kwargs)
 
@@ -52,7 +52,7 @@ def negative(x1, out=None, where=True, **kwargs):
     #     return numpy.negative(x1, out=out, where=where, **kwargs)
     # else:
     assert out is not None
-    return anp.where(where, -x1, x1)
+    return anp.where(where, -x1, x1)  # @UndefinedVariable
 
 
 # replace functions to support autograd
@@ -188,7 +188,7 @@ def autograd(f, vector_interdependence=False, argnum=0):
             bound_arguments = signature(f).bind(*args, **kwargs)
             bound_arguments.apply_defaults()
             args = bound_arguments.args
-            return grad_func(*(args[:argnum] + (anp.asarray(args[argnum], dtype=float),) + args[argnum + 1:]),
+            return grad_func(*(args[:argnum] + (anp.asarray(args[argnum], dtype=float),) + args[argnum + 1:]),  # @UndefinedVariable
                              **bound_arguments.kwargs)
 
         return _use_autograd_in(modules=['py_wake.', f])(wrap)
@@ -229,7 +229,7 @@ def hypot(a, b):
         The hypotenuse of the triangle(s).
     """
     if isinstance(a, ArrayBox) or isinstance(b, ArrayBox):
-        return anp.sqrt(a**2 + b**2)
+        return anp.sqrt(a**2 + b**2)  # @UndefinedVariable
     elif np.isrealobj(a) and np.isrealobj(b):
         return np.hypot(a, b)
     else:
@@ -239,7 +239,7 @@ def hypot(a, b):
 def cabs(a):
     """Absolute (non-negative) value for both real and complex number"""
     if isinstance(a, ArrayBox):
-        return anp.abs(a)
+        return anp.abs(a)  # @UndefinedVariable
     elif np.isrealobj(a):
         return np.abs(a)
     else:
@@ -271,7 +271,7 @@ def interp(xp, x, y, *args, **kwargs):
 
 def logaddexp(x, y):
     if isinstance(x, ArrayBox) or isinstance(y, ArrayBox):
-        return anp.logaddexp(x, y)
+        return anp.logaddexp(x, y)  # @UndefinedVariable
     elif np.isrealobj(x) and np.isrealobj(y):
         return np.logaddexp(x, y)
     else:
@@ -333,3 +333,39 @@ def trapz(y, x, axis=-1):
             raise NotImplementedError()
     else:
         return np.trapz(y, x, axis=axis)
+
+
+def mod(x1, x2):
+    # if np.iscomplexobj(x1):
+    #     return np.mod(np.real(x1), x2) + x1.imag * 1j
+    # else:
+    return np.mod(x1, x2)
+
+
+def modf(i):
+    if isinstance(i, ArrayBox):
+        i0 = i._value.astype(int)
+    else:
+        i0 = np.real(i).astype(int)
+    i_f = i - i0
+    return i_f, i0
+
+
+def arctan2(y, x):
+    if np.iscomplexobj(y) or np.iscomplexobj(x):
+        r = np.atleast_1d(np.sign(y.real) * np.pi / 2).astype(np.complex128)
+        m = x.real != 0
+        r[m] = np.arctan(np.atleast_1d(y)[m] / np.atleast_1d(x)[m])
+        r[(x.real < 0) & (y.real >= 0)] += np.pi
+        r[(x.real < 0) & (y.real < 0)] -= np.pi
+        return np.reshape(r, np.shape(y))
+    else:
+        return np.arctan2(y, x)
+
+
+def rad2deg(rad):
+    return rad * 180 / np.pi
+
+
+def deg2rad(deg):
+    return deg * np.pi / 180
