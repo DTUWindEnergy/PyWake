@@ -27,8 +27,8 @@ from autograd.scipy.special import erf as autograd_erf
 def asarray(x, dtype=None, order=None):
     if isinstance(x, (ArrayBox)):
         return x
-    # elif isinstance(x, DataArray) and isinstance(x.values, ArrayBox):
-    #     return x.values
+    elif isinstance(x, DataArray) and isinstance(x.values, ArrayBox):
+        return x.values
     return np_asarray(x, dtype, order)
 
 
@@ -336,10 +336,14 @@ def trapz(y, x, axis=-1):
 
 
 def mod(x1, x2):
-    # if np.iscomplexobj(x1):
-    #     return np.mod(np.real(x1), x2) + x1.imag * 1j
-    # else:
-    return np.mod(x1, x2)
+    if np.iscomplexobj(x1):
+        return np.mod(np.real(x1), x2) + x1.imag * 1j
+    elif isinstance(x1, ArrayBox) or isinstance(x2, ArrayBox):
+        return anp.mod(x1, x2)  # @UndefinedVariable
+    elif isinstance(x1, DataArray) and isinstance(x1.values, ArrayBox):
+        return DataArray(anp.mod(x1.ilk(), x2), dims=('i', 'wd', 'ws'))  # @UndefinedVariable
+    else:
+        return np.mod(x1, x2)
 
 
 def modf(i):
@@ -359,6 +363,8 @@ def arctan2(y, x):
         r[(x.real < 0) & (y.real >= 0)] += np.pi
         r[(x.real < 0) & (y.real < 0)] -= np.pi
         return np.reshape(r, np.shape(y))
+    elif isinstance(y, ArrayBox) or isinstance(x, ArrayBox):
+        return anp.arctan2(y, x)  # @UndefinedVariable
     else:
         return np.arctan2(y, x)
 

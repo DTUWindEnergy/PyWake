@@ -11,6 +11,7 @@ from py_wake.utils.ieawind37_utils import iea37_names
 from py_wake.utils.grid_interpolator import GridInterpolator, EqDistRegGrid2DInterpolator
 import urllib.request
 import warnings
+from py_wake.utils.xarray_utils import DataArrayILK
 
 
 class XRSite(Site):
@@ -181,7 +182,7 @@ class XRSite(Site):
             ds[var.name] = (ip_data_dims, ip_data)
         else:
             ds[var.name] = ip_data
-        return ds[var.name]
+        return DataArrayILK(ds[var.name])
 
     def weibull_weight(self, localWind, A, k):
 

@@ -20,6 +20,8 @@ from py_wake.deficit_models.noj import NOJ, NOJDeficit
 from py_wake.flow_map import XYGrid, Points
 import warnings
 from urllib.error import HTTPError
+from py_wake.examples.data.ParqueFicticio._parque_ficticio import ParqueFicticioSite
+from py_wake.utils.gradients import fd, autograd, cs
 
 
 f = [0.035972, 0.039487, 0.051674, 0.070002, 0.083645, 0.064348,
@@ -622,3 +624,16 @@ def test_from_pywasp_pwc_cuboid(pywasp_pwc_cuboid):
     npt.assert_almost_equal(site.ds.Weibull_A.values[0, 0, 0, 0], 6.208063)
     npt.assert_almost_equal(site.ds.Weibull_k.values[1, 1, 0, 1], 2.4550781)
     npt.assert_almost_equal(site.ds.Sector_frequency.values[0, 0, 0, 0], 0.05975334)
+
+
+def test_gradients():
+    site = ParqueFicticioSite()
+    x, y = site.initial_position[0]
+
+    data_vars = ['WS', 'WD', 'ws_lower', 'ws_upper', 'Weibull_A', 'Weibull_k', 'Sector_frequency', 'P', 'TI']
+    for data_var in data_vars[1:]:
+        def t(x):
+            return site.local_wind(x, y, h_i=[100], wd=270, ws=10)[data_var].values
+        ddx_lst = [grad(t)(x) for grad in [fd, cs, autograd]]
+        npt.assert_allclose(ddx_lst[0], ddx_lst[1], rtol=1e-4)
+        npt.assert_allclose(ddx_lst[1], ddx_lst[2])

@@ -417,10 +417,10 @@ def test_multiple_inputs():
                                       [[4, 5], [2, 3]], 8)
 
 
-def test_xarray():
+def test_asarray_xarray():
     def f(x):
         ds = Dataset({'x': ('i', x)}, coords={'i': range(len(x))})
+        str(ds.x)  # calls asarray
         return ds.x.values * 2
 
-    print(autograd(f)([2, 3, 4]))
-    print(f([1, 2, 3]))
+    autograd(f)([2, 3, 4])

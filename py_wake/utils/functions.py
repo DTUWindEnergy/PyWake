@@ -35,4 +35,4 @@ def mean_rad(dir, axis=0):
     mean_rad : float
         Mean angle
     """
-    return gradients.arctan2(np.nanmean(np.sin(dir[:]), axis), np.nanmean(np.cos(dir[:]), axis))
+    return gradients.arctan2(np.mean(np.sin(dir[:]), axis), np.mean(np.cos(dir[:]), axis))
