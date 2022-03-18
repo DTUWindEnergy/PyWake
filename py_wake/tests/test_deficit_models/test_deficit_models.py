@@ -86,10 +86,10 @@ class GCLLocalDeficit(GCLDeficit):
                            14791.05027, 32446.01148, 69635.02796, 17982.12684, 12136.24637,
                            7803.89434])),
      (TurboGaussianDeficit(),
-      (344495.05909742677, [8378.84801, 8092.77403, 11185.38929, 13683.78411, 18404.13628,
-                            24706.83241, 38570.30789, 41138.26797, 21114.69699, 12835.33001,
-                            14707.78063, 31935.50905, 62543.30153, 17699.19779, 12067.92257,
-                            7430.98053])),
+      (333562.491085791, [7693.8741, 7912.66663, 11101.33526, 13501.81915, 17181.16364,
+                          24378.28457, 38280.46642, 40222.72204, 19388.56273, 12534.6865,
+                          14611.83388, 31677.60005, 58275.09505, 17556.26027, 11989.19703,
+                          7256.92376])),
 
      ])
 def test_IEA37_ex16(deficitModel, aep_ref):
@@ -104,9 +104,9 @@ def test_IEA37_ex16(deficitModel, aep_ref):
 
     # check if ref is reasonable
     aep_est = 16 * 3.35 * 24 * 365 * .8  # n_wt * P_rated * hours_pr_year - 20% wake loss = 375628.8
-    npt.assert_allclose(aep_ref[0], aep_est, rtol=.11)
+    npt.assert_allclose(aep_ref[0], aep_est, rtol=.12)
     npt.assert_allclose(aep_ref[1], [9500, 8700, 11500, 14300, 21300, 25900, 39600, 44300, 23900,
-                                     13900, 15200, 33000, 72100, 18300, 12500, 8000], rtol=.15)
+                                     13900, 15200, 33000, 72100, 18300, 12500, 8000], rtol=.2)
 
     npt.assert_almost_equal(aep_MW_l.sum(), aep_ref[0], 5)
     npt.assert_array_almost_equal(aep_MW_l, aep_ref[1], 5)
@@ -121,7 +121,7 @@ def test_huge_distance(deficitModel):
            "CarbajofuertesGaussianDeficit": 9.798708,
            "IEA37SimpleBastankhahGaussianDeficit": 9.799151,
            "NiayifarGaussianDeficit": 9.799148,
-           "TurboGaussianDeficit": 9.786208,
+           "TurboGaussianDeficit": 9.668338,
            "ZongGaussianDeficit": 9.799146,
            "GCLDeficit": 9.728704,
            "NoWakeDeficit": 9.8,
@@ -239,7 +239,7 @@ def test_deficitModel_wake_map(deficitModel, ref):
      (ZongGaussianDeficit(eps_coeff=0.35), [91.15734, 66.228381, 132.456762, 94.90156, 79.198215]),
      (NiayifarGaussianDeficit(), [92.880786, 67.440393, 134.880786, 84.811162, 73.880786]),
      (CarbajofuertesGaussianDeficit(), [102.914211, 68.866465, 137.866624, 102.914211, 85.457105]),
-     (TurboGaussianDeficit(), [83.563771, 49.809671, 99.619342, 71.104277, 82.236819]),
+     (TurboGaussianDeficit(), [76.674176, 41.548202, 83.096405, 64.831198, 76.143396]),
      ])
 def test_wake_radius(deficitModel, wake_radius_ref):
 

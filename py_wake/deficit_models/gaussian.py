@@ -3,7 +3,7 @@ from py_wake.utils.gradients import erf
 import numpy as np
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models.deficit_model import ConvectionDeficitModel
-from py_wake.ground_models.ground_models import NoGround
+from py_wake.ground_models.ground_models import NoGround, Mirror
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
 from py_wake.superposition_models import SquaredSum
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
@@ -401,8 +401,8 @@ class TurboGaussianDeficit(NiayifarGaussianDeficit):
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il',
                     'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_ilk', 'TI_eff_ilk']
 
-    def __init__(self, A=.4, cTI=[1.5, 0.8], ceps=.2, use_effective_ws=False,
-                 use_effective_ti=False, groundModel=NoGround()):
+    def __init__(self, A=.04, cTI=[1.5, 0.8], ceps=.25, use_effective_ws=False,
+                 use_effective_ti=False, groundModel=Mirror()):
         DeficitModel.__init__(self, groundModel=groundModel)
         self.A = A
         self.cTI = cTI
@@ -415,7 +415,7 @@ class TurboGaussianDeficit(NiayifarGaussianDeficit):
         # expression unchanged from original formulation, however the intial wake width needs to
         # be adjusted to agree with the Gaussian model formulation. It is replaced by the original
         # formulation by Bastankhah
-        # ----TurboNOJ
+        # ----TurboNOJ identical part
         TI_ref_ilk = (kwargs['TI_ilk'], kwargs['TI_eff_ilk'])[self.use_effective_ti]
         c1, c2 = self.cTI
         # constants related to ambient turbulence
@@ -430,14 +430,10 @@ class TurboGaussianDeficit(NiayifarGaussianDeficit):
         term3_ijlk = (term1_ijlk + 1) * alpha_ilk[:, na]
         term4_ijlk = (term2_ilk[:, na] + 1) * (alpha_ilk[:, na] +
                                                beta_ilk[:, na] * cabs(dw_ijlk) / D_src_il[:, na, :, na])
+        # ----
+        expansion_ijlk = fac_ilk[:, na] * (term1_ijlk - term2_ilk[:, na] - np.log(term3_ijlk / term4_ijlk))
 
-        wake_radius_ijlk = 0.5 * (D_src_il[:, na, :, na] + fac_ilk[:, na] *
-                                  (term1_ijlk - term2_ilk[:, na] - np.log(term3_ijlk / term4_ijlk)))
-        # ----TurboNOJ
-        wake_radius_ijlk -= 0.5 * D_src_il[:, na, :, na]
-
-        return 0.5 * wake_radius_ijlk + self.epsilon_ilk(ct_ilk)[:, na] * D_src_il[:, na, :, na]
-#        return 0.5 * (wake_radius_ijlk + D_src_il[:, na, :, na] / 2.)
+        return expansion_ijlk + self.epsilon_ilk(ct_ilk)[:, na] * D_src_il[:, na, :, na]
 
 
 def main():
@@ -448,6 +444,8 @@ def main():
         from py_wake.deficit_models.noj import NOJDeficit, TurboNOJDeficit
         from py_wake.turbulence_models.stf import STF2017TurbulenceModel
         from py_wake.superposition_models import LinearSum
+        from py_wake.examples.data.hornsrev1 import Hornsrev1Site
+        from py_wake.examples.data import hornsrev1
 
         # setup site, turbines and wind farm model
         site = IEA37Site(16)
@@ -463,7 +461,7 @@ def main():
         wfm_gauturbo = PropagateDownwind(site, windTurbines, rotorAvgModel=RotorCenter(),
                                          wake_deficitModel=TurboGaussianDeficit(use_effective_ws=True,
                                                                                 use_effective_ti=False),
-                                         superpositionModel=LinearSum(),
+                                         superpositionModel=SquaredSum(),
                                          turbulenceModel=STF2017TurbulenceModel())
         sim_res = wf_model(x, y)
         sim_res_nojturbo = wfm_nojturbo(x, y)
@@ -508,10 +506,10 @@ def main():
         ct_ilk = np.array([[[8 / 9]]])  # thrust coefficient
         TI_ilk = np.array([[[0.06]]])
         TI_eff_ilk = np.array([[[0.06]]])
-        tj = TurboNOJDeficit()
+        tj = TurboNOJDeficit(A=0.6)
         tj_wr = tj.wake_radius(D_src_il, dw_ijlk, ct_ilk=ct_ilk, TI_ilk=TI_ilk, TI_eff_ilk=TI_eff_ilk)
 
-        tjg = TurboGaussianDeficit()
+        tjg = TurboGaussianDeficit(A=0.04)
         gau = BastankhahGaussianDeficit(k=0.04)
         tjg_wr = tjg.wake_radius(D_src_il, dw_ijlk, ct_ilk=ct_ilk, TI_ilk=TI_ilk, TI_eff_ilk=TI_eff_ilk)
         gau_wr = gau.wake_radius(D_src_il, dw_ijlk, ct_ilk=ct_ilk, TI_ilk=TI_ilk, TI_eff_ilk=TI_eff_ilk)
@@ -525,6 +523,44 @@ def main():
         plt.xlabel('x/D')
         plt.ylabel('y/D')
         plt.grid()
+        plt.legend()
+        plt.show()
+
+        # compare deficits
+        site = Hornsrev1Site()
+        windTurbines = hornsrev1.HornsrevV80()
+        ws = 10
+        D = 80
+        R = D / 2
+        WS_ilk = np.array([[[ws]]])
+        D_src_il = np.array([[D]])
+        ct_ilk = np.array([[[.8]]])
+        x, y = np.arange(20 * D), np.array([0])
+        noj_def = noj.calc_deficit(WS_ilk=WS_ilk, WS_eff_ilk=WS_ilk, D_src_il=D_src_il, D_dst_ijl=D_src_il,
+                                   TI_ilk=TI_ilk, TI_eff_ilk=TI_eff_ilk,
+                                   dw_ijlk=x.reshape((1, len(x), 1, 1)),
+                                   cw_ijlk=y.reshape((1, len(y), 1, 1)), ct_ilk=ct_ilk)
+        tj_def = tj.calc_deficit(WS_ilk=WS_ilk, WS_eff_ilk=WS_ilk, D_src_il=D_src_il, D_dst_ijl=D_src_il,
+                                 TI_ilk=TI_ilk, TI_eff_ilk=TI_eff_ilk,
+                                 dw_ijlk=x.reshape((1, len(x), 1, 1)),
+                                 cw_ijlk=y.reshape((1, len(y), 1, 1)), ct_ilk=ct_ilk)
+        tjg_def = tjg.calc_deficit(WS_ilk=WS_ilk, WS_eff_ilk=WS_ilk, D_src_il=D_src_il,
+                                   TI_ilk=TI_ilk, TI_eff_ilk=TI_eff_ilk,
+                                   dw_ijlk=x.reshape((1, len(x), 1, 1)),
+                                   cw_ijlk=y.reshape((1, len(y), 1, 1)), ct_ilk=ct_ilk)
+        gau_def = gau.calc_deficit(WS_ilk=WS_ilk, WS_eff_ilk=WS_ilk, D_src_il=D_src_il,
+                                   TI_ilk=TI_ilk, TI_eff_ilk=TI_eff_ilk,
+                                   dw_ijlk=x.reshape((1, len(x), 1, 1)),
+                                   cw_ijlk=y.reshape((1, len(y), 1, 1)), ct_ilk=ct_ilk)
+
+        plt.figure()
+        plt.title('Deficit')
+        plt.xlabel('x/R')
+        plt.ylabel('u/u_inf')
+        plt.plot(x / R, 1. - noj_def[0, :, 0, 0] / ws, label='NOJ (k=0.04)')
+        plt.plot(x / R, 1. - tj_def[0, :, 0, 0] / ws, label='TurboNOJ (A=0.6)')
+        plt.plot(x / R, 1. - tjg_def[0, :, 0, 0] / ws, '--', label='TurboGauss (A=0.04)')
+        plt.plot(x / R, 1. - gau_def[0, :, 0, 0] / ws, '-.', label='Bastankhah (k=0.04)')
         plt.legend()
         plt.show()
 
