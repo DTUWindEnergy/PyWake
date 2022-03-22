@@ -27,6 +27,7 @@ from py_wake.wind_turbines.wind_turbines_deprecated import DeprecatedOneTypeWind
 import pandas as pd
 import os
 from py_wake.rotor_avg_models.rotor_avg_model import CGIRotorAvg
+from py_wake.utils.profiling import timeit
 
 
 WindFarmModel.verbose = False
@@ -290,6 +291,22 @@ def test_double_wind_farm_model_All2AllIterative():
     All2AllIterative(site, windTurbines, wake_deficitModel=NoWakeDeficit())(x, y)
     aep = wfm(x, y).aep().sum()
     npt.assert_array_equal(aep, aep_ref)
+
+
+def test_All2AllIterative_initialize_with_PropagateDownwind():
+    site = IEA37Site(64)
+    x, y = site.initial_position.T
+    windTurbines = V80()
+
+    wfm = All2AllIterative(site, windTurbines, wake_deficitModel=NOJDeficit(),
+                           blockage_deficitModel=SelfSimilarityDeficit(), initialize_with_PropagateDownwind=True)
+    res1 = wfm.calc_wt_interaction(x, y)[0]
+    i1 = wfm.iterations
+    wfm.initialize_with_PropagateDownwind = False
+    res2 = wfm.calc_wt_interaction(x, y)[0]
+    i2 = wfm.iterations
+    npt.assert_array_almost_equal(res1, res2)
+    assert i1 <= i2
 
 
 def test_huge_farm():

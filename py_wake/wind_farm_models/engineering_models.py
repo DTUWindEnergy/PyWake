@@ -377,12 +377,16 @@ class EngineeringWindFarmModel(WindFarmModel):
         return gradient_method(self.aep, True, argnum)
 
     def dAEPdxy(self, gradient_method, normalize_probabilities=False, with_wake_loss=True, gradient_method_kwargs={}):
+        # collects x,y to one list and compute gradients of aep with respect to all elements
+        def aep_xy(xy, h=None, type=0, wd=None, ws=None, yaw_ilk=None):
+            x, y = np.reshape(xy, (2, -1))
+            return self.aep(x, y, h, type, wd, ws, yaw_ilk,
+                            normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss)
 
         def wrap(x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None):  # @ReservedAssignment
             h, _ = self.windTurbines.get_defaults(len(x), type, h)
-            return [gradient_method(self.aep, True, i, **gradient_method_kwargs)(
-                x, y, h, type, wd, ws, yaw_ilk,
-                normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss) for i in [0, 1]]
+            return gradient_method(aep_xy, True, 0, **gradient_method_kwargs)(
+                np.r_[x, y], h, type, wd, ws, yaw_ilk).reshape((2, -1))
 
         return wrap
 
@@ -592,7 +596,7 @@ class All2AllIterative(EngineeringWindFarmModel):
     def __init__(self, site, windTurbines, wake_deficitModel,
                  rotorAvgModel=RotorCenter(), superpositionModel=LinearSum(),
                  blockage_deficitModel=None, deflectionModel=None, turbulenceModel=None,
-                 convergence_tolerance=1e-6):
+                 convergence_tolerance=1e-6, initialize_with_PropagateDownwind=True):
         """Initialize flow model
 
         Parameters
@@ -622,6 +626,7 @@ class All2AllIterative(EngineeringWindFarmModel):
                                           blockage_deficitModel=blockage_deficitModel, deflectionModel=deflectionModel,
                                           turbulenceModel=turbulenceModel)
         self.convergence_tolerance = convergence_tolerance
+        self.initialize_with_PropagateDownwind = initialize_with_PropagateDownwind
 
     def _calc_wt_interaction(self, localWind,
                              WS_eff_ilk, TI_eff_ilk,
@@ -631,16 +636,19 @@ class All2AllIterative(EngineeringWindFarmModel):
             dtype = np.complex128
         else:
             dtype = float
+        lw = localWind
 
         # calculate WS_eff without blockage as a first guess
-        blockage_deficitModel = self.blockage_deficitModel
-        self.blockage_deficitModel = None
-        WS_eff_ilk = PropagateDownwind._calc_wt_interaction(self, localWind, WS_eff_ilk, TI_eff_ilk, x_i, y_i, h_i, D_i,
-                                                            yaw_ilk, tilt_ilk, I, L, K, **kwargs)[0]
-        self.blockage_deficitModel = blockage_deficitModel
+        if self.initialize_with_PropagateDownwind:
+            blockage_deficitModel = self.blockage_deficitModel
+            self.blockage_deficitModel = None
+            WS_eff_ilk = PropagateDownwind._calc_wt_interaction(self, localWind, WS_eff_ilk, TI_eff_ilk, x_i, y_i, h_i, D_i,
+                                                                yaw_ilk, tilt_ilk, I, L, K, **kwargs)[0]
+            self.blockage_deficitModel = blockage_deficitModel
+        else:
+            WS_eff_ilk = lw.WS_ilk
 
         WS_eff_ilk = WS_eff_ilk.astype(dtype)
-        lw = localWind
         WS_eff_ilk_last = WS_eff_ilk + 0  # fast autograd-friendly copy
         diff_lk = np.zeros((L, K))
         diff_lk_last, diff_lk_lastlast = None, None
@@ -743,6 +751,7 @@ class All2AllIterative(EngineeringWindFarmModel):
             diff_lk_last = diff_lk
 
         # print("All2AllIterative converge after %d iterations" % j)
+        self.iterations = j
         self._reset_deficit()
         return WS_eff_ilk, TI_eff_ilk, ct_ilk
 
