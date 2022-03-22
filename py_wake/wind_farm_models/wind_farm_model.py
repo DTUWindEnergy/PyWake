@@ -238,7 +238,9 @@ class SimulationResult(xr.Dataset):
         if with_wake_loss:
             power_ilk = self.Power.ilk()
         else:
-            power_ilk = self.windFarmModel.windTurbines.power(self.WS.ilk(self.Power.ilk().shape), **self.wt_inputs)
+            wt_kwargs_keys = set(self.windFarmModel.windTurbines.powerCtFunction.required_inputs +
+                                 self.windFarmModel.windTurbines.powerCtFunction.optional_inputs)
+            power_ilk = self.windFarmModel.windTurbines.power(self.WS.ilk(self.Power.ilk().shape), **{k: v for k, v in self.wt_inputs.items() if k in wt_kwargs_keys})
 
         if linear_power_segments:
             s = "The linear_power_segments method "
