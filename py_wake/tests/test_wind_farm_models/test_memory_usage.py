@@ -10,19 +10,12 @@ import memory_profiler
 from py_wake.tests import npt
 import pytest
 from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
-
-
-def get_memory_usage():
-    pid = os.getpid()
-    python_process = psutil.Process(pid)
-    return python_process.memory_info()[0] / 1024**2
+from py_wake.utils.profiling import check_memory_usage, get_memory_usage
 
 
 def test_memory_usage():
     if os.name == 'posix':
         pytest.skip('Memory usage seems not to work on linux')
-    gc.collect()
-    initial_mem_usage = get_memory_usage()
     wt = V80()
     site = Hornsrev1Site()
     x, y = site.initial_position.T
@@ -34,12 +27,7 @@ def test_memory_usage():
                           blockage_deficitModel=SelfSimilarityDeficit()), 10, 288 - tol, 361 + tol)]:
         lst = []
         for _ in range(1):
-            initial_mem_usage = get_memory_usage()
-            gc.collect()
-            mem_usage, _ = memory_profiler.memory_usage(
-                (wfm, (x, y), {'wd': np.arange(0, 360, wd_step)}), interval=.01, max_usage=True, retval=True)
-
-            mem_usage -= initial_mem_usage
+            mem_usage, _ = check_memory_usage(wfm)(x, y, wd=np.arange(0, 360, wd_step))
             lst.append(mem_usage)
 
 #        print(np.min(lst), np.max(lst), np.mean(lst), np.std(lst))

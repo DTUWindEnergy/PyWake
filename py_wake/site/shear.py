@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import newaxis as na
 from abc import abstractmethod, ABC
+from py_wake.utils.xarray_utils import DataArrayILK
 
 
 class Shear(ABC):
@@ -34,7 +35,7 @@ class PowerShear(Shear):
         alpha = self.alpha.interp_all(WD, method=self.interp_method)
         if alpha.shape == ():
             alpha = alpha.data
-        return (h / self.h_ref) ** alpha * WS
+        return DataArrayILK((h / self.h_ref) ** alpha) * WS
 
 
 class LogShear(Shear):
@@ -48,7 +49,7 @@ class LogShear(Shear):
         z0 = self.z0.interp_all(WD, method=self.interp_method)
         if z0.shape == ():
             z0 = z0.data
-        return np.log(h / z0) / np.log(self.h_ref / z0) * WS
+        return DataArrayILK(h / z0).log() / DataArrayILK(self.h_ref / z0).log() * WS
 
 
 # ======================================================================================================================

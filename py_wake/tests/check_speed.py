@@ -12,6 +12,7 @@ from py_wake.examples.data.hornsrev1 import wt_x, wt_y, HornsrevV80, Hornsrev1Si
 from py_wake.tests import npt
 from py_wake.tests.test_files import tfp
 import sys
+from py_wake.utils.profiling import timeit
 
 path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
 
@@ -21,39 +22,6 @@ def Fuga(site, wt):
 
 
 test_lst = [(NOJ, 1.2), (IEA37SimpleBastankhahGaussian, 1.5), (Fuga, 1)]
-
-
-def timeit(func, min_time=0, min_runs=1, verbose=False, line_profile=False, profile_funcs=[]):
-    @functools.wraps(func)
-    def newfunc(*args, **kwargs):
-        if line_profile and getattr(sys, 'gettrace')() is None:
-            from line_profiler import LineProfiler
-            lp = LineProfiler()
-            lp.timer_unit = 1e-6
-            for f in profile_funcs:
-                lp.add_function(f)
-            lp_wrapper = lp(func)
-            t = time.time()
-            res = lp_wrapper(*args, **kwargs)
-            t = time.time() - t
-            if verbose:
-                lp.print_stats()
-            return res, [t]
-        else:
-            t_lst = []
-            for i in range(100000):
-                startTime = time.time()
-                res = func(*args, **kwargs)
-                t_lst.append(time.time() - startTime)
-                if sum(t_lst) > min_time and len(t_lst) >= min_runs:
-                    if hasattr(func, '__name__'):
-                        fn = func.__name__
-                    else:
-                        fn = "Function"
-                    if verbose:
-                        print('%s: %f +/-%f (%d runs)' % (fn, np.mean(t_lst), np.std(t_lst), i + 1))
-                    return res, t_lst
-    return newfunc
 
 
 def check_speed_Hornsrev(WFModel, max_min):

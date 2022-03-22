@@ -8,13 +8,13 @@ from py_wake.examples.data import hornsrev1
 import matplotlib.pyplot as plt
 from py_wake.deficit_models.fuga import FugaBlockage, FugaDeficit, LUTInterpolator, FugaUtils, FugaYawDeficit
 from py_wake.flow_map import HorizontalGrid, XYGrid
-from py_wake.tests.check_speed import timeit
 from py_wake.utils.grid_interpolator import GridInterpolator
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 import pytest
 from pathlib import Path
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 from py_wake.wind_turbines._wind_turbines import WindTurbine
+from py_wake.utils.profiling import timeit
 
 
 def test_fuga():
