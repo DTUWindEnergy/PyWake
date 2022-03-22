@@ -148,7 +148,13 @@ def da2py(v, include_dims=False):
 
 
 class DataArrayILK(DataArray):
-    pass
+    __slots__ = []
+
+    def log(self):
+        if isinstance(self.values, ArrayBox):
+            return DataArrayILK(xr.DataArray(np.log(self.ilk()), dims=('i', 'wd', 'ws')))
+        else:
+            return np.log(self)
 
 
 for op_name in ['__mul__', '__add__', '__pow__']:

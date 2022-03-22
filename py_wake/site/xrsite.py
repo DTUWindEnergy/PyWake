@@ -12,6 +12,7 @@ from py_wake.utils.grid_interpolator import GridInterpolator, EqDistRegGrid2DInt
 import urllib.request
 import warnings
 from py_wake.utils.xarray_utils import DataArrayILK
+from autograd.numpy.numpy_boxes import ArrayBox
 
 
 class XRSite(Site):
@@ -222,12 +223,15 @@ class XRSite(Site):
 
         if self.shear:
             assert 'h' in lw and np.all(lw.h.data != None), "Height must be specified and not None"  # nopep8
-            h = np.unique(lw.h)
-            if len(h) > 1:
-                h = lw.h
+            if isinstance(lw.h.values, ArrayBox):
+                WS = self.shear(WS, lw.wd, lw.h)
             else:
-                h = h[0]
-            WS = self.shear(WS, lw.wd, h)
+                h = np.unique(lw.h)
+                if len(h) > 1:
+                    h = lw.h
+                else:
+                    h = h[0]
+                WS = self.shear(WS, lw.wd, h)
 
         if 'Turning' in self.ds:
             if 'i' in lw.dims and 'i' in self.ds.Turning.dims and len(lw.i) != len(self.ds.i):

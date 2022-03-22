@@ -26,6 +26,7 @@ from py_wake.utils.gradients import autograd, plot_gradients, fd, cs
 from py_wake.utils.model_utils import get_models
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
+from py_wake.deficit_models.noj import NOJDeficit
 
 
 def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110, 110, 110], fd_step=1e-6, fd_decimal=6,
@@ -48,7 +49,6 @@ def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110,
             return fd(*args, **kwargs, step=fd_step)
         output_func, output_label = output
         output_func = output_func(wfm)
-        autograd(output_func, True, 0)(xp, wt_y, **kwargs)[2]
 
         dOutputdx_lst = [grad(output_func, True, 0)(xp, wt_y, **kwargs)[2] for grad in [fdstep, cs, autograd]]
         npt.assert_almost_equal(dOutputdx_lst[0], dOutputdx_lst[1], fd_decimal)
@@ -97,11 +97,12 @@ def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110,
             plt.close('all')
         print(f'[x] {name}')
     except AssertionError as e:
-        print(f'[ ] {name}')
+        # print(f'[ ] {name}')
         raise
     except Exception:
-        print(f'[ ] {name}')
-        # raise
+        # print(f'[ ] {name}')
+        if name not in ['VortexCylinder', 'WeightedSum', 'FugaDeflection']:
+            raise
 
 
 @pytest.mark.parametrize('model', get_models(WindFarmModel))
@@ -241,3 +242,7 @@ def test_output(output):
     wake_deficitModel = BastankhahGaussianDeficit
     check_gradients(lambda site, wt: PropagateDownwind(site, V80(), wake_deficitModel(), turbulenceModel=STF2005TurbulenceModel()),
                     name=output, output=(output_func, output), fd_decimal=[6, 2][output == 'power'])
+
+
+def test_overlapping_area_factor():
+    check_gradients(lambda site, wt: PropagateDownwind(site, wt, NOJDeficit()), name='partial wake', wt_y=[0, 200, 200])

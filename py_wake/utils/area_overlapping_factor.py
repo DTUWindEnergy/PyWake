@@ -2,6 +2,8 @@ from numpy import newaxis as na
 
 import numpy as np
 from py_wake.utils.gradients import cabs
+from autograd.numpy.numpy_boxes import ArrayBox
+from py_wake.utils import gradients
 
 
 class AreaOverlappingFactor():
@@ -81,27 +83,42 @@ class AreaOverlappingFactor():
 
         # full wake cases
         index_fullwake = (d <= (Rmax - Rmin))
-        A_ol_f[index_fullwake] = 1
+        dtype = (float, np.complex128)[np.any([np.iscomplexobj(x) for x in [R1, R2, d]])]
+        A_ol_f = np.where(index_fullwake, 1, 0).astype(dtype)
 
         # partial wake cases
         mask = (d > (Rmax - Rmin)) & (d < (Rmin + Rmax))
+        if any([isinstance(x, ArrayBox) for x in [R1, R2, d]]):
+            p_wake_mask = mask
+            mask = slice(None)
+        else:
+            p_wake_mask = None
 
         # in somecases cos_alpha or cos_beta can be larger than 1 or less than
         # -1.0, cause problem to arccos(), resulting nan values, here fix this
         # issue.
+        eps = 2 * np.finfo(float).eps
+
         def arccos_lim(x):
-            return np.arccos(np.clip(x, -1.0, +1.0))
+            return np.arccos((np.clip(x, -1.0 + eps, +1.0 - eps)))  # eps to avoid inf in gradient
 
         alpha = arccos_lim((Rmax[mask]**2.0 + d[mask]**2 - Rmin[mask]**2) /
-                           (2.0 * Rmax[mask] * d[mask]))
+                           (2.0 * np.maximum(Rmax[mask] * d[mask], eps)))
 
         beta = arccos_lim((Rmin[mask]**2.0 + d[mask]**2 - Rmax[mask]**2) /
-                          (2.0 * Rmin[mask] * d[mask]))
+                          (2.0 * np.maximum(Rmin[mask] * d[mask], eps)))
 
-        A_triangle = np.sqrt(p[mask] * (p[mask] - Rmin[mask]) *
-                             (p[mask] - Rmax[mask]) * (p[mask] - d[mask]))
+        # p = (R1[mask] + R2[mask] + d[mask]) / 2.0
+        # A_triangle = 2 * np.sqrt(gradients.cabs(p * (p - Rmin[mask]) *
+        #                                         (p - Rmax[mask]) * (p - d[mask])))
+        A_triangle = np.sin(alpha) * R1[mask] * d[mask]
 
-        A_ol_f[mask] = (alpha * Rmax[mask]**2 + beta * Rmin[mask]**2 -
-                        2.0 * A_triangle) / (R2[mask]**2 * np.pi)
+        p_wake_f = (alpha * Rmax[mask]**2 + beta * Rmin[mask]**2 -
+                    A_triangle) / (R2[mask]**2 * np.pi)
 
+        if p_wake_mask is None:
+            A_ol_f[mask] = p_wake_f
+        else:
+            # autograd
+            A_ol_f = np.where(p_wake_mask, p_wake_f, A_ol_f)
         return A_ol_f
