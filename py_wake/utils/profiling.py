@@ -48,9 +48,11 @@ def get_memory_usage():
     return python_process.memory_info()[0] / 1024**2
 
 
-def check_memory_usage(f):
+def check_memory_usage(f, subtract_initial=True):
     def wrap(*args, **kwargs):
         initial_mem_usage = get_memory_usage()
-        mem_usage, res = memory_profiler.memory_usage((f, args, kwargs), interval=.01, max_usage=True, retval=True)
-        return res, mem_usage - initial_mem_usage
+        mem_usage, res = memory_profiler.memory_usage((f, args, kwargs), interval=.02, max_usage=True, retval=True)
+        if subtract_initial:
+            mem_usage -= initial_mem_usage
+        return res, mem_usage
     return wrap
