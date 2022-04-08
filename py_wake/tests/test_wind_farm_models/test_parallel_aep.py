@@ -7,9 +7,11 @@ from py_wake.tests import npt
 from py_wake.wind_turbines import WindTurbines
 from py_wake.examples.data import wtg_path
 import pytest
+from py_wake.utils import parallelization
+from py_wake.utils.parallelization import get_pool
 
 
-def get_wfm(grad=True):
+def get_wfm():
     wt = WindTurbines.from_WAsP_wtg(wtg_path + "Vestas-V80.wtg", )
     site = Hornsrev1Site()
     return IEA37SimpleBastankhahGaussian(site, wt)
@@ -39,10 +41,10 @@ def aep_xy(args):
 
 @pytest.fixture(scope='module')
 def pool():
-    return multiprocessing.Pool(2)
+    return get_pool(2)
 
 
-debug = False
+debug = True
 
 
 def test_multiprocessing_wd(pool):
@@ -57,9 +59,9 @@ def test_multiprocessing_wd(pool):
     npt.assert_almost_equal(aep1, aep2 / len(wd_lst))
 
 
-def test_multiprocessing_wfm_xy():
-    pool = multiprocessing.Pool(2)
-    arg_lst = [(get_wfm(grad=False), np.array(wt_x) + i, wt_y) for i in range(4)]
+def test_multiprocessing_wfm_xy(pool):
+    # compare simulation time of 4 layouts, wfm included in arg_lst
+    arg_lst = [(get_wfm(), np.array(wt_x) + i, wt_y) for i in range(4)]
     aep1, t_lst1 = timeit(lambda arg_lst: [aep_wfm_xy(arg) for arg in arg_lst])(arg_lst)
     aep2, t_lst2 = timeit(lambda arg_lst: pool.map(aep_wfm_xy, arg_lst))(arg_lst)
     t1, t2 = np.mean(t_lst1), np.mean(t_lst2)
@@ -69,6 +71,7 @@ def test_multiprocessing_wfm_xy():
 
 
 def test_multiprocessing_xy(pool):
+    # compare simulation time of 4 layouts, wfm instantiated in subprocesses
     arg_lst = [(np.array(wt_x) + i, wt_y) for i in range(4)]
     aep1, t_lst1 = timeit(lambda arg_lst: [aep_xy(arg) for arg in arg_lst])(arg_lst)
     aep2, t_lst2 = timeit(lambda arg_lst: pool.map(aep_xy, arg_lst))(arg_lst)
@@ -76,3 +79,9 @@ def test_multiprocessing_xy(pool):
     if debug:
         print("1 CPU: %.2fs, %d CPUs: %.2fs, speedup: %d%%" % (t1, pool._processes, t2, (t1 - t2) / t1 * 100))
     npt.assert_almost_equal(aep1, aep2)
+
+
+def test_pool():
+    # second should be fast
+    _, t = timeit(parallelization.get_pool, min_runs=2)()
+    npt.assert_allclose(t[1], 0, atol=.01)

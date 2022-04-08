@@ -10,11 +10,10 @@ from py_wake.tests import npt
 from py_wake.tests.check_speed import timeit
 from py_wake.utils import gradients
 from py_wake.utils.gradients import autograd, plot_gradients, fd, cs, hypot, cabs, interp,\
-    _use_autograd_in, set_vjp
+    _use_autograd_in, set_gradient_function
 from py_wake.wind_turbines import WindTurbines
 from py_wake.wind_turbines import _wind_turbines
 from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt
-from xarray.core.dataarray import DataArray
 from xarray.core.dataset import Dataset
 
 
@@ -144,16 +143,16 @@ def test_vector2multi_vector():
     x = np.array([1., 2, 3])
     ref0 = [2, 4, 6]
     refsum = [4, 6, 8]
-    npt.assert_equal(cs(f0)(x), ref0)
-    npt.assert_almost_equal(fd(f0)(x), ref0, 5)
-    npt.assert_equal(autograd(f0)(x), ref0)
+    npt.assert_equal(cs(f0, False)(x), ref0)
+    npt.assert_almost_equal(fd(f0, False)(x), ref0, 5)
+    npt.assert_equal(autograd(f0, False)(x), ref0)
     pf0 = primitive(f0)
     defvjp(pf0, lambda ans, x: lambda g: g * (2 * x))
     npt.assert_array_equal(autograd(pf0, False)(x), ref0)
 
-    npt.assert_equal(cs(fsum)(x), refsum)
-    npt.assert_almost_equal(fd(fsum)(x), refsum, 5)
-    npt.assert_equal(autograd(fsum)(x), refsum)
+    npt.assert_equal(cs(fsum, False)(x), refsum)
+    npt.assert_almost_equal(fd(fsum, False)(x), refsum, 5)
+    npt.assert_equal(autograd(fsum, False)(x), refsum)
     pfsum = primitive(fsum)
     defvjp(pfsum, lambda ans, x: lambda g: g * (2 * x + 2))
     npt.assert_array_equal(autograd(pfsum, False)(x), refsum)
@@ -193,12 +192,50 @@ def test_vector2multi_vector():
     npt.assert_array_equal(autograd(hsum, False)(x), refsum)
 
 
+def test_wrt_2d():
+    def f(x):
+        return np.sum(x**2)
+
+    for grad in [fd, cs, autograd]:
+        for x in [2, np.arange(4), np.arange(6).reshape((3, 2))]:
+            assert np.shape(grad(f)(x)) == np.shape(x)
+
+
+def test_2d_wrt_2d():
+    def f2d(x):
+        return np.reshape(np.sum(x**2) * np.arange(6), (2, 3))
+
+    for grad in [fd, cs, autograd]:
+        for x in [2, np.arange(3), np.arange(20).reshape((4, 5))]:
+            assert np.shape(grad(f2d)(x)) == (2, 3) + np.shape(x)
+
+
+def test_autograd_wrt_xy():
+    def f(x, y, z):
+        return x**2 + 2 * y**3 + z
+
+    def dfdx(x, y):
+        return 2 * x
+
+    def dfdy(x, y):
+        return 6 * y**2
+
+    x = np.array([2, 3, 4])
+    y = np.array([1, 2, 3])
+    ref_x = [4, 6, 8]
+    ref_y = [6, 24, 54]
+
+    dfdxy = autograd(f, vector_interdependence=False, argnum=[0, 1])(x, y=y, z=1)
+
+    npt.assert_array_equal(dfdxy, np.array([ref_x, ref_y]))
+
+
 def test_gradients():
     wt = IEA37_WindTurbines()
     ws_lst = np.arange(3, 25, .1)
 
     ws_pts = np.array([3., 6., 9., 12.])
-    dpdu_lst = autograd(wt.power)(ws_pts)
+    dpdu_lst = autograd(wt.power, False)(ws_pts)
     if 0:
         plt.plot(ws_lst, wt.power(ws_lst))
         for dpdu, ws in zip(dpdu_lst, ws_pts):
@@ -211,10 +248,10 @@ def test_gradients():
 
     npt.assert_array_almost_equal(dpdu_lst, dpdu_ref)
 
-    fd_dpdu_lst = fd(wt.power)(ws_pts)
+    fd_dpdu_lst = fd(wt.power, False)(ws_pts)
     npt.assert_array_almost_equal(fd_dpdu_lst, dpdu_ref, 0)
 
-    cs_dpdu_lst = cs(wt.power)(ws_pts)
+    cs_dpdu_lst = cs(wt.power, False)(ws_pts)
     npt.assert_array_almost_equal(cs_dpdu_lst, dpdu_ref)
 
 
@@ -241,9 +278,9 @@ def test_hypot():
 def test_cabs():
     a = [-5, 6]
     npt.assert_array_equal(cabs(a), np.abs(a))
-    npt.assert_array_almost_equal(fd(cabs)(a), [-1, 1], 10)
-    npt.assert_array_equal(cs(cabs)(a), [-1, 1])
-    npt.assert_array_equal(autograd(cabs)(a), [-1, 1])
+    npt.assert_array_almost_equal(fd(cabs, False)(a), [-1, 1], 10)
+    npt.assert_array_equal(cs(cabs, False)(a), [-1, 1])
+    npt.assert_array_equal(autograd(cabs, False)(a), [-1, 1])
 
 
 def test_arctan2():
@@ -262,9 +299,9 @@ def test_gradients_interp():
     def f(xp):
         return 2 * gradients.interp(xp, x, y)
     npt.assert_array_equal(interp(xp, x, y), np.interp(xp, x, y))
-    npt.assert_array_almost_equal(fd(f)(xp), [20, 40])
-    npt.assert_array_equal(cs(f)(xp), [20, 40])
-    npt.assert_array_equal(autograd(f)(xp), [20, 40])
+    npt.assert_array_almost_equal(fd(f, False)(xp), [20, 40])
+    npt.assert_array_equal(cs(f, False)(xp), [20, 40])
+    npt.assert_array_equal(autograd(f, False)(xp), [20, 40])
 
 
 def test_gradients_logaddexp():
@@ -278,34 +315,34 @@ def test_gradients_logaddexp():
     dfdx = 2 * (np.exp(x - np.logaddexp(x, y)))
     dfdy = 2 * (np.exp(y - np.logaddexp(x, y)))
     npt.assert_array_equal(f(x, y), 2 * np.logaddexp(x, y))
-    npt.assert_array_almost_equal(fd(f)(x, y), dfdx)
-    npt.assert_array_almost_equal(fd(f, argnum=1)(x, y), dfdy)
-    npt.assert_array_almost_equal(cs(f)(x, y), dfdx)
-    npt.assert_array_almost_equal(cs(f, argnum=1)(x, y), dfdy)
-    npt.assert_array_equal(autograd(f)(x, y), dfdx)
-    npt.assert_array_equal(autograd(f, argnum=1)(x, y), dfdy)
+    npt.assert_array_almost_equal(fd(f, False)(x, y), dfdx)
+    npt.assert_array_almost_equal(fd(f, False, argnum=1)(x, y), dfdy)
+    npt.assert_array_almost_equal(cs(f, False)(x, y), dfdx)
+    npt.assert_array_almost_equal(cs(f, False, argnum=1)(x, y), dfdy)
+    npt.assert_array_equal(autograd(f, False)(x, y), dfdx)
+    npt.assert_array_equal(autograd(f, False, argnum=1)(x, y), dfdy)
 
 
-def test_set_vjp():
+def test_set_gradient_function():
     def df(x):
         return 3 * x
 
-    @set_vjp(df)
+    @set_gradient_function(df)
     def f(x):
         return x**2
 
     assert f(4) == 16
-    npt.assert_almost_equal(fd(f)(4), 8, 5)
-    npt.assert_almost_equal(cs(f)(4), 8)
-    npt.assert_array_equal(autograd(f)([4, 5]), [12, 15])
+    npt.assert_almost_equal(fd(f, False)(4), 8, 5)
+    npt.assert_almost_equal(cs(f, False)(4), 8)
+    npt.assert_array_equal(autograd(f, False)([4, 5]), [12, 15])
 
 
-def test_set_vjp_cls():
+def test_set_gradient_function_cls():
     class T():
         def df(self, x):
             return 3 * x
 
-        @set_vjp(df)
+        @set_gradient_function(df)
         def f(self, x):
             return x**2
 
@@ -316,11 +353,11 @@ def test_set_vjp_cls():
     assert autograd(t.f)(4) == 12
 
 
-def test_set_vjp_kwargs():
+def test_set_gradient_function_kwargs():
     def df(x):
         return 3 * x
 
-    @set_vjp(df)
+    @set_gradient_function(df)
     def f(x):
         return x**2
 
@@ -396,25 +433,13 @@ def test_trapz_axis(test):
         npt.assert_array_almost_equal(dtrapz_dx_lst[1], dtrapz_dx_lst[2], 14)
 
 
-def test_manual_vs_autograd_speed():
-    cubePowerSimpleCt = CubePowerSimpleCt()
-    x = np.random.random(10000) * 30
-
-    def t(method):
-        autograd(method)(x, 0)
-        autograd(method)(x, 1)
-    t_autograd = np.mean(timeit(t, min_time=0.2)(cubePowerSimpleCt._power_ct)[1])
-    t_manual = np.mean(timeit(t, min_time=.2)(cubePowerSimpleCt._power_ct_withgrad)[1])
-    assert np.abs(t_manual - t_autograd) / t_manual < 0.08, (t_manual, t_autograd)
-
-
 def test_multiple_inputs():
     def f(x, y):
         return x * y
 
     for method in [fd, cs, autograd]:
-        npt.assert_array_almost_equal(method(f, argnum=[0, 1])(np.array([2, 3]), np.array([4, 5])),
-                                      [[4, 5], [2, 3]], 8)
+        npt.assert_array_almost_equal(method(f, False, argnum=[0, 1])(np.array([2, 3, 4]), np.array([4, 5, 6])),
+                                      [[4, 5, 6], [2, 3, 4]], 8)
 
 
 def test_asarray_xarray():

@@ -251,9 +251,9 @@ def test_method():
 
     ws_pts = [6.99, 7.01]
 
-    dpdu_linear_pts = autograd(wt_linear.power)(np.array(ws_pts))
-    dpdu_pchip_pts = autograd(wt_pchip.power)(np.array(ws_pts))
-    dpdu_spline_pts = autograd(wt_spline.power)(np.array(ws_pts))
+    dpdu_linear_pts = autograd(wt_linear.power, vector_interdependence=False)(np.array(ws_pts))
+    dpdu_pchip_pts = autograd(wt_pchip.power, vector_interdependence=False)(np.array(ws_pts))
+    dpdu_spline_pts = autograd(wt_spline.power, vector_interdependence=False)(np.array(ws_pts))
 
     if 0:
         wt_dp_label_lst = [(wt_linear, dpdu_linear_pts, 'linear'),

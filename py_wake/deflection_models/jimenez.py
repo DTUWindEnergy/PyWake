@@ -17,12 +17,15 @@ class JimenezWakeDeflection(DeflectionModel):
         self.beta = beta
         self.N = N
 
+    def __getstate__(self):
+        return {k: v for k, v in self.__dict__.items() if k not in ['hcw_ijlk', 'dh_ijlk']}
+
     def calc_deflection(self, dw_ijl, hcw_ijl, dh_ijl, D_src_il, yaw_ilk, tilt_ilk, ct_ilk, **kwargs):
         dw_lst = (np.logspace(0, 1.1, self.N) - 1) / (10**1.1 - 1)
         dw_ijxl = dw_ijl[:, :, na] * dw_lst[na, na, :, na]
-        theta_yaw_ilk, theta_tilt_ilk = np.deg2rad(yaw_ilk), np.deg2rad(-tilt_ilk)
+        theta_yaw_ilk, theta_tilt_ilk = gradients.deg2rad(yaw_ilk), gradients.deg2rad(-tilt_ilk)
         theta_ilk = hypot(theta_yaw_ilk, theta_tilt_ilk)
-        theta_deflection_ilk = np.arctan2(theta_tilt_ilk, theta_yaw_ilk)
+        theta_deflection_ilk = gradients.arctan2(theta_tilt_ilk, theta_yaw_ilk)
         denominator_ilk = np.cos(theta_ilk)**2 * np.sin(theta_ilk) * (ct_ilk / 2)
         nominator_ijxl = (1 + (self.beta / D_src_il)[:, na, na, :] * np.maximum(dw_ijxl, 0))**2
         alpha = denominator_ilk[:, na, na] / nominator_ijxl[..., na]

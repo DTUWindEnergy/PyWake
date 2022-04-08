@@ -2,7 +2,6 @@ import numpy as np
 from numpy import newaxis as na
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
-from py_wake.ground_models.ground_models import NoGround
 from py_wake.utils.gradients import hypot
 from py_wake.deficit_models.utils import a0
 
@@ -26,7 +25,7 @@ class Rathmann(BlockageDeficitModel):
 
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
-    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=NoGround(),
+    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=None,
                  upstream_only=False):
         DeficitModel.__init__(self, groundModel=groundModel)
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
@@ -113,7 +112,7 @@ class RathmannScaled(Rathmann):
 
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
-    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=NoGround(),
+    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=None,
                  upstream_only=False):
         DeficitModel.__init__(self, groundModel=groundModel)
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
@@ -157,7 +156,6 @@ def main():
         from py_wake.superposition_models import LinearSum
         from py_wake.wind_farm_models import All2AllIterative
         from py_wake.deficit_models.no_wake import NoWakeDeficit
-        from py_wake.rotor_avg_models import RotorCenter
         from py_wake.deficit_models.vortexcylinder import VortexCylinder
         from py_wake.deficit_models.vortexdipole import VortexDipole
         import matplotlib.pyplot as plt
@@ -281,7 +279,7 @@ def main():
                 print(nam, blockage_model)
                 # for dum, rotor_avg_model in rotor_avg_models:
                 wm = All2AllIterative(site, wt, wake_deficitModel=NoWakeDeficit(), superpositionModel=LinearSum(),
-                                      blockage_deficitModel=blockage_model, rotorAvgModel=RotorCenter())
+                                      blockage_deficitModel=blockage_model, rotorAvgModel=None)
                 res[nam] = wm(wt_x, wt_y, wd=[180., 195., 210., 225.], ws=[1.])
                 tic = time.perf_counter()
                 flow_map = res[nam].flow_map(grid=grid, ws=[1.], wd=225.)

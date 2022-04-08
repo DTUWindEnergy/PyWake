@@ -71,13 +71,13 @@ defvjp(anp.sqrt, lambda ans, x: lambda g: g * 0.5 * np.where(x == 0, eps, x)**-0
 
 class _use_autograd_in():
     def __init__(self, modules=["py_wake."]):
-        self.dict_lst = []
+        self.npdict_dict = {}
         for m in modules:
-            self.dict_lst.extend(self.get_dict(m))
+            self.npdict_dict.update(self.get_dict(m))
 
     def get_dict(self, m):
         if isinstance(m, dict):
-            return [m]
+            return {f'd{len(self.npdict_dict)}': m}
         if isinstance(m, str):
             def is_submodule(k, m):
                 if k.startswith(m):
@@ -91,29 +91,28 @@ class _use_autograd_in():
                         return True
                 return False
 
-            return [v.__dict__ for k, v in sys.modules.items()
-                    if (is_submodule(k, m) and k != __name__ and getattr(v, 'np', None) == np)]
+            return {str(k): v.__dict__ for k, v in sys.modules.items()
+                    if (is_submodule(k, m) and k != __name__ and getattr(v, 'np', None) == np)}
 
         if inspect.ismodule(m):
-            return [m.__dict__]
+            return {str(m): m.__dict__}
 
         if inspect.getmodule(m) is not None and 'np' in inspect.getmodule(m).__dict__:
-            return [inspect.getmodule(m).__dict__]
+            return {str(m): inspect.getmodule(m).__dict__}
         else:
-            return []
+            return {}
 
     def __enter__(self):
         try:
-            self.prev_np = {}
-            for d in self.dict_lst:
-                self.prev_np[d["__name__"]] = d['np']
+            self.prev_np = {k: d['np'] for k, d in self.npdict_dict.items()}
+            for k, d in self.npdict_dict.items():
                 d['np'] = anp
         finally:
             return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        for d in self.dict_lst:
-            d['np'] = self.prev_np[d["__name__"]]
+        for k, d in self.npdict_dict.items():
+            d['np'] = self.prev_np[k]
 
     def __call__(self, f):
         def wrap(*args, **kwargs):
@@ -122,17 +121,32 @@ class _use_autograd_in():
         return wrap
 
 
-def set_vjp(df):
+def set_gradient_function(df):
     def get_func(f, df_lst=df):
-
         if not isinstance(df, (list, tuple)):
             df_lst = [df_lst]
 
-        pf = primitive(f)
+        vjp = [lambda ans, *args, df=df, **kwargs: lambda g: g * df(*args, **kwargs) for df in df_lst]
         first_arg = int(len(inspect.getfullargspec(f).args) > 0 and inspect.getfullargspec(f).args[0] == 'self')
-        defvjp(pf, *[lambda ans, *args, df=df, **kwargs: lambda g: g * df(*args, **kwargs)
-                     for df in df_lst], argnums=count(first_arg))
-        return pf
+
+        return set_vjp(vjp, first_arg)(f)
+
+    return get_func
+
+
+def set_vjp(vjp_lst, first_arg=0):
+    # set vjp (vector jacobian product) similar to this
+    # lambda ans, *args, **kwargs: lambda g: g * gradient_function(*args, **kwargs)
+    def get_func(f, vjp_lst=vjp_lst):
+
+        pf = primitive(f)
+
+        def fkwargs(*args, **kwargs):
+            args, kwargs = kwargs2args(f, *args, **kwargs)
+            return pf(*args, **kwargs)
+
+        defvjp(pf, *vjp_lst, argnums=count(first_arg))
+        return fkwargs
     return get_func
 
 
@@ -141,42 +155,74 @@ def _step_grad(f, argnum, step_func, step, vector_interdependence):
         return lambda *args, **kwargs: [_step_grad(f, i, step_func, step,
                                                    vector_interdependence)(*args, **kwargs) for i in argnum]
     else:
-        f_signature = signature(f)
-
         def wrap(*args, **kwargs):
-            bound_arguments = f_signature.bind(*args, **kwargs)
-            bound_arguments.apply_defaults()
-            args, kwargs = bound_arguments.args, bound_arguments.kwargs
-            x = np.atleast_1d(args[argnum]).astype(float)
+            args, kwargs = kwargs2args(f, *args, **kwargs)
+
+            x = args[argnum]
+            x_shape = np.shape(x)
+            x = np.atleast_1d(x).flatten().astype(float)
+
             if 'ref' in inspect.getfullargspec(step_func).args:
-                ref = np.asarray(f(*(args[:argnum] + (x,) + args[argnum + 1:]), **kwargs))
+                ref = np.asarray(f(*(args[:argnum] + (np.reshape(x, x_shape),) + args[argnum + 1:]), **kwargs))
             else:
                 ref = None
             if vector_interdependence:
-                return np.array([step_func(f(*(args[:argnum] + (x_,) + args[argnum + 1:]), **kwargs), ref, step)
-                                 for x_ in x + np.diag(np.ones_like(x) * step)]).T
+                res = np.moveaxis([step_func(f(*(args[:argnum] + (np.reshape(x_, x_shape),) + args[argnum + 1:]),
+                                               **kwargs), ref, step)
+                                   for x_ in x + np.diag(np.ones_like(x) * step)], 0, -1)
             else:
-                return step_func(f(*(args[:argnum] + (x + step,) + args[argnum + 1:]), **kwargs), ref, step)
+                res = step_func(f(*(args[:argnum] + (np.reshape(x + step, x_shape),) +
+                                    args[argnum + 1:]), **kwargs), ref, step)
+            return np.reshape(res, res.shape[:-1] + x_shape)
         fname = getattr(f, '__name__', f'{f.__class__.__name__}.{f.__call__.__name__}')
         wrap.__name__ = "%s_of_%s_wrt_argnum_%d" % (step_func.__name__, fname, argnum)
         return wrap
 
 
-def fd(f, vector_interdependence=False, argnum=0, step=1e-6):
+def fd(f, vector_interdependence=True, argnum=0, step=1e-6):
     def fd_gradient(res, ref, step):
         return (res - ref) / step
     return _step_grad(f, argnum, fd_gradient, step, vector_interdependence)
 
 
-def cs(f, vector_interdependence=False, argnum=0, step=1e-20):
+def cs(f, vector_interdependence=True, argnum=0, step=1e-20):
     def cs_gradient(res, _, step):
         return np.imag(res) / np.imag(step)
     return _step_grad(f, argnum, cs_gradient, step * 1j, vector_interdependence)
 
 
-def autograd(f, vector_interdependence=False, argnum=0):
+def kwargs2args(f, *args, **kwargs):
+    # if isinstance(args, tuple) and len(args) == 1 and isinstance(args[0], dict) and not kwargs:
+    #     kwargs = args[0]
+    #     args = tuple()
+
+    bound_arguments = signature(f).bind(*args, **kwargs)
+    bound_arguments.apply_defaults()
+    return bound_arguments.args, bound_arguments.kwargs
+
+
+def autograd(f, vector_interdependence=True, argnum=0):
     if isinstance(argnum, (list, tuple)):
-        return lambda *args, **kwargs: [autograd(f, vector_interdependence, i)(*args, **kwargs) for i in argnum]
+        # Calculating with respect to a merged xy list instead of first x then y takes around 40% less time
+        # Here wrap collects the <argnum> arguments into one vector, computes the gradients wrt. this vector
+        # and finally reshape the result
+        def wrap(*args, **kwargs):
+            args, kwargs = kwargs2args(f, *args, **kwargs)
+            wrt_args = [args[i] for i in argnum]
+            args = [a for i, a in enumerate(args) if i not in argnum]
+            wrt_arg_shape = [np.shape(arg) for arg in wrt_args]
+            wrt_1arg = np.concatenate([np.ravel(a) for a in wrt_args])
+            wrt_arg_i = np.r_[0, np.cumsum([np.prod(s) for s in wrt_arg_shape])]
+
+            def wrap_1inp(inp, *args):
+                wrt_args = [inp[i0:i1].reshape(s) for i0, i1, s in zip(wrt_arg_i[:-1], wrt_arg_i[1:], wrt_arg_shape)]
+                args = list(args)
+                for i, wrt_arg in zip(argnum, wrt_args):
+                    args.insert(i, wrt_arg)
+                return f(*args, **kwargs)
+            dfdinp = autograd(wrap_1inp, vector_interdependence=vector_interdependence)(wrt_1arg, *args)
+            return [dfdinp[i0:i1].reshape(s) for i0, i1, s in zip(wrt_arg_i[:-1], wrt_arg_i[1:], wrt_arg_shape)]
+        return wrap
     else:
         if vector_interdependence:
             grad_func = jacobian(f, argnum)
@@ -184,14 +230,12 @@ def autograd(f, vector_interdependence=False, argnum=0):
             grad_func = elementwise_grad(f, argnum)
 
         @wraps(grad_func)
-        def wrap(*args, **kwargs):
-            bound_arguments = signature(f).bind(*args, **kwargs)
-            bound_arguments.apply_defaults()
-            args = bound_arguments.args
+        def wrap2(*args, **kwargs):
+            args, kwargs = kwargs2args(f, *args, **kwargs)
             return grad_func(*(args[:argnum] + (anp.asarray(args[argnum], dtype=float),) + args[argnum + 1:]),  # @UndefinedVariable
-                             **bound_arguments.kwargs)
+                             **kwargs)
 
-        return _use_autograd_in(modules=['py_wake.', f])(wrap)
+        return _use_autograd_in(modules=['py_wake.', f])(wrap2)
 
 
 color_dict = {}
@@ -253,7 +297,7 @@ def dinterp_dxp(xp, x, y):
         return np.ones_like(xp)
 
 
-@set_vjp([dinterp_dxp])
+@set_gradient_function([dinterp_dxp])
 def interp(xp, x, y, *args, **kwargs):
     if all([np.isrealobj(v) for v in [xp, x, y]]):
         return np.interp(xp, x, y, *args, **kwargs)
@@ -284,7 +328,7 @@ class PchipInterpolator(scipy_PchipInterpolator):
     def df(self, x, extrapolate=None):
         return scipy_PchipInterpolator.__call__(self, x, nu=1, extrapolate=extrapolate)
 
-    @set_vjp(df)
+    @set_gradient_function(df)
     def __call__(self, x, extrapolate=None):
         y = scipy_PchipInterpolator.__call__(self, np.real(x), extrapolate=extrapolate)
         if np.iscomplexobj(x):
@@ -297,7 +341,7 @@ class UnivariateSpline(scipy_UnivariateSpline):
     def df(self, x, ext=None):
         return scipy_UnivariateSpline.__call__(self, x, nu=1, ext=ext)
 
-    @set_vjp(df)
+    @set_gradient_function(df)
     def __call__(self, x, ext=None):
         y = scipy_UnivariateSpline.__call__(self, np.real(x), ext=ext)
         if np.iscomplexobj(x):

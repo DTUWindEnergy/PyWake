@@ -2,7 +2,6 @@ import numpy as np
 from numpy import newaxis as na
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
-from py_wake.ground_models.ground_models import NoGround
 from py_wake.utils.gradients import hypot
 from py_wake.deficit_models.utils import a0
 
@@ -19,7 +18,7 @@ class RankineHalfBody(BlockageDeficitModel):
 
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
-    def __init__(self, limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=NoGround(),
+    def __init__(self, limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=None,
                  upstream_only=False):
         DeficitModel.__init__(self, groundModel=groundModel)
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
