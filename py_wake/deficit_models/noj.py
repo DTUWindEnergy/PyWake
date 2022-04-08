@@ -1,10 +1,8 @@
 from numpy import newaxis as na
 import numpy as np
-from py_wake.ground_models.ground_models import NoGround
 from py_wake.superposition_models import SquaredSum, LinearSum
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.utils.area_overlapping_factor import AreaOverlappingFactor
-from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.deficit_models.gaussian import NiayifarGaussianDeficit
 from py_wake.deficit_models import DeficitModel
@@ -16,7 +14,7 @@ class NOJDeficit(NiayifarGaussianDeficit, AreaOverlappingFactor):
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il', 'D_dst_ijl',
                     'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
-    def __init__(self, k=.1, use_effective_ws=False, groundModel=NoGround()):
+    def __init__(self, k=.1, use_effective_ws=False, groundModel=None):
         DeficitModel.__init__(self, groundModel=groundModel)
         self.a = [0, k]
         self.use_effective_ws = use_effective_ws
@@ -57,9 +55,9 @@ class NOJDeficit(NiayifarGaussianDeficit, AreaOverlappingFactor):
 
 
 class NOJ(PropagateDownwind):
-    def __init__(self, site, windTurbines, rotorAvgModel=RotorCenter(),
+    def __init__(self, site, windTurbines, rotorAvgModel=None,
                  k=.1, superpositionModel=SquaredSum(), deflectionModel=None, turbulenceModel=None,
-                 groundModel=NoGround()):
+                 groundModel=None):
         """
         Parameters
         ----------
@@ -98,7 +96,7 @@ class NOJLocalDeficit(NOJDeficit, AreaOverlappingFactor):
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il', 'D_dst_ijl',
                     'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_ilk', 'TI_eff_ilk']
 
-    def __init__(self, a=[0.38, 4e-3], use_effective_ws=True, use_effective_ti=True, groundModel=NoGround()):
+    def __init__(self, a=[0.38, 4e-3], use_effective_ws=True, use_effective_ti=True, groundModel=None):
         DeficitModel.__init__(self, groundModel=groundModel)
         self.a = a
         self.use_effective_ws = use_effective_ws
@@ -106,12 +104,12 @@ class NOJLocalDeficit(NOJDeficit, AreaOverlappingFactor):
 
 
 class NOJLocal(PropagateDownwind):
-    def __init__(self, site, windTurbines, rotorAvgModel=RotorCenter(),
+    def __init__(self, site, windTurbines, rotorAvgModel=None,
                  a=[0.38, 4e-3], use_effective_ws=True,
                  superpositionModel=LinearSum(),
                  deflectionModel=None,
                  turbulenceModel=STF2017TurbulenceModel(),
-                 groundModel=NoGround()):
+                 groundModel=None):
         """
         Parameters
         ----------
@@ -157,7 +155,7 @@ class TurboNOJDeficit(NOJDeficit, AreaOverlappingFactor):
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il', 'D_dst_ijl',
                     'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_ilk', 'TI_eff_ilk']
 
-    def __init__(self, A=.6, cTI=[1.5, 0.8], use_effective_ws=False, use_effective_ti=False, groundModel=NoGround()):
+    def __init__(self, A=.6, cTI=[1.5, 0.8], use_effective_ws=False, use_effective_ti=False, groundModel=None):
         DeficitModel.__init__(self, groundModel=groundModel)
         self.A = A
         self.use_effective_ws = use_effective_ws
@@ -211,11 +209,11 @@ def main():
 
         wf_model = NOJ(site, windTurbines, k=0.04)
         wf_model_local = NOJLocal(site, windTurbines, turbulenceModel=STF2017TurbulenceModel())
-        wf_model_turbo = PropagateDownwind(site, windTurbines, rotorAvgModel=RotorCenter(),
+        wf_model_turbo = PropagateDownwind(site, windTurbines, rotorAvgModel=None,
                                            wake_deficitModel=TurboNOJDeficit(
-            use_effective_ws=True, use_effective_ti=False),
-            superpositionModel=LinearSum(),
-            turbulenceModel=STF2017TurbulenceModel())
+                                               use_effective_ws=True, use_effective_ti=False),
+                                           superpositionModel=LinearSum(),
+                                           turbulenceModel=STF2017TurbulenceModel())
         # wf_model_turbo = NOJLocal(
         #     site, windTurbines, turbulenceModel=STF2017TurbulenceModel())
         # run wind farm simulation

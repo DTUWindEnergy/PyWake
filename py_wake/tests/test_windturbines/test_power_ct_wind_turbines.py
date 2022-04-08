@@ -440,8 +440,8 @@ def test_gradients(case, wt, dpdu_ref, dctdu_ref, grad_method):
 
     ws_lst = np.arange(2, 25, .1)
     kwargs = {k: 1 for k in wt.function_inputs[0]}
-    dpdu_lst = grad_method(wt.power)(ws_pts, **kwargs)
-    dctdu_lst = grad_method(wt.ct)(ws_pts, **kwargs)
+    dpdu_lst = grad_method(wt.power, vector_interdependence=False)(ws_pts, **kwargs)
+    dctdu_lst = grad_method(wt.ct, vector_interdependence=False)(ws_pts, **kwargs)
 
     if 0:
         gradients.color_dict = {'power': 'b', 'ct': 'r'}

@@ -8,6 +8,8 @@ from py_wake.utils import xarray_utils, weibull  # register ilk function @Unused
 from numpy import newaxis as na
 from py_wake.utils.model_utils import check_model, fix_shape
 from py_wake.utils.xarray_utils import da2py
+import multiprocessing
+from py_wake.utils.parallelization import get_pool
 
 
 class WindFarmModel(ABC):
@@ -21,7 +23,8 @@ class WindFarmModel(ABC):
         self.windTurbines = windTurbines
 
     def __call__(self, x, y, h=None, type=0, wd=None, ws=None, yaw=None,
-                 tilt=None, time=False, verbose=False, **kwargs):
+                 tilt=None, time=False, verbose=False,
+                 n_cpu=1, wd_chunks=None, ws_chunks=1, **kwargs):
         """Run the wind farm simulation
 
         Parameters
@@ -38,9 +41,38 @@ class WindFarmModel(ABC):
             Wind direction(s)
         ws : int, float or array_like
             Wind speed(s)
-        yaw_ilk : array_like or None, optional
-            Yaw misalignement of turbine(i) for wind direction(l) and wind speed (k)\n
-            Positive is counter-clockwise when seen from above
+        yaw : int, float, array_like or None, optional
+            Yaw misalignement, Positive is counter-clockwise when seen from above.
+            May be
+            - constant for all wt and flow cases or dependent on
+            - wind turbine(i),
+            - wind turbine and wind direction(il) or
+            - wind turbine, wind direction and wind speed (ilk)
+        tilt : array_like or None, optional
+            Tilt angle of rotor shaft. Normal tilt (rotor center above tower top) is positivie
+            May be
+            - constant for all wt and flow cases or dependent on
+            - wind turbine(i),
+            - wind turbine and wind direction(il) or
+            - wind turbine, wind direction and wind speed (ilk)
+        time : boolean or array_like
+            If False (default), the simulation will be computed for the full wd x ws matrix
+            If True, the wd and ws will be considered as a time series of flow conditions with time stamp 0,1,..,n
+            If array_like: same as True, but the time array is used as flow case time stamp
+        n_cpu : int or None, optional
+            Number of CPUs to be used for execution.
+            If 1 (default), the execution is not parallized
+            If None, the available number of CPUs are used
+        wd_chunks : int or None, optional
+            The wind directions are divided into <wd_chunks> chunks. More chunks reduces the memory usage
+            and allows parallel execution if n_cpu>1.
+            If wd_chunks is None, wd_chunks is set to the number of CPUs used, i.e. 1 if n_cpu is not specified
+        ws_chunks : int, optional
+            The wind speeds are divided into <ws_chunks> chunks. More chunks reduces the memory usage
+            and allows parallel execution if n_cpu>1.
+        time_chunks : int, optional
+            The time != False, flow case time series is divided into <time_chunks> chunks.
+            More chunks reduces the memory usage and allows parallel execution if n_cpu>1.
 
         Returns
         -------
@@ -66,7 +98,9 @@ class WindFarmModel(ABC):
             return SimulationResult(self, lw, [], yaw, tilt, z, z, z, z, kwargs)
         res = self.calc_wt_interaction(x_i=np.asarray(x), y_i=np.asarray(y), h_i=h, type_i=type,
                                        yaw_ilk=yaw_ilk, tilt_ilk=tilt_ilk,
-                                       wd=wd, ws=ws, time=time, **kwargs)
+                                       wd=wd, ws=ws, time=time,
+                                       n_cpu=n_cpu, wd_chunks=wd_chunks, ws_chunks=ws_chunks,
+                                       **kwargs)
         WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, localWind, wt_inputs = res
 
         return SimulationResult(self, localWind=localWind,
@@ -75,8 +109,10 @@ class WindFarmModel(ABC):
                                 WS_eff_ilk=WS_eff_ilk, TI_eff_ilk=TI_eff_ilk,
                                 power_ilk=power_ilk, ct_ilk=ct_ilk, wt_inputs=wt_inputs)
 
-    def aep(self, x, y, h=None, type=0, wd=None, ws=None, yaw_ilk=None,  # @ReservedAssignment
-            normalize_probabilities=False, with_wake_loss=True):
+    def aep(self, x, y, h=None, type=0, wd=None, ws=None, yaw=None, tilt=None,  # @ReservedAssignment
+            normalize_probabilities=False, with_wake_loss=True,
+            n_cpu=1, wd_chunks=None, ws_chunks=None,
+            ):
         """Anual Energy Production (sum of all wind turbines, directions and speeds) in GWh.
 
         the typical use is:
@@ -87,9 +123,62 @@ class WindFarmModel(ABC):
         which makes it slightly faster for small problems.
         >> windFarmModel.aep(x,y,...)
 
+        Parameters
+        ----------
+        x : array_like
+            Wind turbine x positions
+        y : array_like
+            Wind turbine y positions
+        h : array_like, optional
+            Wind turbine hub heights
+        type : int or array_like, optional
+            Wind turbine type, default is 0
+        wd : int or array_like
+            Wind direction(s)
+        ws : int, float or array_like
+            Wind speed(s)
+        yaw : int, float, array_like or None, optional
+            Yaw misalignement, Positive is counter-clockwise when seen from above.
+            May be
+            - constant for all wt and flow cases or dependent on
+            - wind turbine(i),
+            - wind turbine and wind direction(il) or
+            - wind turbine, wind direction and wind speed (ilk)
+        tilt : array_like or None, optional
+            Tilt angle of rotor shaft. Normal tilt (rotor center above tower top) is positivie
+            May be
+            - constant for all wt and flow cases or dependent on
+            - wind turbine(i),
+            - wind turbine and wind direction(il) or
+            - wind turbine, wind direction and wind speed (ilk)
+        n_cpu : int or None, optional
+            Number of CPUs to be used for execution.
+            If 1 (default), the execution is not parallized
+            If None, the available number of CPUs are used
+        wd_chunks : int or None, optional
+            If n_cpu>1, the wind directions are divided into <wd_chunks> chunks and executed in parallel.
+            If wd_chunks is None, wd_chunks is set to the available number of CPUs
+        ws_chunks : int or None, optional
+            If n_cpu>1, the wind speeds are divided into <ws_chunks> chunks and executed in parallel.
+            If ws_chunks is None, ws_chunks is set to 1
+
+        Returns
+        -------
+        AEP in GWh
+
         """
+        if n_cpu != 1 or wd_chunks or ws_chunks:
+            return self._aep_chunk_wrapper(
+                self._aep_kwargs, wd, ws, n_cpu, wd_chunks, ws_chunks,
+                x=x, y=y, h=h, type=type, yaw=yaw, tilt=tilt,
+                normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss)
+        wd, ws = self.site.get_defaults(wd, ws)
+        I, L, K, = len(x), len(np.atleast_1d(wd)), len(np.atleast_1d(ws))
+        yaw_ilk = fix_shape(yaw, (I, L, K), allow_None=True, allow_number=True)
+        tilt_ilk = fix_shape(tilt, (I, L, K), allow_None=True, allow_number=True)
+
         _, _, power_ilk, _, localWind, power_ct_inputs = self.calc_wt_interaction(
-            x_i=x, y_i=y, h_i=h, type_i=type, yaw_ilk=yaw_ilk, wd=wd, ws=ws)
+            x_i=x, y_i=y, h_i=h, type_i=type, yaw_ilk=yaw_ilk, tilt_ilk=tilt_ilk, wd=wd, ws=ws)
         P_ilk = localWind.P_ilk
         if normalize_probabilities:
             norm = P_ilk.sum((1, 2))[:, na, na]
@@ -101,8 +190,9 @@ class WindFarmModel(ABC):
         return (power_ilk * P_ilk / norm * 24 * 365 * 1e-9).sum()
 
     @abstractmethod
-    def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=None, yaw_ilk=None,
-                            wd=None, ws=None, time=False, **kwargs):
+    def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=0, yaw_ilk=None,
+                            wd=None, ws=None, time=False,
+                            n_cpu=1, wd_chunks=None, ws_chunks=None, **kwargs):
         """Calculate effective wind speed, turbulence intensity,
         power and thrust coefficient, and local site parameters
 
@@ -131,6 +221,16 @@ class WindFarmModel(ABC):
         ws : int, float, array_like or None
             Wind speed(s)\n
             If None, default, the wake is calculated for site.default_ws
+        n_cpu : int or None, optional
+            Number of CPUs to be used for execution.
+            If 1 (default), the execution is not parallized
+            If None, the available number of CPUs are used
+        wd_chunks : int or None, optional
+            If n_cpu>1, the wind directions are divided into <wd_chunks> chunks and executed in parallel.
+            If wd_chunks is None, wd_chunks is set to the available number of CPUs
+        ws_chunks : int or None, optional
+            If n_cpu>1, the wind speeds are divided into <ws_chunks> chunks and executed in parallel.
+            If ws_chunks is None, ws_chunks is set to 1
 
 
         Returns
@@ -146,6 +246,96 @@ class WindFarmModel(ABC):
         localWind : LocalWind
             Local free-flow wind
         """
+
+    def _multiprocessing_chunks(self, wd, ws, n_cpu, wd_chunks, ws_chunks, time=False):
+        n_cpu = n_cpu or multiprocessing.cpu_count()
+        wd_chunks = np.minimum(wd_chunks or n_cpu, len(wd))
+        ws_chunks = ws_chunks or 1
+        if time is False:
+            time_chunks = None
+        else:
+            wd_chunks = np.maximum(ws_chunks, wd_chunks)
+            ws_chunks = wd_chunks
+            if time is True:
+                time = np.arange(len(wd))
+            time_i = np.linspace(0, len(wd) + 1, wd_chunks + 1).astype(int)
+            time_chunks = [time[t_i0:t_i1] for t_i0, t_i1 in zip(time_i[:-1], time_i[1:])]
+
+        ws_chunks = np.minimum(ws_chunks, len(ws))
+        wd_i = np.linspace(0, len(wd) + 1, wd_chunks + 1).astype(int)
+        ws_i = np.linspace(0, len(ws) + 1, ws_chunks + 1).astype(int)
+        if n_cpu > 1:
+            map_func = get_pool(n_cpu).map
+        else:
+            map_func = map
+        return (map_func,
+                [wd[wd_i0:wd_i1] for wd_i0, wd_i1 in zip(wd_i[:-1], wd_i[1:])],
+                [ws[ws_i0:ws_i1] for ws_i0, ws_i1 in zip(ws_i[:-1], ws_i[1:])],
+                time_chunks)
+
+    def _aep_chunk_wrapper(self, aep_function,
+                           wd=None, ws=None,
+                           n_cpu=1, wd_chunks=None, ws_chunks=None, **kwargs):
+        wd, ws = self.site.get_defaults(wd, ws)
+        wd_bin_size = self.site.wd_bin_size(wd)
+
+        map_func, wd_chunks, ws_chunks, time_chunks = self._multiprocessing_chunks(wd, ws, n_cpu, wd_chunks, ws_chunks)
+        kwargs_lst = [{'wd': wd, 'ws': ws, **kwargs} for wd in wd_chunks for ws in ws_chunks]
+
+        return np.sum([aep / self.site.wd_bin_size(args['wd']) * wd_bin_size
+                       for args, aep in zip(kwargs_lst, map_func(aep_function, kwargs_lst))], 0)
+
+    def aep_gradients(self, gradient_method, wrt_arg, gradient_method_kwargs={},
+                      n_cpu=1, wd_chunks=None, ws_chunks=None, **kwargs):
+        """Method to compute the gradients of the AEP with respect to wrt_arg using the gradient_method
+
+        Note, this method has two behaviours:
+        - Without specifying additional key-word arguments, kwargs, the method returns the function to
+          compute the gradients of the aep:
+          gradient_function = wfm.aep_gradietns(autograd, ['x','y'])
+          gradients = gradient_function(x,y)
+        - With additional key-word arguments, kwargs, the method returns the gradients of the aep:
+          gradients = wfm.aep_gradients(autograd,['x','y'],x=x,y=y)
+
+
+        Parameters
+        ----------
+        gradient_method : gradient function, {fd, cs, autograd}
+            gradient function
+        wrt_arg : {'x', 'y', 'h', 'wd', 'ws', 'yaw','tilt'} or list of these arguments, e.g. ['x','y']
+            argument to compute gradients of AEP with respect to
+        gradient_method_kwargs : dict, optional
+            additional arguments for the gradient method, e.g. step size
+        n_cpu : int or None, optional
+            Number of CPUs to be used for execution.
+            If 1 (default), the execution is not parallized
+            If None, the available number of CPUs are used
+        wd_chunks : int or None, optional
+            If n_cpu>1, the wind directions are divided into <wd_chunks> chunks and executed in parallel.
+            If wd_chunks is None, wd_chunks is set to the available number of CPUs
+        ws_chunks : int or None, optional
+            If n_cpu>1, the wind speeds are divided into <ws_chunks> chunks and executed in parallel.
+            If ws_chunks is None, ws_chunks is set to 1
+        """
+        if n_cpu != 1 or wd_chunks or ws_chunks:
+            return self._aep_chunk_wrapper(
+                self._aep_gradients_kwargs, gradient_method=gradient_method, wrt_arg=wrt_arg,
+                gradient_method_kwargs=gradient_method_kwargs,
+                n_cpu=n_cpu, wd_chunks=wd_chunks, ws_chunks=ws_chunks, **kwargs)
+
+        argnum = [['x', 'y', 'h', 'type', 'wd', 'ws', 'yaw', 'tilt'].index(a) for a in np.atleast_1d(wrt_arg)]
+        f = gradient_method(self.aep, True, argnum, **gradient_method_kwargs)
+
+        if kwargs:
+            return f(**kwargs)
+        else:
+            return f
+
+    def _aep_gradients_kwargs(self, kwargs):
+        return self.aep_gradients(**kwargs)
+
+    def _aep_kwargs(self, kwargs):
+        return self.aep(**kwargs)
 
 
 class SimulationResult(xr.Dataset):
@@ -240,7 +430,8 @@ class SimulationResult(xr.Dataset):
         else:
             wt_kwargs_keys = set(self.windFarmModel.windTurbines.powerCtFunction.required_inputs +
                                  self.windFarmModel.windTurbines.powerCtFunction.optional_inputs)
-            power_ilk = self.windFarmModel.windTurbines.power(self.WS.ilk(self.Power.ilk().shape), **{k: v for k, v in self.wt_inputs.items() if k in wt_kwargs_keys})
+            power_ilk = self.windFarmModel.windTurbines.power(self.WS.ilk(
+                self.Power.ilk().shape), **{k: v for k, v in self.wt_inputs.items() if k in wt_kwargs_keys})
 
         if linear_power_segments:
             s = "The linear_power_segments method "

@@ -1,13 +1,12 @@
 import numpy as np
 import xarray as xr
 import pytest
-from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site, IEA37WindTurbinesDeprecated
-from py_wake import NOJ, Fuga, examples
+from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
+from py_wake import NOJ, examples
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
 from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y, V80
-from py_wake.tests.test_files.fuga import LUT_path_2MW_z0_0_03
-from py_wake.flow_map import HorizontalGrid, XYGrid
+from py_wake.flow_map import HorizontalGrid
 from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.superposition_models import SquaredSum, WeightedSum
@@ -26,8 +25,7 @@ from py_wake.wind_turbines import WindTurbines
 from py_wake.wind_turbines.wind_turbines_deprecated import DeprecatedOneTypeWindTurbines
 import pandas as pd
 import os
-from py_wake.rotor_avg_models.rotor_avg_model import CGIRotorAvg
-from py_wake.utils.profiling import timeit
+from py_wake.utils.profiling import profileit
 
 
 WindFarmModel.verbose = False
@@ -215,7 +213,7 @@ def test_dAEP_2wt():
     x_ = x_lst[20]
     ax1.set_title("Center line")
     for grad in [fd, cs, autograd]:
-        dAEPdx = wfm.dAEPdn(0, grad)(x_, y, **kwargs)[1]
+        dAEPdx = grad(wfm.aep, argnum=0)(x_, y, **kwargs)[1]
         npt.assert_almost_equal(dAEPdx / 360, 3.976975605364392e-06, (10, 5)[grad == fd])
         plot_gradients(wfm.aep(x_, y, **kwargs), dAEPdx, x_[1], grad.__name__, step=100, ax=ax1)
     y_lst = np.array([0, 1.]) * np.arange(-100, 100, 5)[:, na]
@@ -225,7 +223,7 @@ def test_dAEP_2wt():
     y_ = y_lst[25]
     ax2.set_title("%d m downstream" % x[1])
     for grad in [fd, cs, autograd]:
-        dAEPdy = wfm.dAEPdn(1, grad)(x, y_, **kwargs)[1]
+        dAEPdy = grad(wfm.aep, argnum=1)(x, y_, **kwargs)[1]
         plot_gradients(wfm.aep(x, y_, **kwargs), dAEPdy, y_[1], grad.__name__, step=50, ax=ax2)
         npt.assert_almost_equal(dAEPdy / 360, 3.794435973860448e-05, (10, 5)[grad == fd])
 
@@ -233,23 +231,6 @@ def test_dAEP_2wt():
         plt.legend()
         plt.show()
     plt.close('all')
-
-
-def test_dAEPdx():
-    site = Hornsrev1Site()
-    iea37_site = IEA37Site(16)
-
-    wt = IEA37_WindTurbines()
-    # wt.enable_autograd()
-    wfm = IEA37SimpleBastankhahGaussian(site, wt)
-    x, y = iea37_site.initial_position[np.array([0, 2, 5, 8, 14])].T
-
-    dAEPdxy_autograd = wfm.dAEPdxy(gradient_method=autograd)(x, y)
-    dAEPdxy_cs = wfm.dAEPdxy(gradient_method=cs)(x, y)
-    dAEPdxy_fd = wfm.dAEPdxy(gradient_method=fd)(x, y)
-
-    npt.assert_array_almost_equal(dAEPdxy_autograd, dAEPdxy_cs, 15)
-    npt.assert_array_almost_equal(dAEPdxy_autograd, dAEPdxy_fd, 6)
 
 
 @pytest.mark.parametrize('wake_deficitModel,blockage_deficitModel', [(FugaDeficit(), None),
@@ -415,6 +396,20 @@ def test_time_series_aep():
     sim_res = wfm(x, y, ws=ws, wd=wd, time=True, verbose=False)
     npt.assert_allclose(sim_res.aep().sum(), 545, atol=1)
     npt.assert_allclose(sim_res.aep().sum() / sim_res.aep(with_wake_loss=False).sum(), 0.94, atol=1)
+
+
+def test_time_series_aep_chunks():
+
+    d = np.load(os.path.dirname(examples.__file__) + "/data/time_series.npz")
+    wd, ws = [d[k][::100] for k in ['wd', 'ws']]
+    wt = V80()
+    site = Hornsrev1Site()
+    x, y = site.initial_position.T
+    wfm = NOJ(site, wt)
+    sim_res_ref, t_ref, mem_ref = profileit(wfm.__call__)(x, y, ws=ws, wd=wd, time=True, verbose=False)
+    sim_res, t, mem = profileit(wfm.__call__)(x, y, ws=ws, wd=wd, time=True, wd_chunks=4, verbose=False)
+    npt.assert_almost_equal(sim_res.aep().sum(), sim_res_ref.aep().sum())
+    # npt.assert_allclose(mem, mem_ref / 4, rtol=.3) # fails sometimes when all tests are run
 
 
 def test_time_series_operating():

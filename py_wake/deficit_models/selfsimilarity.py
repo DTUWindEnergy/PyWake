@@ -3,7 +3,6 @@ from numpy import newaxis as na
 from py_wake.deficit_models.deficit_model import DeficitModel
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models import BlockageDeficitModel
-from py_wake.ground_models.ground_models import NoGround
 from py_wake.utils.gradients import cabs
 
 
@@ -14,7 +13,7 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
     def __init__(self, ss_gamma=1.1, ss_lambda=0.587, ss_eta=1.32, ss_alpha=8. / 9., ss_beta=np.sqrt(2),
-                 limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=NoGround(),
+                 limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=None,
                  upstream_only=False):
         DeficitModel.__init__(self, groundModel=groundModel)
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
@@ -124,7 +123,7 @@ class SelfSimilarityDeficit2020(SelfSimilarityDeficit):
                  r12p=np.array([-0.672, 0.4897]),
                  ngp=np.array([-1.381, 2.627, -1.524, 1.336]),
                  fgp=np.array([-0.06489, 0.4911, 1.116, -0.1577]),
-                 limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=NoGround(),
+                 limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=None,
                  upstream_only=False):
         DeficitModel.__init__(self, groundModel=groundModel)
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)

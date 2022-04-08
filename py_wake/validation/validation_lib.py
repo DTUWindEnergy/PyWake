@@ -320,7 +320,7 @@ def run_wms(swc, test_cases=['Wieringermeer-West',
             wfm = PropagateDownwind(swc[case]['site'], swc[case]['wt'],
                                     model,
                                     superpositionModel=SquaredSum(),
-                                    rotorAvgModel=RotorCenter(),
+                                    rotorAvgModel=None,
                                     turbulenceModel=STF2017TurbulenceModel())
             # simulation
             sim_res = wfm([0], [0], h=[100], wd=[270])
@@ -474,7 +474,7 @@ def get_setup_name(deficit_setup):
 def run_wfm(mwc, test_cases=['Wieringermeer', 'Lillgrund', 'Hornsrev1'],
             deficit_setups=[{'deficit_model': NOJDeficit(),
                              'superpositionModel': SquaredSum(),
-                             'rotorAvgModel': RotorCenter(),
+                             'rotorAvgModel': None,
                              'turbulenceModel': STF2017TurbulenceModel()}],
             gaussian_filter=True):
     '''

@@ -7,6 +7,10 @@ import ssl
 import sys
 import matplotlib.pyplot as plt
 from _io import StringIO
+from py_wake.tests.test_files import tfp
+from pathlib import Path
+import importlib
+import matplotlib
 
 
 class Notebook():
@@ -104,12 +108,6 @@ except ModuleNotFoundError:
 
         lines = [fix(l) for l in code.split("\n")]
 
-        # import * only allowed at module level
-        # So extract and remove from code lines
-        module_imports = [l for l in lines if l.startswith('from') and l.endswith('import *')]
-        for l in module_imports:
-            lines.remove(l)
-
         if len(lines) == 1 and lines[0] == '':
             return
         try:
@@ -117,18 +115,26 @@ except ModuleNotFoundError:
 
             with contextlib.redirect_stdout(StringIO()):
                 with contextlib.redirect_stderr(StringIO()):
-                    # execute module level imports (stored in l dict) and use a locals in execution of code
-                    g, l = {}, {}
-                    exec("\n".join(module_imports), g, l)
+                    matplotlib_backend = matplotlib.get_backend()
+                    matplotlib.use('Agg')
 
-                    code_str = "def test():\n    " + "\n    ".join(lines) + "\ntest()"
-                    exec(code_str, l, {})
+                    code_str = "\n".join(lines)
+                    p = Path(tfp + "tmp_nb.py")
+                    p.write_text(code_str)
+
+                    if "py_wake.tests.test_files.tmp_nb" in sys.modules:
+                        importlib.reload(sys.modules["py_wake.tests.test_files.tmp_nb"])
+                    else:
+                        from py_wake.tests.test_files import tmp_nb
+                    p.unlink()
+
         except Exception as e:
-            for i, l in enumerate(code_str.split("\n")):
-                print(i, l)
+            # for i, l in enumerate(code_str.split("\n")):
+            #     print(i, l)
             raise type(e)("Code error in %s\n%s\n" % (self.filename, str(e))).with_traceback(sys.exc_info()[2])
         finally:
             plt.close('all')
+            matplotlib.use(matplotlib_backend)
 
     def check_links(self):
         txt = "\n".join(self.get_text())

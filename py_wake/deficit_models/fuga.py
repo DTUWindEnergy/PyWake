@@ -2,8 +2,6 @@ from numpy import newaxis as na
 
 import numpy as np
 from py_wake.deficit_models.deficit_model import DeficitModel, WakeDeficitModel, BlockageDeficitModel
-from py_wake.ground_models.ground_models import NoGround
-from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
 from py_wake.superposition_models import LinearSum
 from py_wake.tests.test_files import tfp
 from py_wake.utils.fuga_utils import FugaUtils
@@ -19,7 +17,7 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijlk', 'h_il', 'ct_ilk', 'D_src_il']
 
     def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/', remove_wriggles=False,
-                 method='linear', groundModel=NoGround()):
+                 method='linear', groundModel=None):
         """
         Parameters
         ----------
@@ -101,7 +99,7 @@ class FugaYawDeficit(FugaDeficit):
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijlk', 'h_il', 'ct_ilk', 'D_src_il', 'yaw_ilk']
 
     def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/',
-                 remove_wriggles=False, method='linear', groundModel=NoGround()):
+                 remove_wriggles=False, method='linear', groundModel=None):
         """
         Parameters
         ----------
@@ -237,7 +235,7 @@ class LUTInterpolator(object):
 
 class Fuga(PropagateDownwind):
     def __init__(self, LUT_path, site, windTurbines,
-                 rotorAvgModel=RotorCenter(), deflectionModel=None, turbulenceModel=None, remove_wriggles=False):
+                 rotorAvgModel=None, deflectionModel=None, turbulenceModel=None, remove_wriggles=False):
         """
         Parameters
         ----------
@@ -263,7 +261,7 @@ class Fuga(PropagateDownwind):
 
 
 class FugaBlockage(All2AllIterative):
-    def __init__(self, LUT_path, site, windTurbines, rotorAvgModel=RotorCenter(),
+    def __init__(self, LUT_path, site, windTurbines, rotorAvgModel=None,
                  deflectionModel=None, turbulenceModel=None, convergence_tolerance=1e-6, remove_wriggles=False):
         """
         Parameters

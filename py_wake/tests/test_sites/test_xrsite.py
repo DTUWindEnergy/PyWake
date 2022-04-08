@@ -634,6 +634,6 @@ def test_gradients():
     for data_var in data_vars[1:]:
         def t(x):
             return site.local_wind(x, y, h_i=[100], wd=270, ws=10)[data_var].values
-        ddx_lst = [grad(t)(x) for grad in [fd, cs, autograd]]
+        ddx_lst = [grad(t, vector_interdependence=False)(x) for grad in [fd, cs, autograd]]
         npt.assert_allclose(ddx_lst[0], ddx_lst[1], rtol=1e-4)
         npt.assert_allclose(ddx_lst[1], ddx_lst[2])

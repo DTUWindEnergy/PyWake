@@ -31,6 +31,7 @@ class CrespoHernandez(TurbulenceModel, AreaOverlappingFactor):
         """
         # induction factor
         a_ilk = 0.5 * (1 - np.sqrt(1 - ct_ilk))
+        a_ilk = np.maximum(a_ilk, 1e-10)  # avoid error in gradient of a_ilk**0.8325 > 0.8325*a_ilk**-.1675
         # added turbulence (Eq. 21)
         dw_ijlk_gt0 = np.maximum(dw_ijlk, 1e-10)  # avoid divide by zero and sqrt of negative number
         TI_add_ijlk = 0.73 * a_ilk[:, na, :, :]**0.8325 * TI_ilk[:, na, :, :]**0.0325 * \

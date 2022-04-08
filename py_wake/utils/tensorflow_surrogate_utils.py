@@ -5,7 +5,7 @@ from sklearn.preprocessing import MinMaxScaler
 import pickle
 from pathlib import Path
 import warnings
-from py_wake.utils.gradients import set_vjp
+from py_wake.utils.gradients import set_gradient_function
 import numpy as np
 from numpy import newaxis as na
 
@@ -71,9 +71,9 @@ class TensorflowSurrogate():
     def predict_gradients_scaled(self, x_scaled):
         return self.predict_output_gradients_scaled(x_scaled)[1]
 
-    @set_vjp(predict_gradients_scaled)
+    @set_gradient_function(predict_gradients_scaled)
     def predict_output_scaled(self, x_scaled):
-        return self.model.predict(x_scaled, batch_size=x_scaled[0].shape[0]).astype(float)
+        return self.model.predict(x_scaled, batch_size=x_scaled.shape[0]).astype(float)
 
     def predict_output(self, x, bounds='warn'):
         """
@@ -123,7 +123,8 @@ class TensorflowSurrogate():
             return (self.output_scaler.inverse_transform(output) +
                     1j * np.sum(x.imag * gradients * self.input_scaler.scale_ / self.output_scaler.scale_, 1)[:, na])
         else:
-            return self.output_scaler.inverse_transform(self.predict_output_scaled(x_scaled))
+            output_scaled = self.predict_output_scaled(x_scaled)
+            return self.output_scaler.inverse_transform(output_scaled)
 
     @property
     def input_space(self):

@@ -4,7 +4,6 @@ from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit2020
 from py_wake.deficit_models.vortexdipole import VortexDipole
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
-from py_wake.ground_models.ground_models import NoGround
 from py_wake.utils.gradients import hypot
 
 
@@ -31,7 +30,7 @@ class HybridInduction(BlockageDeficitModel):
 
     def __init__(self, switch_radius=6.,
                  near_rotor=SelfSimilarityDeficit2020(), far_field=VortexDipole(), superpositionModel=None,
-                 groundModel=NoGround(), upstream_only=False):
+                 groundModel=None, upstream_only=False):
         DeficitModel.__init__(self, groundModel=groundModel)
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
         self.switch_radius = switch_radius

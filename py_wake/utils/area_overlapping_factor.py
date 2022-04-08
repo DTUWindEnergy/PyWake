@@ -83,7 +83,7 @@ class AreaOverlappingFactor():
 
         # full wake cases
         index_fullwake = (d <= (Rmax - Rmin))
-        dtype = (float, np.complex128)[np.any([np.iscomplexobj(x) for x in [R1, R2, d]])]
+        dtype = (float, np.complex128)[bool(np.any([np.iscomplexobj(x) for x in [R1, R2, d]]))]
         A_ol_f = np.where(index_fullwake, 1, 0).astype(dtype)
 
         # partial wake cases

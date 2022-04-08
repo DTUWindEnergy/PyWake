@@ -6,6 +6,7 @@ from py_wake.tests.notebook import Notebook
 import py_wake
 from py_wake.flow_map import Grid
 from pathlib import Path
+import xarray
 
 
 def get_notebooks():
@@ -22,7 +23,7 @@ notebooks = get_notebooks()
 def test_notebooks(notebook):
     import matplotlib.pyplot as plt
     if (str(Path(notebook.filename).relative_to(os.path.dirname(py_wake.__file__) + "/../docs/notebooks/")) in
-            ['Gradients.ipynb']):
+            ['Optimization.ipynb']):
         return
 
     def no_show(*args, **kwargs):
@@ -30,6 +31,7 @@ def test_notebooks(notebook):
     plt.show = no_show  # disable plt show that requires the user to close the plot
 
     try:
+        # print(notebook.filename)
         default_resolution = Grid.default_resolution
         Grid.default_resolution = 100
         plt.rcParams.update({'figure.max_open_warning': 0})
@@ -44,7 +46,11 @@ def test_notebooks(notebook):
         Grid.default_resolution = default_resolution
         plt.close('all')
         plt.rcParams.update({'figure.max_open_warning': 20})
+        xarray.set_options(display_expand_data=True)
 
 
 if __name__ == '__main__':
-    print("\n".join([f.filename for f in get_notebooks()]))
+    # print("\n".join([f.filename for f in get_notebooks()]))
+    path = os.path.dirname(py_wake.__file__) + "/../docs/notebooks/"
+    f = 'RunWindFarmSimulation.ipynb'
+    test_notebooks(Notebook(path + f))

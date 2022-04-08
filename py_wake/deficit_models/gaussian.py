@@ -3,8 +3,7 @@ from py_wake.utils.gradients import erf
 import numpy as np
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models.deficit_model import ConvectionDeficitModel
-from py_wake.ground_models.ground_models import NoGround, Mirror
-from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
+from py_wake.ground_models.ground_models import Mirror
 from py_wake.superposition_models import SquaredSum
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.utils.gradients import cabs
@@ -19,7 +18,7 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
     """
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'cw_ijlk', 'D_src_il', 'ct_ilk']
 
-    def __init__(self, k=0.0324555, ceps=.2, use_effective_ws=False, groundModel=NoGround()):
+    def __init__(self, k=0.0324555, ceps=.2, use_effective_ws=False, groundModel=None):
         DeficitModel.__init__(self, groundModel=groundModel)
         self._k = k
         self._ceps = ceps
@@ -83,8 +82,8 @@ class BastankhahGaussian(PropagateDownwind):
     """Predefined wind farm model"""
 
     def __init__(self, site, windTurbines, k=0.0324555, ceps=.2,
-                 rotorAvgModel=RotorCenter(), superpositionModel=SquaredSum(),
-                 deflectionModel=None, turbulenceModel=None, groundModel=NoGround()):
+                 rotorAvgModel=None, superpositionModel=SquaredSum(),
+                 deflectionModel=None, turbulenceModel=None, groundModel=None):
         """
         Parameters
         ----------
@@ -132,7 +131,7 @@ class NiayifarGaussianDeficit(BastankhahGaussianDeficit):
                     'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_ilk', 'TI_eff_ilk']
 
     def __init__(self, a=[0.38, 4e-3], ceps=.2, use_effective_ws=False, use_effective_ti=True,
-                 groundModel=NoGround()):
+                 groundModel=None):
         DeficitModel.__init__(self, groundModel=groundModel)
         self._ceps = ceps
         self.a = a
@@ -147,7 +146,7 @@ class NiayifarGaussianDeficit(BastankhahGaussianDeficit):
 
 class NiayifarGaussian(PropagateDownwind):
     def __init__(self, site, windTurbines, a=[0.38, 4e-3], ceps=.2, superpositionModel=SquaredSum(),
-                 deflectionModel=None, turbulenceModel=None, groundModel=NoGround()):
+                 deflectionModel=None, turbulenceModel=None, groundModel=None):
         """
         Parameters
         ----------
@@ -175,7 +174,7 @@ class IEA37SimpleBastankhahGaussianDeficit(BastankhahGaussianDeficit):
     args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'WS_eff_ilk']
     args4update = ['ct_ilk']
 
-    def __init__(self, groundModel=NoGround()):
+    def __init__(self, groundModel=None):
         DeficitModel.__init__(self, groundModel=groundModel)
         BastankhahGaussianDeficit.__init__(self, k=0.0324555)
 
@@ -197,8 +196,8 @@ class IEA37SimpleBastankhahGaussian(PropagateDownwind):
     """Predefined wind farm model"""
 
     def __init__(self, site, windTurbines,
-                 rotorAvgModel=RotorCenter(), superpositionModel=SquaredSum(),
-                 deflectionModel=None, turbulenceModel=None, groundModel=NoGround()):
+                 rotorAvgModel=None, superpositionModel=SquaredSum(),
+                 deflectionModel=None, turbulenceModel=None, groundModel=None):
         """
         Parameters
         ----------
@@ -255,7 +254,7 @@ class ZongGaussianDeficit(NiayifarGaussianDeficit):
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_ilk', 'TI_eff_ilk']
 
     def __init__(self, a=[0.38, 4e-3], deltawD=1. / np.sqrt(2), eps_coeff=1. / np.sqrt(8.), lam=7.5, B=3,
-                 use_effective_ws=False, use_effective_ti=True, groundModel=NoGround()):
+                 use_effective_ws=False, use_effective_ti=True, groundModel=None):
         DeficitModel.__init__(self, groundModel=groundModel)
         self.a = a
         self.deltawD = deltawD
@@ -338,7 +337,7 @@ class ZongGaussianDeficit(NiayifarGaussianDeficit):
 
 class ZongGaussian(PropagateDownwind):
     def __init__(self, site, windTurbines, a=[0.38, 4e-3], deltawD=1. / np.sqrt(2), lam=7.5, B=3,
-                 superpositionModel=SquaredSum(), deflectionModel=None, turbulenceModel=None, groundModel=NoGround()):
+                 superpositionModel=SquaredSum(), deflectionModel=None, turbulenceModel=None, groundModel=None):
         """
         Parameters
         ----------
@@ -381,7 +380,7 @@ class CarbajofuertesGaussianDeficit(ZongGaussianDeficit):
     args4deficit = ['WS_ilk', 'WS_eff_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_ilk', 'TI_eff_ilk']
 
     def __init__(self, a=[0.35, 0], deltawD=1. / np.sqrt(2), use_effective_ws=False, use_effective_ti=True,
-                 groundModel=NoGround()):
+                 groundModel=None):
         DeficitModel.__init__(self, groundModel=groundModel)
         self.a = a
         self.deltawD = deltawD
@@ -453,12 +452,12 @@ def main():
         windTurbines = IEA37_WindTurbines()
 
         wf_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
-        wfm_nojturbo = PropagateDownwind(site, windTurbines, rotorAvgModel=RotorCenter(),
+        wfm_nojturbo = PropagateDownwind(site, windTurbines, rotorAvgModel=None,
                                          wake_deficitModel=TurboNOJDeficit(use_effective_ws=True,
                                                                            use_effective_ti=False),
                                          superpositionModel=LinearSum(),
                                          turbulenceModel=STF2017TurbulenceModel())
-        wfm_gauturbo = PropagateDownwind(site, windTurbines, rotorAvgModel=RotorCenter(),
+        wfm_gauturbo = PropagateDownwind(site, windTurbines, rotorAvgModel=None,
                                          wake_deficitModel=TurboGaussianDeficit(use_effective_ws=True,
                                                                                 use_effective_ti=False),
                                          superpositionModel=SquaredSum(),

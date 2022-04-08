@@ -6,6 +6,7 @@ import gc
 import os
 import psutil
 import memory_profiler
+import ctypes
 
 
 def timeit(func, min_time=0, min_runs=1, verbose=False, line_profile=False, profile_funcs=[]):
@@ -43,6 +44,10 @@ def timeit(func, min_time=0, min_runs=1, verbose=False, line_profile=False, prof
 
 def get_memory_usage():
     gc.collect()
+    try:
+        ctypes.CDLL('libc.so.6').malloc_trim(0)
+    except Exception:
+        pass
     pid = os.getpid()
     python_process = psutil.Process(pid)
     return python_process.memory_info()[0] / 1024**2
@@ -55,4 +60,11 @@ def check_memory_usage(f, subtract_initial=True):
         if subtract_initial:
             mem_usage -= initial_mem_usage
         return res, mem_usage
+    return wrap
+
+
+def profileit(f):
+    def wrap(*args, **kwargs):
+        (res, t), mem_usage = check_memory_usage(timeit(f), subtract_initial=True)(*args, **kwargs)
+        return res, t[0], mem_usage
     return wrap

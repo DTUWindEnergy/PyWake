@@ -12,12 +12,13 @@ from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.wind_turbines.power_ct_functions import PowerCtFunction
 
 
-# Two turbines, 0: Nibe-A, 1:Ct=0
-NibeA0 = WindTurbines(names=['Nibe-A'] * 2, diameters=[40] * 2,
-                      hub_heights=[50] * 2,
-                      # only define for ct
-                      powerCtFunctions=[PowerCtFunction(['ws'], lambda ws, run_only: ws * 0 + 8 / 9, 'w'),
-                                        PowerCtFunction(['ws'], lambda ws, run_only: ws * 0, 'w')])
+def NibeA0():
+    # Two turbines, 0: Nibe-A, 1:Ct=0
+    return WindTurbines(names=['Nibe-A'] * 2, diameters=[40] * 2,
+                        hub_heights=[50] * 2,
+                        # only define for ct
+                        powerCtFunctions=[PowerCtFunction(['ws'], lambda ws, run_only: ws * 0 + 8 / 9, 'w'),
+                                          PowerCtFunction(['ws'], lambda ws, run_only: ws * 0, 'w')])
 
 
 def test_NOJ_Nibe_result():
@@ -27,7 +28,7 @@ def test_NOJ_Nibe_result():
     x_i = [0, 0, 0]
     y_i = [0, -40, -100]
     h_i = [50, 50, 50]
-    wfm = All2AllIterative(site, NibeA0, wake_deficitModel=NOJDeficit(), superpositionModel=LinearSum())
+    wfm = All2AllIterative(site, NibeA0(), wake_deficitModel=NOJDeficit(), superpositionModel=LinearSum())
     WS_eff_ilk = wfm.calc_wt_interaction(x_i, y_i, h_i, [0, 1, 1], 0.0, 8.1)[0]
     npt.assert_array_almost_equal(WS_eff_ilk[:, 0, 0], [8.1, 4.35, 5.7])
 
@@ -39,7 +40,7 @@ def test_NOJ_Nibe_result_wake_map():
 
     def power_func(*_):
         return 0
-    windTurbines = NibeA0
+    windTurbines = NibeA0()
     site = UniformSite([1], 0.1)
     wake_model = NOJ(site, windTurbines)
     sim_res = wake_model(x=[0], y=[0], wd=[0], ws=[8.1])
@@ -55,7 +56,7 @@ def test_NOJ_two_turbines_in_row(wdir, x, y):
     # Two turbines in a row, North-South
     # Replicate result from: Jensen, Niels Otto. "A note on wind generator interaction." (1983).
 
-    windTurbines = NibeA0
+    windTurbines = NibeA0()
     site = UniformSite([1], 0.1)
     wfm = NOJ(site, windTurbines)
     wfm.verbose = False
@@ -71,7 +72,7 @@ def test_NOJ_6_turbines_in_row():
     y = - np.arange(n_wt) * 40 * 2
 
     site = UniformSite([1], 0.1)
-    wfm = NOJ(site, NibeA0)
+    wfm = NOJ(site, NibeA0())
     wfm.verbose = False
     WS_eff_ilk = wfm.calc_wt_interaction(x, y, [50] * n_wt, [0] * n_wt, 0.0, 11.0)[0]
     np.testing.assert_array_almost_equal(
@@ -84,7 +85,7 @@ def test_NOJLocal_6_turbines_in_row():
     y = - np.arange(n_wt) * 40 * 2
 
     site = UniformSite([1], 0.1)
-    wfm = NOJLocal(site, NibeA0, turbulenceModel=STF2017TurbulenceModel())
+    wfm = NOJLocal(site, NibeA0(), turbulenceModel=STF2017TurbulenceModel())
     wfm.verbose = False
     WS_eff_ilk = wfm.calc_wt_interaction(x, y, [50] * n_wt, [0] * n_wt, 0.0, 11.0)[0]
     np.testing.assert_array_almost_equal(
@@ -94,6 +95,7 @@ def test_NOJLocal_6_turbines_in_row():
 
 def test_NOJConvection():
     site = UniformSite([1], 0.1)
-    wfm = NOJ(site, NibeA0, superpositionModel=WeightedSum())
+    wfm = NOJ(site, NibeA0(), superpositionModel=WeightedSum())
     with pytest.raises(NotImplementedError):
         wfm([0, 100], [0, 100])
+    wfm = None

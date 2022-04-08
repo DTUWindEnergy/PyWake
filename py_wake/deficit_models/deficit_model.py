@@ -1,21 +1,24 @@
 from abc import ABC, abstractmethod
 import numpy as np
 from numpy import newaxis as na
-from py_wake.ground_models.ground_models import NoGround
 import inspect
 from py_wake.utils.gradients import cabs
+from py_wake.ground_models.ground_models import NoGround
 
 
 class DeficitModel(ABC):
     deficit_initalized = False
 
-    def __init__(self, groundModel=NoGround()):
+    def __init__(self, groundModel=None):
         if not hasattr(self, 'args4deficit'):
             self.args4deficit = set(inspect.getfullargspec(self.calc_deficit).args) - {'self'}
-        self.groundModel = groundModel
+        self.groundModel = groundModel or NoGround()
 
     def _calc_layout_terms(self, **_):
         """Calculate layout dependent terms, which is not updated during simulation"""
+
+    def __getstate__(self):
+        return {k: v for k, v in self.__dict__.items() if k not in {'layout_factor_ijlk', 'denominator_ijlk'}}
 
     @abstractmethod
     def calc_deficit(self):

@@ -28,7 +28,7 @@ def test_RotorGridAvg_deficit():
     R = windTurbines.diameter() / 2
 
     for name, rotorAvgModel, ref1 in [
-            ('RotorCenter', RotorCenter(), 7.172723970425709),
+            ('RotorCenter', None, 7.172723970425709),
             ('RotorGrid2', EqGridRotorAvg(2), 7.495889360682771),
             ('RotorGrid3', EqGridRotorAvg(3), 7.633415167369133),
             ('RotorGrid4', EqGridRotorAvg(4), 7.710215921858325),
@@ -73,7 +73,7 @@ def test_RotorGridAvg_ti():
     R = windTurbines.diameter() / 2
 
     for name, rotorAvgModel, ref1 in [
-            ('RotorCenter', RotorCenter(), 0.22292190804089568),
+            ('RotorCenter', None, 0.22292190804089568),
             ('RotorGrid2', EqGridRotorAvg(2), 0.2111162769995657),
             ('RotorGrid3', EqGridRotorAvg(3), 0.2058616982653193),
             ('RotorGrid4', EqGridRotorAvg(4), 0.2028701990648858),
@@ -201,7 +201,7 @@ def test_with_all_deficit_models(WFM):
     for deficitModel in get_models(WakeDeficitModel):
 
         wfm = WFM(site, windTurbines, wake_deficitModel=deficitModel(),
-                  rotorAvgModel=RotorCenter(),
+                  rotorAvgModel=None,
                   superpositionModel=LinearSum(),
                   deflectionModel=None, turbulenceModel=STF2017TurbulenceModel())
 

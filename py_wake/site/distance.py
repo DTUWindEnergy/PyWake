@@ -60,6 +60,11 @@ class StraightDistance():
             self.src_eq_dst = False
         self.dst_x_j, self.dst_y_j, self.dst_h_j = dst_x_j, dst_y_j, dst_h_j
 
+    def __getstate__(self):
+        return {k: v for k, v in self.__dict__.items()
+                if k not in {'src_x_i', 'src_y_i', 'src_h_i', 'dst_x_j', 'dst_y_j', 'dst_h_j',
+                             'dx_ii', 'dy_ii', 'dh_ii', 'dx_ij', 'dy_ij', 'dh_ij', 'src_eq_dst'}}
+
     def __call__(self, WD_il, wd_l=None, src_idx=slice(None), dst_idx=slice(None)):
         assert hasattr(self, 'dx_ij'), "method setup must be called first"
         WD_il = np.asarray(WD_il)

@@ -509,7 +509,7 @@ def test_wake_blockage_split(upstream_only, ref):
         args4deficit = []
 
         def __init__(self):
-            DeficitModel.__init__(self, groundModel=NoGround())
+            DeficitModel.__init__(self, groundModel=None)
 
         def calc_deficit(self, dw_ijlk, **kwargs):
             return np.ones_like(dw_ijlk) * 2
@@ -518,7 +518,7 @@ def test_wake_blockage_split(upstream_only, ref):
         args4deficit = []
 
         def __init__(self, upstream_only):
-            DeficitModel.__init__(self, groundModel=NoGround())
+            DeficitModel.__init__(self, groundModel=None)
             BlockageDeficitModel.__init__(self, upstream_only=upstream_only)
 
         def calc_deficit(self, dw_ijlk, **kwargs):
