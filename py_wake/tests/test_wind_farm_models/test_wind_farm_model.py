@@ -148,3 +148,22 @@ def test_aep_gradients_chunks():
     dAEP_autograd = wfm.aep_gradients(gradient_method=autograd, wrt_arg=['x', 'y'], wd_chunks=2, **kwargs)
 
     npt.assert_array_almost_equal(dAEP_ref, dAEP_autograd, 8)
+
+
+@pytest.mark.parametrize('n_wt, shape,dims', [(16, (16,), ('wt',)),
+                                              (12, (12,), ('wt',)),
+                                              (12, (16,), ('wt', 'wd')),
+                                              (16, (16, 16), ('wt', 'wd')),
+                                              (12, (12, 16), ('wt', 'wd')),
+                                              (12, (12, 16, 23), ('wt', 'wd', 'ws')),
+                                              (16, (16, 23), ('wt', 'wd', 'ws')),
+
+                                              ])
+def test_wt_kwargs_dimensions(n_wt, shape, dims):
+    site = Hornsrev1Site(16)
+    x, y = site.initial_position[:n_wt].T
+    wf_model = IEA37SimpleBastankhahGaussian(site, IEA37_WindTurbines())
+    sim_res = wf_model(x, y,  # wind turbine positions
+                       wd=np.linspace(0, 337.5, 16),
+                       Air_density=np.full(shape, 1.225))
+    assert sim_res.Air_density.dims == dims

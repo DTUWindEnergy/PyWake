@@ -244,10 +244,10 @@ class EngineeringWindFarmModel(WindFarmModel):
             #                 return v
             v = np.asarray(v)
             if v.shape not in {(), (I,), (I, L), (I, L, K), (L,), (L, K)}:
-                valid_shapes = f"(), ({I}), ({I},{L}), ({I},{L},{K})"
+                valid_shapes = f"(), ({I}), ({I},{L}), ({I},{L},{K}), ({L},), ({L}, {K})"
                 raise ValueError(
-                    f"Argument, {k}(shape={v.shape}), has unsupported shape. Valid shapes are {valid_shapes}")
-            if v.shape == (L,) or v.shape == (L, K):
+                    f"Argument, {k}(shape={v.shape}), has unsupported shape. Valid shapes are {valid_shapes} (interpreted in this order)")
+            if v.shape != (I,) and (v.shape == (L,) or v.shape == (L, K)):
                 return np.broadcast_to(v[na], (I,) + v.shape)
             else:
                 return v
