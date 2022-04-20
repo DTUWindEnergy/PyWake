@@ -134,6 +134,21 @@ class DensityScale(AdditionalModel):
         return power_ct_arr
 
 
+class DensityCompensation(AdditionalModel):
+    """Scales the wind speed with density before calculating power and ct"""
+
+    def __init__(self, air_density_ref):
+        AdditionalModel.__init__(self, input_keys=['ws', 'Air_density'], optional_inputs=['Air_density'],
+                                 output_keys=['power', 'ct'])
+        self.air_density_ref = air_density_ref
+
+    def __call__(self, f, ws, Air_density=None, **kwargs):
+        if Air_density is not None:
+            # cannot used *= if Air_density is complex
+            ws = ws * (fix_shape(Air_density, ws, True) / self.air_density_ref)**(1 / 3)
+        return np.asarray(f(ws, **kwargs))
+
+
 default_additional_models = [SimpleYawModel(), DensityScale(1.225)]
 
 
