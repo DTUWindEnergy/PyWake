@@ -3,13 +3,15 @@ import pytest
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
-from py_wake.examples.data import hornsrev1
+from py_wake.examples.data import hornsrev1, example_data_path
 from py_wake.tests import npt
 from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt, PowerCtNDTabular, DensityScale, \
-    PowerCtTabular, PowerCtFunction, PowerCtFunctionList, PowerCtXr
+    PowerCtTabular, PowerCtFunction, PowerCtFunctionList, PowerCtXr, DensityCompensation
 from py_wake.wind_turbines.wind_turbine_functions import WindTurbineFunction
 from py_wake.utils.model_utils import fix_shape
 from py_wake.utils.gradients import cs, autograd, fd
+from py_wake.utils.plotting import setup_plot
+from py_wake.wind_turbines._wind_turbines import WindTurbine
 
 
 def ExamplePowerCtTabular(method='linear', unit='w', p_scale=1):
@@ -327,6 +329,42 @@ def test_density_scale():
         for argnum in [0, 1]:
             def t(u, Air_density):
                 return curve(u, Air_density=Air_density, run_only=run_only)
+            dpctdu_lst = [grad(t, argnum=argnum)([10, 13], Air_density=[1.225, 1.5]) for grad in [fd, cs, autograd]]
+            npt.assert_allclose(dpctdu_lst[0], dpctdu_lst[1], rtol=1e-4)
+            npt.assert_allclose(dpctdu_lst[1], dpctdu_lst[2])
+
+
+def test_density_compensation_vs_scale():
+    ax1 = plt.gca()
+    ax2 = plt.figure().gca()
+    wt = WindTurbine.from_WAsP_wtg(example_data_path + "Vestas V112-3.0 MW.wtg")
+    u_p, p_c, ct_c, rho_ref = [wt.wt_data[0][k]
+                               for k in ['WindSpeed', 'PowerOutput', 'ThrustCoEfficient', 'AirDensity']]
+    u = np.arange(2, 30, .1)
+
+    curve_comp = PowerCtTabular(ws=u_p, power=p_c, power_unit='w', ct=ct_c, ws_cutin=3, ws_cutout=25,
+                                method='linear', additional_models=[DensityCompensation(rho_ref)])
+    curve_scale = PowerCtTabular(ws=u_p, power=p_c, power_unit='w', ct=ct_c, ws_cutin=3, ws_cutout=25,
+                                 method='linear', additional_models=[DensityScale(rho_ref)])
+
+    for mode in [1]:
+        rho = wt.wt_data[mode]['AirDensity']
+        ax1.plot(u, wt.power(u, mode=mode) * 1e-3, label=f"Wasp, rho={wt.wt_data[mode]['AirDensity']}")
+        ax2.plot(u, wt.ct(u, mode=mode), label=f"Wasp, rho={wt.wt_data[mode]['AirDensity']}")
+        p, ct = curve_comp(u, Air_density=rho)
+        ax1.plot(u, p * 1e-3, label='DensityCompensation')
+        ax2.plot(u, ct, label='DensityCompensation')
+        p, ct = curve_scale(u, Air_density=rho)
+        ax1.plot(u, p * 1e-3, label='DensityScale')
+        ax2.plot(u, ct, label='DensityScale')
+    setup_plot(ax=ax1, xlabel='Wind speed [m/s]', ylabel='Power [kW]')
+    setup_plot(ax=ax2, xlabel='Wind speed [m/s]', ylabel='Ct [-]')
+    plt.show()
+
+    for run_only in [0, 1]:
+        for argnum in [0, 1]:
+            def t(u, Air_density):
+                return curve_comp(u, Air_density=Air_density, run_only=run_only)
             dpctdu_lst = [grad(t, argnum=argnum)([10, 13], Air_density=[1.225, 1.5]) for grad in [fd, cs, autograd]]
             npt.assert_allclose(dpctdu_lst[0], dpctdu_lst[1], rtol=1e-4)
             npt.assert_allclose(dpctdu_lst[1], dpctdu_lst[2])
