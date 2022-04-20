@@ -4,15 +4,18 @@ from py_wake.rotor_avg_models.rotor_avg_model import gauss_quadrature, PolarGrid
 from py_wake.tests import npt
 import numpy as np
 from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37_WindTurbines
-from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit
+from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit,\
+    ZongGaussian, BastankhahGaussianDeficit
 from py_wake.flow_map import HorizontalGrid
 from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind, EngineeringWindFarmModel
 from py_wake.superposition_models import SquaredSum, LinearSum
 import pytest
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 
-from py_wake.deficit_models.deficit_model import WakeDeficitModel
+from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel
 from py_wake.utils.model_utils import get_models
+from py_wake.turbulence_models.crespo import CrespoHernandez
+from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 
 EngineeringWindFarmModel.verbose = False
 
@@ -211,3 +214,25 @@ def test_with_all_deficit_models(WFM):
                    deflectionModel=None, turbulenceModel=STF2017TurbulenceModel())
         kwargs = {'x': [0, 0, 500, 500], 'y': [0, 500, 0, 500], 'wd': [0], 'ws': [8]}
         npt.assert_equal(wfm.aep(**kwargs), wfm2.aep(**kwargs))
+
+
+@pytest.mark.parametrize('blockage_deficitModel', get_models(BlockageDeficitModel))
+def test_with_all_blockage_models(blockage_deficitModel):
+    site = IEA37Site(16)
+    windTurbines = IEA37_WindTurbines()
+    if blockage_deficitModel is not None:
+        blockage_deficitModel = blockage_deficitModel()
+    wfm = All2AllIterative(site, windTurbines, wake_deficitModel=BastankhahGaussianDeficit(),
+                           blockage_deficitModel=blockage_deficitModel,
+                           rotorAvgModel=EqGridRotorAvg(),
+                           turbulenceModel=STF2017TurbulenceModel())
+    kwargs = {'x': [0, 0, 500, 500], 'y': [0, 500, 0, 500], 'wd': [0], 'ws': [8]}
+    wfm(**kwargs)
+
+
+def test_overlapping_area_factor_shapes():
+    site = Hornsrev1Site()
+    windTurbines = IEA37_WindTurbines()
+    wfm = ZongGaussian(site, windTurbines, rotorAvgModel=EqGridRotorAvg(9),
+                       turbulenceModel=CrespoHernandez())
+    wfm([0, 1000], [0, 0])

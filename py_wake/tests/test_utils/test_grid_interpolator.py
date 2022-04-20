@@ -111,6 +111,15 @@ def test_grid_interpolator_non_regular():
     npt.assert_array_almost_equal(eq(xp, 'nearest'), [0., 0., 0., 0., 6., 6., 6., 6., 8., 8.])
 
 
+def test_grid_interpolator_init_twice():
+    x = [np.array([0.0, 2.99999, 3.0, 3.5, 4.0, 4.5]),
+         np.array([0.84, 0.85, 0.86, 0.87, 0.88, ])
+         ]
+    V = np.reshape(np.array(range(30)), (6, 5))
+    GridInterpolator(x, V)
+    GridInterpolator(x, V)
+
+
 def compare_speed():
     x = np.arange(0, 100)
     y = np.arange(10, 100)

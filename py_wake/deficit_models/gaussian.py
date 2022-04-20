@@ -337,6 +337,7 @@ class ZongGaussianDeficit(NiayifarGaussianDeficit):
 
 class ZongGaussian(PropagateDownwind):
     def __init__(self, site, windTurbines, a=[0.38, 4e-3], deltawD=1. / np.sqrt(2), lam=7.5, B=3,
+                 rotorAvgModel=None,
                  superpositionModel=SquaredSum(), deflectionModel=None, turbulenceModel=None, groundModel=None):
         """
         Parameters
@@ -353,6 +354,7 @@ class ZongGaussian(PropagateDownwind):
             Model describing the amount of added turbulence in the wake
         """
         PropagateDownwind.__init__(self, site, windTurbines, wake_deficitModel=ZongGaussianDeficit(a=a, deltawD=deltawD, lam=lam, B=B, groundModel=groundModel),
+                                   rotorAvgModel=rotorAvgModel,
                                    superpositionModel=superpositionModel, deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
 
 
