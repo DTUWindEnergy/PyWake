@@ -22,7 +22,7 @@ class GridInterpolator(object):
             - 'limit': interpolation points are forced inside the area
             - 'ignore': Faster option with no check. Use this option if data is guaranteed to be inside the area
         """
-        self.x = x
+        self.x = x.copy()
         self.V = V
         self.bounds = bounds
         self.method = method
