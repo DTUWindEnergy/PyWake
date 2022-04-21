@@ -220,6 +220,7 @@ def autograd(f, vector_interdependence=True, argnum=0):
                 for i, wrt_arg in zip(argnum, wrt_args):
                     args.insert(i, wrt_arg)
                 return f(*args, **kwargs)
+            wrap_1inp.org_f = f
             dfdinp = autograd(wrap_1inp, vector_interdependence=vector_interdependence)(wrt_1arg, *args)
             return [dfdinp[i0:i1].reshape(s) for i0, i1, s in zip(wrt_arg_i[:-1], wrt_arg_i[1:], wrt_arg_shape)]
         return wrap
@@ -234,8 +235,7 @@ def autograd(f, vector_interdependence=True, argnum=0):
             args, kwargs = kwargs2args(f, *args, **kwargs)
             return grad_func(*(args[:argnum] + (anp.asarray(args[argnum], dtype=float),) + args[argnum + 1:]),  # @UndefinedVariable
                              **kwargs)
-
-        return _use_autograd_in(modules=['py_wake.', f])(wrap2)
+        return _use_autograd_in(modules=['py_wake.', getattr(f, 'org_f', f)])(wrap2)
 
 
 color_dict = {}
