@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 
 def check_input(input_space_lst, input_lst, input_keys=None):
