@@ -162,6 +162,9 @@ class TerrainFollowingDistance(StraightDistance):
 
 
 class TerrainFollowingDistance2():
+    """Warning: This model is deprecated and will be removed in a future release.
+    It is very slow and has not been updated to match the newest api changes. Hence it may fail in some setup.
+    """
     def __init__(self, k_star=0.075, r_i=None, calc_all=False, terrain_step=5, **kwargs):
         super().__init__(**kwargs)
         self.k_star = k_star
