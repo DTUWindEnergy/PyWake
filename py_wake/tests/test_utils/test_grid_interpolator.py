@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from py_wake.tests import npt
 from py_wake.tests.check_speed import timeit
-from py_wake.utils.grid_interpolator import GridInterpolator
+from py_wake.utils.grid_interpolator import GridInterpolator, EqDistRegGrid2DInterpolator
 import xarray as xr
 
 
@@ -118,6 +118,24 @@ def test_grid_interpolator_init_twice():
     V = np.reshape(np.array(range(30)), (6, 5))
     GridInterpolator(x, V)
     GridInterpolator(x, V)
+
+
+def test_EqDistRegGrid2DInterpolator_non_eqdist():
+    x = [6, 12, 18]
+    y = [200, 300, 400, 500]
+    v = np.arange(12).reshape(3, 4)
+    with pytest.raises(AssertionError, match="x is not equidistant"):
+        EqDistRegGrid2DInterpolator([6, 12, 15], y, v)
+    with pytest.raises(AssertionError, match="y is not equidistant"):
+        EqDistRegGrid2DInterpolator(x, [200, 300, 400, 501], v)
+
+
+def test_EqDistRegGrid2DInterpolator_bound():
+    x = [6, 12, 18]
+    y = [200, 300, 400, 500]
+    v = np.arange(12).reshape(3, 4)
+    interp = EqDistRegGrid2DInterpolator(x, y, v)
+    npt.assert_array_equal(interp(np.array([6, 18]), np.array([200, 500])), [0, 11])
 
 
 def compare_speed():
