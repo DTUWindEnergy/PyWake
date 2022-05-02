@@ -282,7 +282,7 @@ class WindFarmModel(ABC):
         map_func, wd_chunks, ws_chunks, time_chunks = self._multiprocessing_chunks(wd, ws, n_cpu, wd_chunks, ws_chunks)
         kwargs_lst = [{'wd': wd, 'ws': ws, **kwargs} for wd in wd_chunks for ws in ws_chunks]
 
-        return np.sum([aep / self.site.wd_bin_size(args['wd']) * wd_bin_size
+        return np.sum([np.array(aep) / self.site.wd_bin_size(args['wd']) * wd_bin_size
                        for args, aep in zip(kwargs_lst, map_func(aep_function, kwargs_lst))], 0)
 
     def aep_gradients(self, gradient_method, wrt_arg, gradient_method_kwargs={},

@@ -215,6 +215,10 @@ def test_dAEP_2wt():
     for grad in [fd, cs, autograd]:
         dAEPdx = grad(wfm.aep, argnum=0)(x_, y, **kwargs)[1]
         npt.assert_almost_equal(dAEPdx / 360, 3.976975605364392e-06, (10, 5)[grad == fd])
+        dAEPdxy = wfm.aep_gradients(grad, ['x', 'y'])(x_, y, **kwargs)
+        npt.assert_almost_equal(dAEPdxy[0][1] / 360, 3.976975605364392e-06, (10, 5)[grad == fd])
+        dAEPdxy = wfm.aep_gradients(grad, ['x', 'y'], wd_chunks=2, x=x_, y=y, **kwargs)
+        npt.assert_almost_equal(dAEPdxy[0][1] / 360, 3.976975605364392e-06, (10, 5)[grad == fd])
         plot_gradients(wfm.aep(x_, y, **kwargs), dAEPdx, x_[1], grad.__name__, step=100, ax=ax1)
     y_lst = np.array([0, 1.]) * np.arange(-100, 100, 5)[:, na]
     ax2.plot(y_lst[:, 1], [wfm.aep(x, y_, **kwargs) for y_ in y_lst])
@@ -226,6 +230,8 @@ def test_dAEP_2wt():
         dAEPdy = grad(wfm.aep, argnum=1)(x, y_, **kwargs)[1]
         plot_gradients(wfm.aep(x, y_, **kwargs), dAEPdy, y_[1], grad.__name__, step=50, ax=ax2)
         npt.assert_almost_equal(dAEPdy / 360, 3.794435973860448e-05, (10, 5)[grad == fd])
+        dAEPdxy = wfm.aep_gradients(grad, ['x', 'y'])(x, y_, **kwargs)
+        npt.assert_almost_equal(dAEPdxy[1][1] / 360, 3.794435973860448e-05, (10, 5)[grad == fd])
 
     if 0:
         plt.legend()
