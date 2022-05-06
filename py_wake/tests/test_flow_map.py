@@ -10,6 +10,8 @@ import pytest
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
 from py_wake.wind_turbines._wind_turbines import WindTurbines
 from py_wake.examples.data import wtg_path
+from py_wake.utils.profiling import timeit
+from py_wake.utils.parallelization import get_pool
 
 
 @pytest.fixture(autouse=True)
@@ -272,3 +274,57 @@ def test_min_ws_eff_line():
                                   [np.nan, np.nan, 11.6, 21.64, 30.42, 38.17, 45.09, 51.27,
                                    -8.65, -18.66, -27.51, -35.37, -42.38, -48.58, -1.09, -1.34,
                                    -1.59, -1.83, -2.07, -2.31, -2.56], 2)
+
+
+def flow_map_j_wd_chunks():
+    # demonstrate that wd chunkification is more efficient than j chunkification
+    site = IEA37Site(16)
+    x, y = [0, 600, 1200], [0, 0, 0]  # site.initial_position[:2].T
+    windTurbines = IEA37_WindTurbines()
+    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines, deflectionModel=JimenezWakeDeflection())
+
+    yaw_ilk = np.reshape([-30, 30, 0], (3, 1, 1))
+
+    plt.figure(figsize=(14, 3))
+    sim_res = wfm(x, y, yaw=yaw_ilk, wd=np.arange(320), ws=10)
+
+    t_all = timeit(sim_res.flow_map, verbose=1)(XYGrid(x=np.linspace(-100, 2000, 64), y=np.linspace(-500, 500, 100)))
+    t_j = timeit(sim_res.flow_map, verbose=1)(XYGrid(x=np.linspace(-100, 2000, 2), y=np.linspace(-500, 500, 100)))
+    t_wd = timeit(sim_res.flow_map, verbose=1)(XYGrid(x=np.linspace(-100, 2000, 64), y=np.linspace(-500, 500, 100)),
+                                               wd=np.arange(10))
+    print(np.mean(t_all[1]) / np.mean(t_j[1]))
+    print(np.mean(t_all[1]) / np.mean(t_wd[1]))
+
+
+def test_flow_map_parallel_wd():
+    site = IEA37Site(16)
+    x, y = [0, 600, 1200], [0, 0, 0]  # site.initial_position[:2].T
+    windTurbines = IEA37_WindTurbines()
+    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines, deflectionModel=JimenezWakeDeflection())
+
+    yaw_ilk = np.reshape([-30, 30, 0], (3, 1, 1))
+
+    plt.figure(figsize=(14, 3))
+    sim_res = wfm(x, y, yaw=yaw_ilk, wd=np.arange(10), ws=10)
+    fm = sim_res.flow_map(XYGrid(x=np.linspace(-100, 2000, 10), y=np.linspace(-500, 500, 25)), n_cpu=2)
+    fm_ref = sim_res.flow_map(XYGrid(x=np.linspace(-100, 2000, 10), y=np.linspace(-500, 500, 25)))
+
+    npt.assert_array_equal(fm.WS_eff, fm_ref.WS_eff)
+    assert fm_ref.equals(fm)
+
+
+def test_flow_map_parallel_j():
+    site = IEA37Site(16)
+    x, y = [0, 600, 1200], [0, 0, 0]  # site.initial_position[:2].T
+    windTurbines = IEA37_WindTurbines()
+    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines, deflectionModel=JimenezWakeDeflection())
+
+    yaw_ilk = np.reshape([-30, 30, 0], (3, 1, 1))
+
+    plt.figure(figsize=(14, 3))
+    sim_res = wfm(x, y, yaw=yaw_ilk, wd=270, ws=10)
+    fm = sim_res.flow_map(XYGrid(x=np.linspace(-100, 2000, 50), y=np.linspace(-500, 500, 25)), n_cpu=2)
+    fm_ref = sim_res.flow_map(XYGrid(x=np.linspace(-100, 2000, 50), y=np.linspace(-500, 500, 25)))
+
+    npt.assert_array_equal(fm.WS_eff, fm_ref.WS_eff)
+    assert fm_ref.equals(fm)

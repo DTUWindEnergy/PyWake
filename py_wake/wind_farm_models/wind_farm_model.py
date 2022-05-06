@@ -598,7 +598,7 @@ class SimulationResult(xr.Dataset):
 
         return FlowBox(self, X, Y, H, lw_j, WS_eff_jlk, TI_eff_jlk)
 
-    def flow_map(self, grid=None, wd=None, ws=None):
+    def flow_map(self, grid=None, wd=None, ws=None, n_cpu=1):
         """Return a FlowMap object with WS_eff and TI_eff of all grid points
 
         Parameters
@@ -630,10 +630,24 @@ class SimulationResult(xr.Dataset):
         wd, ws = self._wd_ws(wd, ws)
         X, Y, x_j, y_j, h_j = grid
 
-        lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(
-            x_j, y_j, h_j,
-            self.sel(wd=wd, ws=ws)
-        )
+        sim_res = self.sel(wd=wd, ws=ws)
+        if n_cpu != 1:
+            n_cpu = n_cpu or multiprocessing.cpu_count()
+            map = get_pool(n_cpu).starmap
+            if len(wd) >= n_cpu:
+                # chunkification more efficient on wd than j
+                wd_i = np.linspace(0, len(wd), n_cpu + 1).astype(int)
+                args_lst = [[x_j, y_j, h_j, sim_res.sel(wd=wd[i0:i1])] for i0, i1 in zip(wd_i[:-1], wd_i[1:])]
+                lw, ws_eff, ti_eff = zip(*map(self.windFarmModel._flow_map, args_lst))
+                lw_j, WS_eff_jlk, TI_eff_jlk = xr.concat(lw, 'wd'), np.concatenate(ws_eff, 1), np.concatenate(ti_eff, 1)
+            else:
+                j_i = np.linspace(0, len(x_j), n_cpu + 1).astype(int)
+                args_lst = [[xyh_j[i0:i1] for xyh_j in [x_j, y_j, h_j]] + [sim_res]
+                            for i0, i1 in zip(j_i[:-1], j_i[1:])]
+                lw, ws_eff, ti_eff = zip(*map(self.windFarmModel._flow_map, args_lst))
+                lw_j, WS_eff_jlk, TI_eff_jlk = xr.concat(lw, 'i'), np.concatenate(ws_eff), np.concatenate(ti_eff)
+        else:
+            lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(x_j, y_j, h_j, sim_res)
 
         return FlowMap(self, X, Y, lw_j, WS_eff_jlk, TI_eff_jlk, plane=plane)
 
