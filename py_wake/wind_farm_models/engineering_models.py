@@ -185,23 +185,34 @@ class EngineeringWindFarmModel(WindFarmModel):
 
         # Find local wind speed, wind direction, turbulence intensity and probability
         lw = self.site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=wd, ws=ws, time=time)
+        I, L, K, = len(x_i), len(wd), (1, len(ws))[time is False]
 
-        # Calculate down-wind and cross-wind distances
-        self._validate_input(x_i, y_i)
+        def arg2ilk(k, v):
+            v = np.asarray(v)
+            if v.shape not in {(), (I,), (I, L), (I, L, K), (L,), (L, K)}:
+                valid_shapes = f"(), ({I}), ({I},{L}), ({I},{L},{K}), ({L},), ({L}, {K})"
+                raise ValueError(
+                    f"Argument, {k}(shape={v.shape}), has unsupported shape. Valid shapes are {valid_shapes} (interpreted in this order)")
+            if v.shape != (I,) and (v.shape == (L,) or v.shape == (L, K)):
+                return np.broadcast_to(v[na], (I,) + v.shape)
+            else:
+                return v
+
+        wt_kwargs = kwargs
+        ri, oi = self.windTurbines.function_inputs
+        unused_inputs = set(wt_kwargs) - set(ri) - set(oi) - {'WS', 'WD', 'TI'}
+        if unused_inputs:
+            raise TypeError("""got unexpected keyword argument(s): '%s'
+            required arguments: %s
+            optional arguments: %s""" % ("', '".join(unused_inputs), ['ws'] + ri, oi))
+
+        wt_kwargs = {k: arg2ilk(k, v)for k, v in wt_kwargs.items()}
 
         if n_cpu != 1 or wd_chunks or ws_chunks > 1:
             # parallel execution
-            map_func, wd_chunks, ws_chunks, time_chunks = self._multiprocessing_chunks(
-                wd, ws, n_cpu, wd_chunks, ws_chunks, time)
-
-            if time is False:
-                arg_lst = [{'x_i': x_i, 'y_i': y_i, 'h_i': h_i, 'type_i': type_i, 'yaw_ilk': yaw_ilk,
-                            'wd': wd, 'ws': ws, 'time': time, **kwargs}
-                           for wd in wd_chunks for ws in ws_chunks]
-            else:
-                arg_lst = [{'x_i': x_i, 'y_i': y_i, 'h_i': h_i, 'type_i': type_i, 'yaw_ilk': yaw_ilk,
-                            'wd': wd, 'ws': ws, 'time': time, **kwargs}
-                           for wd, ws, time in zip(wd_chunks, ws_chunks, time_chunks)]
+            map_func, arg_lst, wd_chunks, ws_chunks = self._multiprocessing_chunks(
+                wd=wd, ws=ws, time=time, n_cpu=n_cpu, wd_chunks=wd_chunks, ws_chunks=ws_chunks,
+                x_i=x_i, y_i=y_i, h_i=h_i, type_i=type_i, yaw_ilk=yaw_ilk, tilt_ilk=tilt_ilk, **kwargs)
 
             WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, _, wt_inputs = list(
                 zip(*map_func(self._calc_wt_interaction_args, arg_lst)))
@@ -210,15 +221,22 @@ class EngineeringWindFarmModel(WindFarmModel):
                 if all([v is None for v in v_ilk]):
                     return None
                 if time is False:
-                    n_ws = len(ws_chunks)
-                    return np.concatenate([np.concatenate(v_ilk[i::n_ws], axis=1) for i in range(n_ws)], axis=2)
+                    if len(v_ilk[0].shape) <= 1:
+                        return v_ilk[0]
+                    if len(v_ilk[0].shape) == 2:
+                        return np.concatenate(v_ilk[0::ws_chunks], axis=1)
+
+                    return np.concatenate([np.concatenate(v_ilk[i::ws_chunks], axis=1)
+                                           for i in range(ws_chunks)], axis=2)
                 else:
                     return np.concatenate(v_ilk, axis=1)
 
             return ([concatenate(v) for v in [WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk]] +
                     [lw, {k: concatenate([wt_i[k] for wt_i in wt_inputs]) for k in wt_inputs[0]}])
 
-        I, L, K, = len(x_i), len(wd), (1, len(ws))[time is False]
+        # Calculate down-wind and cross-wind distances
+        self._validate_input(x_i, y_i)
+
         for v in ['WS', 'WD', 'TI']:
             if v in kwargs:
                 lw.add_ilk(v, kwargs[v])
@@ -231,27 +249,6 @@ class EngineeringWindFarmModel(WindFarmModel):
 
         self.site.distance.setup(x_i, y_i, h_i)
         # cw_iil = np.sqrt(hcw_iil**2 + dh_iil**2 + eps)
-        wt_kwargs = kwargs
-        ri, oi = self.windTurbines.function_inputs
-        unused_inputs = set(wt_kwargs) - set(ri) - set(oi) - {'WS', 'WD', 'TI'}
-        if unused_inputs:
-            raise TypeError("""got unexpected keyword argument(s): '%s'
-            required arguments: %s
-            optional arguments: %s""" % ("', '".join(unused_inputs), ['ws'] + ri, oi))
-
-        def arg2ilk(k, v):
-            #             if v is None:
-            #                 return v
-            v = np.asarray(v)
-            if v.shape not in {(), (I,), (I, L), (I, L, K), (L,), (L, K)}:
-                valid_shapes = f"(), ({I}), ({I},{L}), ({I},{L},{K}), ({L},), ({L}, {K})"
-                raise ValueError(
-                    f"Argument, {k}(shape={v.shape}), has unsupported shape. Valid shapes are {valid_shapes} (interpreted in this order)")
-            if v.shape != (I,) and (v.shape == (L,) or v.shape == (L, K)):
-                return np.broadcast_to(v[na], (I,) + v.shape)
-            else:
-                return v
-        wt_kwargs = {k: arg2ilk(k, v)for k, v in wt_kwargs.items()}
 
         def add_arg(name, optional):
             if name in wt_kwargs:  # custom WindFarmModel.__call__ arguments
