@@ -111,8 +111,7 @@ class WindFarmModel(ABC):
 
     def aep(self, x, y, h=None, type=0, wd=None, ws=None, yaw=None, tilt=None,  # @ReservedAssignment
             normalize_probabilities=False, with_wake_loss=True,
-            n_cpu=1, wd_chunks=None, ws_chunks=None,
-            ):
+            n_cpu=1, wd_chunks=None, ws_chunks=None, **kwargs):
         """Anual Energy Production (sum of all wind turbines, directions and speeds) in GWh.
 
         the typical use is:
@@ -169,16 +168,17 @@ class WindFarmModel(ABC):
         """
         if n_cpu != 1 or wd_chunks or ws_chunks:
             return self._aep_chunk_wrapper(
-                self._aep_kwargs, wd, ws, n_cpu, wd_chunks, ws_chunks,
-                x=x, y=y, h=h, type=type, yaw=yaw, tilt=tilt,
-                normalize_probabilities=normalize_probabilities, with_wake_loss=with_wake_loss)
+                self._aep_kwargs,
+                x, y, h, type, wd, ws, yaw, tilt,
+                normalize_probabilities=False, with_wake_loss=True,
+                n_cpu=1, wd_chunks=None, ws_chunks=None, **kwargs)
         wd, ws = self.site.get_defaults(wd, ws)
         I, L, K, = len(x), len(np.atleast_1d(wd)), len(np.atleast_1d(ws))
         yaw_ilk = fix_shape(yaw, (I, L, K), allow_None=True, allow_number=True)
         tilt_ilk = fix_shape(tilt, (I, L, K), allow_None=True, allow_number=True)
 
         _, _, power_ilk, _, localWind, power_ct_inputs = self.calc_wt_interaction(
-            x_i=x, y_i=y, h_i=h, type_i=type, yaw_ilk=yaw_ilk, tilt_ilk=tilt_ilk, wd=wd, ws=ws)
+            x_i=x, y_i=y, h_i=h, type_i=type, yaw_ilk=yaw_ilk, tilt_ilk=tilt_ilk, wd=wd, ws=ws, **kwargs)
         P_ilk = localWind.P_ilk
         if normalize_probabilities:
             norm = P_ilk.sum((1, 2))[:, na, na]
@@ -247,40 +247,68 @@ class WindFarmModel(ABC):
             Local free-flow wind
         """
 
-    def _multiprocessing_chunks(self, wd, ws, n_cpu, wd_chunks, ws_chunks, time=False):
+    def _multiprocessing_chunks(self, wd, ws, time,
+                                n_cpu, wd_chunks, ws_chunks, **kwargs):
         n_cpu = n_cpu or multiprocessing.cpu_count()
         wd_chunks = np.minimum(wd_chunks or n_cpu, len(wd))
-        ws_chunks = ws_chunks or 1
-        if time is False:
-            time_chunks = None
-        else:
-            wd_chunks = np.maximum(ws_chunks, wd_chunks)
-            ws_chunks = wd_chunks
-            if time is True:
-                time = np.arange(len(wd))
-            time_i = np.linspace(0, len(wd) + 1, wd_chunks + 1).astype(int)
-            time_chunks = [time[t_i0:t_i1] for t_i0, t_i1 in zip(time_i[:-1], time_i[1:])]
+        ws_chunks = np.minimum(ws_chunks or 1, len(ws))
 
-        ws_chunks = np.minimum(ws_chunks, len(ws))
+        if time is not False:
+            wd_chunks = ws_chunks = np.maximum(ws_chunks, wd_chunks)
+
         wd_i = np.linspace(0, len(wd) + 1, wd_chunks + 1).astype(int)
         ws_i = np.linspace(0, len(ws) + 1, ws_chunks + 1).astype(int)
         if n_cpu > 1:
             map_func = get_pool(n_cpu).map
         else:
             map_func = map
-        return (map_func,
-                [wd[wd_i0:wd_i1] for wd_i0, wd_i1 in zip(wd_i[:-1], wd_i[1:])],
-                [ws[ws_i0:ws_i1] for ws_i0, ws_i1 in zip(ws_i[:-1], ws_i[1:])],
-                time_chunks)
+
+        if time is False:
+            # (wd x ws) matrix
+            slice_lst = [(slice(wd_i0, wd_i1), slice(ws_i0, ws_i1))
+                         for wd_i0, wd_i1 in zip(wd_i[:-1], wd_i[1:])
+                         for ws_i0, ws_i1 in zip(ws_i[:-1], ws_i[1:])]
+        else:
+            # (wd, ws) vector
+            if time is True:
+                time = np.arange(len(wd))
+            slice_lst = [(slice(wd_i0, wd_i1), slice(wd_i0, wd_i1))
+                         for wd_i0, wd_i1 in zip(wd_i[:-1], wd_i[1:])
+                         ]
+
+        I, L, K = len(kwargs.get('x_i', kwargs.get('x'))), len(wd), len(ws)
+
+        def get_subtask_arg(k, arg, wd_slice, ws_slice):
+            if (isinstance(arg, (None.__class__, bool, int, float)) or
+                    k in {'gradient_method', 'wrt_arg'}):
+                return arg
+            s = np.shape(arg)
+            if s in [(), (I,)]:
+                return arg
+            elif s == (I, L):
+                return arg[:, wd_slice]
+            elif s == (I, L, K):
+                return arg[:, wd_slice][:, :, ws_slice]
+            elif s == (L,):
+                return arg[wd_slice]
+            elif s == (L, K):
+                return arg[wd_slice][:, ws_slice]
+
+        arg_lst = [{'wd': wd[wd_slice], 'ws': ws[ws_slice], 'time':get_subtask_arg('time', time, wd_slice, ws_slice),
+                    ** {k: get_subtask_arg(k, v, wd_slice, ws_slice) for k, v in kwargs.items()}} for wd_slice, ws_slice in slice_lst]
+
+        return map_func, arg_lst, wd_chunks, ws_chunks
 
     def _aep_chunk_wrapper(self, aep_function,
-                           wd=None, ws=None,
+                           x, y, h=None, type=0, wd=None, ws=None, yaw=None, tilt=None,  # @ReservedAssignment
+                           normalize_probabilities=False, with_wake_loss=True,
                            n_cpu=1, wd_chunks=None, ws_chunks=None, **kwargs):
         wd, ws = self.site.get_defaults(wd, ws)
         wd_bin_size = self.site.wd_bin_size(wd)
 
-        map_func, wd_chunks, ws_chunks, time_chunks = self._multiprocessing_chunks(wd, ws, n_cpu, wd_chunks, ws_chunks)
-        kwargs_lst = [{'wd': wd, 'ws': ws, **kwargs} for wd in wd_chunks for ws in ws_chunks]
+        map_func, kwargs_lst, wd_chunks, ws_chunks = self._multiprocessing_chunks(
+            wd=wd, ws=ws, time=False, n_cpu=n_cpu, wd_chunks=wd_chunks, ws_chunks=ws_chunks,
+            x=x, y=y, h=h, type=type, yaw=yaw, tilt=tilt, **kwargs)
 
         return np.sum([np.array(aep) / self.site.wd_bin_size(args['wd']) * wd_bin_size
                        for args, aep in zip(kwargs_lst, map_func(aep_function, kwargs_lst))], 0)

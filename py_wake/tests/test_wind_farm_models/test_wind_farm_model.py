@@ -11,6 +11,8 @@ from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 import matplotlib.pyplot as plt
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
 from py_wake.flow_map import XYGrid
+import os
+from py_wake import examples
 
 
 def test_yaw_wrong_name():
@@ -73,7 +75,7 @@ def test_chunks_results():
     # assert t < t_ref * 6
 
 
-@pytest.mark.parametrize('wd', [np.arange(360), np.arange(0, 360, 22.5), np.arange(3) * 2][::-1])
+@pytest.mark.parametrize('wd', [np.arange(360), np.arange(0, 360, 22.5), np.arange(3) * 2])
 def test_aep_chunks_results(wd):
     site = Hornsrev1Site()
     x, y = wt16_x, wt16_y
@@ -84,6 +86,36 @@ def test_aep_chunks_results(wd):
     aep = wfm.aep(x, y, wd_chunks=3, ws_chunks=2, wd=wd)
 
     npt.assert_array_almost_equal(aep, aep_ref, 10)
+
+
+def test_aep_time_chunks_results():
+    site = Hornsrev1Site()
+    x, y = wt16_x, wt16_y
+    wt = HornsrevV80()
+    wfm = NOJ(site, wt)
+
+    d = np.load(os.path.dirname(examples.__file__) + "/data/time_series.npz")
+    wd, ws = [d[k][:6 * 24] for k in ['wd', 'ws']]
+
+    aep_ref = wfm.aep(x, y, wd=wd, ws=ws, time=True)
+    aep = wfm(x, y, wd_chunks=3, ws_chunks=2, wd=wd, ws=ws, time=True).aep().sum()
+    npt.assert_array_almost_equal(aep, aep_ref, 10)
+
+
+@pytest.mark.parametrize('rho', [1.225, 1.3, np.full((16,), 1.3), np.full((16, 360), 1.3),
+                                 np.full((16, 360, 23), 1.3), np.full((360), 1.3), np.full((360, 23), 1.3)])
+def test_aep_chunks_input_dims(rho):
+    site = Hornsrev1Site()
+    x, y = wt16_x, wt16_y
+    wt = HornsrevV80()
+    wfm = NOJ(site, wt)
+
+    aep1 = wfm(x, y, wd_chunks=3, ws_chunks=2, Air_density=rho).aep().sum()
+    aep_ref = wfm(x, y, Air_density=rho).aep().sum()
+    aep2 = wfm.aep(x, y, wd_chunks=3, ws_chunks=2, Air_density=rho)
+
+    npt.assert_array_almost_equal(aep1, aep_ref, 10)
+    npt.assert_array_almost_equal(aep2, aep_ref, 10)
 
 
 @pytest.mark.parametrize('wrt_arg', ['x', 'y', 'h',
