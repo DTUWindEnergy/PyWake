@@ -34,6 +34,12 @@ def test_power_xylk():
     fm = simulation_result.flow_map(grid=HorizontalGrid(resolution=3))
     npt.assert_array_almost_equal(fm.power_xylk(with_wake_loss=False)[:, :, 0, 0] * 1e-6, 3.35)
 
+    fm = simulation_result.flow_map(grid=Points(
+        [-1820., 0., 1820., -1820., 0., 1820., -1820., 0., 1820.],
+        [-1730.9229, -1730.9229, -1730.9229, 0., 0., 0., 1730.9229, 1730.9229, 1730.9229],
+        [110., 110., 110., 110., 110., 110., 110., 110., 110.]))
+    npt.assert_array_almost_equal(fm.power_xylk(with_wake_loss=False)[:, 0, 0] * 1e-6, 3.35)
+
 
 def test_power_xylk_wt_args():
     site = IEA37Site(16)

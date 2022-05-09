@@ -314,8 +314,10 @@ class EngineeringWindFarmModel(WindFarmModel):
         lw_j = self.site.local_wind(x_i=x_j, y_i=y_j, h_i=h_j, wd=wd, ws=ws)
         I, J, L, K = [len(x) for x in [wt_x_i, x_j, wd, ws]]
 
-        WS_eff_jlk = np.zeros((len(x_j), L, K))
-        TI_eff_jlk = np.zeros((len(x_j), L, K))
+        WS_eff_jlk = lw_j.WS.ilk((len(x_j), L, K)).astype(float)
+        TI_eff_jlk = lw_j.TI.ilk((len(x_j), L, K)).astype(float)
+        if I == 0:
+            return lw_j, WS_eff_jlk, TI_eff_jlk
 
         self.site.distance.setup(wt_x_i, wt_y_i, wt_h_i, (x_j, y_j, h_j))
 
