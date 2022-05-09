@@ -85,7 +85,8 @@ except ModuleNotFoundError:
         code = []
         for cell in self.cells:
             if cell['cell_type'] == "code":
-                if "".join(cell['source']).strip() != "":
+                c = "".join(cell['source'])
+                if c.strip() != "" and not c.strip().startswith("%%skip"):
                     code.append("".join(cell['source']))
         return code
 
@@ -181,7 +182,7 @@ It has now been auto insert. Please check the notebook and commit the changes"""
 
 if __name__ == '__main__':
     import py_wake
-    nb = Notebook(os.path.dirname(py_wake.__file__) + '/../docs/notebooks/QuickStart.ipynb')
+    nb = Notebook(os.path.dirname(py_wake.__file__) + '/../docs/notebooks/RunWindFarmSimulation.ipynb')
     nb.check_code()
     nb.check_links()
     nb.remove_empty_end_cell()
