@@ -74,6 +74,9 @@ class FlowMap(FlowBox):
                 self[k] = self[k].transpose('h', 'x', ...)
                 setattr(self.__class__, "%s_xylk" % k,
                         property(lambda self, k=k: self[k].isel(x=0).transpose('x', 'h', ...)))
+        elif plane[0] == "xyz":
+            for k in ['WS_eff', 'TI_eff', 'WS', 'WD', 'TI', 'P']:
+                setattr(self.__class__, "%s_xylk" % k, property(lambda self, k=k: self[k]))
 
     @property
     def XY(self):
@@ -87,7 +90,10 @@ class FlowMap(FlowBox):
             ws = self.WS_xylk
 
         power_xylk = self.windFarmModel.windTurbines.power(ws, **wt_kwargs)
-        return xr.DataArray(power_xylk[:, :, na], self.coords, dims=['y', 'x', 'h', 'wd', 'ws'])
+        if self.plane[0] == "xyz":
+            return power_xylk
+        else:
+            return xr.DataArray(power_xylk[:, :, na], self.coords, dims=['y', 'x', 'h', 'wd', 'ws'])
 
     def aep_xylk(self, normalize_probabilities=False, with_wake_loss=True, **wt_kwargs):
         """Anual Energy Production of a potential wind turbine at all grid positions (x,y)
