@@ -88,7 +88,7 @@ class EngineeringWindFarmModel(WindFarmModel):
             self.args4deficit = set(self.args4deficit) | set(self.blockage_deficitModel.args4deficit)
             if self.blockage_deficitModel.groundModel:
                 self.args4deficit = set(self.args4deficit) | set(self.blockage_deficitModel.groundModel.args4deficit)
-        elif self.wake_deficitModel.groundModel:
+        if self.wake_deficitModel.groundModel:
             self.args4deficit = set(self.args4deficit) | set(self.wake_deficitModel.groundModel.args4deficit)
         self.args4all = set(self.args4deficit)
         if self.turbulenceModel:
