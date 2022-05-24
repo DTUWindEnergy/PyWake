@@ -95,7 +95,7 @@ def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110,
             plt.suptitle(name)
             plt.show()
             plt.close('all')
-        print(f'[x] {name}')
+        # print(f'[x] {name}')
     except AssertionError as e:
         # print(f'[ ] {name}')
         raise

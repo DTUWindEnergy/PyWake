@@ -1,8 +1,8 @@
 from abc import abstractmethod, ABC
-from py_wake.site._site import Site, UniformSite, UniformWeibullSite, LocalWind
+from py_wake.site._site import Site, UniformSite, LocalWind
 from py_wake.wind_turbines import WindTurbines
 import numpy as np
-from py_wake.flow_map import FlowMap, HorizontalGrid, FlowBox, YZGrid, Grid, Points
+from py_wake.flow_map import FlowMap, HorizontalGrid, FlowBox, Grid
 import xarray as xr
 from py_wake.utils import xarray_utils, weibull  # register ilk function @UnusedImport
 from numpy import newaxis as na
@@ -598,7 +598,53 @@ class SimulationResult(xr.Dataset):
 
         return FlowBox(self, X, Y, H, lw_j, WS_eff_jlk, TI_eff_jlk)
 
-    def flow_map(self, grid=None, wd=None, ws=None, n_cpu=1):
+    def _get_grid(self, grid):
+        if grid is None:
+            grid = HorizontalGrid()
+        if isinstance(grid, Grid):
+            plane = grid.plane
+            grid = grid(x_i=self.x, y_i=self.y, h_i=self.h,
+                        d_i=self.windFarmModel.windTurbines.diameter(self.type))
+        else:
+            plane = (None,)
+        return *grid, plane
+
+    def aep_map(self, grid=None, wd=None, ws=None, n_cpu=1, wd_chunks=None):
+        X, Y, x_j, y_j, h_j, plane = self._get_grid(grid)
+        wd, ws = self._wd_ws(wd, ws)
+        sim_res = self.sel(wd=wd, ws=ws)
+        n_cpu = n_cpu or multiprocessing.cpu_count()
+        wd_chunks = np.minimum(wd_chunks or n_cpu, len(wd))
+        if n_cpu != 1:
+            n_cpu = n_cpu or multiprocessing.cpu_count()
+            map = get_pool(n_cpu).starmap  # @ReservedAssignment
+            if len(wd) >= n_cpu:
+                # chunkification more efficient on wd than j
+                wd_i = np.linspace(0, len(wd), n_cpu + 1).astype(int)
+                args_lst = [[x_j, y_j, h_j, sim_res.sel(wd=wd[i0:i1])] for i0, i1 in zip(wd_i[:-1], wd_i[1:])]
+                aep_lst = map(self.windFarmModel._aep_map, args_lst)
+                aep_j = np.sum(aep_lst, 0)
+            else:
+                j_i = np.linspace(0, len(x_j), n_cpu + 1).astype(int)
+                args_lst = [[xyh_j[i0:i1] for xyh_j in [x_j, y_j, h_j]] + [sim_res]
+                            for i0, i1 in zip(j_i[:-1], j_i[1:])]
+                aep_lst = map(self.windFarmModel._aep_map, args_lst)
+                aep_j = np.concatenate(aep_lst)
+        else:
+            aep_j = self.windFarmModel._aep_map(x_j, y_j, h_j, sim_res)
+        aep_j /= sim_res.P.ilk().sum((1, 2))
+
+        if plane[0] == 'XY':
+            coords = {'x': X[0], 'y': Y[:, 0]}
+            return xr.DataArray(aep_j.reshape(X.shape), name='AEP', attrs={
+                                'units': 'GWh'}, coords=coords, dims=['y', 'x'])
+        elif plane[0] == 'xyz':
+            return xr.DataArray(aep_j, name='AEP', attrs={'units': 'GWh'}, coords={
+                                'x': ('i', grid.x), 'y': ('i', grid.y)}, dims=['i'])
+        else:  # pragma: no cover
+            raise NotImplementedError()
+
+    def flow_map(self, grid=None, wd=None, ws=None):
         """Return a FlowMap object with WS_eff and TI_eff of all grid points
 
         Parameters
@@ -612,43 +658,9 @@ class SimulationResult(xr.Dataset):
         --------
         pywake.wind_farm_models.flow_map.FlowMap
         """
-
-        if grid is None:
-            grid = HorizontalGrid()
-        if isinstance(grid, Grid):
-            if isinstance(grid, HorizontalGrid):
-                plane = "XY", self.h
-            elif isinstance(grid, YZGrid):
-                plane = grid.plane
-            elif isinstance(grid, Points):
-                plane = 'xyz', None
-            grid = grid(x_i=self.x, y_i=self.y, h_i=self.h,
-                        d_i=self.windFarmModel.windTurbines.diameter(self.type))
-        else:
-            plane = (None,)
-
+        X, Y, x_j, y_j, h_j, plane = self._get_grid(grid)
         wd, ws = self._wd_ws(wd, ws)
-        X, Y, x_j, y_j, h_j = grid
-
-        sim_res = self.sel(wd=wd, ws=ws)
-        if n_cpu != 1:
-            n_cpu = n_cpu or multiprocessing.cpu_count()
-            map = get_pool(n_cpu).starmap
-            if len(wd) >= n_cpu:
-                # chunkification more efficient on wd than j
-                wd_i = np.linspace(0, len(wd), n_cpu + 1).astype(int)
-                args_lst = [[x_j, y_j, h_j, sim_res.sel(wd=wd[i0:i1])] for i0, i1 in zip(wd_i[:-1], wd_i[1:])]
-                lw, ws_eff, ti_eff = zip(*map(self.windFarmModel._flow_map, args_lst))
-                lw_j, WS_eff_jlk, TI_eff_jlk = xr.concat(lw, 'wd'), np.concatenate(ws_eff, 1), np.concatenate(ti_eff, 1)
-            else:
-                j_i = np.linspace(0, len(x_j), n_cpu + 1).astype(int)
-                args_lst = [[xyh_j[i0:i1] for xyh_j in [x_j, y_j, h_j]] + [sim_res]
-                            for i0, i1 in zip(j_i[:-1], j_i[1:])]
-                lw, ws_eff, ti_eff = zip(*map(self.windFarmModel._flow_map, args_lst))
-                lw_j, WS_eff_jlk, TI_eff_jlk = xr.concat(lw, 'i'), np.concatenate(ws_eff), np.concatenate(ti_eff)
-        else:
-            lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(x_j, y_j, h_j, sim_res)
-
+        lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(x_j, y_j, h_j, self.sel(wd=wd, ws=ws))
         return FlowMap(self, X, Y, lw_j, WS_eff_jlk, TI_eff_jlk, plane=plane)
 
     def _wd_ws(self, wd, ws):

@@ -3,7 +3,7 @@ import pytest
 import matplotlib.pyplot as plt
 import numpy as np
 from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel, DeficitModel
-from py_wake.deficit_models.fuga import FugaDeficit, Fuga, FugaYawDeficit
+from py_wake.deficit_models.fuga import FugaDeficit, Fuga
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, IEA37SimpleBastankhahGaussianDeficit,\
     ZongGaussianDeficit, NiayifarGaussianDeficit, BastankhahGaussian, IEA37SimpleBastankhahGaussian, ZongGaussian,\
     NiayifarGaussian, CarbajofuertesGaussianDeficit, TurboGaussianDeficit
@@ -15,7 +15,6 @@ from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windfarm
 from py_wake.flow_map import HorizontalGrid, XYGrid
-from py_wake.ground_models.ground_models import NoGround
 from py_wake.superposition_models import SquaredSum, WeightedSum
 from py_wake.tests import npt
 from py_wake.tests.test_files import tfp
