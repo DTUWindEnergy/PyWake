@@ -471,6 +471,7 @@ class Points(Grid):
         self.x = x
         self.y = y
         self.h = h
+        self.plane = 'xyz', None
 
     def __call__(self, **_):
         return None, None, self.x, self.y, self.h

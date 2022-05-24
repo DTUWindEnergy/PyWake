@@ -30,7 +30,8 @@ class ilk():
                 v = v[:, na]
             if 'ws' not in dims:
                 v = v[:, :, na]
-
+        dtype = (float, np.complex128)[np.iscomplexobj(v)]
+        v = v.astype(dtype)
         if shape is None:
             return v
         else:

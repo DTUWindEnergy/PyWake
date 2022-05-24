@@ -1,7 +1,7 @@
 import pytest
 
 import numpy as np
-from py_wake import NOJ, turbulence_models
+from py_wake import NOJ
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.examples.data.iea37._iea37 import IEA37Site
@@ -22,7 +22,7 @@ from py_wake.deficit_models.gaussian import BastankhahGaussian, IEA37SimpleBasta
     IEA37SimpleBastankhahGaussian
 import xarray as xr
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site
-from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter, EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg
+from py_wake.rotor_avg_models.rotor_avg_model import EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.utils.model_utils import get_models
 

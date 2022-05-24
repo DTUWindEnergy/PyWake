@@ -305,116 +305,148 @@ class EngineeringWindFarmModel(WindFarmModel):
     def _calc_wt_interaction(self, **kwargs):
         """calculate WT interaction"""
 
-    def _flow_map(self, x_j, y_j, h_j, sim_res_data):
-        """call this function via SimulationResult.flow_map"""
-        # calculate distances
+    def get_map_args(self, x_j, y_j, h_j, sim_res_data):
         wt_d_i = self.windTurbines.diameter(sim_res_data.type)
-        wt_x_i, wt_y_i, wt_h_i, wd, ws = [sim_res_data[k] for k in ['x', 'y', 'h', 'wd', 'ws']]
+        wt_x_i, wt_y_i, wt_h_i, wd, ws = [sim_res_data[k].values for k in ['x', 'y', 'h', 'wd', 'ws']]
+        WD_il = sim_res_data.WD.ilk()
 
         lw_j = self.site.local_wind(x_i=x_j, y_i=y_j, h_i=h_j, wd=wd, ws=ws)
         I, J, L, K = [len(x) for x in [wt_x_i, x_j, wd, ws]]
 
-        WS_eff_jlk = lw_j.WS.ilk((len(x_j), L, K)).astype(float)
-        TI_eff_jlk = lw_j.TI.ilk((len(x_j), L, K)).astype(float)
-        if I == 0:
-            return lw_j, WS_eff_jlk, TI_eff_jlk
-
         self.site.distance.setup(wt_x_i, wt_y_i, wt_h_i, (x_j, y_j, h_j))
 
-        for l in tqdm(range(L), disable=L <= 1 or not self.verbose, desc='Calculate flow map', unit='wd'):
+        def get_ilk(k):
+            v = sim_res_data[k].ilk()
 
-            dw_ijl, hcw_ijl, dh_ijl = self.site.distance(
-                wd_l=sim_res_data.wd[l:l + 1].values, WD_il=sim_res_data.WD.ilk((I, L, K))[:, l:l + 1, :].mean(2))
+            def wrap(l):
+                l_ = [l, slice(0, 1)][v.shape[1] == 1]
+                return v[:, l_]
+            return wrap
 
-            if self.wec != 1:
-                hcw_ijl = hcw_ijl / self.wec
+        return {'WS_ilk': get_ilk('WS'),
+                'WS_eff_ilk': get_ilk('WS_eff'),
+                'TI_ilk': get_ilk('TI'),
+                'TI_eff_ilk': get_ilk('TI_eff'),
+                'yaw_ilk': get_ilk('yaw'),
+                'tilt_ilk': get_ilk('tilt'),
+                'D_src_il': lambda l: wt_d_i[:, na],
+                'D_dst_ijl': lambda l: np.zeros((I, J, 1)),
+                'h_il': lambda l: wt_h_i[:, na],
+                'ct_ilk': get_ilk('CT')}, lw_j, wd, WD_il, I, J, L, K
 
-            def get_ilk(k):
-                def wrap():
-                    v = sim_res_data[k].ilk((I, L, K))
-                    l_ = [l, 0][v.shape[1] == 1]
-                    return v[:, l_][:, na]
-                return wrap
-            arg_funcs = {'WS_ilk': get_ilk('WS'),
-                         'WS_eff_ilk': get_ilk('WS_eff'),
-                         'TI_ilk': get_ilk('TI'),
-                         'TI_eff_ilk': get_ilk('TI_eff'),
-                         'yaw_ilk': get_ilk('yaw'),
-                         'tilt_ilk': get_ilk('tilt'),
-                         'D_src_il': lambda: wt_d_i[:, na],
-                         'D_dst_ijl': lambda: np.zeros_like(dh_ijl),
-                         'h_il': lambda: wt_h_i.data[:, na],
-                         'ct_ilk': get_ilk('CT')}
-            if self.deflectionModel:
-                dw_ijlk, hcw_ijlk, dh_ijlk = self.deflectionModel.calc_deflection(
-                    dw_ijl=dw_ijl, hcw_ijl=hcw_ijl, dh_ijl=dh_ijl,
-                    ** {k: arg_funcs[k]() for k in self.deflectionModel.args4deflection})
-            else:
-                dw_ijlk, hcw_ijlk, dh_ijlk = dw_ijl[..., na], hcw_ijl[..., na], dh_ijl[..., na]
-            arg_funcs.update({'cw_ijlk': lambda: hypot(dh_ijlk, hcw_ijlk),
-                              'dw_ijlk': lambda: dw_ijlk, 'hcw_ijlk': lambda: hcw_ijlk, 'dh_ijlk': lambda: dh_ijlk})
+    def _get_flow_l(self, arg_funcs, l, lw_j, wd, WD_il, I, J, L, K):
+        dw_ijl, hcw_ijl, dh_ijl = self.site.distance(wd_l=wd[l], WD_il=WD_il[:, l, :].mean(2))
+        WS_ilk, TI_ilk = lw_j.WS_ilk, lw_j.TI_ilk
 
-            args = {k: arg_funcs[k]() for k in self.args4deficit if k != 'dw_ijlk'}
-            arg_funcs['wake_radius_ijlk'] = lambda: self.wake_deficitModel.wake_radius(dw_ijlk=dw_ijlk, **args)
-            if self.turbulenceModel:
-                args.update({k: arg_funcs[k]() for k in self.turbulenceModel.args4addturb
-                             if k not in self.args4deficit and k != 'dw_ijlk'})
+        if self.wec != 1:
+            hcw_ijl = hcw_ijl / self.wec
 
-            if I * J * K * 8 / 1024**2 > 10:
-                # one wt at the time to avoid memory problems
-                deficit_ijk = np.zeros((I, J, K))
-                blockage_ijk = np.zeros((I, J, K))
-                add_turb_ijk = np.zeros((I, J, K))
-                uc_ijk = np.zeros((I, J, K))
-                sigma_sqr_ijk = np.zeros((I, J, K))
-                for i in tqdm(range(I), disable=I <= 1 or not self.verbose,
-                              desc="Calculate flow map for wd=%d" % l, unit='wt'):
-                    args_i = {k: v[i][na] for k, v in args.items()}
-                    if isinstance(self.superpositionModel, WeightedSum):
-                        deficit, uc, sigma_sqr, blockage = self._calc_deficit_convection(
-                            dw_ijlk=dw_ijlk[i][na], **args_i)
-                        deficit_ijk[i] = deficit[0, :, 0]
-                        uc_ijk[i] = uc[0, :, 0]
-                        sigma_sqr_ijk[i] = sigma_sqr[0, :, 0]
-                    else:
+        if self.deflectionModel:
+            dw_ijlk, hcw_ijlk, dh_ijlk = self.deflectionModel.calc_deflection(
+                dw_ijl=dw_ijl, hcw_ijl=hcw_ijl, dh_ijl=dh_ijl,
+                ** {k: arg_funcs[k](l) for k in self.deflectionModel.args4deflection})
+        else:
+            dw_ijlk, hcw_ijlk, dh_ijlk = dw_ijl[..., na], hcw_ijl[..., na], dh_ijl[..., na]
+        arg_funcs.update({'cw_ijlk': lambda l: hypot(dh_ijlk, hcw_ijlk),
+                          'dw_ijlk': lambda l: dw_ijlk, 'hcw_ijlk': lambda l: hcw_ijlk, 'dh_ijlk': lambda l: dh_ijlk})
 
-                        deficit_ijk[i], blockage_ijk[i] = [v[0, :, 0]
-                                                           for v in self._calc_deficit(dw_ijlk=dw_ijlk[i][na], **args_i)]
+        arg_funcs['ct_ilk'](l).shape
+        args = {k: arg_funcs[k](l) for k in self.args4deficit if k != 'dw_ijlk'}
+        arg_funcs['wake_radius_ijlk'] = lambda l: self.wake_deficitModel.wake_radius(dw_ijlk=dw_ijlk, **args)
+        if self.turbulenceModel:
+            args.update({k: arg_funcs[k](l) for k in self.turbulenceModel.args4addturb
+                         if k not in self.args4deficit and k != 'dw_ijlk'})
 
-                    if self.turbulenceModel:
-                        add_turb_ijk[i] = self.turbulenceModel.calc_added_turbulence(
-                            dw_ijlk=dw_ijlk[i][na], **args_i)[0, :, 0]
-            else:
-                if isinstance(self.superpositionModel, WeightedSum):
-                    deficit, uc, sigma_sqr, blockage = self._calc_deficit_convection(dw_ijlk=dw_ijlk, **args)
-                    deficit_ijk = deficit[:, :, 0]
-                    blockage_ijk = blockage[:, :, 0]
-                    uc_ijk = uc[:, :, 0]
-                    sigma_sqr_ijk = sigma_sqr[:, :, 0]
-                else:
-                    deficit_ijk, blockage_ijk = self._calc_deficit(dw_ijlk=dw_ijlk, **args)
-                    deficit_ijk, blockage_ijk = deficit_ijk[:, :, 0], blockage_ijk[:, :, 0]
-                if self.turbulenceModel:
-                    add_turb_ijk = self.turbulenceModel.calc_added_turbulence(dw_ijlk=dw_ijlk, **args)[:, :, 0]
+        # if I * J * K * 8 / 1024**2 > 10:
+        #     # one wt at the time to avoid memory problems
+        #     deficit_ijk = np.zeros((I, J, K))
+        #     blockage_ijk = np.zeros((I, J, K))
+        #     add_turb_ijk = np.zeros((I, J, K))
+        #     uc_ijk = np.zeros((I, J, K))
+        #     sigma_sqr_ijk = np.zeros((I, J, K))
+        #     for i in tqdm(range(I), disable=I <= 1 or not self.verbose,
+        #                   desc="Calculate flow map for wd=%d" % l, unit='wt'):
+        #         args_i = {k: v[min(i, v.shape[0] - 1)][na] for k, v in args.items()}
+        #         if isinstance(self.superpositionModel, WeightedSum):
+        #             deficit, uc, sigma_sqr, blockage = self._calc_deficit_convection(
+        #                 dw_ijlk=dw_ijlk[i][na], **args_i)
+        #             deficit_ijk[i] = deficit[0, :, 0]
+        #             uc_ijk[i] = uc[0, :, 0]
+        #             sigma_sqr_ijk[i] = sigma_sqr[0, :, 0]
+        #         else:
+        #
+        #             deficit_ijk[i], blockage_ijk[i] = [v[0, :, 0]
+        #                                                for v in self._calc_deficit(dw_ijlk=dw_ijlk[i][na], **args_i)]
+        #
+        #         if self.turbulenceModel:
+        #             add_turb_ijk[i] = self.turbulenceModel.calc_added_turbulence(
+        #                 dw_ijlk=dw_ijlk[i][na], **args_i)[0, :, 0]
+        # else:
+        if isinstance(self.superpositionModel, WeightedSum):
+            deficit_ijlk, uc_ijlk, sigma_sqr_ijlk, blockage_ijlk = self._calc_deficit_convection(
+                dw_ijlk=dw_ijlk, **args)
 
-            l_ = [l, 0][lw_j.WS_ilk.shape[1] == 1]
-            if isinstance(self.superpositionModel, WeightedSum):
-                cw_ijk = hypot(dh_ijl[..., na], hcw_ijlk)[:, :, 0]
-                hcw_ijk, dh_ijk = hcw_ijlk[:, :, 0], dh_ijl[:, :, 0, na]
-                WS_eff_jlk[:, l] = lw_j.WS_ilk[:, l_] - self.superpositionModel(lw_j.WS_ilk[:, l_], deficit_ijk, uc_ijk,
-                                                                                sigma_sqr_ijk, cw_ijk, hcw_ijk, dh_ijk)
-                if self.blockage_deficitModel:
-                    blockage_superpositionModel = self.blockage_deficitModel.superpositionModel or LinearSum()
-                    WS_eff_jlk[:, l] -= blockage_superpositionModel(blockage_ijk)
-            else:
-                WS_eff_jlk[:, l] = lw_j.WS_ilk[:, l_] - self.superpositionModel(deficit_ijk)
-                if self.blockage_deficitModel:
-                    blockage_superpositionModel = self.blockage_deficitModel.superpositionModel or self.superpositionModel
-                    WS_eff_jlk[:, l] -= blockage_superpositionModel(blockage_ijk)
+        else:
+            deficit_ijlk, blockage_ijlk = self._calc_deficit(dw_ijlk=dw_ijlk, **args)
+        if self.turbulenceModel:
+            add_turb_ijlk = self.turbulenceModel.calc_added_turbulence(dw_ijlk=dw_ijlk, **args)
 
-            if self.turbulenceModel:
-                l_ = [l, 0][lw_j.TI_ilk.shape[1] == 1]
-                TI_eff_jlk[:, l] = self.turbulenceModel.calc_effective_TI(lw_j.TI_ilk[:, l_], add_turb_ijk)
+        l_ = [l, slice(0, 1)][WS_ilk.shape[1] == 1]
+        if isinstance(self.superpositionModel, WeightedSum):
+            cw_ijlk = hypot(dh_ijl[..., na], hcw_ijlk)
+            WS_eff_jlk = WS_ilk[:, l_] - self.superpositionModel(WS_ilk[:, l_], deficit_ijlk, uc_ijlk,
+                                                                 sigma_sqr_ijlk, cw_ijlk, hcw_ijlk, dh_ijlk)
+            if self.blockage_deficitModel:
+                blockage_superpositionModel = self.blockage_deficitModel.superpositionModel or LinearSum()
+                WS_eff_jlk -= blockage_superpositionModel(blockage_ijlk)
+        else:
+            WS_eff_jlk = WS_ilk[:, l_] - self.superpositionModel(deficit_ijlk)
+            if self.blockage_deficitModel:
+                blockage_superpositionModel = self.blockage_deficitModel.superpositionModel or self.superpositionModel
+                WS_eff_jlk -= blockage_superpositionModel(blockage_ijlk)
+
+        if self.turbulenceModel:
+            l_ = [l, slice(0, 1)][TI_ilk.shape[1] == 1]
+            TI_eff_jlk = self.turbulenceModel.calc_effective_TI(TI_ilk[:, l_], add_turb_ijlk)[:, na]
+        else:
+            TI_eff_jlk = None
+        return WS_eff_jlk, TI_eff_jlk
+
+    def _aep_map(self, x_j, y_j, h_j, sim_res_data):
+        arg_funcs, lw_j, wd, WD_il, I, J, L, K = self.get_map_args(x_j, y_j, h_j, sim_res_data)
+        P = sim_res_data.P.ilk()
+        size_gb = I * J * L * K * 8 / 1024**3
+        wd_chunks = np.maximum(int(size_gb // 1), 1)
+        wd_i = np.round(np.linspace(0, L, wd_chunks + 1)).astype(int)
+        wd_slices = [slice(i0, i1) for i0, i1 in zip(wd_i[:-1], wd_i[1:])]
+        aep_j = np.zeros(len(x_j))
+        for l_slice in tqdm(wd_slices, disable=len(wd_slices) <= 1 or not self.verbose,
+                            desc='Calculate flow map', unit='wd'):
+            ws_eff_jlk = self._get_flow_l(arg_funcs, l_slice, lw_j, wd, WD_il, I, J, L, K)[0]
+
+            # p_bin = self.windTurbines.power(np.arange(0, 50, .01))
+            # power_jlk = p_bin[(ws_eff_jlk * 100).astype(int)]
+
+            power_jlk = self.windTurbines.power(ws_eff_jlk)
+
+            aep_j += (power_jlk * P[:, l_slice]).sum((1, 2))
+        return aep_j * 365 * 24 * 1e-9
+
+    def _flow_map(self, x_j, y_j, h_j, sim_res_data):
+        """call this function via SimulationResult.flow_map"""
+        arg_funcs, lw_j, wd, WD_il, I, J, L, K = self.get_map_args(x_j, y_j, h_j, sim_res_data)
+        if I == 0:
+            return lw_j, lw_j.WS.ilk((len(x_j), L, K)).astype(float), lw_j.TI.ilk((len(x_j), L, K)).astype(float)
+
+        l_iter = tqdm(range(L), disable=L <= 1 or not self.verbose, desc='Calculate flow map', unit='wd')
+
+        WS_eff_jlk, TI_eff_jlk = zip(*[self._get_flow_l(arg_funcs, slice(l, l + 1), lw_j, wd, WD_il, I, J, L, K)
+                                       for l in l_iter])
+        WS_eff_jlk = np.concatenate(WS_eff_jlk, 1)
+        if self.turbulenceModel:
+            TI_eff_jlk = np.concatenate(TI_eff_jlk, 1)
+        else:
+            TI_eff_jlk = lw_j.TI.ilk((len(x_j), L, K)).astype(float)
         return lw_j, WS_eff_jlk, TI_eff_jlk
 
     def _validate_input(self, x_i, y_i):

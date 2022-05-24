@@ -260,7 +260,7 @@ def main():
             def __init__(self):
                 p_wd = [1]
                 ws = [1]
-                ti = [0.06]
+                ti = 0.06
                 UniformSite.__init__(self, p_wd=p_wd, ti=ti, ws=ws)
                 self.initial_position = np.array([wt_x, wt_y]).T
 

@@ -276,6 +276,7 @@ def test_min_ws_eff_line():
         min_ws_line.plot()
         print(np.round(min_ws_line[::10], 2))
         plt.show()
+    plt.close('all')
     npt.assert_array_almost_equal(min_ws_line[::10],
                                   [np.nan, np.nan, 11.6, 21.64, 30.42, 38.17, 45.09, 51.27,
                                    -8.65, -18.66, -27.51, -35.37, -42.38, -48.58, -1.09, -1.34,
@@ -291,7 +292,6 @@ def flow_map_j_wd_chunks():
 
     yaw_ilk = np.reshape([-30, 30, 0], (3, 1, 1))
 
-    plt.figure(figsize=(14, 3))
     sim_res = wfm(x, y, yaw=yaw_ilk, wd=np.arange(320), ws=10)
 
     t_all = timeit(sim_res.flow_map, verbose=1)(XYGrid(x=np.linspace(-100, 2000, 64), y=np.linspace(-500, 500, 100)))
@@ -302,35 +302,36 @@ def flow_map_j_wd_chunks():
     print(np.mean(t_all[1]) / np.mean(t_wd[1]))
 
 
-def test_flow_map_parallel_wd():
+def test_aep_map():
     site = IEA37Site(16)
     x, y = [0, 600, 1200], [0, 0, 0]  # site.initial_position[:2].T
     windTurbines = IEA37_WindTurbines()
-    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines, deflectionModel=JimenezWakeDeflection())
+    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines)
 
-    yaw_ilk = np.reshape([-30, 30, 0], (3, 1, 1))
+    sim_res = wfm(x, y)
+    grid = XYGrid(x=np.linspace(-100, 2000, 50), y=np.linspace(-500, 500, 25))
+    aep_map = sim_res.aep_map(grid)
+    fm = sim_res.flow_map(grid)
+    npt.assert_array_almost_equal(fm.aep_xy(normalize_probabilities=True).sel(h=110), aep_map)
 
-    plt.figure(figsize=(14, 3))
-    sim_res = wfm(x, y, yaw=yaw_ilk, wd=np.arange(10), ws=10)
-    fm = sim_res.flow_map(XYGrid(x=np.linspace(-100, 2000, 10), y=np.linspace(-500, 500, 25)), n_cpu=2)
-    fm_ref = sim_res.flow_map(XYGrid(x=np.linspace(-100, 2000, 10), y=np.linspace(-500, 500, 25)))
-
-    npt.assert_array_equal(fm.WS_eff, fm_ref.WS_eff)
-    assert fm_ref.equals(fm)
+    grid = Points(x=np.linspace(-100, 2000, 50), y=np.full(50, -500), h=np.full(50, windTurbines.hub_height()))
+    aep_line = sim_res.aep_map(grid)
+    npt.assert_array_almost_equal(aep_map[0], aep_line)
 
 
-def test_flow_map_parallel_j():
+def test_aep_map_parallel():
     site = IEA37Site(16)
     x, y = [0, 600, 1200], [0, 0, 0]  # site.initial_position[:2].T
     windTurbines = IEA37_WindTurbines()
-    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines, deflectionModel=JimenezWakeDeflection())
+    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines)
 
-    yaw_ilk = np.reshape([-30, 30, 0], (3, 1, 1))
+    sim_res = wfm(x, y)
+    grid = XYGrid(x=np.linspace(-100, 2000, 50), y=np.linspace(-500, 500, 25))
+    aep_map = sim_res.aep_map(grid, n_cpu=2)
 
-    plt.figure(figsize=(14, 3))
-    sim_res = wfm(x, y, yaw=yaw_ilk, wd=270, ws=10)
-    fm = sim_res.flow_map(XYGrid(x=np.linspace(-100, 2000, 50), y=np.linspace(-500, 500, 25)), n_cpu=2)
-    fm_ref = sim_res.flow_map(XYGrid(x=np.linspace(-100, 2000, 50), y=np.linspace(-500, 500, 25)))
+    fm = sim_res.flow_map(grid)
+    npt.assert_array_almost_equal(fm.aep_xy(normalize_probabilities=True).sel(h=110), aep_map)
 
-    npt.assert_array_equal(fm.WS_eff, fm_ref.WS_eff)
-    assert fm_ref.equals(fm)
+    fm = sim_res.flow_map(grid, wd=[0])
+    aep_map = sim_res.aep_map(grid, wd=[0], n_cpu=2)
+    npt.assert_array_almost_equal(fm.aep_xy(normalize_probabilities=True).sel(h=110), aep_map)
