@@ -607,7 +607,7 @@ class SimulationResult(xr.Dataset):
                         d_i=self.windFarmModel.windTurbines.diameter(self.type))
         else:
             plane = (None,)
-        return *grid, plane
+        return grid + (plane, )
 
     def aep_map(self, grid=None, wd=None, ws=None, n_cpu=1, wd_chunks=None):
         X, Y, x_j, y_j, h_j, plane = self._get_grid(grid)

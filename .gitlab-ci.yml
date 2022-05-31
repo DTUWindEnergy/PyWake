@@ -16,6 +16,23 @@ test_PyWake:  # name the job what we like
   tags:  # only runners with this tag can do the job [3]
   - ci-ubuntu
 
+## ===== TEST PyWake debian=====
+#test_PyWake_python3.6:  # name the job what we like
+#  image:   continuumio/anaconda3:5.2.0
+#  stage:  # build, test, deploy defined by default [2]
+#    test
+#  script:
+#  - apt update  
+#  - apt install libgl1-mesa-glx -y
+#  - python -m pip install --upgrade --force-reinstall pip
+#  - pip install tensorflow --user
+#  - pip install -e .[test] --timeout 3600 --default-timeout=3600
+#  - python -c "from pathlib import Path; Path('matplotlibrc').write_text('backend'+chr(58)+' Agg')"
+#  - pytest
+#  tags:  # only runners with this tag can do the job [3]
+#  - ci-ubuntu
+
+
   
 # ===== Check code style =====
 check_code_style:  # name the job what we like
