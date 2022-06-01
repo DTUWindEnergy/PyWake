@@ -310,12 +310,12 @@ def test_aep_map():
 
     sim_res = wfm(x, y)
     grid = XYGrid(x=np.linspace(-100, 2000, 50), y=np.linspace(-500, 500, 25))
-    aep_map = sim_res.aep_map(grid)
+    aep_map = sim_res.aep_map(grid, normalize_probabilities=True)
     fm = sim_res.flow_map(grid)
     npt.assert_array_almost_equal(fm.aep_xy(normalize_probabilities=True).sel(h=110), aep_map)
 
     grid = Points(x=np.linspace(-100, 2000, 50), y=np.full(50, -500), h=np.full(50, windTurbines.hub_height()))
-    aep_line = sim_res.aep_map(grid)
+    aep_line = sim_res.aep_map(grid, normalize_probabilities=True)
     npt.assert_array_almost_equal(aep_map[0], aep_line)
 
 
@@ -327,11 +327,23 @@ def test_aep_map_parallel():
 
     sim_res = wfm(x, y)
     grid = XYGrid(x=np.linspace(-100, 2000, 50), y=np.linspace(-500, 500, 25))
-    aep_map = sim_res.aep_map(grid, n_cpu=2)
+    aep_map = sim_res.aep_map(grid, normalize_probabilities=True, n_cpu=2)
 
     fm = sim_res.flow_map(grid)
     npt.assert_array_almost_equal(fm.aep_xy(normalize_probabilities=True).sel(h=110), aep_map)
 
     fm = sim_res.flow_map(grid, wd=[0])
-    aep_map = sim_res.aep_map(grid, wd=[0], n_cpu=2)
+    aep_map = sim_res.aep_map(grid, normalize_probabilities=True, wd=[0], n_cpu=2)
     npt.assert_array_almost_equal(fm.aep_xy(normalize_probabilities=True).sel(h=110), aep_map)
+
+
+def test_aep_map_smartstart_griddedsite_terrainfollowingdistance():
+    site = ParqueFicticioSite()
+    x, y = site.initial_position[:3].T
+    windTurbines = IEA37_WindTurbines()
+    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines)
+
+    for i in range(3):
+        sim_res = wfm(x[:i], y[:i], wd=[0, 1])
+        grid = XYGrid(x=site.ds.x, y=site.ds.y)
+        sim_res.aep_map(grid, normalize_probabilities=True)

@@ -124,7 +124,10 @@ class TerrainFollowingDistance(StraightDistance):
                            for src_x, src_y in zip(self.src_x_i, self.src_y_i)
                            for dst_x, dst_y in zip(self.dst_x_j, self.dst_y_j)])
             upper_tri_only = False
-        x, y = xy[:, 0], xy[:, 1]
+        if len(xy):
+            x, y = xy[:, 0], xy[:, 1]
+        else:
+            x, y = np.zeros((0, 2)), np.zeros((0, 2))
 
         # find height and calculate surface distance
         h = self.site.elevation(x.flatten(), y.flatten()).reshape(x.shape)
