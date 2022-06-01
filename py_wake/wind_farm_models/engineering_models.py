@@ -414,7 +414,7 @@ class EngineeringWindFarmModel(WindFarmModel):
 
     def _aep_map(self, x_j, y_j, h_j, sim_res_data):
         arg_funcs, lw_j, wd, WD_il, I, J, L, K = self.get_map_args(x_j, y_j, h_j, sim_res_data)
-        P = sim_res_data.P.ilk()
+        P = lw_j.P.ilk()
         size_gb = I * J * L * K * 8 / 1024**3
         wd_chunks = np.maximum(int(size_gb // 1), 1)
         wd_i = np.round(np.linspace(0, L, wd_chunks + 1)).astype(int)
