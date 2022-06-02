@@ -1,5 +1,5 @@
 import pytest
-import numpy as np
+from py_wake import np
 import xarray as xr
 import matplotlib.pyplot as plt
 from py_wake.deficit_models.fuga import FugaDeficit

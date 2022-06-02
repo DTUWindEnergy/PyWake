@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from scipy.interpolate import RegularGridInterpolator
 from abc import abstractmethod, ABC
 from autograd.core import defvjp, primitive

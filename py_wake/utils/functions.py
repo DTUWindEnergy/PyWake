@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from py_wake.utils import gradients
 import xarray as xr
 

@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models.deficit_model import WakeDeficitModel
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind

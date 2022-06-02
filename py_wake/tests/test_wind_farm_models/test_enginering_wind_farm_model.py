@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 import xarray as xr
 import pytest
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site

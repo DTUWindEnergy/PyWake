@@ -1,6 +1,6 @@
 import os
 import struct
-import numpy as np
+from py_wake import np
 from pathlib import Path
 
 

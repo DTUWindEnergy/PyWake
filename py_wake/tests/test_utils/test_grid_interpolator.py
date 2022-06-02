@@ -2,7 +2,7 @@
 import pytest
 
 import matplotlib.pyplot as plt
-import numpy as np
+from py_wake import np
 from py_wake.tests import npt
 from py_wake.tests.check_speed import timeit
 from py_wake.utils.grid_interpolator import GridInterpolator, EqDistRegGrid2DInterpolator

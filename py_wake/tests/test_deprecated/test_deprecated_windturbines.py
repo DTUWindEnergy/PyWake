@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-import numpy as np
+from py_wake import np
 from py_wake import NOJ
 from py_wake.examples.data import hornsrev1
 from py_wake.examples.data.hornsrev1 import wt9_x, wt9_y, Hornsrev1Site

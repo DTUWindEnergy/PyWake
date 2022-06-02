@@ -1,6 +1,6 @@
 from numpy import newaxis as na
 from py_wake.utils.gradients import erf
-import numpy as np
+from py_wake import np
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models.deficit_model import ConvectionDeficitModel
 from py_wake.ground_models.ground_models import Mirror
@@ -26,8 +26,7 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
         ConvectionDeficitModel.__init__(self)
 
     def k_ilk(self, **kwargs):
-        shape = np.ones_like(kwargs.get('WS_ilk', np.ones((1, 1, 1))).shape)
-        return np.reshape(self._k, shape)
+        return np.array([[[self._k]]])
 
     def epsilon_ilk(self, ct_ilk, **_):
         # not valid for CT >= 1.
@@ -181,7 +180,7 @@ class IEA37SimpleBastankhahGaussianDeficit(BastankhahGaussianDeficit):
     def _calc_layout_terms(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, **kwargs):
         eps = 1e-10
         sigma_ijlk = self.k_ilk(WS_ilk=WS_ilk) * dw_ijlk * (dw_ijlk > eps) + (D_src_il / np.sqrt(8.))[:, na, :, na]
-        self.layout_factor_ijlk = WS_ilk[:, na] * (dw_ijlk > eps) * np.exp(-0.5 * (cw_ijlk / sigma_ijlk)**2)
+        self.layout_factor_ijlk = WS_ilk[:, na] * ((dw_ijlk > eps) * np.exp(-0.5 * (cw_ijlk / sigma_ijlk)**2))
         self.denominator_ijlk = 8. * (sigma_ijlk / D_src_il[:, na, :, na])**2
 
     def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):

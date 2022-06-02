@@ -2,7 +2,7 @@ import multiprocessing
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site, wt_x, wt_y
 from py_wake import IEA37SimpleBastankhahGaussian
 from py_wake.tests.check_speed import timeit
-import numpy as np
+from py_wake import np
 from py_wake.tests import npt
 from py_wake.wind_turbines import WindTurbines
 from py_wake.examples.data import wtg_path

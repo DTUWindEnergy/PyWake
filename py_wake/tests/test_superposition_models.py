@@ -1,5 +1,5 @@
 import pytest
-import numpy as np
+from py_wake import np
 from py_wake import NOJ
 from py_wake.deficit_models import DeficitModel
 from py_wake.ground_models.ground_models import NoGround

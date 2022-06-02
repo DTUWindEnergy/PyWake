@@ -3,7 +3,7 @@ from py_wake.wind_turbines._wind_turbines import WindTurbine
 from py_wake.wind_turbines.generic_wind_turbines import GenericWindTurbine, GenericTIRhoWindTurbine
 from py_wake.examples.data import wtg_path
 from py_wake.examples.data.dtu10mw import DTU10MW
-import numpy as np
+from py_wake import np
 import matplotlib.pyplot as plt
 from py_wake.tests import npt
 import pytest

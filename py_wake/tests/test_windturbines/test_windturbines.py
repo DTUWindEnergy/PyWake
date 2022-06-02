@@ -2,7 +2,7 @@ import os
 from numpy import newaxis as na
 import pytest
 import matplotlib.pyplot as plt
-import numpy as np
+from py_wake import np
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.examples.data import wtg_path, hornsrev1

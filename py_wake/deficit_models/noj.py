@@ -1,5 +1,5 @@
 from numpy import newaxis as na
-import numpy as np
+from py_wake import np
 from py_wake.superposition_models import SquaredSum, LinearSum
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.utils.area_overlapping_factor import AreaOverlappingFactor

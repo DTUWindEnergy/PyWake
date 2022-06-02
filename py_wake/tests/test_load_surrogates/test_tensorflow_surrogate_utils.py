@@ -1,6 +1,6 @@
 from py_wake.utils.tensorflow_surrogate_utils import TensorflowSurrogate
 from py_wake.examples.data import example_data_path
-import numpy as np
+from py_wake import np
 from numpy import newaxis as na
 import pytest
 from py_wake.tests import npt

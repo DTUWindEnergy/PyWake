@@ -3,7 +3,7 @@ from py_wake.deficit_models.noj import NOJ, NOJDeficit
 import os
 import psutil
 import matplotlib.pyplot as plt
-import numpy as np
+from py_wake import np
 import gc
 from py_wake.wind_farm_models.engineering_models import All2AllIterative
 import memory_profiler

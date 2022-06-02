@@ -1,6 +1,6 @@
 from numpy import newaxis as na
 
-import numpy as np
+from py_wake import np
 import xarray as xr
 from xarray.plot.plot import _PlotMethods
 import warnings

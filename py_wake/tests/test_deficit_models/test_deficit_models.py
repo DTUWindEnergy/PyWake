@@ -1,7 +1,7 @@
 import pytest
 
 import matplotlib.pyplot as plt
-import numpy as np
+from py_wake import np
 from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel, DeficitModel
 from py_wake.deficit_models.fuga import FugaDeficit, Fuga
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, IEA37SimpleBastankhahGaussianDeficit,\

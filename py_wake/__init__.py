@@ -4,13 +4,18 @@ An open source wind farm simulation tool capable of calculating wind farm flow f
 power production and annual energy production (AEP) of wind farms.
 """
 import pkg_resources
-from .deficit_models.noj import NOJ, NOJLocal
-from .deficit_models.fuga import Fuga, FugaBlockage
-from .deficit_models.gaussian import BastankhahGaussian, IEA37SimpleBastankhahGaussian
-from .deficit_models.gcl import GCL, GCLLocal
-from py_wake.flow_map import HorizontalGrid, XYGrid, YZGrid, XZGrid
-from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
-from py_wake.deficit_models.deficit_model import DeficitModel
+import numpy
+from py_wake.utils.numpy_utils import NumpyWrapper
+np = numpy
+locals()['np'] = NumpyWrapper()
+
+from .deficit_models.noj import NOJ, NOJLocal  # nopep8
+from .deficit_models.fuga import Fuga, FugaBlockage  # nopep8
+from .deficit_models.gaussian import BastankhahGaussian, IEA37SimpleBastankhahGaussian  # nopep8
+from .deficit_models.gcl import GCL, GCLLocal  # nopep8
+from py_wake.flow_map import HorizontalGrid, XYGrid, YZGrid, XZGrid  # nopep8
+from py_wake.wind_farm_models.wind_farm_model import WindFarmModel  # nopep8
+from py_wake.deficit_models.deficit_model import DeficitModel  # nopep8
 
 
 plugins = {

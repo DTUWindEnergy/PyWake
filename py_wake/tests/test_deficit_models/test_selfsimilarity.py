@@ -1,7 +1,7 @@
 import pytest
 
 import matplotlib.pyplot as plt
-import numpy as np
+from py_wake import np
 from py_wake.deficit_models import SelfSimilarityDeficit, SelfSimilarityDeficit2020
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models.noj import NOJDeficit

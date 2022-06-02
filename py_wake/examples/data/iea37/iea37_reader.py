@@ -1,5 +1,5 @@
 import yaml
-import numpy as np
+from py_wake import np
 from py_wake.wind_turbines.power_ct_functions import PowerCtFunction, CubePowerSimpleCt
 
 

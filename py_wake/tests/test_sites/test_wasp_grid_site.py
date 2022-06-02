@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from numpy import newaxis as na
 from py_wake.tests import npt
 import pytest

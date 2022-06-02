@@ -1,7 +1,7 @@
 from py_wake.flow_map import HorizontalGrid, YZGrid, Grid, Points, XYGrid
 from py_wake.tests import npt
 import matplotlib.pyplot as plt
-import numpy as np
+from py_wake import np
 from py_wake.examples.data.ParqueFicticio._parque_ficticio import ParqueFicticioSite
 from py_wake.site.distance import StraightDistance
 from py_wake.examples.data.iea37 import IEA37Site, IEA37_WindTurbines

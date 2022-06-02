@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from numpy import newaxis as na
 from scipy.optimize.zeros import newton
 import matplotlib.pyplot as plt

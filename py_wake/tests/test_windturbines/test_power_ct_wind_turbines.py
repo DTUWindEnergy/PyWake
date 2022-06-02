@@ -2,7 +2,7 @@ from numpy import newaxis as na
 import pytest
 import xarray as xr
 import matplotlib.pyplot as plt
-import numpy as np
+from py_wake import np
 from py_wake.examples.data import hornsrev1
 from py_wake.tests import npt
 from py_wake.wind_turbines.power_ct_functions import CubePowerSimpleCt, DensityScale, \
@@ -463,7 +463,7 @@ def test_gradients(case, wt, dpdu_ref, dctdu_ref, grad_method):
 if __name__ == '__main__':
     x = np.linspace(0, 2 * np.pi, 100)
     import matplotlib.pyplot as plt
-    import numpy as np
+    from py_wake import np
     plt.plot(x, np.sin(x) / x)
     plt.plot(x, np.sin(x))
     plt.show()

@@ -1,5 +1,5 @@
 import pytest
-import numpy as np
+from py_wake import np
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian
 from py_wake.deficit_models.noj import NOJ, NOJDeficit
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80, HornsrevV80, wt9_y, wt9_x, wt16_x, wt16_y

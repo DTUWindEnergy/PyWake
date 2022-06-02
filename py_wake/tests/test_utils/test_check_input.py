@@ -1,6 +1,6 @@
 import pytest
 from py_wake.utils.check_input import check_input
-import numpy as np
+from py_wake import np
 
 
 def test_check_input():

@@ -4,7 +4,7 @@ from py_wake.examples.data.iea37._iea37 import IEA37Site
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
 from py_wake.flow_map import YZGrid, XYGrid, Points, XZGrid
 import matplotlib.pyplot as plt
-import numpy as np
+from py_wake import np
 import pytest
 from py_wake.tests import npt
 

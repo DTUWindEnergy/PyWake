@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-import numpy as np
+from py_wake import np
 from numpy import newaxis as na
 import inspect
 from py_wake.utils.gradients import cabs

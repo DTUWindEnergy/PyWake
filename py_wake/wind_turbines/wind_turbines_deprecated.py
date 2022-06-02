@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from scipy.interpolate import UnivariateSpline
 from autograd.core import defvjp, primitive
 from inspect import signature

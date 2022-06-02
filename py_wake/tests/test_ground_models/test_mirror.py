@@ -4,7 +4,7 @@ from py_wake.ground_models import Mirror
 from py_wake.deficit_models.noj import NOJ, NOJDeficit
 import matplotlib.pyplot as plt
 from py_wake.flow_map import YZGrid
-import numpy as np
+from py_wake import np
 from py_wake.tests import npt
 from py_wake.wind_turbines import WindTurbines
 from py_wake.superposition_models import LinearSum, SquaredSum

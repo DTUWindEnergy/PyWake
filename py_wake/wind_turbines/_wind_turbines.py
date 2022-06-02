@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 import xml.etree.ElementTree as ET
 from matplotlib.patches import Ellipse
 import warnings

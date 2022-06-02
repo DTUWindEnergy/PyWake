@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 import os
 from numpy import newaxis as na
 import matplotlib.pyplot as plt

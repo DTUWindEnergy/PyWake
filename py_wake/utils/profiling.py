@@ -1,26 +1,22 @@
 import time
 import functools
 import sys
-import numpy as np
+from py_wake import np
 import gc
 import os
 import psutil
 import memory_profiler
 import ctypes
+from pathlib import Path
 
 
 def timeit(func, min_time=0, min_runs=1, verbose=False, line_profile=False, profile_funcs=[]):
     @functools.wraps(func)
-    def newfunc(*args, **kwargs):  # pragma: no cover
-        if line_profile and getattr(sys, 'gettrace')() is None:
-            from line_profiler import LineProfiler
-            lp = LineProfiler()
-            lp.timer_unit = 1e-6
-            for f in profile_funcs:
-                lp.add_function(f)
-            lp_wrapper = lp(func)
+    def newfunc(*args, **kwargs):
+        if line_profile and getattr(sys, 'gettrace')() is None:  # pragma: no cover
+            lp_wrapper = line_timeit(func, profile_funcs)
             t = time.time()
-            res = lp_wrapper(*args, **kwargs)
+            res, lp = lp_wrapper(*args, **kwargs)
             t = time.time() - t
             if verbose:
                 lp.print_stats()
@@ -28,9 +24,9 @@ def timeit(func, min_time=0, min_runs=1, verbose=False, line_profile=False, prof
         else:
             t_lst = []
             for i in range(100000):
-                startTime = time.time()
+                startTime = time.time_ns()
                 res = func(*args, **kwargs)
-                t_lst.append(time.time() - startTime)
+                t_lst.append((time.time_ns() - startTime) * 1e-9)
                 if sum(t_lst) > min_time and len(t_lst) >= min_runs:
                     if hasattr(func, '__name__'):
                         fn = func.__name__
@@ -40,6 +36,59 @@ def timeit(func, min_time=0, min_runs=1, verbose=False, line_profile=False, prof
                         print('%s: %f +/-%f (%d runs)' % (fn, np.mean(t_lst), np.std(t_lst), i + 1))
                     return res, t_lst
     return newfunc
+
+
+def line_timeit(func, profile_funcs=[]):  # pragma: no cover
+    from line_profiler import LineProfiler
+    lp = LineProfiler()
+    lp.timer_unit = 1e-6
+
+    for f in profile_funcs:
+        lp.add_function(f)
+    if getattr(sys, 'gettrace')() is None:
+        lp_wrapper = lp(func)
+    else:
+        # in debug mode
+        lp_wrapper = func
+    return lambda *args, lp=lp, **kwargs: (lp_wrapper(*args, **kwargs), lp)
+
+
+def compare_lineprofile(lp1, lp2, include_gt_pct=None):  # pragma: no cover
+    stats1, stats2 = lp1.get_stats(), lp2.get_stats()
+    for ((fn1, lineno1, name1), timings1), ((fn2, lineno2, name2),
+                                            timings2) in zip(sorted(stats1.timings.items()), sorted(stats2.timings.items())):
+        assert fn1 == fn2
+        assert lineno1 == lineno2
+        assert name1 == name2
+
+        lines = Path(fn1).read_text(errors='ignore').split("\n")
+        template = '%6s %9s %12s %12s %8s %8s %8s  %-s'
+
+        total1 = np.sum([v[2] for v in timings1])
+        total2 = np.sum([v[2] for v in timings2])
+        print('Total time: %g s' % (total1 * stats1.unit))
+        print(f'File: {fn1}:{lineno1}')
+        print(f'Function: {name1} at line {lineno1}\n')
+        header = template % ('Line #', 'Hits', 'Time A', 'Time B', '% time', '% diff', '% diff', 'Line Contents')
+        print(header)
+        print('=' * len(header))
+
+        print(template % (lineno1, "", "", "", "", "", "", lines[lineno1 - 1]))
+        for (lineno1, hits1, time1), (lineno2, hits2, time2) in zip(timings1, timings2):
+            pct_time = (time1 / total1 * 100)
+            if include_gt_pct is None or pct_time > include_gt_pct:
+                print(template % (lineno1, hits1, time1 / 1000, time2 / 1000,
+                                  '%5.1f' % pct_time,
+                                  '%5.1f' % ((time2 - time1) / time1 * 100),
+                                  '%5.1f' % ((time2 - time1) / total1 * 100),
+                                  lines[lineno1 - 1]))
+        print(template % ("", "", "--------", "--------", "", "", "----", ""))
+        with np.warnings.catch_warnings():
+            np.warnings.filterwarnings('ignore', r'divide by zero encountered in double_scalars')
+            print(
+                template %
+                ("", "", total1 / 1e6, total2 / 1e6, "", "", "%5.1f" %
+                 ((total2 - total1) / total1 * 100), ""))
 
 
 def get_memory_usage():

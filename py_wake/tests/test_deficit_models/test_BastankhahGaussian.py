@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windfarm

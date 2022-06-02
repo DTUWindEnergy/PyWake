@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 from py_wake.wind_turbines._wind_turbines import WindTurbine
 power_curve = np.array([[4, 280.2],

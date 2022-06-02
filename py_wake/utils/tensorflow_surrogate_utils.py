@@ -6,7 +6,7 @@ import pickle
 from pathlib import Path
 import warnings
 from py_wake.utils.gradients import set_gradient_function
-import numpy as np
+from py_wake import np
 from numpy import newaxis as na
 
 

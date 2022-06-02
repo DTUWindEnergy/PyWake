@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from numpy import newaxis as na
-import numpy as np
+from py_wake import np
 from py_wake.superposition_models import SuperpositionModel, LinearSum, WeightedSum
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.deflection_models.deflection_model import DeflectionModel
@@ -77,7 +77,7 @@ class EngineeringWindFarmModel(WindFarmModel):
 
         # wake expansion continuation (wake-width scale factor) see
         self.wec = 1
-        # Thomas, J. J. and Ning, A., “A Method for Reducing Multi-Modality in the Wind Farm Layout Optimization Problem,”
+        # Thomas, J. J. and Ning, A., "A Method for Reducing Multi-Modality in the Wind Farm Layout Optimization Problem,"
         # Journal of Physics: Conference Series, Vol. 1037, The Science of Making
         # Torque from Wind, Milano, Italy, jun 2018, p. 10.
         self.deficit_initalized = False
@@ -133,13 +133,17 @@ class EngineeringWindFarmModel(WindFarmModel):
         # the split line between wake and blockage is set slightly upstream to handle
         # numerical inaccuracy in the trigonometric functions that calculates dw_ijlk
         rotor_pos = -1e-10
-        blockage = np.zeros_like(deficit)
         if self.blockage_deficitModel is None:
             deficit *= (dw_ijlk > rotor_pos)
+            blockage = np.zeros_like(deficit)
         elif (self.blockage_deficitModel != self.wake_deficitModel):
             blockage = self.blockage_deficitModel.groundModel(lambda **kwargs: self.rotorAvgModel(self.blockage_deficitModel.calc_blockage_deficit, **kwargs),
                                                               dw_ijlk=dw_ijlk, **kwargs)
             deficit *= (dw_ijlk > rotor_pos)
+        else:
+            # Same model for both wake and blockage
+            # keep blockage in deficit and set blockage to zero
+            blockage = np.zeros_like(deficit)
         return deficit, blockage
 
     def _calc_deficit(self, dw_ijlk, **kwargs):
@@ -523,7 +527,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
         if self.turbulenceModel:
             add_turb_nk = []
 
-        i_wd_l = np.arange(L)
+        i_wd_l = np.arange(L).astype(int)
         wd = mean_deg(lw.WD_ilk, (0, 2))
         dw_order_indices_dl = self.site.distance.dw_order_indices(wd)
 
@@ -644,7 +648,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
         WS_eff_jlk, ct_jlk = np.array(WS_eff_mk), np.array(ct_jlk)
 
-        dw_inv_indices = (np.argsort(dw_order_indices_dl, 1).T * L + np.arange(L)[na]).flatten()
+        dw_inv_indices = (np.argsort(dw_order_indices_dl, 1).T * L + np.arange(L).astype(int)[na]).flatten()
         WS_eff_ilk = WS_eff_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))
 
         ct_ilk = ct_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))

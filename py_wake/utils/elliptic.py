@@ -1,5 +1,5 @@
 # --- General
-import numpy as np
+from py_wake import np
 import unittest
 from scipy.special import ellipk, ellipe
 from py_wake.utils.gradients import cabs

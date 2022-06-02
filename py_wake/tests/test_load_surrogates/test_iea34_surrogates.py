@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 import pandas as pd
 import matplotlib.pyplot as plt
 from py_wake.examples.data.iea34_130rwt._iea34_130rwt import IEA34_130_1WT_Surrogate, IEA34_130_2WT_Surrogate

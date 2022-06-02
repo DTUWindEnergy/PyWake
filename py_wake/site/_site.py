@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-import numpy as np
+from py_wake import np
 from py_wake.site.shear import PowerShear
 import py_wake.utils.xarray_utils  # register ilk function @UnusedImport
 import xarray as xr

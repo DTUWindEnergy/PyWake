@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from numpy import newaxis as na
 from py_wake.utils import gradients
 from autograd.numpy.numpy_boxes import ArrayBox
@@ -26,7 +26,7 @@ class GridInterpolator(object):
         self.V = V
         self.bounds = bounds
         self.method = method
-        self.n = np.array([len(x) for x in x])
+        self.n = np.array([len(x) for x in x], dtype=int)
         self.x0 = np.array([x[0] for x in x])
         dx = np.array([x[min(1, len(x) - 1)] - x[0] for x in x])
         self.dx = np.where(dx == 0, 1, dx)
@@ -41,7 +41,7 @@ class GridInterpolator(object):
             ui = np.array([(np.r_[ui, 0], np.r_[ui, 1]) for ui in ui])
             ui = ui.reshape((ui.shape[0] * ui.shape[1], ui.shape[2]))
         ui[:, dx == 0] = 0
-        self.ui = ui
+        self.ui = ui.astype(int)
 
     def __call__(self, xp, method=None, bounds=None, deg=False):
         """Interpolate points
@@ -90,7 +90,7 @@ class GridInterpolator(object):
 
         indexes = (self.ui.T[:, :, na] + xpi0.T[:, na])
 
-        indexes = np.minimum(indexes, (self.n - 1)[:, na, na])
+        indexes = np.minimum(indexes, (self.n - 1)[:, na, na], dtype=int)
         v = np.moveaxis(self.V[tuple(indexes)], [0, 1], [-2, -1])
         if deg:
             v = (v + 180) % 360 - 180  # -180..180 > 0-360

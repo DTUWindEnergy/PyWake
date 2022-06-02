@@ -1,5 +1,5 @@
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site
-import numpy as np
+from py_wake import np
 import pytest
 import pandas as pd
 

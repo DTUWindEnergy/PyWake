@@ -4,7 +4,7 @@ import os
 import time
 
 import matplotlib.pyplot as plt
-import numpy as np
+from py_wake import np
 from py_wake import NOJ
 from py_wake.deficit_models import fuga
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian
