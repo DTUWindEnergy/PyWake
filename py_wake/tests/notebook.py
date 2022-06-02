@@ -145,7 +145,7 @@ except ModuleNotFoundError:
             # print(url)
             if url.startswith('attachment') or '#' in url:
                 continue
-            if url.startswith("../_static"):
+            if url.startswith("../_static") or url.startswith("images/"):
                 assert os.path.isfile(os.path.join(os.path.dirname(self.filename), url))
                 return
 

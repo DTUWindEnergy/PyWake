@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from abc import ABC, abstractmethod
 from numpy import newaxis as na
 from py_wake.utils.gradients import cabs

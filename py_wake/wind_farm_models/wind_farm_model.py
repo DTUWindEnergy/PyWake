@@ -1,7 +1,7 @@
 from abc import abstractmethod, ABC
 from py_wake.site._site import Site, UniformSite, LocalWind
 from py_wake.wind_turbines import WindTurbines
-import numpy as np
+from py_wake import np
 from py_wake.flow_map import FlowMap, HorizontalGrid, FlowBox, Grid
 import xarray as xr
 from py_wake.utils import xarray_utils, weibull  # register ilk function @UnusedImport

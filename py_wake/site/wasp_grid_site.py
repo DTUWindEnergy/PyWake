@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 import xarray as xr
 import pickle
 import os

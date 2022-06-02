@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 
 
 def check_input(input_space_lst, input_lst, input_keys=None):

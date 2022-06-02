@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
+from py_wake import np
 from py_wake.deficit_models.fuga import FugaYawDeficit
 from py_wake.flow_map import XYGrid
 from py_wake.site.xrsite import UniformSite

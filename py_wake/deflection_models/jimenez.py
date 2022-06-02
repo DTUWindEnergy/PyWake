@@ -1,5 +1,5 @@
 from numpy import newaxis as na
-import numpy as np
+from py_wake import np
 from py_wake.deflection_models import DeflectionModel
 from py_wake.utils.gradients import hypot
 from py_wake.utils import gradients

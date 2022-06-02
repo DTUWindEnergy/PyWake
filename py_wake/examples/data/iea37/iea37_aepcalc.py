@@ -20,7 +20,7 @@ Modified 22 Aug 2018 implementing multiple suggestions from Erik Quaeghebeur:
 """
 
 from __future__ import print_function   # For Python 3 compatibility
-import numpy as np
+from py_wake import np
 import yaml                             # For reading .yaml files
 from math import radians as DegToRad    # For converting degrees to radians
 

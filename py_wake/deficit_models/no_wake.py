@@ -1,5 +1,5 @@
 from numpy import newaxis as na
-import numpy as np
+from py_wake import np
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import WakeDeficitModel
 

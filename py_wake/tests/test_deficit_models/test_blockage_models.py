@@ -1,7 +1,7 @@
 import pytest
 
 import matplotlib.pyplot as plt
-import numpy as np
+from py_wake import np
 from py_wake.deficit_models import VortexCylinder
 from py_wake.deficit_models.deficit_model import BlockageDeficitModel
 from py_wake.deficit_models.hybridinduction import HybridInduction

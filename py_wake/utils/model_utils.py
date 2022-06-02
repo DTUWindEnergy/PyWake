@@ -1,7 +1,7 @@
 import inspect
 import os
 import pkgutil
-import numpy as np
+from py_wake import np
 from numpy import newaxis as na
 
 

@@ -1,5 +1,5 @@
 from py_wake.site.shear import PowerShear, LogShear
-import numpy as np
+from py_wake import np
 from py_wake.tests import npt
 from py_wake.site._site import UniformSite
 import xarray as xr

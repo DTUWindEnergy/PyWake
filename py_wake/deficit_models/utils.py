@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 
 
 def a0(ct_ilk, a0p=np.array([0.2460, 0.0586, 0.0883])):

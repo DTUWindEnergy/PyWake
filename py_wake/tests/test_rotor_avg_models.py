@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from py_wake.rotor_avg_models.rotor_avg_model import gauss_quadrature, PolarGridRotorAvg, RotorCenter, \
     polar_gauss_quadrature, EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg
 from py_wake.tests import npt
-import numpy as np
+from py_wake import np
 from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37_WindTurbines
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit,\
     ZongGaussian, BastankhahGaussianDeficit

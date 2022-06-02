@@ -3,7 +3,7 @@ from py_wake.site._site import UniformWeibullSite
 from py_wake.tests import npt
 from py_wake import NOJ, IEA37SimpleBastankhahGaussian
 from py_wake.examples.data import hornsrev1
-import numpy as np
+from py_wake import np
 from py_wake.aep_calculator import AEPCalculator
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 import pytest

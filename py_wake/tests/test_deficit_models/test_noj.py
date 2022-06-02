@@ -1,5 +1,5 @@
 import pytest
-import numpy as np
+from py_wake import np
 from py_wake import NOJ, NOJLocal
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
@@ -75,7 +75,7 @@ def test_NOJ_6_turbines_in_row():
     wfm = NOJ(site, NibeA0())
     wfm.verbose = False
     WS_eff_ilk = wfm.calc_wt_interaction(x, y, [50] * n_wt, [0] * n_wt, 0.0, 11.0)[0]
-    np.testing.assert_array_almost_equal(
+    npt.assert_array_almost_equal(
         WS_eff_ilk[1:, 0, 0], 11 - np.sqrt(np.cumsum(((11 * 2 / 3 * 20**2)**2) / (20 + 8 * np.arange(1, 6))**4)))
 
 
@@ -88,7 +88,7 @@ def test_NOJLocal_6_turbines_in_row():
     wfm = NOJLocal(site, NibeA0(), turbulenceModel=STF2017TurbulenceModel())
     wfm.verbose = False
     WS_eff_ilk = wfm.calc_wt_interaction(x, y, [50] * n_wt, [0] * n_wt, 0.0, 11.0)[0]
-    np.testing.assert_array_almost_equal(
+    npt.assert_array_almost_equal(
         WS_eff_ilk[1:, 0, 0], [5.62453869, 5.25806829, 5.64808912, 6.07792364,
                                6.44549094])
 

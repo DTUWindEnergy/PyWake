@@ -1,6 +1,6 @@
 from numpy import newaxis as na
 
-import numpy as np
+from py_wake import np
 from py_wake.deficit_models.deficit_model import DeficitModel, WakeDeficitModel, BlockageDeficitModel
 from py_wake.superposition_models import LinearSum
 from py_wake.tests.test_files import tfp

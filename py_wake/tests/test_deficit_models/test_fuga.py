@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from py_wake.examples.data.hornsrev1 import HornsrevV80, V80
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt

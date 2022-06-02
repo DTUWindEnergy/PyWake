@@ -1,7 +1,7 @@
 from py_wake import IEA37SimpleBastankhahGaussian
 from py_wake.deflection_models import JimenezWakeDeflection
 from py_wake.examples.data.iea37._iea37 import IEA37Site
-import numpy as np
+from py_wake import np
 import matplotlib.pyplot as plt
 import pytest
 from py_wake.flow_map import XYGrid

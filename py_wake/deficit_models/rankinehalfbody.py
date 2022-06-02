@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from numpy import newaxis as na
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
@@ -32,7 +32,9 @@ class RankineHalfBody(BlockageDeficitModel):
         """
         Find all points lying outside Rankine Half Body, stagnation line given on p.3
         """
-        cos_ijlk = dw_ijlk / r_ijlk
+        with np.warnings.catch_warnings():
+            np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
+            cos_ijlk = dw_ijlk / r_ijlk
         # avoid division by zero
         f_ilk = a0_ilk * R_il[:, :, na]
         f_ilk = np.where(f_ilk == 0., np.inf, f_ilk)

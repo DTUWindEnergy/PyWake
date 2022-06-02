@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from numpy import newaxis as na
 from scipy.special import ellipk
 from py_wake.utils.elliptic import ellipticPiCarlson

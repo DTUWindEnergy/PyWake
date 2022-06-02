@@ -1,6 +1,6 @@
 from numpy import newaxis as na
 
-import numpy as np
+from py_wake import np
 from py_wake.utils.gradients import cabs
 from autograd.numpy.numpy_boxes import ArrayBox
 from py_wake.utils import gradients

@@ -1,5 +1,5 @@
 from py_wake.wind_turbines import WindTurbine
-import numpy as np
+from py_wake import np
 from pathlib import Path
 from py_wake.utils.tensorflow_surrogate_utils import TensorflowSurrogate
 import inspect

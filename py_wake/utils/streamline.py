@@ -1,5 +1,5 @@
 from py_wake.utils.grid_interpolator import GridInterpolator
-import numpy as np
+from py_wake import np
 from numpy import newaxis as na
 import xarray as xr
 

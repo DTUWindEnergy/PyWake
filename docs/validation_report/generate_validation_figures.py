@@ -10,7 +10,7 @@ from scipy.interpolate import interp1d
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import numpy as np
+from py_wake import np
 from py_wake import BastankhahGaussian
 from py_wake import NOJ
 from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site

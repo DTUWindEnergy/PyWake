@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from scipy.special import gamma
 import xarray as xr
 from autograd.numpy.numpy_boxes import ArrayBox

@@ -1,5 +1,5 @@
 from numpy import newaxis as na
-import numpy as np
+from py_wake import np
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel
 from py_wake.superposition_models import LinearSum
 from py_wake.utils.gradients import hypot, cabs

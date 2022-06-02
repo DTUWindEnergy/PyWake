@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 import xarray as xr
 from numpy import newaxis as na
 from scipy.interpolate import InterpolatedUnivariateSpline

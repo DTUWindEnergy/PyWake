@@ -3,7 +3,7 @@ from py_wake.site._site import UniformSite
 from py_wake.wind_turbines import OneTypeWindTurbines
 from py_wake.flow_map import XYGrid
 from matplotlib.pyplot import cm
-import numpy as np
+from py_wake import np
 from py_wake.validation.validation_lib import data_path, integrate_velocity_deficit_arc, GaussianFilter, sigma_hornsrev
 import os
 import matplotlib.pyplot as plt

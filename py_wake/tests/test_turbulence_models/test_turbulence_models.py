@@ -1,6 +1,6 @@
 import pytest
 
-import numpy as np
+from py_wake import np
 from py_wake import NOJ
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models.noj import NOJDeficit

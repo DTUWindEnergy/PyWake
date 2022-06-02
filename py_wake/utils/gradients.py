@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from numpy import asarray as np_asarray
 from numpy import asanyarray as np_asanyarray
 import numpy
@@ -22,6 +22,7 @@ from itertools import count
 from scipy.interpolate import UnivariateSpline as scipy_UnivariateSpline
 from scipy.special import erf as scipy_erf
 from autograd.scipy.special import erf as autograd_erf
+from py_wake.utils.numpy_utils import AutogradNumpy
 
 
 def asarray(x, dtype=None, order=None):
@@ -67,58 +68,6 @@ variable.np.asarray = gradients.asarray
 # replace dsqrt to avoid divide by zero if x=0
 eps = 2 * np.finfo(float).eps ** 2
 defvjp(anp.sqrt, lambda ans, x: lambda g: g * 0.5 * np.where(x == 0, eps, x)**-0.5)  # @UndefinedVariable
-
-
-class _use_autograd_in():
-    def __init__(self, modules=["py_wake."]):
-        self.npdict_dict = {}
-        for m in modules:
-            self.npdict_dict.update(self.get_dict(m))
-
-    def get_dict(self, m):
-        if isinstance(m, dict):
-            return {f'd{len(self.npdict_dict)}': m}
-        if isinstance(m, str):
-            def is_submodule(k, m):
-                if k.startswith(m):
-                    return True
-
-                mod = sys.modules[k]
-                if hasattr(mod, '__file__') and sys.modules[k].__file__:
-                    mod_addr = os.path.relpath(mod.__file__,
-                                               Path(py_wake.__file__).parent.parent)[:-3].replace("\\", '.')
-                    if mod_addr.startswith(m):
-                        return True
-                return False
-
-            return {str(k): v.__dict__ for k, v in sys.modules.items()
-                    if (is_submodule(k, m) and k != __name__ and getattr(v, 'np', None) == np)}
-
-        if inspect.ismodule(m):
-            return {str(m): m.__dict__}
-
-        if inspect.getmodule(m) is not None and 'np' in inspect.getmodule(m).__dict__:
-            return {str(m): inspect.getmodule(m).__dict__}
-        else:
-            return {}
-
-    def __enter__(self):
-        try:
-            self.prev_np = {k: d['np'] for k, d in self.npdict_dict.items()}
-            for k, d in self.npdict_dict.items():
-                d['np'] = anp
-        finally:
-            return self
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        for k, d in self.npdict_dict.items():
-            d['np'] = self.prev_np[k]
-
-    def __call__(self, f):
-        def wrap(*args, **kwargs):
-            with self:
-                return f(*args, **kwargs)
-        return wrap
 
 
 def set_gradient_function(df):
@@ -212,7 +161,7 @@ def autograd(f, vector_interdependence=True, argnum=0):
             args = [a for i, a in enumerate(args) if i not in argnum]
             wrt_arg_shape = [np.shape(arg) for arg in wrt_args]
             wrt_1arg = np.concatenate([np.ravel(a) for a in wrt_args])
-            wrt_arg_i = np.r_[0, np.cumsum([np.prod(s) for s in wrt_arg_shape])]
+            wrt_arg_i = np.r_[0, np.cumsum([np.prod(s) for s in wrt_arg_shape]).astype(int)]
 
             def wrap_1inp(inp, *args):
                 wrt_args = [inp[i0:i1].reshape(s) for i0, i1, s in zip(wrt_arg_i[:-1], wrt_arg_i[1:], wrt_arg_shape)]
@@ -232,10 +181,11 @@ def autograd(f, vector_interdependence=True, argnum=0):
 
         @wraps(grad_func)
         def wrap2(*args, **kwargs):
-            args, kwargs = kwargs2args(f, *args, **kwargs)
-            return grad_func(*(args[:argnum] + (anp.asarray(args[argnum], dtype=float),) + args[argnum + 1:]),  # @UndefinedVariable
-                             **kwargs)
-        return _use_autograd_in(modules=['py_wake.', getattr(f, 'org_f', f)])(wrap2)
+            with AutogradNumpy():
+                args, kwargs = kwargs2args(f, *args, **kwargs)
+                return grad_func(*(args[:argnum] + (np.asarray(args[argnum], dtype=np.float),) + args[argnum + 1:]),  # @UndefinedVariable
+                                 **kwargs)
+        return wrap2
 
 
 color_dict = {}

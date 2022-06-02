@@ -1,6 +1,6 @@
 import os
 import pytest
-import numpy as np
+from py_wake import np
 import matplotlib.pyplot as plt
 from py_wake.tests import npt
 from py_wake.site._site import UniformWeibullSite, UniformSite

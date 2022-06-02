@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from numpy import newaxis as na
 from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit2020
 from py_wake.deficit_models.vortexdipole import VortexDipole

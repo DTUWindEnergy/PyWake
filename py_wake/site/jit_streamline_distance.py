@@ -1,5 +1,5 @@
 from py_wake.site.distance import StraightDistance
-import numpy as np
+from py_wake import np
 from numpy import newaxis as na
 import matplotlib.pyplot as plt
 from py_wake.examples.data.ParqueFicticio._parque_ficticio import ParqueFicticioSite

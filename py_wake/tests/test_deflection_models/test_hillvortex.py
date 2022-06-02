@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 import matplotlib.pyplot as plt
 from py_wake.deficit_models.gaussian import BastankhahGaussian, ZongGaussian, ZongGaussianDeficit
 from py_wake.deflection_models import GCLHillDeflection

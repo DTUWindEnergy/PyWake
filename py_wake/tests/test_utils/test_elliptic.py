@@ -1,4 +1,4 @@
-import numpy as np
+from py_wake import np
 from py_wake.utils.elliptic import ellipticPiCarlson
 from scipy.special import ellipk, ellipe
 from py_wake.tests import npt
