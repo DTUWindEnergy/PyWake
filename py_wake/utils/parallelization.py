@@ -1,12 +1,16 @@
 import multiprocessing
 import atexit
+import platform
 
 pool_dict = {}
 
 
 def get_pool(processes=multiprocessing.cpu_count()):
     if processes not in pool_dict:
-        pool_dict[processes] = multiprocessing.Pool(processes)
+        if platform.system() == 'Darwin':  # pragma: no cover
+            pool_dict[processes] = multiprocessing.get_context('fork').Pool(processes)
+        else:
+            pool_dict[processes] = multiprocessing.Pool(processes)
     return pool_dict[processes]
 
 
