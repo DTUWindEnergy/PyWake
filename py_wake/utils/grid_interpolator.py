@@ -144,8 +144,10 @@ class EqDistRegGrid2DInterpolator():
             yi0 = np.minimum(np.maximum(yi0, self.yi_valid_min), self.yi_valid_max - 2)
         xi1 = xi0 + (xif > 0)
         yi1 = yi0 + (yif > 0)
-        valid = (xif >= 0) & (yif >= 0) & (xi1 < len(self.x)) & (yi1 < len(self.y))
-        z = np.empty_like(xp) + np.nan
+        if isinstance(xp, ArrayBox) or isinstance(yp, ArrayBox):
+            valid = slice(None)
+        else:
+            valid = (xif >= 0) & (yif >= 0) & (xi1 < len(self.x)) & (yi1 < len(self.y))
         xi0, xi1, xif, yi0, yi1, yif = [v[valid] for v in [xi0, xi1, xif, yi0, yi1, yif]]
         z00 = self.Z[xi0, yi0]
         z10 = self.Z[xi1, yi0]
@@ -153,5 +155,9 @@ class EqDistRegGrid2DInterpolator():
         z11 = self.Z[xi1, yi1]
         z0 = z00 + (z10 - z00) * xif
         z1 = z01 + (z11 - z01) * xif
-        z[valid] = z0 + (z1 - z0) * yif
+        if isinstance(xp, ArrayBox) or isinstance(yp, ArrayBox):
+            z = z0 + (z1 - z0) * yif
+        else:
+            z = np.empty_like(xp) + np.nan
+            z[valid] = z0 + (z1 - z0) * yif
         return z

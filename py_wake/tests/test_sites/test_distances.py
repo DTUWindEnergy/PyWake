@@ -31,7 +31,7 @@ class HalfCylinder(UniformSite):
         return np.sqrt(np.maximum(self.height**2 - x_i**2, 0))
 
 
-class Rectangle(TerrainFollowingDistance, UniformSite):
+class Rectangle(UniformSite):
     def __init__(self, height, width, distance_resolution):
         self.height = height
         self.width = width
@@ -201,6 +201,29 @@ def test_distance_over_rectangle():
 
     ref = [9., 3.42, 3.8, 6.02, 6.17, 6.31, 6.43, 7.29, 7.35, 7.41, 7.47, 7.53, 7.58]
     npt.assert_array_almost_equal(Z[my, :25:2], ref, 2)
+
+
+def test_distance_over_rectangle2():
+    site = Rectangle(height=200, width=100, distance_resolution=200)
+
+    x_j = np.arange(-200, 500, 10)
+    y_j = x_j * 0
+    site.distance.setup([-200], [0], [130], (x_j, y_j, y_j + 130))
+    d = site.distance([270])[0][0]
+
+    ref = x_j - x_j[0]
+    ref[x_j > -50] += 200
+    ref[x_j >= 50] += 200
+
+    if 0:
+        H = site.elevation(x_j, y_j)
+        plt.plot(x_j, H, '.-', label='terrain')
+        plt.plot(x_j, d, label='distance')
+        plt.plot(x_j, ref, label='reference')
+        plt.legend()
+        plt.show()
+
+    npt.assert_allclose(d, ref, rtol=0.01)
 
 
 def test_distance_plot():

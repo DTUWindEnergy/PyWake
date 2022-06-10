@@ -13,6 +13,8 @@ from py_wake.wind_turbines import WindTurbines
 from py_wake.wind_turbines import _wind_turbines
 from xarray.core.dataset import Dataset
 from py_wake.utils.numpy_utils import AutogradNumpy
+from py_wake.examples.data.ParqueFicticio._parque_ficticio import ParqueFicticioSite
+from py_wake.site.distance import StraightDistance
 
 
 @pytest.mark.parametrize('obj', [_wind_turbines, WindTurbines, V80().power, _wind_turbines.__dict__])
@@ -285,10 +287,10 @@ def test_arctan2():
     for x in [-.5, 0, .5]:
         for y in [-.4, 0, .4]:
             npt.assert_array_almost_equal(gradients.arctan2(y + 0j, x).real, gradients.arctan2(y, x), 15)
+            dydx_lst = [grad(gradients.arctan2)(y, x) for grad in [fd, cs, autograd]]
             if x != 0 and y != 0:
-                dydx_lst = [grad(gradients.arctan2)(y, x) for grad in [fd, cs, autograd]]
                 npt.assert_array_almost_equal(dydx_lst[0], dydx_lst[1])
-                npt.assert_array_almost_equal(dydx_lst[1], dydx_lst[2])
+            npt.assert_array_almost_equal(dydx_lst[1], dydx_lst[2])
 
 
 def test_gradients_interp():

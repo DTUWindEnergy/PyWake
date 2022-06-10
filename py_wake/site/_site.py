@@ -4,7 +4,7 @@ from py_wake.site.shear import PowerShear
 import py_wake.utils.xarray_utils  # register ilk function @UnusedImport
 import xarray as xr
 from abc import ABC, abstractmethod
-from py_wake.utils.xarray_utils import da2py
+from py_wake.utils.xarray_utils import da2py, DataArrayILK
 
 """
 suffixs:
@@ -74,18 +74,19 @@ class LocalWind(xr.Dataset):
         lattr = {'Description': 'Lower bound of wind speed bins [m/s]'}
         uattr = {'Description': 'Upper bound of wind speed bins [m/s]'}
         if not hasattr(ws_bins, '__len__') or len(ws_bins) != len(WS) + 1:
-            if len(WS.shape) and WS.shape[-1] > 1:
-                d = np.diff(WS) / 2
+            WS_ilk = WS.ilk()
+            if WS_ilk.shape[-1] > 1:
+                d = np.diff(WS_ilk) / 2
                 ws_bins = np.maximum(np.concatenate(
-                    [WS[..., :1] - d[..., :1], WS[..., :-1] + d, WS[..., -1:] + d[..., -1:]], -1), 0)
+                    [WS_ilk[..., :1] - d[..., :1], WS_ilk[..., :-1] + d, WS_ilk[..., -1:] + d[..., -1:]], -1), 0)
             else:
                 # WS is single value
                 if ws_bins is None:
                     ws_bins = 1
-                ws_bins = WS.data + np.array([-ws_bins / 2, ws_bins / 2])
+                ws_bins = WS_ilk + np.array([-ws_bins / 2, ws_bins / 2])
 
-            self['ws_lower'] = xr.DataArray(ws_bins[..., :-1], dims=WS.dims, attrs=lattr)
-            self['ws_upper'] = xr.DataArray(ws_bins[..., 1:], dims=WS.dims, attrs=uattr)
+            self['ws_lower'] = DataArrayILK(ws_bins[..., :-1], attrs=lattr).squeeze()
+            self['ws_upper'] = DataArrayILK(ws_bins[..., 1:], attrs=uattr).squeeze()
         else:
             self['ws_lower'] = xr.DataArray(ws_bins[:-1], dims=['ws'], attrs=lattr)
             self['ws_upper'] = xr.DataArray(ws_bins[1:], dims=['ws'], attrs=uattr)
