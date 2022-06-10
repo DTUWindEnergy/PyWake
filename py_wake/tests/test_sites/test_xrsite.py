@@ -11,13 +11,13 @@ from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.wind_turbines import WindTurbines
 from py_wake.deficit_models.gaussian import BastankhahGaussian, BastankhahGaussianDeficit
-from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.superposition_models import LinearSum
 from py_wake.tests.check_speed import timeit
 from py_wake.site._site import LocalWind
 from py_wake.utils import weibull
-from py_wake.deficit_models.noj import NOJ, NOJDeficit
-from py_wake.flow_map import XYGrid, Points
+from py_wake.deficit_models.noj import NOJ
+from py_wake.flow_map import XYGrid
 import warnings
 from urllib.error import HTTPError, URLError
 from py_wake.examples.data.ParqueFicticio._parque_ficticio import ParqueFicticioSite

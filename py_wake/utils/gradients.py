@@ -1,16 +1,12 @@
 from py_wake import np
 from numpy import asarray as np_asarray
-from numpy import asanyarray as np_asanyarray
+# from numpy import asanyarray as np_asanyarray
 import numpy
 import autograd.numpy as anp
 from autograd.numpy.numpy_boxes import ArrayBox
 import inspect
 from autograd.core import defvjp, primitive
 from autograd.differential_operators import jacobian, elementwise_grad
-import sys
-import os
-import py_wake
-from pathlib import Path
 from inspect import signature
 from functools import wraps
 from xarray.core.dataarray import DataArray
@@ -23,6 +19,7 @@ from scipy.interpolate import UnivariateSpline as scipy_UnivariateSpline
 from scipy.special import erf as scipy_erf
 from autograd.scipy.special import erf as autograd_erf
 from py_wake.utils.numpy_utils import AutogradNumpy
+from autograd.numpy.numpy_vjps import unbroadcast_f
 
 
 def asarray(x, dtype=None, order=None):
@@ -68,6 +65,9 @@ variable.np.asarray = gradients.asarray
 # replace dsqrt to avoid divide by zero if x=0
 eps = 2 * np.finfo(float).eps ** 2
 defvjp(anp.sqrt, lambda ans, x: lambda g: g * 0.5 * np.where(x == 0, eps, x)**-0.5)  # @UndefinedVariable
+defvjp(anp.arctan2,  # @UndefinedVariable
+       lambda ans, x, y: unbroadcast_f(x, lambda g: g * y / (x**2 + np.where(y != 0, y, 1)**2)),
+       lambda ans, x, y: unbroadcast_f(y, lambda g: g * -x / (np.where(x != 0, x, 1)**2 + y**2)))
 
 
 def set_gradient_function(df):

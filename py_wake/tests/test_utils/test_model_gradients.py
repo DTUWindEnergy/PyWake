@@ -27,10 +27,11 @@ from py_wake.utils.model_utils import get_models
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.deficit_models.noj import NOJDeficit
+from py_wake.site.jit_streamline_distance import JITStreamlineDistance
 
 
 def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110, 110, 110], fd_step=1e-6, fd_decimal=6,
-                    output=(lambda wfm: wfm.aep, 'AEP [GWh]')):
+                    output=(lambda wfm: wfm.aep, 'AEP [GWh]'), kwargs={}):
     if wfm is None:
         return
     site = IEA37Site(16)
@@ -41,7 +42,7 @@ def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110,
         x_lst = np.array([0, 0., 1.]) * np.arange(1, 600, 10)[:, na] + wt_x
         y_lst = np.array([0, 0, 1.]) * np.arange(-101, 100, 5)[:, na] + wt_y
         h_lst = np.array([0, 0, 1.]) * np.arange(-50, 50, 5)[:, na] + wt.hub_height()
-        kwargs = {'ws': [9], 'wd': [270]}
+        kwargs = {'ws': [9], 'wd': [270], **kwargs}
 
         xp, yp, hp = x_lst[20], y_lst[25], h_lst[2]
 
@@ -187,7 +188,8 @@ def test_ground_models(model):
             model.__name__)
 
 
-@pytest.mark.parametrize('site', [IEA37Site(16), Hornsrev1Site(), ParqueFicticioSite(distance=StraightDistance())])
+@pytest.mark.parametrize('site', [IEA37Site(16), Hornsrev1Site(),
+                                  ParqueFicticioSite(distance=StraightDistance())])
 def test_sites(site):
     x, y = site.initial_position[3]
     check_gradients(lambda site, wt, s=site: PropagateDownwind(
@@ -197,6 +199,7 @@ def test_sites(site):
         wt_x=[x - 1040, x - 520, x],
         wt_y=[y, y, y],
         fd_decimal=4,
+        kwargs={'ws': [9, 10], 'wd': [270, 271, 272]}
     )
 
 
@@ -215,7 +218,18 @@ def test_shear(model):
 
 @pytest.mark.parametrize('model', get_models(StraightDistance))
 def test_distance_models(model):
-    print(model)
+    if model not in [None, JITStreamlineDistance]:
+        site = ParqueFicticioSite(distance=model())
+        x, y = site.initial_position[3]
+        check_gradients(lambda site, wt, s=site: PropagateDownwind(
+            s, wt, wake_deficitModel=BastankhahGaussianDeficit(),
+        ),
+            site.__class__.__name__,
+            wt_x=[x - 1040, x - 520, x],
+            wt_y=[y, y, y],
+            fd_decimal=4,
+            kwargs={'ws': [9, 10], 'wd': [270, 271, 272]}
+        )
 
 
 @pytest.mark.parametrize('wt', [IEA37WindTurbines, V80, IEA34_130_1WT_Surrogate])
