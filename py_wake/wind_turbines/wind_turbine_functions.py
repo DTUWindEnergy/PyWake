@@ -160,10 +160,10 @@ class FunctionSurrogates(WindTurbineFunction, ABC):
             return [fs.predict_output(x).reshape(ws.shape) for fs in np.asarray(self.function_surrogate_lst)[run_only]]
 
 #     Commented out as no tests or examples currently uses this class directly
-#     @property
-#     def output_keys(self):
-#         return [fs.output_channel_name for fs in self.function_surrogate_lst]
-#
-#     @property
-#     def wohler_exponents(self):
-#         return [fs.wohler_exponent for fs in self.function_surrogate_lst]
+    # @property
+    # def output_keys(self):
+    #     return [fs.output_channel_name for fs in self.function_surrogate_lst]
+
+    @property
+    def wohler_exponents(self):
+        return [fs.wohler_exponent for fs in self.function_surrogate_lst]
