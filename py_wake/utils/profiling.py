@@ -8,6 +8,7 @@ import psutil
 import memory_profiler
 import ctypes
 from pathlib import Path
+import linecache
 
 
 def timeit(func, min_time=0, min_runs=1, verbose=False, line_profile=False, profile_funcs=[]):
@@ -23,18 +24,21 @@ def timeit(func, min_time=0, min_runs=1, verbose=False, line_profile=False, prof
             return res, [t]
         else:
             t_lst = []
+            time_start = time.time()
             for i in range(100000):
-                startTime = time.time_ns()
+                t0 = time.time_ns()
                 res = func(*args, **kwargs)
-                t_lst.append((time.time_ns() - startTime) * 1e-9)
-                if sum(t_lst) > min_time and len(t_lst) >= min_runs:
-                    if hasattr(func, '__name__'):
-                        fn = func.__name__
-                    else:
-                        fn = "Function"
-                    if verbose:
-                        print('%s: %f +/-%f (%d runs)' % (fn, np.mean(t_lst), np.std(t_lst), i + 1))
-                    return res, t_lst
+                t_lst.append((time.time_ns() - t0) * 1e-9)
+                if (time.time() - time_start) > min_time and len(t_lst) >= min_runs:
+                    break
+
+            if verbose:  # pragma: no cover
+                if hasattr(func, '__name__'):
+                    fn = func.__name__
+                else:
+                    fn = "Function"
+                print('%s: %f +/-%f (%d runs)' % (fn, np.mean(t_lst), np.std(t_lst), i + 1))
+            return res, t_lst
     return newfunc
 
 
@@ -61,7 +65,10 @@ def compare_lineprofile(lp1, lp2, include_gt_pct=None):  # pragma: no cover
         assert lineno1 == lineno2
         assert name1 == name2
 
-        lines = Path(fn1).read_text(errors='ignore').split("\n")
+        if os.path.exists(fn1):
+            # Clear the cache to ensure that we get up-to-date results.
+            linecache.clearcache()
+        lines = [l.rstrip() for l in linecache.getlines(fn1)]
         template = '%6s %9s %12s %12s %8s %8s %8s  %-s'
 
         total1 = np.sum([v[2] for v in timings1])
