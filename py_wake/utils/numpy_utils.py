@@ -73,7 +73,15 @@ class NumpyWrapper():
 
     @property
     def float(self):
-        return self.backend.float
+        if self.backend == numpy:
+            return numpy.float64
+        return getattr(self.backend, 'float', numpy.float64)
+
+    @property
+    def complex(self):
+        if self.backend == numpy:
+            return numpy.complex128
+        return getattr(self.backend, 'complex', numpy.complex128)
 
     def set_backend(self, backend):
         self.backend = backend

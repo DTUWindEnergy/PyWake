@@ -87,7 +87,7 @@ class VortexCylinder(BlockageDeficitModel):
             # indices on rotor plane and in wake region
             R_il = D_src_il / 2
             iw = ((dw_ijlk / R_il[:, na, :, na] >= -self.limiter) &
-                  (cabs(cw_ijlk) <= R_il[:, na, :, na])) * np.full(deficit_ijlk.shape, True)
+                  (cabs(cw_ijlk) <= R_il[:, na, :, na])) * np.full(deficit_ijlk.shape, True, dtype=bool)
             deficit_ijlk[iw] = 0.
 
         return deficit_ijlk
