@@ -75,8 +75,6 @@ class AreaOverlappingFactor():
             R2 = np.zeros_like(R1) + R2
         if d.shape != R1.shape:
             d = np.zeros_like(R1) + d
-        A_ol_f = np.zeros(np.maximum(R1.shape, R2.shape))
-        p = (R1 + R2 + d) / 2.0
 
         # make sure R_big >= R_small
         Rmax = np.where(R1 < R2, R2, R1)

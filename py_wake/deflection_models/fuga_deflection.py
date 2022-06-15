@@ -130,13 +130,13 @@ class FugaDeflection(FugaUtils, DeflectionModel):
                                 for l in range(L)], 2, 0)
 
     def get_hcw_jk(self, i, l, K, x, y, dw_ijl, hcw_ijl, F_ilk, theta_ilk):
-        x_idx = (np.searchsorted(x, [dw_ijl.min(), dw_ijl.max()]) + np.array([-1, 1]))
+        x_idx = (np.searchsorted(x, [dw_ijl.min(), dw_ijl.max()]) + np.array([-1, 1], dtype=int))
         m_x = len(x) + 1
-        x_slice = slice(*np.minimum([m_x, m_x], np.maximum([0, 0], x_idx)))
+        x_slice = slice(*np.minimum([m_x, m_x], np.maximum([0, 0], x_idx, dtype=int), dtype=int))
 
-        y_idx = (np.searchsorted(y, [hcw_ijl.min(), hcw_ijl.max()]) + np.array([-20, 20]))
+        y_idx = (np.searchsorted(y, [hcw_ijl.min(), hcw_ijl.max()]) + np.array([-20, 20], dtype=int))
         m_y = len(y) + 1
-        y_slice = slice(*np.minimum([m_y, m_y], np.maximum([0, 0], y_idx)))
+        y_slice = slice(*np.minimum([m_y, m_y], np.maximum([0, 0], y_idx, dtype=int), dtype=int))
 
         x_ = x[x_slice]
         y_ = y[y_slice]

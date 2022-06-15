@@ -28,7 +28,7 @@ IEA37WindTurbines = IEA37_WindTurbines
 
 
 class IEA37Site(UniformSite):
-    def __init__(self, n_wt, ti=.075, shear=None):
+    def __init__(self, n_wt=16, ti=.075, shear=None):
         assert n_wt in [9, 16, 36, 64]
 
         from py_wake.examples.data.iea37.iea37_reader import \

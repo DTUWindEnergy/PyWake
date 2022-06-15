@@ -25,7 +25,7 @@ class Shear(ABC):
 
 
 class PowerShear(Shear):
-    def __init__(self, h_ref, alpha, interp_method='nearest'):
+    def __init__(self, h_ref=100, alpha=.1, interp_method='nearest'):
         self.h_ref = h_ref
         from py_wake.site._site import get_sector_xr
         self.alpha = get_sector_xr(alpha, "Power shear coefficient")
@@ -39,7 +39,7 @@ class PowerShear(Shear):
 
 
 class LogShear(Shear):
-    def __init__(self, h_ref, z0, interp_method='nearest'):
+    def __init__(self, h_ref=100, z0=.03, interp_method='nearest'):
         self.h_ref = h_ref
         from py_wake.site._site import get_sector_xr
         self.z0 = get_sector_xr(z0, "Roughness length")

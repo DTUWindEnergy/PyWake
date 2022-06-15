@@ -164,7 +164,7 @@ class WeightedSum(SuperpositionModel):
                     sum2[:] = .0
                     for j in range(n_wt - 1):
                         # Only cross with larger indices
-                        k = np.arange(j + 1, n_wt)
+                        k = np.arange(j + 1, n_wt, dtype=int)
                         # Find indices where deficits need to be combined
                         Ilxx = Il[j][na] & Il[k]
                         if Ilxx.any():

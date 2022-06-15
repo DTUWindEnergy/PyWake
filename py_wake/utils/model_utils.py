@@ -3,6 +3,7 @@ import os
 import pkgutil
 from py_wake import np
 from numpy import newaxis as na
+from py_wake.site._site import Site
 
 
 def get_exclude_dict():
@@ -14,6 +15,7 @@ def get_exclude_dict():
     from py_wake.superposition_models import LinearSum
     from py_wake.deficit_models.noj import NOJDeficit
     from py_wake.ground_models.ground_models import NoGround
+    from py_wake.site.jit_streamline_distance import JITStreamlineDistance
     return {
         "WindFarmModel": ([EngineeringWindFarmModel], [], PropagateDownwind),
         "DeficitModel": ([ConvectionDeficitModel, BlockageDeficitModel, WakeDeficitModel], [RotorAvgModel], NOJDeficit),
@@ -26,7 +28,8 @@ def get_exclude_dict():
         "AddedTurbulenceSuperpositionModel": ([], [], None),
         "GroundModel": ([], [], NoGround),
         "Shear": ([], [], None),
-        "StraightDistance": ([], [], None),
+        "StraightDistance": ([], [JITStreamlineDistance], None),
+
     }
 
 
@@ -35,7 +38,11 @@ def cls_in(A, cls_lst):
 
 
 def get_models(base_class):
-
+    if base_class is Site:
+        from py_wake.examples.data.iea37._iea37 import IEA37Site
+        from py_wake.examples.data.hornsrev1 import Hornsrev1Site
+        from py_wake.examples.data.ParqueFicticio._parque_ficticio import ParqueFicticioSite
+        return [IEA37Site, Hornsrev1Site, ParqueFicticioSite]
     exclude_cls_lst, exclude_subcls_lst, default = get_exclude_dict()[base_class.__name__]
 
     model_lst = []

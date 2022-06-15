@@ -215,7 +215,7 @@ class PowerCtTabular(PowerCtFunction):
             see ws_cutin and ws_cutout
         ct_idle : number, optional
             see ws_cutin and ws_cutout
-        method : {'linear', 'phip','spline}
+        method : {'linear', 'pchip','spline}
             Interpolation method:\n
             - linear: fast, discontinous gradients\n
             - pchip: smooth\n
