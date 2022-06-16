@@ -1,12 +1,12 @@
 import matplotlib.pyplot as plt
 from py_wake.rotor_avg_models.rotor_avg_model import gauss_quadrature, PolarGridRotorAvg, RotorCenter, \
-    polar_gauss_quadrature, EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg
+    polar_gauss_quadrature, EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg, WSCubeAvgModel, GridRotorAvg
 from py_wake.tests import npt
 from py_wake import np
 from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37_WindTurbines
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit,\
-    ZongGaussian, BastankhahGaussianDeficit
-from py_wake.flow_map import HorizontalGrid
+    ZongGaussian, BastankhahGaussianDeficit, BastankhahGaussian
+from py_wake.flow_map import HorizontalGrid, XYGrid
 from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind, EngineeringWindFarmModel
 from py_wake.superposition_models import SquaredSum, LinearSum
 import pytest
@@ -15,7 +15,9 @@ from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel
 from py_wake.utils.model_utils import get_models
 from py_wake.turbulence_models.crespo import CrespoHernandez
-from py_wake.examples.data.hornsrev1 import Hornsrev1Site
+from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80
+from py_wake.site._site import UniformSite
+from py_wake.deficit_models.noj import NOJ
 
 EngineeringWindFarmModel.verbose = False
 
@@ -236,3 +238,19 @@ def test_overlapping_area_factor_shapes():
     wfm = ZongGaussian(site, windTurbines, rotorAvgModel=EqGridRotorAvg(9),
                        turbulenceModel=CrespoHernandez())
     wfm([0, 1000], [0, 0])
+
+
+def test_cube_ws_rotor_avg():
+    wfm = BastankhahGaussian(UniformSite(), V80())
+    x, y = [0, 200], [0, 0]
+    y_g = [-40, 0, 40]
+    if 0:
+        wfm(x, y, wd=270).flow_map().plot_wake_map()
+        plt.show()
+
+    ws_eff_p = wfm(x, y, wd=270).flow_map(XYGrid(x=200 - 1e-8, y=y_g)).WS_eff
+    ws_eff_ref = np.mean(ws_eff_p**3)**(1 / 3)
+
+    wfm = BastankhahGaussian(UniformSite(), V80(),
+                             rotorAvgModel=WSCubeAvgModel(GridRotorAvg(nodes_x=[-1, 0, 1], nodes_y=[0, 0, 0])))
+    npt.assert_almost_equal(wfm(x, y, wd=270).WS_eff.sel(wt=1).squeeze(), ws_eff_ref)
