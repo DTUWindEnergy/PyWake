@@ -130,14 +130,23 @@ class CGIRotorAvg(GridRotorAvg):
         GridRotorAvg.__init__(self, nodes_x, nodes_y, nodes_weight=nodes_weight)
 
 
-class WSCubeAvgModel(RotorAvgModel):
-    '''Compute the cubed wind speed average. Node weights are ignored
-    '''
+class WSPowerRotorAvg(RotorAvgModel):
+    '''Compute the wind speed average, ws_avg = sum(ws_point^alpha)^(1/alpha).
+    Node weights are ignored'''
 
-    def __init__(self, rotorAvgModel=CGIRotorAvg(7)):
+    def __init__(self, rotorAvgModel=CGIRotorAvg(7), alpha=3):
+        """
+        Parameters
+        ----------
+        rotorAvgModel : RotorAvgModel, optional
+            RotorAvgModel defining the points, nodes_x and nodes_y, at which the wind speed to average is extracted
+        alpha : number, optional
+            power coefficient, default is 3
+        """
         check_model(rotorAvgModel, cls=RotorAvgModel, arg_name='rotorAvgModel', accept_None=False)
         self.rotorAvgModel = rotorAvgModel
         self.args4rotor_avg_deficit = set(rotorAvgModel.args4rotor_avg_deficit) | {'WS_ilk'}
+        self.alpha = alpha
 
     def __getattribute__(self, name):
         try:
@@ -152,7 +161,7 @@ class WSCubeAvgModel(RotorAvgModel):
 
         values_ijlkp = func(**kwargs)
         # Calculate weighted sum of deficit over the destination rotors
-        WS_eff_ijlk = np.mean((WS_ilk[:, na, :, :, na] - values_ijlkp)**3, -1) ** (1 / 3)
+        WS_eff_ijlk = np.mean((WS_ilk[:, na, :, :, na] - values_ijlkp)**self.alpha, -1) ** (1 / self.alpha)
         return WS_ilk[:, na] - WS_eff_ijlk
 
 

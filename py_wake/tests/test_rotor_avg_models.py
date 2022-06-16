@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
-from py_wake.rotor_avg_models.rotor_avg_model import gauss_quadrature, PolarGridRotorAvg, RotorCenter, \
-    polar_gauss_quadrature, EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg, WSCubeAvgModel, GridRotorAvg
+from py_wake.rotor_avg_models import gauss_quadrature, PolarGridRotorAvg, RotorCenter, \
+    polar_gauss_quadrature, EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg, GridRotorAvg, WSPowerRotorAvg
 from py_wake.tests import npt
 from py_wake import np
 from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37_WindTurbines
@@ -240,7 +240,7 @@ def test_overlapping_area_factor_shapes():
     wfm([0, 1000], [0, 0])
 
 
-def test_cube_ws_rotor_avg():
+def test_WSPowerRotorAvgModel():
     wfm = BastankhahGaussian(UniformSite(), V80())
     x, y = [0, 200], [0, 0]
     y_g = [-40, 0, 40]
@@ -249,8 +249,8 @@ def test_cube_ws_rotor_avg():
         plt.show()
 
     ws_eff_p = wfm(x, y, wd=270).flow_map(XYGrid(x=200 - 1e-8, y=y_g)).WS_eff
-    ws_eff_ref = np.mean(ws_eff_p**3)**(1 / 3)
+    ws_eff_ref = np.mean(ws_eff_p**2)**(1 / 2)
 
-    wfm = BastankhahGaussian(UniformSite(), V80(),
-                             rotorAvgModel=WSCubeAvgModel(GridRotorAvg(nodes_x=[-1, 0, 1], nodes_y=[0, 0, 0])))
+    rotorAvgModel = WSPowerRotorAvg(GridRotorAvg(nodes_x=[-1, 0, 1], nodes_y=[0, 0, 0]), alpha=2)
+    wfm = BastankhahGaussian(UniformSite(), V80(), rotorAvgModel=rotorAvgModel)
     npt.assert_almost_equal(wfm(x, y, wd=270).WS_eff.sel(wt=1).squeeze(), ws_eff_ref)
