@@ -56,7 +56,7 @@ def test_calc_wt_interaction_parallel_results():
     WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, *_ = wfm.calc_wt_interaction(x, y, wd_chunks=3, ws_chunks=2, n_cpu=None)
     WS_ref, TI_ref, power_ref, ct_ref, *_ = wfm.calc_wt_interaction(x, y)
     npt.assert_array_equal(WS_eff_ilk, WS_ref)
-    npt.assert_array_equal(TI_eff_ilk, TI_ref)
+    npt.assert_array_equal(TI_eff_ilk, np.broadcast_to(TI_ref, (16, 360, 23)))
     npt.assert_array_equal(power_ilk, power_ref)
     npt.assert_array_equal(ct_ilk, ct_ref)
 
@@ -184,11 +184,11 @@ def test_aep_gradients_chunks():
 
 @pytest.mark.parametrize('n_wt, shape,dims', [(16, (16,), ('wt',)),
                                               (12, (12,), ('wt',)),
-                                              (12, (16,), ('wt', 'wd')),
+                                              (12, (16,), ('wd',)),
                                               (16, (16, 16), ('wt', 'wd')),
                                               (12, (12, 16), ('wt', 'wd')),
                                               (12, (12, 16, 23), ('wt', 'wd', 'ws')),
-                                              (16, (16, 23), ('wt', 'wd', 'ws')),
+                                              (16, (16, 23), ('wd', 'ws')),
 
                                               ])
 def test_wt_kwargs_dimensions(n_wt, shape, dims):

@@ -4,9 +4,7 @@ from py_wake import np
 import xarray as xr
 from xarray.plot.plot import _PlotMethods
 import warnings
-from xarray.core.dataarray import DataArray
-from autograd.numpy.numpy_boxes import ArrayBox
-from xarray.core import dtypes
+from py_wake.utils.grid_interpolator import GridInterpolator
 
 
 class ilk():
@@ -16,11 +14,7 @@ class ilk():
     def __call__(self, shape=None):
         dims = self.dataArray.dims
         squeeze_dims = [d for d in self.dataArray.dims if d not in ['i', 'wt', 'wd', 'ws', 'time']]
-        if isinstance(self.dataArray.values, ArrayBox):
-            assert not squeeze_dims
-            v = self.dataArray.values
-        else:
-            v = self.dataArray.squeeze(squeeze_dims, drop=True).data
+        v = self.dataArray.squeeze(squeeze_dims, drop=True).data
 
         if 'wt' not in dims and 'i' not in dims:
             v = v[na]
@@ -39,63 +33,119 @@ class ilk():
             return np.broadcast_to(v, shape)
 
 
-class add_ilk():
-    def __init__(self, dataset):
-        self.dataset = dataset
-
-    def __call__(self, name, value):
-        dims = self.dataset.dims
-        if 'time' in dims:
-            allowed_dims = ['i', 'wt'], ['time'], ['ws']
-        else:
-            allowed_dims = ['i', 'wt'], ['wd'], ['ws']
-
-        d = []
-        i = 0
-
-        for ad in allowed_dims:
-            for k in ad:
-                if i < len(np.shape(value)) and np.shape(value)[i] == dims.get(k, None):
-                    d.append(k)
-                    i += 1
-                    break
-        while len(np.shape(value)) > len(d) and np.shape(value)[-1] == 1:
-            value = value[..., 0]
-        self.dataset[name] = (d, da2py(value, include_dims=False))
+def ilk2da(v_ilk, coords, desc=None):
+    dim_i = ('i', 'wt')['wt' in coords]
+    dims = [d for i, d in enumerate([dim_i, ('wd', 'time')['time' in coords], 'ws'])
+            if v_ilk.shape[i] > 1]
+    coords = {k: v for k, v in coords.items() if k in dims}
+    attrs = {}
+    if desc:
+        attrs = {'description': desc}
+    return xr.DataArray(v_ilk.squeeze(), dims=dims, coords=coords, attrs=attrs)
 
 
-class add_ijlk():
-    def __init__(self, dataset):
-        self.dataset = dataset
-
-    def __call__(self, name, value):
-        dims = self.dataset.dims
-        if 'time' in dims:
-            allowed_dims = ['i', 'wt'], ['i', 'wt'], ['time'], ['ws']
-        else:
-            allowed_dims = ['i', 'wt'], ['i', 'wt'], ['wd'], ['ws']
-
-        d = []
-        i = 0
-
-        for ad in allowed_dims:
-            for k in ad:
-                if i < len(np.shape(value)) and np.shape(value)[i] == dims.get(k, None):
-                    d.append(k)
-                    i += 1
-                    break
-#         while len(value.shape) > len(d) and value.shape[-1] == 1:
-#             value = value[..., 0]
-        self.dataset[name] = (d, value)
+def ijlk2da(v_ijlk, coords):
+    dim_i = ('i', 'wt')['wt' in coords]
+    dims = [d for s, d in zip(v_ijlk.shape, [dim_i, dim_i, ('wd', 'time')['time' in coords], 'ws'])
+            if s > 1]
+    coords = {k: v for k, v in coords.items() if k in dims}
+    return xr.DataArray(v_ijlk.squeeze(), dims=dims, coords=coords)
 
 
-class interp_all():
+class interp_ilk():
     def __init__(self, dataArray):
         self.dataArray = dataArray
 
-    def __call__(self, dataArray2, **kwargs):
-        interp_coords = {d: dataArray2[d] for d in self.dataArray.dims if d in dataArray2.coords}
-        return self.dataArray.interp(**interp_coords, **kwargs)
+    def __call__(self, coords, deg=False, interp_method='linear', bounds='check'):
+        # Interpolate via EqDistRegGridInterpolator (equidistance regular grid interpolator) which is much faster
+        # than xarray.interp.
+        # This function is comprehensive because var can contain any combinations of coordinates (i or (xy,h)) and wd,ws
+
+        var = self.dataArray
+
+        def sel(data, data_dims, indices, dim_name):
+            i = data_dims.index(dim_name)
+            ix = tuple([(slice(None), indices)[dim == i] for dim in range(data.ndim)])
+            return data[ix]
+
+        ip_dims = [n for n in ['i', 'x', 'y', 'h', 'time', 'wd', 'ws'] if n in var.dims]  # interpolation dimensions
+        data = var.data
+        data_dims = var.dims
+
+        def pre_sel(data, name):
+            # If only a single value is needed on the <name>-dimension, the data is squeezed to contain this value only
+            # Otherwise the indices of the needed values are returned
+            if name not in var.dims:
+                return data, None
+            c, v = coords[name], var[name].data
+            indices = None
+            if ip_dims and ip_dims[-1] == name and len(set(c) - set(np.atleast_1d(v))) == 0:
+                # all coordinates in var, no need to interpolate
+                ip_dims.remove(name)
+                indices = np.searchsorted(v, c)
+                if len(np.unique(indices)) == 1:
+                    # only one index, select before interpolation
+                    data = sel(data, data_dims, slice(indices[0], indices[0] + 1), name)
+                    indices = [0]
+                else:
+                    indices = indices
+            return data, indices
+
+        # pre select, i.e. reduce input data size in case only one ws or wd is needed
+        data, k_indices = pre_sel(data, 'ws')
+        l_name = ['wd', 'time']['time' in coords]
+        data, l_indices = pre_sel(data, l_name)
+
+        if 'i' in ip_dims and 'i' in coords and len(var.i) != len(coords['i']):
+            raise ValueError(
+                "Number of points, i(=%d), in site data variable, %s, must match number of requested points(=%d)" %
+                (len(var.i), var.name, len(coords['i'])))
+        data, i_indices = pre_sel(data, 'i')
+
+        if len(ip_dims) > 0:
+            grid_interp = GridInterpolator([var.coords[k].data for k in ip_dims], data,
+                                           method=interp_method, bounds=bounds)
+
+            # get dimension of interpolation coordinates
+            I = (1, len(coords.get('x', coords.get('y', coords.get('h', coords.get('i', [None]))))))[
+                any([n in data_dims for n in 'xyhi'])]
+            L, K = [(1, len(coords.get(n, [None])))[indices is None and n in data_dims]
+                    for n, indices in [('wd', l_indices), ('ws', k_indices)]]
+
+            # gather interpolation coordinates xp with len #xyh x #wd x #ws
+            xp = [coords[n].repeat(L * K) for n in 'xyhi' if n in ip_dims]
+            ip_data_dims = [n for n, l in [('i', ['x', 'y', 'h', 'i']), ('wd', ['wd']), ('ws', ['ws'])]
+                            if any([l_ in ip_dims for l_ in l])]
+            shape = [l for d, l in [('i', I), ('wd', L), ('ws', K)] if d in ip_data_dims]
+            if 'wd' in ip_dims:
+                xp.append(np.tile(coords['wd'].repeat(K), I))
+            elif 'wd' in data_dims:
+                shape.append(data.shape[data_dims.index('wd')])
+            if 'ws' in ip_dims:
+                xp.append(np.tile(coords['ws'], I * L))
+            elif 'ws' in data_dims:
+                shape.append(data.shape[data_dims.index('ws')])
+
+            ip_data = grid_interp(np.array(xp).T, deg=deg)
+            ip_data = ip_data.reshape(shape)
+        else:
+            ip_data = data
+            ip_data_dims = []
+
+        if i_indices is not None:
+            ip_data_dims.append('i')
+            ip_data = sel(ip_data, ip_data_dims, i_indices, 'i')
+        if l_indices is not None:
+            ip_data_dims.append(l_name)
+            ip_data = sel(ip_data, ip_data_dims, l_indices, l_name)
+        if k_indices is not None:
+            ip_data_dims.append('ws')
+            ip_data = sel(ip_data, ip_data_dims, k_indices, 'ws')
+
+        for i, d in enumerate(['i', l_name, 'ws']):
+            if d not in ip_data_dims:
+                ip_data = np.expand_dims(ip_data, i)
+        return ip_data
 
 
 class sel_interp_all():
@@ -129,60 +179,8 @@ class plot_xy_map(_PlotMethods):
 
 if not hasattr(xr.DataArray(None), 'ilk'):
     xr.register_dataarray_accessor("ilk")(ilk)
-    xr.register_dataset_accessor("add_ilk")(add_ilk)
-    xr.register_dataset_accessor("add_ijlk")(add_ijlk)
-    xr.register_dataarray_accessor("interp_all")(interp_all)
+    xr.register_dataarray_accessor("interp_ilk")(interp_ilk)
     xr.register_dataarray_accessor("sel_interp_all")(sel_interp_all)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         xr.register_dataarray_accessor('plot')(plot_xy_map)
-
-
-def da2py(v, include_dims=False):
-    if isinstance(v, tuple):
-        return tuple([da2py(v, include_dims) for v in v])
-    if isinstance(v, DataArray):
-        if include_dims:
-            return (v.dims, v.values)
-        else:
-            return v.values
-    return v
-
-
-class DataArrayILK(DataArray):
-    __slots__ = []
-
-    def __init__(self, data=dtypes.NA, coords=None, dims=None, name=None, attrs=None, indexes=None, fastpath=False):
-        if not hasattr(data, 'dims') and len(data.shape) == 3:
-            dims = ('i', 'wd', 'ws')
-        DataArray.__init__(self, data=data, coords=coords, dims=dims, name=name, attrs=attrs,
-                           indexes=indexes, fastpath=fastpath)
-
-    def log(self):
-        if isinstance(self.values, ArrayBox):
-            return DataArrayILK(xr.DataArray(np.log(self.ilk()), dims=('i', 'wd', 'ws')))
-        else:
-            return np.log(self)
-
-    def squeeze(self, dim=None, drop=False, axis=None):
-        if isinstance(self.values, ArrayBox):
-            dims = self.dims
-            data = self.values
-            while data.shape and data.shape[-1] == 1:
-                data = data[..., 0]
-                dims = dims[:-1]
-            return DataArrayILK(data, dims=dims)
-        else:
-            return DataArray.squeeze(self, dim=dim, drop=drop, axis=axis)
-
-
-for op_name in ['__mul__', '__add__', '__pow__']:
-    def op_func(self, other, op_name=op_name):
-        if isinstance(self.values, ArrayBox):
-            if isinstance(other, DataArray):
-                other = other.ilk()
-            return DataArrayILK(xr.DataArray(getattr(self.ilk(), op_name)(other), dims=('i', 'wd', 'ws')))
-        else:
-            return getattr(DataArray, op_name)(self, other)
-
-    setattr(DataArrayILK, op_name, op_func)

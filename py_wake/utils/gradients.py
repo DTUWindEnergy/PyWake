@@ -208,7 +208,7 @@ def plot_gradients(f, dfdx, x, label, step=1, ax=None):
 
 def hypot(a, b):
     """
-    Given the “legs” of a right triangle, return its hypotenuse.
+    Given the "legs" of a right triangle, return its hypotenuse.
 
     Calls numpy.hypot(a, b) for real arguments and np.sqrt(a**2 + b**2) for complex arguments.
 
@@ -334,8 +334,6 @@ def mod(x1, x2):
         return np.mod(np.real(x1), x2) + x1.imag * 1j
     elif isinstance(x1, ArrayBox) or isinstance(x2, ArrayBox):
         return anp.mod(x1, x2)  # @UndefinedVariable
-    elif isinstance(x1, DataArray) and isinstance(x1.values, ArrayBox):
-        return DataArray(anp.mod(x1.ilk(), x2), dims=('i', 'wd', 'ws'))  # @UndefinedVariable
     else:
         return np.mod(x1, x2)
 

@@ -4,7 +4,9 @@ from py_wake.site.shear import PowerShear
 import py_wake.utils.xarray_utils  # register ilk function @UnusedImport
 import xarray as xr
 from abc import ABC, abstractmethod
-from py_wake.utils.xarray_utils import da2py, DataArrayILK
+from py_wake.utils.xarray_utils import ilk2da
+from numpy import newaxis as na
+from py_wake.utils.functions import arg2ilk
 
 """
 suffixs:
@@ -12,13 +14,10 @@ suffixs:
 - j: Local point (downstream turbines or positions)
 - l: Wind directions
 - k: Wind speeds
-- m: Height above ground
 """
 
 
-class LocalWind(xr.Dataset):
-    __slots__ = ('wd_bin_size')
-
+class LocalWind(dict):
     def __init__(self, x_i, y_i, h_i, wd, ws, time, wd_bin_size, WD=None, WS=None, TI=None, P=None):
         """
 
@@ -38,9 +37,9 @@ class LocalWind(xr.Dataset):
             assert len(wd) == len(ws)
             if time is True:
                 time = np.arange(len(wd))
-            coords = {'time': time, 'wd': ('time', wd), 'ws': ('time', ws)}
+            coords = {'time': np.atleast_1d(time), 'wd': np.atleast_1d(wd), 'ws': np.atleast_1d(ws)}
         else:
-            coords = {'wd': wd, 'ws': np.atleast_1d(ws)}
+            coords = {'wd': np.atleast_1d(wd), 'ws': np.atleast_1d(ws)}
 
         assert len(np.atleast_1d(x_i)) == len(np.atleast_1d(y_i))
         n_i = max(len(np.atleast_1d(x_i)), len(np.atleast_1d(h_i)))
@@ -48,33 +47,52 @@ class LocalWind(xr.Dataset):
 
         for k, v in [('x', x_i), ('y', y_i), ('h', h_i)]:
             if v is not None:
-                coords[k] = ('i', np.zeros(n_i) + v)
-        xr.Dataset.__init__(self, data_vars={k: da2py(v, include_dims=True) for k, v in [('WD', WD), ('WS', WS),
-                                                                                         ('TI', TI), ('P', P)] if v is not None},
-                            coords={k: da2py(v) for k, v in coords.items()})
-        self.attrs['wd_bin_size'] = wd_bin_size
+                coords[k] = np.zeros(n_i) + v
 
-        # set localWind.WS_ilk etc.
-        for k in ['WD', 'WS', 'TI', 'P', 'TI_std']:
-            setattr(self.__class__, "%s_ilk" % k, property(lambda self, k=k: self[k].ilk()))
+        self.coords = coords
+        for k, v in [('WD', WD), ('WS', WS), ('TI', TI), ('P', P)]:
+            if v is not None:
+                self[k] = v
+        self.descriptions = {}
+
+        self['wd_bin_size'] = wd_bin_size
+
+    def __getattribute__(self, name):
+        try:
+            return dict.__getattribute__(self, name)
+        except AttributeError:
+            if name != 'coords':  # may not exists when loading from pkl
+                keys = self.keys()
+                if name in keys:
+                    return self[name]
+                coords = getattr(self, 'coords', {})
+                if name in coords.keys():
+                    return coords[name]
+                elif name + "_ilk" in keys:
+                    return ilk2da(self[name + '_ilk'], coords, self.descriptions.get(name + '_ilk', None))
+            raise
+
+    def __contains__(self, key):
+        return key in self.keys() or key in self.coords.keys()
 
     def set_data_array(self, data_array, name, description):
         if data_array is not None:
-            data_array.attrs.update({'Description': description})
             self[name] = data_array
+            self.descriptions[name] = description
+
+    def add_ilk(self, name, value):
+        coords = self.coords
+        self[name] = arg2ilk(name, value, I=len(coords['i']), L=len(coords['wd']), K=len(coords['ws']))
 
     def set_W(self, ws, wd, ti, ws_bins, use_WS=False):
-        for da, name, desc in [(ws, 'WS', 'Local free-stream wind speed [m/s]'),
-                               (wd, 'WD', 'Local free-stream wind direction [deg]'),
-                               (ti, 'TI', 'Local free-stream turbulence intensity')]:
-            self.set_data_array(da, name, desc)
+        for da, name, desc in [(ws, 'WS_ilk', 'Local free-stream wind speed [m/s]'),
+                               (wd, 'WD_ilk', 'Local free-stream wind direction [deg]'),
+                               (ti, 'TI_ilk', 'Local free-stream turbulence intensity')]:
+            self.set_data_array(np.atleast_3d(da), name, desc)
 
         # upper and lower bounds of wind speed bins
-        WS = [self.ws, self.WS][use_WS]
-        lattr = {'Description': 'Lower bound of wind speed bins [m/s]'}
-        uattr = {'Description': 'Upper bound of wind speed bins [m/s]'}
-        if not hasattr(ws_bins, '__len__') or len(ws_bins) != len(WS) + 1:
-            WS_ilk = WS.ilk()
+        WS_ilk = [self.ws[na, na], self.WS_ilk][use_WS]
+        if not hasattr(ws_bins, '__len__') or len(ws_bins) != WS_ilk.shape[2] + 1:
             if WS_ilk.shape[-1] > 1:
                 d = np.diff(WS_ilk) / 2
                 ws_bins = np.maximum(np.concatenate(
@@ -84,12 +102,11 @@ class LocalWind(xr.Dataset):
                 if ws_bins is None:
                     ws_bins = 1
                 ws_bins = WS_ilk + np.array([-ws_bins / 2, ws_bins / 2])
-
-            self['ws_lower'] = DataArrayILK(ws_bins[..., :-1], attrs=lattr).squeeze()
-            self['ws_upper'] = DataArrayILK(ws_bins[..., 1:], attrs=uattr).squeeze()
         else:
-            self['ws_lower'] = xr.DataArray(ws_bins[:-1], dims=['ws'], attrs=lattr)
-            self['ws_upper'] = xr.DataArray(ws_bins[1:], dims=['ws'], attrs=uattr)
+            ws_bins = np.asarray(ws_bins)
+
+        self.set_data_array(ws_bins[..., :-1], 'ws_lower', 'Lower bound of wind speed bins [m/s]')
+        self.set_data_array(ws_bins[..., 1:], 'ws_upper', 'Upper bound of wind speed bins [m/s]')
 
 
 class Site(ABC):
@@ -278,9 +295,9 @@ class Site(ABC):
         lbl = "Wind direction: %d deg"
         if include_wd_distribution:
 
-            lw = self.local_wind(x_i=x, y_i=y, h_i=h, wd=np.arange(360), ws=ws, wd_bin_size=1)
-            lw.coords['sector'] = ('wd', self._sector(wd))
-            P = lw.P.groupby('sector').sum()
+            P = self.local_wind(x_i=x, y_i=y, h_i=h, wd=np.arange(360), ws=ws, wd_bin_size=1).P
+            P.coords['sector'] = ('wd', self._sector(wd))
+            P = P.groupby('sector').sum()
             v = 360 / len(wd) / 2
             lbl += r"$\pm$%s deg" % ((int(v), v)[(v % 2) != 0])
         else:
@@ -289,8 +306,8 @@ class Site(ABC):
             if 'ws' not in P.dims:
                 P = P.broadcast_like(lw.WS).T
             P = P / P.sum('ws')  # exclude wd probability
-        if 'i' in P.dims:
-            P = P.squeeze('i')
+        if 'wd' not in P.dims and 'sector' not in P.dims:
+            P = P.expand_dims({'wd': wd})
         for wd, p in zip(wd, P):
             ax.plot(ws, p * 10, label=lbl % wd)
             ax.xlabel('Wind speed [m/s]')
@@ -339,10 +356,11 @@ class Site(ABC):
         if ws_bins is None:
             if any(['ws' in v.dims for v in self.ds.data_vars.values()]):
                 lw = self.local_wind(x_i=x, y_i=y, h_i=h, wd=np.arange(360), wd_bin_size=1)
-                lw['P'] = lw.P.sum('ws')
+                P = lw.P.sum('ws')
             else:
                 lw = self.local_wind(x_i=x, y_i=y, h_i=h, wd=np.arange(360),
                                      ws=[100], ws_bins=[0, 200], wd_bin_size=1)
+                P = lw.P
         else:
             if not hasattr(ws_bins, '__len__'):
                 ws_bins = np.linspace(0, 30, ws_bins)
@@ -350,27 +368,24 @@ class Site(ABC):
                 ws_bins = np.asarray(ws_bins)
             ws = ((ws_bins[1:] + ws_bins[:-1]) / 2)
             lw = self.local_wind(x_i=x, y_i=y, h_i=h, wd=np.arange(360), ws=ws, wd_bin_size=1)
+            P = lw.P
 
-        lw.coords['sector'] = ('wd', self._sector(wd))
-        p = lw.P.groupby('sector').sum()
-        if 'i' in p.dims:
-            p = p.squeeze('i')
+        P.coords['sector'] = ('wd', self._sector(wd))
+        P = P.groupby('sector').sum()
 
-        if ws_bins is None or 'ws' not in p.dims:
-            if 'ws' in p.dims:
-                p = p.squeeze('ws')
-            ax.bar(theta, p.data, width=np.deg2rad(wd_bin_size), bottom=0.0)
+        if ws_bins is None or 'ws' not in P.dims:
+            ax.bar(theta, P.values, width=np.deg2rad(wd_bin_size), bottom=0.0)
         else:
-            p = p.T
-            start_p = np.vstack([np.zeros_like(p[:1]), p.cumsum('ws')[:-1]])
-            for ws1, ws2, p_ws0, p_ws in zip(lw.ws_lower.data, lw.ws_upper.data, start_p, p):
+            P = P.T
+            start_P = np.vstack([np.zeros_like(P[:1]), P.cumsum('ws')[:-1]])
+            for ws1, ws2, p_ws0, p_ws in zip(lw.ws_lower, lw.ws_upper, start_P, P):
                 ax.bar(theta, p_ws, width=np.deg2rad(wd_bin_size), bottom=p_ws0,
                        label="%s-%s m/s" % (ws1, ws2))
             ax.legend(bbox_to_anchor=(1.15, 1.1))
 
         ax.set_rlabel_position(-22.5)  # Move radial labels away from plotted line
         ax.grid(True)
-        return p.T
+        return P.T
 
 
 from py_wake.site import xrsite  # @NoMove # nopep8

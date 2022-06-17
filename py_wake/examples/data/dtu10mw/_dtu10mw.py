@@ -53,7 +53,7 @@ class DTU10MW(WindTurbine):
     '''
     Data from:
     Christian Bak, Frederik Zahle, Robert Bitsche, Taeseong Kim, Anders Yde, Lars Christian Henriksen, Anand Natarajan,
-    Morten Hartvig Hansen.“Description of the DTU 10 MW Reference Wind Turbine” DTU Wind Energy Report-I-0092, July 2013. Table 3.5
+    Morten Hartvig Hansen."Description of the DTU 10 MW Reference Wind Turbine" DTU Wind Energy Report-I-0092, July 2013. Table 3.5
 
     '''
 

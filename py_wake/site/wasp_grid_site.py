@@ -36,13 +36,13 @@ class WaspGridSite(XRSite):
         super().__init__(ds, distance=distance)
 
     def _local_wind(self, localWind, ws_bins=None):
-        lw = super()._local_wind(localWind.copy(), ws_bins)
+        lw = super()._local_wind(localWind, ws_bins)
 
         # ti is assumed to be the turbulence intensity given by CFD
         # (expected value of TI at 15m/s). The Normal Turbulence model
         # is used to calculate TI at different wind speed,
         # see footnote 4 at page 24 of IEC 61400-1 (2005)
-        lw['TI'] = self.interp(self.ds.ti15ms, lw.coords) * (.75 + 3.8 / lw.ws)
+        lw['TI_ilk'] = self.interp(self.ds.ti15ms, lw) * (.75 + 3.8 / lw.ws)
         return lw
 
     @classmethod

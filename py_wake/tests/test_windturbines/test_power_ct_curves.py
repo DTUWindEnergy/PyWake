@@ -347,19 +347,20 @@ def test_density_compensation_vs_scale():
     curve_scale = PowerCtTabular(ws=u_p, power=p_c, power_unit='w', ct=ct_c, ws_cutin=3, ws_cutout=25,
                                  method='linear', additional_models=[DensityScale(rho_ref)])
 
-    for mode in [1]:
-        rho = wt.wt_data[mode]['AirDensity']
-        ax1.plot(u, wt.power(u, mode=mode) * 1e-3, label=f"Wasp, rho={wt.wt_data[mode]['AirDensity']}")
-        ax2.plot(u, wt.ct(u, mode=mode), label=f"Wasp, rho={wt.wt_data[mode]['AirDensity']}")
-        p, ct = curve_comp(u, Air_density=rho)
-        ax1.plot(u, p * 1e-3, label='DensityCompensation')
-        ax2.plot(u, ct, label='DensityCompensation')
-        p, ct = curve_scale(u, Air_density=rho)
-        ax1.plot(u, p * 1e-3, label='DensityScale')
-        ax2.plot(u, ct, label='DensityScale')
-    setup_plot(ax=ax1, xlabel='Wind speed [m/s]', ylabel='Power [kW]')
-    setup_plot(ax=ax2, xlabel='Wind speed [m/s]', ylabel='Ct [-]')
-    plt.show()
+    if 0:
+        for mode in [1]:
+            rho = wt.wt_data[mode]['AirDensity']
+            ax1.plot(u, wt.power(u, mode=mode) * 1e-3, label=f"Wasp, rho={wt.wt_data[mode]['AirDensity']}")
+            ax2.plot(u, wt.ct(u, mode=mode), label=f"Wasp, rho={wt.wt_data[mode]['AirDensity']}")
+            p, ct = curve_comp(u, Air_density=rho)
+            ax1.plot(u, p * 1e-3, label='DensityCompensation')
+            ax2.plot(u, ct, label='DensityCompensation')
+            p, ct = curve_scale(u, Air_density=rho)
+            ax1.plot(u, p * 1e-3, label='DensityScale')
+            ax2.plot(u, ct, label='DensityScale')
+        setup_plot(ax=ax1, xlabel='Wind speed [m/s]', ylabel='Power [kW]')
+        setup_plot(ax=ax2, xlabel='Wind speed [m/s]', ylabel='Ct [-]')
+        plt.show()
 
     for run_only in [0, 1]:
         for argnum in [0, 1]:
