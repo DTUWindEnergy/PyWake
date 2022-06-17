@@ -1,26 +1,25 @@
 from py_wake import np
 from numpy import newaxis as na
 from abc import abstractmethod, ABC
-from py_wake.utils.xarray_utils import DataArrayILK
 
 
 class Shear(ABC):
     @abstractmethod
-    def __call__(self, WS_ilk, WD_ilk, h_i):
+    def __call__(self, localWind, WS_ilk, h):
         """Get wind speed at height
 
         Parameters
         ----------
+        localWind : LocalWind
+            Local wind and coordinates
         WS_ilk : array_like
             wind speed
-        WD_ilk : array_like
-            wind direction
-        h_i : array_like
+        h : array_like
             height
         Returns
         -------
         WS_ilk : array_like
-            Wind speed at height h_i
+            Wind speed at height h
         """
 
 
@@ -31,11 +30,9 @@ class PowerShear(Shear):
         self.alpha = get_sector_xr(alpha, "Power shear coefficient")
         self.interp_method = interp_method
 
-    def __call__(self, WS, WD, h):
-        alpha = self.alpha.interp_all(WD, method=self.interp_method)
-        if alpha.shape == ():
-            alpha = alpha.data
-        return DataArrayILK((h / self.h_ref) ** alpha) * WS
+    def __call__(self, localWind, WS_ilk, h):
+        alpha = self.alpha.interp_ilk(localWind.coords, interp_method=self.interp_method)
+        return (h / self.h_ref)[:, na, na] ** alpha * WS_ilk
 
 
 class LogShear(Shear):
@@ -45,11 +42,9 @@ class LogShear(Shear):
         self.z0 = get_sector_xr(z0, "Roughness length")
         self.interp_method = interp_method
 
-    def __call__(self, WS, WD, h):
-        z0 = self.z0.interp_all(WD, method=self.interp_method)
-        if z0.shape == ():
-            z0 = z0.data
-        return DataArrayILK(h / z0).log() / DataArrayILK(self.h_ref / z0).log() * WS
+    def __call__(self, localWind, WS_ilk, h):
+        z0 = self.z0.interp_ilk(localWind.coords, interp_method=self.interp_method)
+        return np.log(h[:, na, na] / z0) / np.log(self.h_ref / z0) * WS_ilk
 
 
 # ======================================================================================================================

@@ -36,11 +36,12 @@ def test_local_wind(site):
     x_i = y_i = np.arange(5)
     wdir_lst = np.arange(0, 360, 90)
     wsp_lst = np.arange(3, 6)
-    lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=50, wd=wdir_lst, ws=wsp_lst)
+    lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=[50], wd=wdir_lst, ws=wsp_lst)
     npt.assert_array_equal(lw.WS_ilk.shape, (1, 4, 3))
 
     lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=50)
     npt.assert_array_equal(lw.WS_ilk.shape, (1, 360, 23))
+    assert lw.WS.attrs['description'] == 'Local free-stream wind speed [m/s]'
 
     # check probability local_wind()[-1]
     npt.assert_equal(site.local_wind(x_i=x_i, y_i=y_i, h_i=50, wd=[0], ws=[10], wd_bin_size=1).P_ilk,

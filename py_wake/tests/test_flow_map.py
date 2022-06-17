@@ -283,6 +283,25 @@ def test_min_ws_eff_line():
                                    -1.59, -1.83, -2.07, -2.31, -2.56], 2)
 
 
+def test_plot_windturbines_with_wd_ws_dependent_yaw():
+    # plot
+    site = IEA37Site(16)
+    x, y = [0, 600, 1200], [0, 0, 0]  # site.initial_position[:2].T
+    windTurbines = IEA37_WindTurbines()
+    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines, deflectionModel=JimenezWakeDeflection())
+
+    yaw_ilk = np.broadcast_to(np.reshape([-30, 30, 0], (3, 1, 1)), (3, 4, 2))
+
+    plt.figure(figsize=(14, 3))
+    fm = wfm(x, y, yaw=yaw_ilk, wd=[0, 90, 180, 270], ws=[9, 10]).flow_map(
+        XYGrid(x=np.arange(-100, 2000, 10), y=np.arange(-500, 500, 10)))
+
+    fm.plot_windturbines()
+    if 0:
+        plt.show()
+    plt.close('all')
+
+
 def flow_map_j_wd_chunks():
     # demonstrate that wd chunkification is more efficient than j chunkification
     site = IEA37Site(16)

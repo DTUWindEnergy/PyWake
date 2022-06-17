@@ -17,7 +17,7 @@ def test_add_ilk(ti, dims):
     site = Hornsrev1Site()
     wt, wd, ws = np.arange(2), np.arange(360), np.arange(3, 26)
     lw = site.local_wind(wt * 1000, wt * 0, wt * 0 + 70, wd, ws, time=False)
-    lw.add_ilk('TI', ti)
+    lw.add_ilk('TI_ilk', ti)
     assert lw.TI.dims == dims
 
 
@@ -33,7 +33,7 @@ def test_add_ilk_time(ti, dims):
     t = pd.date_range("2000-01-01", freq="10T", periods=100)
 
     lw = site.local_wind(wt * 1000, wt * 0, wt * 0 + 70, wd, ws, time=t)
-    lw.add_ilk('TI', ti)
+    lw.add_ilk('TI_ilk', ti)
     assert lw.TI.dims == dims
 
 

@@ -11,7 +11,7 @@ from py_wake.deficit_models.deficit_model import ConvectionDeficitModel, Blockag
 from tqdm import tqdm
 from py_wake.wind_turbines._wind_turbines import WindTurbines
 from py_wake.utils.model_utils import check_model
-from py_wake.utils.functions import mean_deg
+from py_wake.utils.functions import mean_deg, arg2ilk
 from py_wake.utils.gradients import hypot
 from py_wake.utils.parallelization import get_pool
 import multiprocessing
@@ -191,17 +191,6 @@ class EngineeringWindFarmModel(WindFarmModel):
         lw = self.site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=wd, ws=ws, time=time)
         I, L, K, = len(x_i), len(wd), (1, len(ws))[time is False]
 
-        def arg2ilk(k, v):
-            v = np.asarray(v)
-            if v.shape not in {(), (I,), (I, L), (I, L, K), (L,), (L, K)}:
-                valid_shapes = f"(), ({I}), ({I},{L}), ({I},{L},{K}), ({L},), ({L}, {K})"
-                raise ValueError(
-                    f"Argument, {k}(shape={v.shape}), has unsupported shape. Valid shapes are {valid_shapes} (interpreted in this order)")
-            if v.shape != (I,) and (v.shape == (L,) or v.shape == (L, K)):
-                return np.broadcast_to(v[na], (I,) + v.shape)
-            else:
-                return v
-
         wt_kwargs = kwargs
         ri, oi = self.windTurbines.function_inputs
         unused_inputs = set(wt_kwargs) - set(ri) - set(oi) - {'WS', 'WD', 'TI'}
@@ -210,7 +199,7 @@ class EngineeringWindFarmModel(WindFarmModel):
             required arguments: %s
             optional arguments: %s""" % ("', '".join(unused_inputs), ['ws'] + ri, oi))
 
-        wt_kwargs = {k: arg2ilk(k, v)for k, v in wt_kwargs.items()}
+        wt_kwargs = {k: arg2ilk(k, v, I, L, K) for k, v in wt_kwargs.items()}
 
         if n_cpu != 1 or wd_chunks or ws_chunks > 1:
             # parallel execution
@@ -225,14 +214,12 @@ class EngineeringWindFarmModel(WindFarmModel):
                 if all([v is None for v in v_ilk]):
                     return None
                 if time is False:
-                    if len(v_ilk[0].shape) <= 1:
-                        return v_ilk[0]
-                    if len(v_ilk[0].shape) == 2:
-                        return np.concatenate(v_ilk[0::ws_chunks], axis=1)
+                    v_ilk = [np.broadcast_to(v, WS_eff.shape) for v, WS_eff in zip(v_ilk, WS_eff_ilk)]
 
                     return np.concatenate([np.concatenate(v_ilk[i::ws_chunks], axis=1)
                                            for i in range(ws_chunks)], axis=2)
                 else:
+                    v_ilk = [np.broadcast_to(v, WS_eff.shape) for v, WS_eff in zip(v_ilk, WS_eff_ilk)]
                     return np.concatenate(v_ilk, axis=1)
 
             return ([concatenate(v) for v in [WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk]] +
@@ -241,28 +228,21 @@ class EngineeringWindFarmModel(WindFarmModel):
         # Calculate down-wind and cross-wind distances
         self._validate_input(x_i, y_i)
 
-        for v in ['WS', 'WD', 'TI']:
-            if v in kwargs:
-                lw.add_ilk(v, kwargs[v])
-
-        WS_eff_ilk = lw.WS.ilk((I, L, K)) + 0  # fast autograd-friendly copy
-        TI_eff_ilk = lw.TI.ilk((I, L, K)) + 0  # fast autograd-friendly copy
-
-        # add eps to avoid non-differentiable 0
-#        eps = 2 * np.finfo(float).eps ** 2 if 'autograd' in np.__name__ else 0
+        for k in ['WS', 'WD', 'TI']:
+            if k in kwargs:
+                lw.add_ilk(k + '_ilk', kwargs[k])
 
         self.site.distance.setup(x_i, y_i, h_i)
-        # cw_iil = np.sqrt(hcw_iil**2 + dh_iil**2 + eps)
 
         def add_arg(name, optional):
             if name in wt_kwargs:  # custom WindFarmModel.__call__ arguments
                 return
             elif name in {'yaw', 'tilt', 'type'}:  # fixed WindFarmModel.__call__ arguments
                 wt_kwargs[name] = {'yaw': yaw_ilk, 'tilt': tilt_ilk, 'type': type_i}[name]
-            elif name in lw:
-                wt_kwargs[name] = lw[name].values
+            elif name + '_ilk' in lw:
+                wt_kwargs[name] = lw[name + '_ilk']
             elif name in self.site.ds:
-                wt_kwargs[name] = self.site.interp(self.site.ds[name], lw.coords).values
+                wt_kwargs[name] = self.site.interp(self.site.ds[name], lw)
             elif name in ['TI_eff']:
                 if self.turbulenceModel:
                     wt_kwargs['TI_eff'] = None
@@ -283,8 +263,12 @@ class EngineeringWindFarmModel(WindFarmModel):
         if tilt_ilk is None:
             tilt_ilk = np.zeros((I, L, K))
 
-        kwargs = {'localWind': lw,
-                  'WS_eff_ilk': WS_eff_ilk, 'TI_eff_ilk': TI_eff_ilk,
+        kwargs = {'wd': lw.wd,
+                  'WD_ilk': lw.WD_ilk,
+                  'WS_ilk': lw.WS_ilk,
+                  'TI_ilk': lw.TI_ilk,
+                  'WS_eff_ilk': lw.WS_ilk + 0.,  # autograd-friendly copy
+                  'TI_eff_ilk': lw.TI_ilk + 0.,
                   'x_i': x_i, 'y_i': y_i, 'h_i': h_i, 'D_i': D_i,
                   'yaw_ilk': yaw_ilk, 'tilt_ilk': tilt_ilk,
                   'I': I, 'L': L, 'K': K, **wt_kwargs}
@@ -361,37 +345,12 @@ class EngineeringWindFarmModel(WindFarmModel):
             args.update({k: arg_funcs[k](l) for k in self.turbulenceModel.args4addturb
                          if k not in self.args4deficit and k != 'dw_ijlk'})
 
-        # if I * J * K * 8 / 1024**2 > 10:
-        #     # one wt at the time to avoid memory problems
-        #     deficit_ijk = np.zeros((I, J, K))
-        #     blockage_ijk = np.zeros((I, J, K))
-        #     add_turb_ijk = np.zeros((I, J, K))
-        #     uc_ijk = np.zeros((I, J, K))
-        #     sigma_sqr_ijk = np.zeros((I, J, K))
-        #     for i in tqdm(range(I), disable=I <= 1 or not self.verbose,
-        #                   desc="Calculate flow map for wd=%d" % l, unit='wt'):
-        #         args_i = {k: v[min(i, v.shape[0] - 1)][na] for k, v in args.items()}
-        #         if isinstance(self.superpositionModel, WeightedSum):
-        #             deficit, uc, sigma_sqr, blockage = self._calc_deficit_convection(
-        #                 dw_ijlk=dw_ijlk[i][na], **args_i)
-        #             deficit_ijk[i] = deficit[0, :, 0]
-        #             uc_ijk[i] = uc[0, :, 0]
-        #             sigma_sqr_ijk[i] = sigma_sqr[0, :, 0]
-        #         else:
-        #
-        #             deficit_ijk[i], blockage_ijk[i] = [v[0, :, 0]
-        #                                                for v in self._calc_deficit(dw_ijlk=dw_ijlk[i][na], **args_i)]
-        #
-        #         if self.turbulenceModel:
-        #             add_turb_ijk[i] = self.turbulenceModel.calc_added_turbulence(
-        #                 dw_ijlk=dw_ijlk[i][na], **args_i)[0, :, 0]
-        # else:
         if isinstance(self.superpositionModel, WeightedSum):
             deficit_ijlk, uc_ijlk, sigma_sqr_ijlk, blockage_ijlk = self._calc_deficit_convection(
                 dw_ijlk=dw_ijlk, **args)
-
         else:
             deficit_ijlk, blockage_ijlk = self._calc_deficit(dw_ijlk=dw_ijlk, **args)
+
         if self.turbulenceModel:
             add_turb_ijlk = self.turbulenceModel.calc_added_turbulence(dw_ijlk=dw_ijlk, **args)
 
@@ -411,14 +370,14 @@ class EngineeringWindFarmModel(WindFarmModel):
 
         if self.turbulenceModel:
             l_ = [l, slice(0, 1)][TI_ilk.shape[1] == 1]
-            TI_eff_jlk = self.turbulenceModel.calc_effective_TI(TI_ilk[:, l_], add_turb_ijlk)[:, na]
+            TI_eff_jlk = self.turbulenceModel.calc_effective_TI(TI_ilk[:, l_], add_turb_ijlk)
         else:
             TI_eff_jlk = None
         return WS_eff_jlk, TI_eff_jlk
 
     def _aep_map(self, x_j, y_j, h_j, sim_res_data):
         arg_funcs, lw_j, wd, WD_il, I, J, L, K = self.get_map_args(x_j, y_j, h_j, sim_res_data)
-        P = lw_j.P.ilk()
+        P = lw_j.P_ilk
         size_gb = I * J * L * K * 8 / 1024**3
         wd_chunks = np.maximum(int(size_gb // 1), 1)
         wd_i = np.round(np.linspace(0, L, wd_chunks + 1)).astype(int)
@@ -440,7 +399,8 @@ class EngineeringWindFarmModel(WindFarmModel):
         """call this function via SimulationResult.flow_map"""
         arg_funcs, lw_j, wd, WD_il, I, J, L, K = self.get_map_args(x_j, y_j, h_j, sim_res_data)
         if I == 0:
-            return lw_j, lw_j.WS.ilk((len(x_j), L, K)).astype(float), lw_j.TI.ilk((len(x_j), L, K)).astype(float)
+            return (lw_j, np.broadcast_to(lw_j.WS_ilk, (len(x_j), L, K)).astype(float),
+                    np.broadcast_to(lw_j.TI_ilk, (len(x_j), L, K)).astype(float))
 
         l_iter = tqdm(range(L), disable=L <= 1 or not self.verbose, desc='Calculate flow map', unit='wd')
 
@@ -450,7 +410,7 @@ class EngineeringWindFarmModel(WindFarmModel):
         if self.turbulenceModel:
             TI_eff_jlk = np.concatenate(TI_eff_jlk, 1)
         else:
-            TI_eff_jlk = lw_j.TI.ilk((len(x_j), L, K)).astype(float)
+            TI_eff_jlk = np.broadcast_to(lw_j.TI_ilk, (len(x_j), L, K)) + 0.
         return lw_j, WS_eff_jlk, TI_eff_jlk
 
     def _validate_input(self, x_i, y_i):
@@ -493,7 +453,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
         EngineeringWindFarmModel.__init__(self, site, windTurbines, wake_deficitModel, rotorAvgModel, superpositionModel,
                                           blockage_deficitModel=None, deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
 
-    def _calc_wt_interaction(self, localWind,
+    def _calc_wt_interaction(self, wd, WD_ilk, WS_ilk, TI_ilk,
                              WS_eff_ilk, TI_eff_ilk,
                              x_i, y_i, h_i, D_i, yaw_ilk, tilt_ilk,
                              I, L, K, **kwargs):
@@ -504,7 +464,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
         - n: from_turbines, to_turbines and wind directions (iil.flatten())
 
         """
-        lw = localWind
+
         deficit_nk = []
         uc_nk = []
         sigma_sqr_nk = []
@@ -516,8 +476,8 @@ class PropagateDownwind(EngineeringWindFarmModel):
             dtype = (float, np.complex128)[np.iscomplexobj(x_ilk)]
             return np.broadcast_to(np.asarray(x_ilk).astype(dtype), (I, L, K)).reshape((I * L, K))
 
-        TI_mk = ilk2mk(lw.TI_ilk)
-        WS_mk = ilk2mk(lw.WS_ilk)
+        TI_mk = ilk2mk(TI_ilk)
+        WS_mk = ilk2mk(WS_ilk)
         WS_eff_mk = []
         TI_eff_mk = []
         yaw_mk = ilk2mk(yaw_ilk)
@@ -528,7 +488,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
             add_turb_nk = []
 
         i_wd_l = np.arange(L).astype(int)
-        wd = mean_deg(lw.WD_ilk, (0, 2))
+        wd = mean_deg(WD_ilk, (0, 2))
         dw_order_indices_dl = self.site.distance.dw_order_indices(wd)
 
         # Iterate over turbines in down wind order
@@ -568,13 +528,18 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
             # Calculate Power/CT
             def mask(k, v):
-                if v is None or isinstance(v, (int, float)) or len(np.asarray(v).shape) == 0:
+                if v is None or isinstance(v, (int, float)) or len(np.shape(v)) == 0:
                     return v
+                if len(np.squeeze(v).shape) == 0:
+                    return np.squeeze(v)
                 v = np.asarray(v)
-                if np.product(v.shape) == I:
-                    return v[i_wt_l].flatten()
-                elif v.shape[:2] == (I, L):
+                if v.shape[:2] == (I, L):
                     return v[i_wt_l, i_wd_l]
+                elif v.shape[0] == I:
+                    return v[i_wt_l].flatten()
+                else:
+                    assert v.shape[1] == L
+                    return v[0, i_wd_l]
 
             keys = self.windTurbines.powerCtFunction.required_inputs + self.windTurbines.powerCtFunction.optional_inputs
             _kwargs = {k: mask(k, v) for k, v in kwargs.items() if k in keys}
@@ -603,7 +568,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
                 i_dw = dw_order_indices_dl[:, j + 1:]
 
                 dw_jl, hcw_jl, dh_jl = self.site.distance(
-                    wd_l=lw.wd.values, WD_il=wd, src_idx=i_wt_l, dst_idx=i_dw.T)
+                    wd_l=wd, WD_il=wd, src_idx=i_wt_l, dst_idx=i_dw.T)
                 if self.wec != 1:
                     hcw_jl = hcw_jl / self.wec
 
@@ -698,7 +663,7 @@ class All2AllIterative(EngineeringWindFarmModel):
         self.convergence_tolerance = convergence_tolerance
         self.initialize_with_PropagateDownwind = initialize_with_PropagateDownwind
 
-    def _calc_wt_interaction(self, localWind,
+    def _calc_wt_interaction(self, wd, WD_ilk, WS_ilk, TI_ilk,
                              WS_eff_ilk, TI_eff_ilk,
                              x_i, y_i, h_i, D_i, yaw_ilk, tilt_ilk,
                              I, L, K, **kwargs):
@@ -706,33 +671,34 @@ class All2AllIterative(EngineeringWindFarmModel):
             dtype = np.complex128
         else:
             dtype = float
-        lw = localWind
-
+        WS_ILK = np.broadcast_to(WS_ilk, (I, L, K))
         # calculate WS_eff without blockage as a first guess
         if self.initialize_with_PropagateDownwind:
             blockage_deficitModel = self.blockage_deficitModel
             self.blockage_deficitModel = None
-            WS_eff_ilk = PropagateDownwind._calc_wt_interaction(self, localWind, WS_eff_ilk, TI_eff_ilk, x_i, y_i, h_i, D_i,
-                                                                yaw_ilk, tilt_ilk, I, L, K, **kwargs)[0]
+            WS_eff_ilk = PropagateDownwind._calc_wt_interaction(
+                self, wd, WD_ilk, WS_ilk, TI_ilk, WS_eff_ilk, TI_eff_ilk,
+                x_i, y_i, h_i, D_i,
+                yaw_ilk, tilt_ilk, I, L, K, **kwargs)[0]
             self.blockage_deficitModel = blockage_deficitModel
         else:
-            WS_eff_ilk = lw.WS_ilk
+            WS_eff_ilk = WS_ILK
 
         WS_eff_ilk = WS_eff_ilk.astype(dtype)
         WS_eff_ilk_last = WS_eff_ilk + 0  # fast autograd-friendly copy
         diff_lk = np.zeros((L, K))
         diff_lk_last, diff_lk_lastlast = None, None
-        dw_iil, hcw_iil, dh_iil = self.site.distance(wd_l=lw.wd.values, WD_il=mean_deg(lw.WD_ilk, 2))
+        dw_iil, hcw_iil, dh_iil = self.site.distance(wd_l=wd, WD_il=mean_deg(WD_ilk, 2))
 
-        ct_ilk = self.windTurbines.ct(lw.WS.ilk((I, L, K)), **kwargs)
-        ct_ilk_idle = self.windTurbines.ct(0.1 * np.ones_like(lw.WS.ilk((I, L, K))), **kwargs)
+        ct_ilk = self.windTurbines.ct(WS_ILK, **kwargs)
+        ct_ilk_idle = self.windTurbines.ct(0.1 * np.ones_like(WS_ILK), **kwargs)
         unstable_lk = np.zeros((L, K), dtype=bool)
-        ioff = ct_ilk < -1  # index of off/idling turbines
+        ioff = np.broadcast_to(ct_ilk, (I, L, K)) < -1  # index of off/idling turbines
         D_src_il = D_i[:, na]
-        args = {'WS_ilk': lw.WS.ilk((I, L, K)),
+        args = {'WS_ilk': WS_ilk,
                 'WS_eff_ilk': WS_eff_ilk,
-                'TI_ilk': lw.TI.ilk(),
-                'TI_eff_ilk': lw.TI.ilk(),
+                'TI_ilk': TI_ilk,
+                'TI_eff_ilk': TI_ilk,
                 'yaw_ilk': yaw_ilk,
                 'tilt_ilk': tilt_ilk,
                 'D_src_il': D_src_il,
@@ -776,16 +742,16 @@ class All2AllIterative(EngineeringWindFarmModel):
 
             # Calculate effective wind speed
             if isinstance(self.superpositionModel, WeightedSum):
-                WS_eff_ilk = lw.WS_ilk - self.superpositionModel(lw.WS_ilk, deficit_iilk,
-                                                                 uc_iilk, sigmasqr_iilk,
-                                                                 args['cw_ijlk'],
-                                                                 args['hcw_ijlk'],
-                                                                 dh_iil[..., na])
+                WS_eff_ilk = WS_ilk - self.superpositionModel(WS_ilk, deficit_iilk,
+                                                              uc_iilk, sigmasqr_iilk,
+                                                              args['cw_ijlk'],
+                                                              args['hcw_ijlk'],
+                                                              dh_iil[..., na])
                 # Add blockage as linear effect
                 if self.blockage_deficitModel:
                     WS_eff_ilk -= (self.blockage_deficitModel.superpositionModel or LinearSum())(blockage_iilk)
             else:
-                WS_eff_ilk = lw.WS_ilk.astype(dtype) - self.superpositionModel(deficit_iilk)
+                WS_eff_ilk = WS_ilk.astype(dtype) - self.superpositionModel(deficit_iilk)
                 if self.blockage_deficitModel:
                     WS_eff_ilk -= (self.blockage_deficitModel.superpositionModel or self.superpositionModel)(blockage_iilk)
 
@@ -798,7 +764,7 @@ class All2AllIterative(EngineeringWindFarmModel):
                 add_turb_ijlk = self.turbulenceModel.rotorAvgModel(
                     self.turbulenceModel.calc_added_turbulence, **args)
                 TI_eff_ilk = self.turbulenceModel.calc_effective_TI(
-                    lw.TI_ilk, add_turb_ijlk)
+                    TI_ilk, add_turb_ijlk)
 
             # Check if converged
             diff_ilk = cabs(WS_eff_ilk_last - WS_eff_ilk)

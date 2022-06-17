@@ -11,7 +11,6 @@ from py_wake.utils.ieawind37_utils import iea37_names
 from py_wake.utils.grid_interpolator import GridInterpolator, EqDistRegGrid2DInterpolator
 import urllib.request
 import warnings
-from py_wake.utils.xarray_utils import DataArrayILK
 from autograd.numpy.numpy_boxes import ArrayBox
 
 
@@ -95,103 +94,6 @@ class XRSite(Site):
         else:
             return x_i * 0
 
-    def interp(self, var, coords, deg=False):
-        # Interpolate via EqDistRegGridInterpolator (equidistance regular grid interpolator) which is much faster
-        # than xarray.interp.
-        # This function is comprehensive because var can contain any combinations of coordinates (i or (xy,h)) and wd,ws
-
-        def sel(data, data_dims, indices, dim_name):
-            i = data_dims.index(dim_name)
-            ix = tuple([(slice(None), indices)[dim == i] for dim in range(data.ndim)])
-            return data[ix]
-
-        ip_dims = [n for n in ['i', 'x', 'y', 'h', 'time', 'wd', 'ws'] if n in var.dims]  # interpolation dimensions
-        data = var.data
-        data_dims = var.dims
-
-        def pre_sel(data, name):
-            # If only a single value is needed on the <name>-dimension, the data is squeezed to contain this value only
-            # Otherwise the indices of the needed values are returned
-            if name not in var.dims:
-                return data, None
-            c, v = coords[name].data, var[name].data
-            indices = None
-            if ip_dims and ip_dims[-1] == name and len(set(c) - set(np.atleast_1d(v))) == 0:
-                # all coordinates in var, no need to interpolate
-                ip_dims.remove(name)
-                indices = np.searchsorted(v, c)
-                if len(np.unique(indices)) == 1:
-                    # only one index, select before interpolation
-                    data = sel(data, data_dims, slice(indices[0], indices[0] + 1), name)
-                    indices = [0]
-                else:
-                    indices = indices
-            return data, indices
-
-        # pre select, i.e. reduce input data size in case only one ws or wd is needed
-        data, k_indices = pre_sel(data, 'ws')
-        l_name = ['wd', 'time']['time' in coords]
-        data, l_indices = pre_sel(data, l_name)
-
-        if 'i' in ip_dims and 'i' in coords and len(var.i) != len(coords['i']):
-            raise ValueError(
-                "Number of points, i(=%d), in site data variable, %s, must match number of requested points(=%d)" %
-                (len(var.i), var.name, len(coords['i'])))
-        data, i_indices = pre_sel(data, 'i')
-
-        if len(ip_dims) > 0:
-            grid_interp = GridInterpolator([var.coords[k].data for k in ip_dims], data,
-                                           method=self.interp_method, bounds=self.bounds)
-
-            # get dimension of interpolation coordinates
-            I = (1, len(coords.get('x', coords.get('y', coords.get('h', coords.get('i', [None]))))))[
-                any([n in data_dims for n in 'xyhi'])]
-            L, K = [(1, len(coords.get(n, [None])))[indices is None and n in data_dims]
-                    for n, indices in [('wd', l_indices), ('ws', k_indices)]]
-
-            # gather interpolation coordinates xp with len #xyh x #wd x #ws
-            xp = [coords[n].data.repeat(L * K) for n in 'xyhi' if n in ip_dims]
-            ip_data_dims = [n for n, l in [('i', ['x', 'y', 'h', 'i']), ('wd', ['wd']), ('ws', ['ws'])]
-                            if any([l_ in ip_dims for l_ in l])]
-            shape = [l for d, l in [('i', I), ('wd', L), ('ws', K)] if d in ip_data_dims]
-            if 'wd' in ip_dims:
-                xp.append(np.tile(coords['wd'].data.repeat(K), I))
-            elif 'wd' in data_dims:
-                shape.append(data.shape[data_dims.index('wd')])
-            if 'ws' in ip_dims:
-                xp.append(np.tile(coords['ws'].data, I * L))
-            elif 'ws' in data_dims:
-                shape.append(data.shape[data_dims.index('ws')])
-
-            ip_data = grid_interp(np.array(xp).T, deg=deg)
-            ip_data = ip_data.reshape(shape)
-        else:
-            ip_data = data
-            ip_data_dims = []
-
-        if i_indices is not None:
-            ip_data_dims.append('i')
-            ip_data = sel(ip_data, ip_data_dims, i_indices, 'i')
-        if l_indices is not None:
-            ip_data_dims.append(l_name)
-            ip_data = sel(ip_data, ip_data_dims, l_indices, l_name)
-        if k_indices is not None:
-            ip_data_dims.append('ws')
-            ip_data = sel(ip_data, ip_data_dims, k_indices, 'ws')
-
-        ds = coords.to_dataset()
-        if ip_data_dims:
-            ds[var.name] = (ip_data_dims, ip_data)
-        else:
-            ds[var.name] = ip_data
-        return DataArrayILK(ds[var.name])
-
-    def weibull_weight(self, localWind, A, k):
-
-        P = weibull.cdf(localWind.ws_upper, A=A, k=k) - weibull.cdf(localWind.ws_lower, A=A, k=k)
-        P.attrs['Description'] = "Probability of wind flow case (i.e. wind direction and wind speed)"
-        return P
-
     def _local_wind(self, localWind, ws_bins=None):
         """
         Returns
@@ -210,63 +112,71 @@ class XRSite(Site):
 
         def get(n, default=None):
             if n in self.ds:
-                return self.interp(self.ds[n], lw.coords, deg=(n == 'WD'))
+                return self.ds[n].interp_ilk(lw.coords, deg=(n == 'WD'))
             else:
                 return default
 
-        WS, WD, TI, TI_std = [get(n, d) for n, d in [('WS', lw.ws), ('WD', lw.wd), ('TI', None), ('TI_std', None)]]
+        if 'time' in lw.coords:
+            default_ws = lw.ws[na, :, na]
+        else:
+            default_ws = lw.ws[na, na]
+        WS, WD, TI, TI_std = [get(n, d) for n, d in [('WS', default_ws), ('WD', lw.wd[na, :, na]),
+                                                     ('TI', None), ('TI_std', None)]]
 
         if 'Speedup' in self.ds:
-            if 'i' in lw.dims and 'i' in self.ds.Speedup.dims and len(lw.i) != len(self.ds.i):
+            if 'i' in lw.coords and 'i' in self.ds.Speedup.dims and len(lw.i) != len(self.ds.i):
                 warnings.warn("Speedup ignored")
             else:
-                WS = self.interp(self.ds.Speedup, lw.coords) * WS
+                WS = self.interp(self.ds.Speedup, lw) * WS
 
         if self.shear:
-            assert 'h' in lw and np.all(lw.h.data != None), "Height must be specified and not None"  # nopep8
-            if isinstance(lw.h.values, ArrayBox):
-                WS = self.shear(WS, lw.wd, lw.h)
+            assert 'h' in lw and np.all(lw.h != None), "Height must be specified and not None"  # nopep8
+            if isinstance(lw.h, ArrayBox):
+                WS = self.shear(lw, WS, lw.h)
             else:
                 h = np.unique(lw.h)
                 if len(h) > 1:
                     h = lw.h
                 else:
-                    h = h[0]
-                WS = self.shear(WS, lw.wd, h)
+                    h = h[:1]
+                WS = self.shear(lw, WS, h)
 
         if 'Turning' in self.ds:
-            if 'i' in lw.dims and 'i' in self.ds.Turning.dims and len(lw.i) != len(self.ds.i):
+            if 'i' in lw.coords and 'i' in self.ds.Turning.dims and len(lw.i) != len(self.ds.i):
                 warnings.warn("Turning ignored")
             else:
-                WD = DataArrayILK(gradients.mod((self.interp(self.ds.Turning, lw.coords, deg=True) + WD), 360)
-                                  ).squeeze()
+                WD = gradients.mod((self.interp(self.ds.Turning, lw, deg=True) + WD), 360)
 
         lw.set_W(WS, WD, TI, ws_bins, self.use_WS_bins)
         lw.set_data_array(TI_std, 'TI_std', 'Standard deviation of turbulence intensity')
 
         if 'time' in lw:
-            lw['P'] = 1 / len(lw.time)
+            lw['P_ilk'] = np.atleast_1d(1 / len(lw.time))[na, :, na]
         else:
             if 'P' in self.ds:
                 if ('ws' in self.ds.P.dims and 'ws' in lw.coords):
                     d_ws = self.ds.P.ws.values
-                    c_ws = lw.coords['ws'].values
+                    c_ws = lw.coords['ws']
                     i = np.searchsorted(d_ws, c_ws[0])
                     if (np.any([ws not in d_ws for ws in c_ws]) or  # check all coordinate ws in data ws
                         len(d_ws[i:i + len(c_ws)]) != len(c_ws) or  # check subset has same length
                             np.any(d_ws[i:i + len(c_ws)] != c_ws)):  # check subset are equal
                         raise ValueError("Cannot interpolate ws-dependent P to other range of ws")
-                lw['P'] = self.interp(self.ds.P, lw.coords) / \
-                    self.ds.sector_width * lw.wd_bin_size
+                lw['P_ilk'] = self.interp(self.ds.P, lw) / self.ds.sector_width * lw.wd_bin_size
             else:
-                sf = self.interp(self.ds.Sector_frequency, lw.coords)
+                sf = self.interp(self.ds.Sector_frequency, lw)
                 p_wd = sf / self.ds.sector_width * lw.wd_bin_size
-                A, k = self.interp(self.ds.Weibull_A, lw.coords), self.interp(self.ds.Weibull_k, lw.coords)
-                lw['Weibull_A'] = A
-                lw['Weibull_k'] = k
-                lw['Sector_frequency'] = p_wd.squeeze()
-                lw['P'] = p_wd * self.weibull_weight(lw, A, k)
+                A, k = self.interp(self.ds.Weibull_A, lw), self.interp(self.ds.Weibull_k, lw)
+                lw['Weibull_A_ilk'] = A
+                lw['Weibull_k_ilk'] = k
+                lw['Sector_frequency_ilk'] = p_wd
+                lw['P_ilk'] = p_wd * (weibull.cdf(localWind.ws_upper, A=A, k=k) -
+                                      weibull.cdf(localWind.ws_lower, A=A, k=k))
+        lw.descriptions['P_ilk'] = "Probability of wind flow case (i.e. wind direction and wind speed)"
         return lw
+
+    def interp(self, var, lw, deg=False):
+        return var.interp_ilk(lw.coords, deg=deg, interp_method=self.interp_method, bounds=self.bounds)
 
     def to_ieawind37_ontology(self, name='Wind Resource', filename='WindResource.yaml', data_in_netcdf=False):
         name_map = {k: v for k, v in iea37_names()}

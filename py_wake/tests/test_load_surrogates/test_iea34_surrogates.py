@@ -137,7 +137,7 @@ def test_two_turbine_case0_time_series(iea34_130_2WT_Surrogate):
     site = UniformSite(p_wd=[1], ti=ti, ws=ws)
     wfm = NOJ(site, wt, turbulenceModel=STF2017TurbulenceModel())
     sim_res = wfm([0, 0], [0, dist * 130], wd=wdir, time=True, Alpha=shear)
-    assert sim_res.dw_ijl.dims == ('wt', 'wt', 'time')
+    assert sim_res.dw_ijl.dims == ('wt', 'wt')
 
     npt.assert_allclose(ws, ws_ref, rtol=.006)
     # npt.assert_allclose(ti, ws_std_ref / ws_ref, atol=.19)

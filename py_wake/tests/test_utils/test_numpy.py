@@ -95,7 +95,6 @@ def test_speed_mem():
 
 
 def check_numpy32(wfm, name):
-    print(wfm)
     if hasattr(wfm.site, 'initial_position'):
         x, y = wfm.site.initial_position[:16].T
     else:

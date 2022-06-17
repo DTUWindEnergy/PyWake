@@ -39,7 +39,7 @@ check_code_style:  # name the job what we like
   stage:  # build, test, deploy defined by default [2]
     test
   script:
-  - pip install -e .
+  - pip install -e . --user
   - pycodestyle --ignore=E501,W504,E741 py_wake
   tags:  # only runners with this tag can do the job [3]
   - python

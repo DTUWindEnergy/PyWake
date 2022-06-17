@@ -7,9 +7,10 @@ import xarray as xr
 from py_wake.utils import xarray_utils, weibull  # register ilk function @UnusedImport
 from numpy import newaxis as na
 from py_wake.utils.model_utils import check_model, fix_shape
-from py_wake.utils.xarray_utils import da2py
+from py_wake.utils.xarray_utils import ilk2da, ijlk2da
 import multiprocessing
 from py_wake.utils.parallelization import get_pool
+from py_wake.utils.functions import arg2ilk, coords2ILK
 
 
 class WindFarmModel(ABC):
@@ -88,14 +89,14 @@ class WindFarmModel(ABC):
         if len([k for k in kwargs if 'yaw' in k.lower() and k != 'yaw' and not k.startswith('yawc_')]):
             raise ValueError(
                 'Custom *yaw*-keyword arguments not allowed to avoid confusion with the default "yaw" keyword')
-        yaw_ilk = fix_shape(yaw, (I, L, K), allow_None=True, allow_number=True)
-        tilt_ilk = fix_shape(tilt, (I, L, K), allow_None=True, allow_number=True)
+        yaw_ilk = arg2ilk('yaw', [yaw, 0][yaw is None], I, L, K)
+        tilt_ilk = arg2ilk('tilt', [tilt, 0][tilt is None], I, L, K)
 
         if len(x) == 0:
+            # No WT
             lw = UniformSite([1], 0.1).local_wind(x_i=[], y_i=[], h_i=[], wd=wd, ws=ws)
-            z = xr.DataArray(np.zeros((0, len(lw.wd), len(lw.ws))), coords=[('wt', []), ('wd', da2py(lw.wd)),
-                                                                            ('ws', da2py(lw.ws))])
-            return SimulationResult(self, lw, [], yaw, tilt, z, z, z, z, kwargs)
+            z_ilk = np.zeros((0, len(lw.wd), len(lw.ws)))  # WS_eff_ilk, etc.
+            return SimulationResult(self, lw, [], yaw_ilk, tilt_ilk, z_ilk, z_ilk, z_ilk, z_ilk, kwargs)
         res = self.calc_wt_interaction(x_i=np.asarray(x), y_i=np.asarray(y), h_i=h, type_i=type,
                                        yaw_ilk=yaw_ilk, tilt_ilk=tilt_ilk,
                                        wd=wd, ws=ws, time=time,
@@ -380,17 +381,18 @@ class SimulationResult(xr.Dataset):
 
         coords = {k: (dep, v, {'Description': d}) for k, dep, v, d in [
             ('wt', 'wt', np.arange(n_wt), 'Wind turbine number'),
-            ('wd', ('wd', 'time')['time' in lw], lw.wd.values, 'Ambient reference wind direction [deg]'),
-            ('ws', ('ws', 'time')['time' in lw], lw.ws.values, 'Ambient reference wind speed [m/s]'),
-            ('x', 'wt', lw.x.values, 'Wind turbine x coordinate [m]'),
-            ('y', 'wt', lw.y.values, 'Wind turbine y coordinate [m]'),
-            ('h', 'wt', lw.h.values, 'Wind turbine hub height [m]'),
+            ('wd', ('wd', 'time')['time' in lw], lw.wd, 'Ambient reference wind direction [deg]'),
+            ('ws', ('ws', 'time')['time' in lw], lw.ws, 'Ambient reference wind speed [m/s]'),
+            ('x', 'wt', lw.x, 'Wind turbine x coordinate [m]'),
+            ('y', 'wt', lw.y, 'Wind turbine y coordinate [m]'),
+            ('h', 'wt', lw.h, 'Wind turbine hub height [m]'),
             ('type', 'wt', type_i, 'Wind turbine type')]}
+        if 'time' in lw:
+            coords['time'] = lw.time
 
         ilk_dims = (['wt', 'wd', 'ws'], ['wt', 'time'])['time' in lw]
         xr.Dataset.__init__(self,
-                            data_vars={k: (ilk_dims, da2py((v, v[:, :, 0])['time' in lw]),
-                                           {'Description': d})
+                            data_vars={k: (ilk_dims, (v, v[:, :, 0])['time' in lw], {'Description': d})
                                        for k, v, d in [('WS_eff', WS_eff_ilk, 'Effective local wind speed [m/s]'),
                                                        ('TI_eff', np.zeros_like(WS_eff_ilk) + TI_eff_ilk,
                                                         'Effective local turbulence intensity'),
@@ -399,24 +401,25 @@ class SimulationResult(xr.Dataset):
                                                        ]},
                             coords=coords)
         for n in localWind:
-            self[n] = localWind[n]
-        self.attrs.update(localWind.attrs)
-        for n in set(wt_inputs) - {'type', 'TI_eff', 'yaw'}:
-            if '_ijl' in n:
-                self.add_ijlk(n, wt_inputs[n])
-            else:
-                self.add_ilk(n, wt_inputs[n])
+            if n[-4:] == '_ilk':
+                self[n[:-4]] = getattr(localWind, n[:-4])
+            elif n in ['ws_lower', 'ws_upper']:
 
-        if yaw_ilk is None:
-            self['yaw'] = self.Power * 0
-        else:
-            self.add_ilk('yaw', yaw_ilk)
-        self['yaw'].attrs['Description'] = 'Yaw misalignment [deg]'
-        if tilt_ilk is None:
-            self['tilt'] = self.Power * 0
-        else:
-            self.add_ilk('tilt', tilt_ilk)
-        self['tilt'].attrs['Description'] = 'Rotor tilt [deg]'
+                v = localWind[n]
+                dims = [n for n, d in zip(('wt', 'wd', 'ws'), v.shape) if d > 1]
+                self[n[:-4]] = (dims, v.squeeze())
+            else:
+                self[n] = localWind[n]
+        # self.attrs.update(localWind.attrs)
+        for n in set(wt_inputs) - {'type', 'TI_eff', 'yaw'}:
+            if wt_inputs[n] is not None:
+                if '_ijl' in n:
+                    self[n] = ijlk2da(wt_inputs[n], self.coords)
+                else:
+                    self[n] = ilk2da(arg2ilk(n, wt_inputs[n], *coords2ILK(self.coords)), self.coords)
+
+        self['yaw'] = ilk2da(yaw_ilk, self.coords, 'Yaw misalignment [deg]')
+        self['tilt'] = ilk2da(tilt_ilk, self.coords, 'Rotor tilt [deg]')
 
         # for backward compatibility
         for k in ['WD', 'WS', 'TI', 'P', 'WS_eff', 'TI_eff']:
@@ -481,7 +484,7 @@ class SimulationResult(xr.Dataset):
             return xr.DataArray(aep, [('wt', self.wt.values), ('wd', self.wd.values), ('ws', ws)])
         else:
             weighted_power = power_ilk * self.P.ilk() / norm
-        if 'time' in self and weighted_power.shape[2] == 1:
+        if 'time' in self.dims and weighted_power.shape[2] == 1:
             weighted_power = weighted_power[:, :, 0]
 
         return xr.DataArray(weighted_power * hours_pr_year * 1e-9,
@@ -525,7 +528,10 @@ class SimulationResult(xr.Dataset):
                         'm': ('sensor', wt.loadFunction.wohler_exponents),
                         'wt': self.wt, 'ws': self.ws},
                 attrs={'description': '1Hz Damage Equivalent Load'}).to_dataset(name='DEL')
-            ds['P'] = self.P.sum('wd')
+            if 'wd' in self.P.dims:
+                ds['P'] = self.P.sum('wd')
+            else:
+                ds['P'] = self.P
             t_flowcase = ds.P * lifetime_years * 365 * 24 * 3600
             f = ds.DEL.mean()  # factor used to reduce numerical errors in power
             ds['LDEL'] = ((t_flowcase * (ds.DEL / f)**ds.m).sum('ws') / n_eq_lifetime)**(1 / ds.m) * f
@@ -638,7 +644,7 @@ class SimulationResult(xr.Dataset):
             aep_j = self.windFarmModel._aep_map(x_j, y_j, h_j, sim_res)
         if normalize_probabilities:
             lw_j = self.windFarmModel.site.local_wind(x_i=x_j, y_i=y_j, h_i=h_j, wd=wd, ws=ws)
-            aep_j /= lw_j.P.ilk().sum((1, 2))
+            aep_j /= lw_j.P_ilk.sum((1, 2))
 
         if plane[0] == 'XY':
             coords = {'x': X[0], 'y': Y[:, 0]}
@@ -686,10 +692,16 @@ class SimulationResult(xr.Dataset):
     @staticmethod
     def load(filename, wfm):
         ds = xr.load_dataset(filename)
-        lw = LocalWind(ds.x, ds.y, ds.h, ds.wd, ds.ws, time=False, wd_bin_size=ds.attrs['wd_bin_size'],
+        if 'time' in ds:
+            time = ds.time.data
+        else:
+            time = False
+        lw = LocalWind(ds.x.data, ds.y.data, ds.h.data, ds.wd.data, ds.ws.data, time,
+                       wd_bin_size=ds['wd_bin_size'],
                        WD=ds.WD, WS=ds.WS, TI=ds.TI, P=ds.P)
-        sim_res = SimulationResult(wfm, lw, type_i=ds.type.values, yaw_ilk=ds.yaw, tilt_ilk=ds.tilt,
-                                   WS_eff_ilk=ds.WS_eff.ilk(), TI_eff_ilk=ds.TI_eff.ilk(), power_ilk=ds.Power, ct_ilk=ds.CT,
+        sim_res = SimulationResult(wfm, lw, type_i=ds.type.values, yaw_ilk=ds.yaw.ilk(), tilt_ilk=ds.tilt.ilk(),
+                                   WS_eff_ilk=ds.WS_eff.ilk(), TI_eff_ilk=ds.TI_eff.ilk(), power_ilk=ds.Power.ilk(),
+                                   ct_ilk=ds.CT.ilk(),
                                    wt_inputs={})
 
         return sim_res

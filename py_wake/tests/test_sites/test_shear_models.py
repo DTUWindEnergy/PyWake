@@ -2,14 +2,14 @@ from py_wake.site.shear import PowerShear, LogShear
 from py_wake import np
 from py_wake.tests import npt
 from py_wake.site._site import UniformSite
-import xarray as xr
 import matplotlib.pyplot as plt
+from numpy import newaxis as na
 
 
 def test_power_shear():
     h_lst = np.arange(10, 100, 10)
     site = UniformSite([1], .1, shear=PowerShear(70, alpha=[.1, .2]))
-    WS = site.local_wind(x_i=h_lst * 0, y_i=h_lst * 0, h_i=h_lst, wd=[0, 180], ws=[10, 12]).WS
+    WS = site.local_wind(x_i=h_lst * 0, y_i=h_lst * 0, h_i=h_lst, wd=[0, 180], ws=[10, 12, 13]).WS
 
     if 0:
         plt.plot(WS.sel(wd=0, ws=10), WS.h, label='alpha=0.1')
@@ -42,7 +42,7 @@ def test_log_shear():
 def test_log_shear_constant_z0():
     h_lst = np.arange(10, 100, 10)
     site = UniformSite([1], .1, shear=LogShear(70, z0=.02))
-    WS = site.local_wind(x_i=h_lst * 0, y_i=h_lst * 0, h_i=h_lst, wd=[0, 180], ws=[10, 12]).WS
+    WS = site.local_wind(x_i=h_lst * 0, y_i=h_lst * 0, h_i=h_lst, wd=[0, 180], ws=[10, 12, 13]).WS
 
     if 0:
         plt.plot(WS.sel(ws=10), WS.h, label='z0=0.02')
@@ -53,8 +53,8 @@ def test_log_shear_constant_z0():
 
 
 def test_custom_shear():
-    def my_shear(WS, WD, h):
-        return WS * (0.02 * (h - 70) + 1) * (WD * 0 + 1)
+    def my_shear(localWind, WS, h):
+        return WS * (0.02 * (h[:, na, na] - 70) + 1) * (localWind.wd[na, :, na] * 0 + 1)
     h_lst = np.arange(10, 100, 10)
 
     site = UniformSite([1], .1, shear=my_shear)

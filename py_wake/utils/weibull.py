@@ -2,7 +2,6 @@ from py_wake import np
 from scipy.special import gamma
 import xarray as xr
 from autograd.numpy.numpy_boxes import ArrayBox
-from py_wake.utils.xarray_utils import DataArrayILK
 
 
 def mean(A, k):
@@ -11,8 +10,6 @@ def mean(A, k):
 
 def cdf(ws, A, k):
     v = -(1 / A * ws) ** k
-    if isinstance(v, xr.DataArray) and isinstance(v.values, ArrayBox):
-        return 1 - DataArrayILK(np.exp(v.values), dims=v.dims)
     return 1 - np.exp(v)
 
 

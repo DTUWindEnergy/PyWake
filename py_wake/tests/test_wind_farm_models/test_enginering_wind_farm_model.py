@@ -388,7 +388,7 @@ def test_time_series_override_TI():
     npt.assert_array_equal(sim_res.WS, ws)
     npt.assert_array_equal(sim_res.WD, wd)
     npt.assert_array_equal(sim_res.time, t)
-    npt.assert_array_equal(sim_res.TI[0], ti)
+    npt.assert_array_equal(sim_res.TI, ti)
 
 
 def test_time_series_aep():
@@ -421,7 +421,7 @@ def test_time_series_aep_chunks():
 def test_time_series_operating():
     from py_wake.wind_turbines.power_ct_functions import PowerCtFunctionList, PowerCtTabular
     d = np.load(os.path.dirname(examples.__file__) + "/data/time_series.npz")
-    wd, ws, ws_std = [d[k][:6 * 24] for k in ['wd', 'ws', 'ws_std']]
+    wd, ws = [d[k][:6 * 24] for k in ['wd', 'ws']]
     ws += 3
     t = np.arange(6 * 24)
     wt = V80()
@@ -437,7 +437,7 @@ def test_time_series_operating():
     x, y = site.initial_position.T
     operating = (t < 48) | (t > 72)
     sim_res = wfm(x, y, ws=ws, wd=wd, time=t, operating=operating)
-    npt.assert_array_equal(sim_res.operating[0], operating)
+    npt.assert_array_equal(sim_res.operating, operating)
     npt.assert_array_equal(sim_res.Power[:, operating == 0], 0)
     npt.assert_array_equal(sim_res.Power[:, operating != 0] > 0, True)
 
@@ -467,8 +467,8 @@ def test_time_series_operating_wrong_shape():
     wfm = NOJ(site, wt)
     x, y = site.initial_position.T
     operating = (t < 48) | (t > 72)
-    with pytest.raises(ValueError, match=r"Argument, operating\(shape=\(1, 144\)\), has unsupported shape."):
-        wfm(x, y, ws=ws, wd=wd, time=t, operating=[operating])
+    with pytest.raises(ValueError, match=r"Argument, operating\(shape=\(2, 144\)\), has unsupported shape."):
+        wfm(x, y, ws=ws, wd=wd, time=t, operating=[operating, operating])
 
 
 def test_aep_wind_atlas_method():

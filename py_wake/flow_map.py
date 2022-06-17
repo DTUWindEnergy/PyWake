@@ -3,6 +3,7 @@ import xarray as xr
 from numpy import newaxis as na
 from scipy.interpolate import InterpolatedUnivariateSpline
 import matplotlib.pyplot as plt
+from py_wake.utils.xarray_utils import ilk2da
 
 
 class FlowBox(xr.Dataset):
@@ -22,14 +23,14 @@ class FlowBox(xr.Dataset):
 
         def get_da(arr_jlk):
             if len(X.shape) == 1:
-                return xr.DataArray(arr_jlk.reshape(X.shape + (len(wd), len(ws))), coords, dims=['i', 'wd', 'ws'])
+                return ilk2da(arr_jlk, coords)
             else:
                 return xr.DataArray(arr_jlk.reshape(X.shape + (len(wd), len(ws))),
                                     coords, dims=['y', 'x', 'h', 'wd', 'ws'])
         JLK = WS_eff_jlk.shape
-        xr.Dataset.__init__(self, data_vars={k: get_da(v) for k, v in [
+        xr.Dataset.__init__(self, data_vars={k: get_da(np.broadcast_to(v, JLK)) for k, v in [
             ('WS_eff', WS_eff_jlk), ('TI_eff', TI_eff_jlk),
-            ('WD', lw_j.WD.ilk(JLK)), ('WS', lw_j.WS.ilk(JLK)), ('TI', lw_j.TI.ilk(JLK)), ('P', lw_j.P.ilk(JLK))]})
+            ('WD', lw_j.WD_ilk), ('WS', lw_j.WS_ilk), ('TI', lw_j.TI_ilk), ('P', lw_j.P_ilk)]})
 
 
 class FlowMap(FlowBox):
@@ -43,15 +44,15 @@ class FlowMap(FlowBox):
         if plane[0] == 'XY':
             X = X[:, :, na]
             Y = Y[:, :, na]
-            H = np.reshape(localWind_j.h.data, X.shape)
+            H = np.reshape(localWind_j.h, X.shape)
         elif plane[0] == 'YZ':
             H = Y.T[:, na, :]
             Y = X.T[:, na, :]
-            X = np.reshape(localWind_j.x.data, Y.shape)
+            X = np.reshape(localWind_j.x, Y.shape)
         elif plane[0] == 'XZ':
             H = Y.T[:, na, :]
             X = X.T[na, :, :]
-            Y = np.reshape(localWind_j.y.data, X.shape)
+            Y = np.reshape(localWind_j.y, X.shape)
         elif plane[0] == 'xyz':
             X = None
             Y = None
@@ -76,7 +77,7 @@ class FlowMap(FlowBox):
                         property(lambda self, k=k: self[k].isel(x=0).transpose('x', 'h', ...)))
         elif plane[0] == "xyz":
             for k in ['WS_eff', 'TI_eff', 'WS', 'WD', 'TI', 'P']:
-                setattr(self.__class__, "%s_xylk" % k, property(lambda self, k=k: self[k]))
+                setattr(self.__class__, "%s_xylk" % k, property(lambda self, k=k: self[k].ilk()))
 
     @property
     def XY(self):

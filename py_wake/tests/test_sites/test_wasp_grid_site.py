@@ -137,7 +137,7 @@ def test_wasp_resources_grid_point(site):
 
     lw = site.local_wind(x, y, 30, wd=range(0, 360, 30))
     A_lst, k_lst, f_lst, spd_lst, orog_trn_lst, flow_inc_lst, ti15ms_lst = [
-        site.interp(site.ds[n], lw.coords).sel(i=0).values
+        site.interp(site.ds[n], lw)[0, :, 0]
         for n in ['Weibull_A', 'Weibull_k', 'Sector_frequency', 'Speedup', 'Turning', 'flow_inc', 'ti15ms']]
     pdf_lst = [lambda x, A=A, k=k: k / A * (x / A)**(k - 1) * np.exp(-(x / A)**k) * (x[1] - x[0])
                for A, k in zip(A_lst, k_lst)]
@@ -347,8 +347,8 @@ def test_additional_input():
     h = 70 * np.ones_like(x)
 
     lw = site.local_wind(x, y, h)
-    ws_mean = site.interp(site.ds.ws_mean, lw.coords)
-    npt.assert_array_almost_equal(ws_mean[0, :50],
+    ws_mean = site.interp(site.ds.ws_mean, lw)
+    npt.assert_array_almost_equal(ws_mean[0, :50, 0],
                                   np.array([4.77080802, 4.77216214, 4.77351626, 4.77487037, 4.77622449,
                                             4.77757861, 4.77893273, 4.78028685, 4.78164097, 4.78299508,
                                             4.7843492, 4.78570332, 4.78705744, 4.78841156, 4.78976567,

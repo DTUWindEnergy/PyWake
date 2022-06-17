@@ -500,8 +500,9 @@ def test_interp(h, wd, ws, h_i, wd_l, ws_k):
     lw = LocalWind(x_i=[25, 50], y_i=[225, 250], h_i=h_i, wd=wd_l, ws=ws_k, time=False, wd_bin_size=1)
 
     for n in ['XYHLK', 'XYHL', 'XYHK', 'K', 'L', 'KL', 'XY', 'H', 'XYH', 'XYL', 'XYK', 'I', 'IL', 'IK', 'ILK']:
-        ip1 = site.interp(site.ds[n], lw.coords)
-        ip2 = ds[n].sel_interp_all(lw.coords)
+        ip1 = site.interp(site.ds[n], lw).squeeze()
+        coords = xr.Dataset(coords={k: [v, ('i', v)][k in 'xyh'] for k, v in lw.coords.items()}).coords
+        ip2 = ds[n].sel_interp_all(coords).squeeze()
         npt.assert_array_equal(ip1.shape, ip2.shape)
         if not np.isnan(ip2).sum():
             npt.assert_array_almost_equal(ip1.data, ip2.data)
@@ -522,12 +523,13 @@ def test_interp_special_cases():
     site = XRSite(ds)
     with pytest.raises(ValueError, match=r"Number of points, i\(=10\), in site data variable, TI, must match "):
         lw = LocalWind(x_i=[25, 50], y_i=[225, 250], h_i=110, wd=wd, ws=ws, time=False, wd_bin_size=1)
-        site.interp(site.ds.TI, lw.coords)
+        site.interp(site.ds.TI, lw)
 
     x = y = np.arange(10)
     lw = LocalWind(x_i=x, y_i=y, h_i=110, wd=wd, ws=ws, time=False, wd_bin_size=1)
-    ip1 = site.interp(site.ds.TI, lw.coords)
-    ip2 = ds.TI.sel_interp_all(lw.coords)
+    ip1 = site.interp(site.ds.TI, lw)
+    coords = xr.Dataset(coords={k: [v, ('i', v)][k in 'xyh'] for k, v in lw.coords.items()}).coords
+    ip2 = ds.TI.sel_interp_all(coords)
     npt.assert_array_equal(ip1.shape, ip2.shape)
     npt.assert_array_almost_equal(ip1.data, ip2.data)
 
@@ -630,10 +632,11 @@ def test_gradients():
     site = ParqueFicticioSite()
     x, y = site.initial_position[0]
 
-    data_vars = ['WS', 'WD', 'ws_lower', 'ws_upper', 'Weibull_A', 'Weibull_k', 'Sector_frequency', 'P', 'TI']
+    data_vars = ['WS_ilk', 'WD_ilk', 'ws_lower', 'ws_upper',
+                 'Weibull_A_ilk', 'Weibull_k_ilk', 'Sector_frequency_ilk', 'P_ilk', 'TI_ilk']
     for data_var in data_vars[1:]:
         def t(x):
-            return site.local_wind(x, y, h_i=[100], wd=270, ws=10)[data_var].values
+            return site.local_wind(x, y, h_i=[100], wd=270, ws=10)[data_var]
         ddx_lst = [grad(t, vector_interdependence=False)(x) for grad in [fd, cs, autograd]]
         npt.assert_allclose(ddx_lst[0], ddx_lst[1], rtol=1e-4)
         npt.assert_allclose(ddx_lst[1], ddx_lst[2])

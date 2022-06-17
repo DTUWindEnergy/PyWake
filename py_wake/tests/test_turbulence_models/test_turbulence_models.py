@@ -98,8 +98,7 @@ def test_superposition_model_indices():
                        ws=None, time=False, wd_bin_size=None, ws_bins=None):
             lw = UniformSite.local_wind(self, x_i=x_i, y_i=y_i, h_i=h_i, wd=wd, ws=ws,
                                         wd_bin_size=wd_bin_size, ws_bins=ws_bins)
-            lw['TI'] = xr.DataArray(lw.TI_ilk + np.arange(len(x_i))[:, np.newaxis, np.newaxis] * .1,
-                                    [('wt', [0, 1, 2]), ('wd', np.atleast_1d(wd)), ('ws', np.atleast_1d(ws))])
+            lw['TI_ilk'] = lw.TI_ilk + np.arange(len(x_i))[:, np.newaxis, np.newaxis] * .1
             return lw
 
     site = WTSite([1], 0.1)

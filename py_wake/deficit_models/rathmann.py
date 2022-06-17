@@ -299,7 +299,7 @@ def main():
         plt.figure()
         lines = ['.-', 'o--', '^', '-.', '.-', '.-']
         theta = [0, 15, 30, 45]
-        viridis = plt.cm.viridis(np.linspace(0, 0.9, 5))
+        viridis = plt.cm.viridis(np.linspace(0, 0.9, 5))  # @UndefinedVariable
         jj = 0
         tno = np.arange(1, 6, 1)
         for i in range(4):
