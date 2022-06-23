@@ -70,11 +70,8 @@ class AreaOverlappingFactor():
             Overlapping area [m^2]
         """
         # treat all input as array
-        R1, R2, d = [np.asarray(a) for a in [R1, R2, d]]
-        if R2.shape != R1.shape:
-            R2 = np.zeros_like(R1) + R2
-        if d.shape != R1.shape:
-            d = np.zeros_like(R1) + d
+        shape = tuple(np.max([R1.shape, R2.shape, d.shape], 0))
+        R1, R2, d = [np.broadcast_to(a, shape) for a in [R1, R2, d]]
 
         # make sure R_big >= R_small
         Rmax = np.where(R1 < R2, R2, R1)
