@@ -8,11 +8,21 @@ from py_wake.ground_models.ground_models import NoGround
 
 class DeficitModel(ABC):
     deficit_initalized = False
+    _groundModel = None
 
     def __init__(self, groundModel=None):
         if not hasattr(self, 'args4deficit'):
             self.args4deficit = set(inspect.getfullargspec(self.calc_deficit).args) - {'self'}
         self.groundModel = groundModel or NoGround()
+
+    @property
+    def groundModel(self):
+        return self._groundModel
+
+    @groundModel.setter
+    def groundModel(self, groundModel):
+        self._groundModel = groundModel
+        groundModel.deficitModel = self
 
     def _calc_layout_terms(self, **_):
         """Calculate layout dependent terms, which is not updated during simulation"""
