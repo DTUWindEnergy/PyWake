@@ -12,16 +12,49 @@ from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2A
 import pytest
 from py_wake.deficit_models.gaussian import ZongGaussianDeficit
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
-from py_wake.ground_models.ground_models import MirrorSquaredSum
 
 
-def test_Mirror_NOJ():
+@pytest.mark.parametrize('wfm_cls', [PropagateDownwind,
+                                     All2AllIterative])
+@pytest.mark.parametrize('superpositionModel', [LinearSum(), SquaredSum()])
+def test_Mirror_NOJ(wfm_cls, superpositionModel):
     # Compare points in flow map with ws of WT at same position
     site = UniformSite([1], ti=0.1)
     V80_D0 = V80()
     V80_D0._diameters = [0]
     wt = WindTurbines.from_WindTurbine_lst([V80(), V80_D0])
-    wfm = NOJ(site, wt, k=.5, groundModel=Mirror())
+    wfm_ref = wfm_cls(site, wt, wake_deficitModel=NOJDeficit(k=.5), superpositionModel=superpositionModel)
+    fm = wfm_ref([0, 0], [0, 0], h=[50, -50], wd=0).flow_map(YZGrid(x=0, y=np.arange(-70, 0, 20), z=10))
+    ref = fm.WS_eff.squeeze()
+
+    wfm = wfm_cls(site, wt, wake_deficitModel=NOJDeficit(k=.5, groundModel=Mirror()),
+                  superpositionModel=superpositionModel,)
+    sim_res = wfm([0], [0], h=[50], wd=0)
+    fm_res = sim_res.flow_map(YZGrid(x=0, y=np.arange(-70, 0, 20), z=10)).WS_eff.squeeze()
+    res = np.array([wfm([0, 0], [0, y], [50, 10], type=[0, 1], wd=0).WS_eff.sel(wt=1).item()
+                    for y in [-70, -50, -30, -10]])  # ref.y])
+
+    if 0:
+        sim_res.flow_map(YZGrid(x=0, y=np.arange(-100, 10, 1))).plot_wake_map()
+        plt.plot(ref.y, ref.y * 0 + ref.h, '.')
+        plt.plot(ref.y, ref * 10, label='ref, WS*10')
+        plt.plot(ref.y, res * 10, label='Res, WS*10')
+        plt.plot(fm_res.y, fm_res * 10, label='Res flowmap, WS*10')
+
+        plt.legend()
+        plt.show()
+    plt.close('all')
+    npt.assert_array_equal(res, ref)
+    npt.assert_array_equal(fm_res, ref)
+
+
+def test_Mirror_All2AllIterative():
+    # Compare points in flow map with ws of WT at same position
+    site = UniformSite([1], ti=0.1)
+    V80_D0 = V80()
+    V80_D0._diameters = [0]
+    wt = WindTurbines.from_WindTurbine_lst([V80(), V80_D0])
+    wfm = All2AllIterative(site, wt, NOJDeficit(k=.5, groundModel=Mirror()))
     sim_res = wfm([0], [0], h=[50], wd=0)
     fm_ref = sim_res.flow_map(YZGrid(x=0, y=np.arange(-70, 0, 20), z=10))
     ref = fm_ref.WS_eff_xylk[:, 0, 0, 0].values
@@ -70,7 +103,7 @@ def test_Mirror(wfm_cls):
 
 @pytest.mark.parametrize('wfm_cls', [PropagateDownwind, All2AllIterative])
 @pytest.mark.parametrize('groundModel,superpositionModel', [(Mirror(), LinearSum()),
-                                                            (MirrorSquaredSum(), SquaredSum())])
+                                                            (Mirror(), SquaredSum())])
 def test_Mirror_flow_map(wfm_cls, groundModel, superpositionModel):
     site = UniformSite([1], ti=0.1)
     wt = V80()

@@ -24,8 +24,10 @@ class NOJDeficit(NiayifarGaussianDeficit, AreaOverlappingFactor):
         WS_ref_ilk = (WS_ilk, WS_eff_ilk)[self.use_effective_ws]
         R_src_il = D_src_il / 2
         wake_radius_ijlk = self.wake_radius(D_src_il, dw_ijlk, **kwargs)
-        term_denominator_ijlk = (wake_radius_ijlk / R_src_il[:, na, :, na])**2
-        term_denominator_ijlk += (term_denominator_ijlk == 0)
+        with np.warnings.catch_warnings():
+            np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
+            term_denominator_ijlk = np.where(dw_ijlk > 0, (wake_radius_ijlk / R_src_il[:, na, :, na])**2, 1)
+
         A_ol_factor_ijlk = self.overlapping_area_factor(wake_radius_ijlk, dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl)
 
         with np.warnings.catch_warnings():

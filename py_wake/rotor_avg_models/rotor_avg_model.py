@@ -64,12 +64,11 @@ class GridRotorAvg(RotorAvgModel):
         new_kwargs['D_dst_ijl'] = D_dst_ijl
         new_kwargs['dw_ijlk'] = kwargs['dw_ijlk'][..., na] * np.ones_like(new_kwargs['cw_ijlk'])
 
-        new_kwargs.update({k: v[..., na] for k, v in kwargs.items() if k not in new_kwargs})
+        new_kwargs.update({k: v[..., na] for k, v in kwargs.items() if k not in new_kwargs and k != 'IJLK'})
         return new_kwargs
 
     def _calc_layout_terms(self, deficitModel, **kwargs):
-        self.deficitModel = deficitModel
-        self.deficitModel._calc_layout_terms(**self._update_kwargs(**kwargs))
+        deficitModel._calc_layout_terms(**self._update_kwargs(**kwargs))
 
 
 class EqGridRotorAvg(GridRotorAvg):

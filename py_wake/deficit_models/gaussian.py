@@ -402,8 +402,14 @@ class TurboGaussianDeficit(NiayifarGaussianDeficit):
                     'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_ilk', 'TI_eff_ilk']
 
     def __init__(self, A=.04, cTI=[1.5, 0.8], ceps=.25, use_effective_ws=False,
-                 use_effective_ti=False, groundModel=Mirror()):
-        DeficitModel.__init__(self, groundModel=groundModel)
+                 use_effective_ti=False, groundModel=None):
+        """
+        Parameters
+        ----------
+        groundModel : GroundModel or None, optional
+            if None (default), the Mirror groundModel is used
+        """
+        DeficitModel.__init__(self, groundModel=groundModel or Mirror())
         self.A = A
         self.cTI = cTI
         self._ceps = ceps
