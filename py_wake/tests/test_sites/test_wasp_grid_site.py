@@ -63,6 +63,16 @@ def test_local_wind(site):
                             site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=[0], ws=[10], wd_bin_size=2).P_ilk / 2, 6)
 
 
+def test_local_wind_time(site):
+    x_i, y_i = site.initial_position.T
+    wdir_lst = [0, 1, 2, 1, 0]
+    wsp_lst = [9, 10, 9, 10, 11]
+    lw = site.local_wind(x_i, y_i, h_i=100, wd=wdir_lst, ws=wsp_lst, time=True)
+    assert lw.WS_ilk.shape == (8, 5, 1)
+    assert lw.WD_ilk.shape == (8, 5, 1)
+    assert lw.TI_ilk.shape == (8, 5, 1)
+
+
 def test_shear(site):
     npt.assert_array_almost_equal(site.ds['Speedup'].sel(x=262878, y=6504714, wd=0), [.6240589, .8932919])
     x = [262878.0001] * 3

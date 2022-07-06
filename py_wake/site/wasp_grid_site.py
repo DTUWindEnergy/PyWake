@@ -8,6 +8,7 @@ import re
 import copy
 from py_wake.site.distance import TerrainFollowingDistance
 from py_wake.site.xrsite import XRSite
+from numpy import newaxis as na
 
 
 class WaspGridSite(XRSite):
@@ -42,7 +43,10 @@ class WaspGridSite(XRSite):
         # (expected value of TI at 15m/s). The Normal Turbulence model
         # is used to calculate TI at different wind speed,
         # see footnote 4 at page 24 of IEC 61400-1 (2005)
-        lw['TI_ilk'] = self.interp(self.ds.ti15ms, lw) * (.75 + 3.8 / lw.ws)
+        if 'time' in lw.coords:
+            lw['TI_ilk'] = self.interp(self.ds.ti15ms, lw) * (.75 + 3.8 / lw.ws)[na, :, na]
+        else:
+            lw['TI_ilk'] = self.interp(self.ds.ti15ms, lw) * (.75 + 3.8 / lw.ws)
         return lw
 
     @classmethod

@@ -114,9 +114,9 @@ class interp_ilk():
 
             # gather interpolation coordinates xp with len #xyh x #wd x #ws
             xp = [coords[n].repeat(L * K) for n in 'xyhi' if n in ip_dims]
-            ip_data_dims = [n for n, l in [('i', ['x', 'y', 'h', 'i']), ('wd', ['wd']), ('ws', ['ws'])]
+            ip_data_dims = [n for n, l in [('i', ['x', 'y', 'h', 'i']), (l_name, ['wd']), ('ws', ['ws'])]
                             if any([l_ in ip_dims for l_ in l])]
-            shape = [l for d, l in [('i', I), ('wd', L), ('ws', K)] if d in ip_data_dims]
+            shape = [l for d, l in [('i', I), (l_name, L), ('ws', K)] if d in ip_data_dims]
             if 'wd' in ip_dims:
                 xp.append(np.tile(coords['wd'].repeat(K), I))
             elif 'wd' in data_dims:

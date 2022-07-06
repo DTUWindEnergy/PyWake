@@ -217,6 +217,17 @@ def test_complex_grid_local_wind(complex_grid_site):
                                          [0.01079997, 0.01656828, 0.02257487]])
 
 
+def test_complex_grid_local_wind_time(complex_grid_site):
+    site = complex_grid_site
+    site.ds['TI'] = (['x', 'y', 'wd'], np.arange(3 * 2 * 13).reshape(3, 2, 13))
+    wdir_lst = [0, 1, 2, 1, 0]
+    wsp_lst = [9, 10, 9, 10, 11]
+    lw = site.local_wind(x_i=[2.5, 7.5], y_i=[2.5, 2.5], h_i=100, wd=wdir_lst, ws=wsp_lst, time=True)
+    assert lw.WS_ilk.shape == (2, 5, 1)
+    assert lw.WD_ilk.shape == (2, 5, 1)
+    assert lw.TI_ilk.shape == (2, 5, 1)
+
+
 @pytest.mark.parametrize('k', ['WD', 'Turning'])
 def test_turning_mean(complex_grid_site, k):
 
