@@ -172,7 +172,7 @@ class WindFarmModel(ABC):
                 self._aep_kwargs,
                 x, y, h, type, wd, ws, yaw, tilt,
                 normalize_probabilities=False, with_wake_loss=True,
-                n_cpu=1, wd_chunks=None, ws_chunks=None, **kwargs)
+                n_cpu=n_cpu, wd_chunks=wd_chunks, ws_chunks=ws_chunks, **kwargs)
         wd, ws = self.site.get_defaults(wd, ws)
         I, L, K, = len(x), len(np.atleast_1d(wd)), len(np.atleast_1d(ws))
         yaw_ilk = fix_shape(yaw, (I, L, K), allow_None=True, allow_number=True)
