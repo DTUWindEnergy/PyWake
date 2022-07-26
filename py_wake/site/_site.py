@@ -378,7 +378,7 @@ class Site(ABC):
         else:
             P = P.T
             start_P = np.vstack([np.zeros_like(P[:1]), P.cumsum('ws')[:-1]])
-            for ws1, ws2, p_ws0, p_ws in zip(lw.ws_lower, lw.ws_upper, start_P, P):
+            for ws1, ws2, p_ws0, p_ws in zip(lw.ws_lower[0, 0], lw.ws_upper[0, 0], start_P, P):
                 ax.bar(theta, p_ws, width=np.deg2rad(wd_bin_size), bottom=p_ws0,
                        label="%s-%s m/s" % (ws1, ws2))
             ax.legend(bbox_to_anchor=(1.15, 1.1))
