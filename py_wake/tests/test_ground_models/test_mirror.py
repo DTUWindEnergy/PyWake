@@ -144,7 +144,7 @@ def test_Mirror_flow_map_multiple_wd():
     fm_res.plot_wake_map()
     plt.title("With Mirror GroundModel")
 
-    if 1:
+    if 0:
         plt.show()
     plt.close('all')
     npt.assert_array_equal(fm_ref.WS_eff, fm_res.WS_eff)
