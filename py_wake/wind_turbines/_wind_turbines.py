@@ -218,16 +218,20 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         tilt = np.zeros_like(y) + tilt
         y, z, h, D = [v / normalize_with for v in [y, z, h, self.diameter(types)]]
         if isinstance(wd, DataArray):
-            wd = wd.item()
+            wd = wd.values
+
         for i, (y_, z_, h_, d, t, yaw_, tilt_) in enumerate(
                 zip(y, z, h, D, types, yaw, tilt)):
-            ty = y_ - np.cos(np.deg2rad(wd)) * d / 20
-            ax.plot([ty, ty], [z_, z_ + h_], 'k')
-            ax.plot([ty, y_], [z_ + h_, z_ + h_], 'k')
+            if len(np.atleast_1d(wd)) == 1:
+                ty = y_ - np.cos(np.deg2rad(wd)) * d / 20
+                ax.plot([ty, ty], [z_, z_ + h_], 'k')  # tower (d/20 behind rotor)
+                ax.plot([ty, y_], [z_ + h_, z_ + h_], 'k')  # shaft
 
-            circle = Ellipse((y_, h_ + z_), d * np.sin(np.deg2rad(wd - yaw_)),
-                             d, angle=-tilt_, ec=colors[t], fc="None", zorder=32)
-            ax.add_artist(circle)
+                circle = Ellipse((y_, h_ + z_), d * np.sin(np.deg2rad(wd - yaw_)),
+                                 d, angle=-tilt_, ec=colors[t], fc="None", zorder=32)
+                ax.add_artist(circle)
+            else:
+                ax.plot([y_, y_], [h_ + z_ - d / 2, h_ + z_ + d / 2], 'k')  # rotor
             ax.plot(y_, h_, 'None')
 
         for t, m, c in zip(np.unique(types), markers, colors):

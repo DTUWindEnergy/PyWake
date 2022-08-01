@@ -319,7 +319,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                 'D_dst_ijl': lambda l: np.zeros((I, J, 1)),
                 'h_il': lambda l: wt_h_i[:, na],
                 'ct_ilk': get_ilk('CT'),
-                'IJLK': lambda l=0: (I, J, L, K)}, lw_j, wd, WD_il
+                'IJLK': lambda l=wd: (I, J, len(np.atleast_1d(l)), K)}, lw_j, wd, WD_il
 
     def _get_flow_l(self, arg_funcs, l, lw_j, wd, WD_il, I, J, L, K):
         dw_ijl, hcw_ijl, dh_ijl = self.site.distance(wd_l=wd[l], WD_il=WD_il[:, l, :].mean(2))
@@ -405,7 +405,7 @@ class EngineeringWindFarmModel(WindFarmModel):
 
         l_iter = tqdm(range(L), disable=L <= 1 or not self.verbose, desc='Calculate flow map', unit='wd')
 
-        WS_eff_jlk, TI_eff_jlk = zip(*[self._get_flow_l(arg_funcs, slice(l, l + 1), lw_j, wd, WD_il, I, J, L, K)
+        WS_eff_jlk, TI_eff_jlk = zip(*[self._get_flow_l(arg_funcs, slice(l, l + 1), lw_j, wd, WD_il, I, J, 1, K)
                                        for l in l_iter])
         WS_eff_jlk = np.concatenate(WS_eff_jlk, 1)
         if self.turbulenceModel:

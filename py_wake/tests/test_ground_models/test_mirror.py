@@ -125,3 +125,26 @@ def test_Mirror_flow_map(wfm_cls, groundModel, superpositionModel):
         plt.show()
     plt.close('all')
     npt.assert_array_equal(fm_ref.WS_eff, fm_res.WS_eff)
+
+
+def test_Mirror_flow_map_multiple_wd():
+    site = UniformSite([1], ti=0.1)
+    wt = V80()
+    wfm = NOJ(site, wt, k=.5, superpositionModel=LinearSum())
+
+    fm_ref = wfm([0, 0 + 1e-20], [0, 0 + 1e-20], wd=[0, 5], h=[50, -50]
+                 ).flow_map(YZGrid(x=0, y=np.arange(-100, 100, 1) + .1, z=np.arange(1, 100)))
+    fm_ref.plot_wake_map()
+    plt.title("Underground WT added manually")
+
+    plt.figure()
+    wfm = All2AllIterative(site, wt, NOJDeficit(k=.5, groundModel=Mirror()),
+                           superpositionModel=LinearSum())
+    fm_res = wfm([0], [0], wd=[0, 5], h=[50]).flow_map(YZGrid(x=0, y=np.arange(-100, 100, 1) + .1, z=np.arange(1, 100)))
+    fm_res.plot_wake_map()
+    plt.title("With Mirror GroundModel")
+
+    if 1:
+        plt.show()
+    plt.close('all')
+    npt.assert_array_equal(fm_ref.WS_eff, fm_res.WS_eff)
