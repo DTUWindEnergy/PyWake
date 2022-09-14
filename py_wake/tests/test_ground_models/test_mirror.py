@@ -12,6 +12,7 @@ from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2A
 import pytest
 from py_wake.deficit_models.gaussian import ZongGaussianDeficit
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
+import warnings
 
 
 @pytest.mark.parametrize('wfm_cls', [PropagateDownwind,
@@ -31,8 +32,11 @@ def test_Mirror_NOJ(wfm_cls, superpositionModel):
                   superpositionModel=superpositionModel,)
     sim_res = wfm([0], [0], h=[50], wd=0)
     fm_res = sim_res.flow_map(YZGrid(x=0, y=np.arange(-70, 0, 20), z=10)).WS_eff.squeeze()
-    res = np.array([wfm([0, 0], [0, y], [50, 10], type=[0, 1], wd=0).WS_eff.sel(wt=1).item()
-                    for y in [-70, -50, -30, -10]])  # ref.y])
+    with warnings.catch_warnings():
+        # D=0 gives divide by zero warning
+        warnings.filterwarnings('ignore', r'divide by zero encountered in true_divide')
+        res = np.array([wfm([0, 0], [0, y], [50, 10], type=[0, 1], wd=0).WS_eff.sel(wt=1).item()
+                        for y in [-70, -50, -30, -10]])  # ref.y])
 
     if 0:
         sim_res.flow_map(YZGrid(x=0, y=np.arange(-100, 10, 1))).plot_wake_map()
@@ -58,8 +62,10 @@ def test_Mirror_All2AllIterative():
     sim_res = wfm([0], [0], h=[50], wd=0)
     fm_ref = sim_res.flow_map(YZGrid(x=0, y=np.arange(-70, 0, 20), z=10))
     ref = fm_ref.WS_eff_xylk[:, 0, 0, 0].values
-
-    res = np.array([wfm([0, 0], [0, y], [50, 10], type=[0, 1], wd=0).WS_eff.sel(wt=1).item() for y in fm_ref.X[0]])
+    with warnings.catch_warnings():
+        # D=0 gives divide by zero warning
+        warnings.filterwarnings('ignore', r'divide by zero encountered in true_divide')
+        res = np.array([wfm([0, 0], [0, y], [50, 10], type=[0, 1], wd=0).WS_eff.sel(wt=1).item() for y in fm_ref.X[0]])
 
     if 0:
         fm_res = sim_res.flow_map(YZGrid(x=0, y=np.arange(-100, 10, 1)))

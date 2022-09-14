@@ -8,7 +8,6 @@ from scipy.interpolate import RegularGridInterpolator
 
 
 class FugaDeflection(FugaUtils, DeflectionModel):
-    args4deflection = ['WS_ilk', 'WS_eff_ilk', 'yaw_ilk', 'ct_ilk', 'D_src_il']
 
     def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00', on_mismatch='raise'):
         FugaUtils.__init__(self, path=LUT_path, on_mismatch=on_mismatch)

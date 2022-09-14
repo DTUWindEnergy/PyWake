@@ -22,7 +22,7 @@ def test_use_autograd_in(obj):
     _wind_turbines.np = np
     assert _wind_turbines.np == np
     with AutogradNumpy():
-        assert _wind_turbines.np.abs == anp.abs
+        assert _wind_turbines.np.abs == anp.abs  # @UndefinedVariable
     assert _wind_turbines.np == np
 
 

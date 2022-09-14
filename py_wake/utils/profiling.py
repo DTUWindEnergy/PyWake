@@ -9,6 +9,7 @@ import memory_profiler
 import ctypes
 from pathlib import Path
 import linecache
+import warnings
 
 
 def timeit(func, min_time=0, min_runs=1, verbose=False, line_profile=False, profile_funcs=[]):
@@ -90,8 +91,8 @@ def compare_lineprofile(lp1, lp2, include_gt_pct=None):  # pragma: no cover
                                   '%5.1f' % ((time2 - time1) / total1 * 100),
                                   lines[lineno1 - 1]))
         print(template % ("", "", "--------", "--------", "", "", "----", ""))
-        with np.warnings.catch_warnings():
-            np.warnings.filterwarnings('ignore', r'divide by zero encountered in double_scalars')
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', r'divide by zero encountered in double_scalars')
             print(
                 template %
                 ("", "", total1 / 1e6, total2 / 1e6, "", "", "%5.1f" %

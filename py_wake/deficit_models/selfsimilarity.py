@@ -4,19 +4,19 @@ from py_wake.deficit_models.deficit_model import DeficitModel
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models import BlockageDeficitModel
 from py_wake.utils.gradients import cabs
+import warnings
 
 
 class SelfSimilarityDeficit(BlockageDeficitModel):
     """References:
         [1] N. Troldborg, A.R. Meyer Forsting, Wind Energy, 2016
     """
-    args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
 
     def __init__(self, ss_gamma=1.1, ss_lambda=0.587, ss_eta=1.32, ss_alpha=8. / 9., ss_beta=np.sqrt(2),
-                 limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=None,
+                 limiter=1e-10, exclude_wake=True, superpositionModel=None, rotorAvgModel=None, groundModel=None,
                  upstream_only=False):
-        DeficitModel.__init__(self, groundModel=groundModel)
-        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
+        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
         # function constants defined in [1]
         self.ss_gamma = ss_gamma
         self.ss_lambda = ss_lambda
@@ -45,8 +45,8 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
         Eq. (6) from [1]
         """
         r12_ijlk = self.r12(x_ijlk)
-        with np.warnings.catch_warnings():
-            np.warnings.filterwarnings('ignore', r'overflow encountered in cosh')
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', r'overflow encountered in cosh')
             feps_ijlk = (1 / np.cosh(self.ss_beta * cw_ijlk / (R_ijlk * r12_ijlk))) ** self.ss_alpha
 
         return feps_ijlk * (x_ijlk < -self.limiter)
@@ -123,10 +123,10 @@ class SelfSimilarityDeficit2020(SelfSimilarityDeficit):
                  r12p=np.array([-0.672, 0.4897]),
                  ngp=np.array([-1.381, 2.627, -1.524, 1.336]),
                  fgp=np.array([-0.06489, 0.4911, 1.116, -0.1577]),
-                 limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=None,
-                 upstream_only=False):
-        DeficitModel.__init__(self, groundModel=groundModel)
-        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
+                 limiter=1e-10, exclude_wake=True, superpositionModel=None,
+                 rotorAvgModel=None, groundModel=None, upstream_only=False):
+        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
         # original constants from [1]
         self.ss_alpha = ss_alpha
         self.ss_beta = ss_beta

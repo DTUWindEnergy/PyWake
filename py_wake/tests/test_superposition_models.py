@@ -1,8 +1,6 @@
 import pytest
 from py_wake import np
 from py_wake import NOJ
-from py_wake.deficit_models import DeficitModel
-from py_wake.ground_models.ground_models import NoGround
 from py_wake.site._site import UniformSite
 from py_wake.superposition_models import LinearSum, SquaredSum, MaxSum, SqrMaxSum
 from py_wake.tests import npt
@@ -11,7 +9,6 @@ from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.turbulence_models import TurbulenceModel
 from py_wake.flow_map import HorizontalGrid
 from py_wake.tests.test_deficit_models.test_noj import NibeA0
-import xarray as xr
 from py_wake.examples.data.hornsrev1 import V80
 from py_wake.deficit_models.deficit_model import BlockageDeficitModel, WakeDeficitModel
 from py_wake.deficit_models import NoWakeDeficit
@@ -41,7 +38,6 @@ def test_superposition_models_TI(superpositionModel, res):
     site = UniformSite([1], 0.1)
 
     class MyTurbulenceModel(TurbulenceModel):
-        args4addturb = ['dw_ijlk']
 
         def calc_added_turbulence(self, dw_ijlk, **_):
             return 1.2 - dw_ijlk / 100
@@ -103,19 +99,12 @@ def test_diff_wake_blockage_superposition():
     site = UniformSite([1], 0.1)
 
     class MyWakeDeficit(WakeDeficitModel):
-        args4deficit = ['dw_ijlk']
-
-        def __init__(self):
-            DeficitModel.__init__(self, groundModel=None)
-
         def calc_deficit(self, dw_ijlk, **_):
             return (dw_ijlk > 0) * 2
 
     class MyBlockageDeficit(BlockageDeficitModel):
-        args4deficit = ['dw_ijlk']
 
         def __init__(self, superpositionModel=None):
-            DeficitModel.__init__(self, groundModel=None)
             BlockageDeficitModel.__init__(self, upstream_only=True, superpositionModel=superpositionModel)
 
         def calc_deficit(self, dw_ijlk, **_):

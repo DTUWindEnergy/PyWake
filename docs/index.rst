@@ -52,6 +52,10 @@ Contents:
         notebooks/exercises/Improve_layout
         notebooks/exercises/WakeDeflection
         
+    .. toctree::
+        :caption: Model verification
+       
+        notebooks/literature_verification/TurbOPark
         
    
     .. toctree::

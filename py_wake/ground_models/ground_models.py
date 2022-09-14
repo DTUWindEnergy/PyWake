@@ -1,24 +1,18 @@
 from py_wake import np
 from numpy import newaxis as na
+from py_wake.utils.model_utils import ModelMethodWrapper, Model
 
 
-class GroundModel():
-    def __init__(self):
-        pass
-
-    @property
-    def windFarmModel(self):
-        return self.deficitModel.windFarmModel
-
-    def _calc_layout_terms(self, deficitModel, **kwargs):
-        self.windFarmModel.rotorAvgModel._calc_layout_terms(deficitModel, **kwargs)
+class GroundModel(Model, ModelMethodWrapper):
+    """"""
 
 
 class NoGround(GroundModel):
-    args4deficit = []
+    """ Using this model corresponds to groundModel=None, but it can be used to override the groundModel
+     specified for the windFarmModel in e.g. the turbulence model"""
 
-    def __call__(self, calc_deficit, **kwargs):
-        return calc_deficit(**kwargs)
+    def __call__(self, func, **kwargs):
+        return func(**kwargs)
 
 
 class Mirror(GroundModel):
@@ -26,11 +20,10 @@ class Mirror(GroundModel):
     The deficits caused by the above- and below-ground turbines are summed
     by the superpositionModel of the windFarmModel
     """
-    args4deficit = ['dh_ijlk', 'h_il', 'hcw_ijlk', 'IJLK']
 
     def _update_kwargs(self, **kwargs):
         def add_mirror_wt(k, v):
-            if np.shape(v)[0] > 1 or '_ijlk' in k:
+            if (np.shape(v)[0] > 1 or '_ijlk' in k) and '_jlk' not in k:
                 return np.concatenate([v, v], 0)
             else:
                 return v
@@ -43,12 +36,13 @@ class Mirror(GroundModel):
             new_kwargs['cw_ijlk'] = np.sqrt(new_kwargs['dh_ijlk']**2 + new_kwargs['hcw_ijlk']**2)
         return new_kwargs
 
-    def __call__(self, calc_deficit, **kwargs):
-        new_kwargs = self._update_kwargs(**kwargs)
+    def __call__(self, func, h_il, dh_ijlk, IJLK, **kwargs):
+        new_kwargs = self._update_kwargs(h_il=h_il, dh_ijlk=dh_ijlk, IJLK=IJLK, **kwargs)
         above_ground = ((new_kwargs['h_il'][:, na, :, na] + new_kwargs['dh_ijlk']) > 0)
-        deficit_mijlk = np.reshape(calc_deficit(**new_kwargs) * above_ground, (2,) + kwargs['IJLK'])
+        values_pijlk = func(**new_kwargs)
+        deficit_mijlk = np.reshape(values_pijlk * above_ground, (2,) + IJLK)
         return self.windFarmModel.superpositionModel(deficit_mijlk)
 
-    def _calc_layout_terms(self, deficitModel, **kwargs):
+    def _calc_layout_terms(self, func, **kwargs):
         new_kwargs = self._update_kwargs(**kwargs)
-        self.windFarmModel.rotorAvgModel._calc_layout_terms(deficitModel, **new_kwargs)
+        func(**new_kwargs)

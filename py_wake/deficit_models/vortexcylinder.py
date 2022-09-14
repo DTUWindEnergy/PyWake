@@ -21,12 +21,10 @@ class VortexCylinder(BlockageDeficitModel):
             zone in front of aligned and yawed rotors, in Proceedings of EWEA Offshore Conference, 2015
     """
 
-    args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
-
-    def __init__(self, limiter=1e-3, exclude_wake=True, superpositionModel=None, groundModel=None,
+    def __init__(self, limiter=1e-3, exclude_wake=True, superpositionModel=None, rotorAvgModel=None, groundModel=None,
                  upstream_only=False):
-        DeficitModel.__init__(self, groundModel=groundModel)
-        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
+        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
         # limiter to avoid singularities
         self.limiter = limiter
         # if used in a wind farm simulation, set deficit in wake region to

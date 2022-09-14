@@ -26,11 +26,9 @@ class HybridInduction(BlockageDeficitModel):
             https://doi.org/10.1002/we.2546
     """
 
-    args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
-
     def __init__(self, switch_radius=6.,
                  near_rotor=None, far_field=None, superpositionModel=None,
-                 groundModel=None, upstream_only=False):
+                 rotorAvgModel=None, groundModel=None, upstream_only=False):
         """
         Parameters
         ----------
@@ -39,8 +37,8 @@ class HybridInduction(BlockageDeficitModel):
         far_field : BlockageDeficitModel or None
             If None (default), the VortexDipole will be used
         """
-        DeficitModel.__init__(self, groundModel=groundModel)
-        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
+        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
         self.switch_radius = switch_radius
         self.near_rotor = near_rotor or SelfSimilarityDeficit2020()
         self.far_field = far_field or VortexDipole()

@@ -18,7 +18,6 @@ from py_wake.site.distance import StraightDistance
 from py_wake.site.shear import Shear, LogShear, PowerShear
 from py_wake.superposition_models import SuperpositionModel, AddedTurbulenceSuperpositionModel
 from py_wake.tests import npt
-from py_wake.tests.check_speed import timeit
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel, STF2005TurbulenceModel
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel
 from py_wake.utils import gradients

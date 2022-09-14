@@ -1,9 +1,13 @@
-from py_wake import np
+
+import warnings
+
 from numpy import newaxis as na
-from py_wake.deficit_models import DeficitModel
+
+from py_wake import np
 from py_wake.deficit_models import BlockageDeficitModel
-from py_wake.utils.gradients import hypot, cabs
+from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models.utils import a0
+from py_wake.utils.gradients import hypot, cabs
 
 
 class VortexDipole(BlockageDeficitModel):
@@ -21,12 +25,10 @@ class VortexDipole(BlockageDeficitModel):
             https://doi.org/10.1002/we.2546
     """
 
-    args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
-
-    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=None,
-                 upstream_only=False):
-        DeficitModel.__init__(self, groundModel=groundModel)
-        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
+    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None,
+                 rotorAvgModel=None, groundModel=None, upstream_only=False):
+        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
         # limiter to avoid singularities
         self.limiter = limiter
         # coefficient for scaling the effective forcing
@@ -50,9 +52,9 @@ class VortexDipole(BlockageDeficitModel):
         # avoid devision by zero
         r_ijlk = np.where((r_ijlk / R_il[:, na, :, na]) < self.limiter, np.inf, r_ijlk)
         # deficit
-        with np.warnings.catch_warnings():
-            np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
-            np.warnings.filterwarnings('ignore', r'invalid value encountered in power')
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
+            warnings.filterwarnings('ignore', r'invalid value encountered in power')
             deficit_ijlk = gammat_ilk[:, na] / 4. * R_il[:, na, :, na]**2 * (-dw_ijlk / r_ijlk**3)
 
         if self.exclude_wake:

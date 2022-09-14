@@ -4,12 +4,68 @@ import pkgutil
 from py_wake import np
 from numpy import newaxis as na
 from py_wake.site._site import Site
+import warnings
+
+
+class Model():
+    @property
+    def args4model(self):
+        return method_args(self.__call__)
+
+
+class DeprecatedModel():
+    def __init__(self, new_model):
+        warnings.warn(f"""{self.__module__}.{self.__class__.__name__} is deprecated. Use {new_model} instead""",
+                      DeprecationWarning, stacklevel=2)
+
+
+class ModelMethodWrapper():
+    def wrap(self, f, wrapper_name='__call__'):
+        wrapper = getattr(self, wrapper_name)
+
+        def w(*args, **kwargs):
+            return wrapper(f, *args, **kwargs)
+        return w
+
+
+class RotorAvgAndGroundModelContainer():
+    def __init__(self, groundModel=None, rotorAvgModel=None):
+        self.groundModel = groundModel
+        self.rotorAvgModel = rotorAvgModel
+
+    @property
+    def args4model(self):
+        args4model = set()
+        if self.groundModel:
+            args4model |= self.groundModel.args4model
+        if self.rotorAvgModel:
+            args4model |= self.rotorAvgModel.args4model
+        return args4model
+
+    @property
+    def windFarmModel(self):
+        return self._windFarmModel
+
+    @windFarmModel.setter
+    def windFarmModel(self, wfm):
+        self._windFarmModel = wfm
+        if self.groundModel:
+            self.groundModel.windFarmModel = wfm
+        if self.rotorAvgModel:
+            self.rotorAvgModel.windFarmModel = wfm
+
+    def wrap(self, f, wrapper_name='__call__'):
+        if self.rotorAvgModel:
+            f = self.rotorAvgModel.wrap(f, wrapper_name)
+        if self.groundModel:
+            f = self.groundModel.wrap(f, wrapper_name)
+        return f
 
 
 def get_exclude_dict():
     from py_wake.deficit_models.deficit_model import ConvectionDeficitModel, WakeDeficitModel,\
         BlockageDeficitModel
-    from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel, RotorCenter
+    from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel, NodeRotorAvgModel
     from py_wake.wind_farm_models.engineering_models import EngineeringWindFarmModel, PropagateDownwind
 
     from py_wake.superposition_models import LinearSum
@@ -20,7 +76,7 @@ def get_exclude_dict():
         "WindFarmModel": ([EngineeringWindFarmModel], [], PropagateDownwind),
         "DeficitModel": ([ConvectionDeficitModel, BlockageDeficitModel, WakeDeficitModel], [RotorAvgModel], NOJDeficit),
         "WakeDeficitModel": ([ConvectionDeficitModel], [RotorAvgModel], NOJDeficit),
-        "RotorAvgModel": ([], [], RotorCenter),
+        "RotorAvgModel": ([NodeRotorAvgModel], [], None),
         "SuperpositionModel": ([], [], LinearSum),
         "BlockageDeficitModel": ([], [], None),
         "DeflectionModel": ([], [], None),
@@ -154,6 +210,10 @@ def fix_shape(arr, shape_or_arr_to_match, allow_number=False, allow_None=False):
     else:
         shape = np.asarray(shape_or_arr_to_match).shape
     return np.broadcast_to(arr.reshape(arr.shape + (1,) * (len(shape) - len(arr.shape))), shape)
+
+
+def method_args(method):
+    return set(inspect.getfullargspec(method).args) - {'self', 'func'}
 
 
 def main():

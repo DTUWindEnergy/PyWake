@@ -23,12 +23,10 @@ class Rathmann(BlockageDeficitModel):
         Journal of Physics: Conference Series 1934 (2021) 012023
     """
 
-    args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
-
-    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=None,
-                 upstream_only=False):
-        DeficitModel.__init__(self, groundModel=groundModel)
-        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
+    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None,
+                 rotorAvgModel=None, groundModel=None, upstream_only=False):
+        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
         # limiter to avoid singularities
         self.limiter = limiter
         # coefficient for scaling the effective forcing
@@ -110,12 +108,10 @@ class RathmannScaled(Rathmann):
         Journal of Physics: Conference Series 1934 (2021) 012023
     """
 
-    args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
-
-    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=None,
-                 upstream_only=False):
-        DeficitModel.__init__(self, groundModel=groundModel)
-        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
+    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None,
+                 rotorAvgModel=None, groundModel=None, upstream_only=False):
+        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
         # coefficients for BEM approximation by Madsen (1997)
         self.a0p = np.array([0.2460, 0.0586, 0.0883])
         # limiter to avoid singularities

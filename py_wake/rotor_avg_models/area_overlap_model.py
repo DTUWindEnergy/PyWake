@@ -1,14 +1,25 @@
-from numpy import newaxis as na
-
+from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel
 from py_wake import np
+from numpy import newaxis as na
 from py_wake.utils.gradients import cabs
 from autograd.numpy.numpy_boxes import ArrayBox
-from py_wake.utils import gradients
+from py_wake.deficit_models.deficit_model import WakeRadiusTopHat
 
 
-class AreaOverlappingFactor():
+class AreaOverlapAvgModel(RotorAvgModel):
 
-    def overlapping_area_factor(self, wake_radius_ijlk, dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl):
+    def _calc_layout_terms(self, func, cw_ijlk, **kwargs):
+        func(cw_ijlk=cw_ijlk * 0, **kwargs)
+
+    def __call__(self, func, wake_radius_ijlk, cw_ijlk, D_dst_ijl, **kwargs):
+        assert isinstance(func.__self__, WakeRadiusTopHat), \
+            """AreaOverlapAvgModel uses the wake_radius from the wake_deficitModel.
+            I.e. using it makes only sense on wake and turbulence models with a tophat shape
+            that is limited by the wake width"""
+        res_ijlk = func(cw_ijlk=cw_ijlk * 0, D_dst_ijl=D_dst_ijl, wake_radius_ijlk=wake_radius_ijlk, **kwargs)
+        return res_ijlk * self.overlapping_area_factor(wake_radius_ijlk, cw_ijlk, D_dst_ijl)
+
+    def overlapping_area_factor(self, wake_radius_ijlk, cw_ijlk, D_dst_ijl):
         """Calculate overlapping factor
 
         Parameters
@@ -31,16 +42,16 @@ class AreaOverlappingFactor():
         if np.all(D_dst_ijl == 0) or D_dst_ijl is None:
             return wake_radius_ijlk > cw_ijlk
         else:
-            if wake_radius_ijlk.ndim == 5:
-                shape = np.maximum(cw_ijlk.shape, wake_radius_ijlk.shape)
-                return self._cal_overlapping_area_factor(
-                    np.broadcast_to(wake_radius_ijlk, shape),
-                    np.broadcast_to(D_dst_ijl[..., na, na] / 2, shape),
-                    cabs(cw_ijlk))
-            else:
-                return self._cal_overlapping_area_factor(wake_radius_ijlk,
-                                                         (D_dst_ijl[..., na] / 2),
-                                                         cabs(cw_ijlk))
+            # if wake_radius_ijlk.ndim == 5:
+            #     shape = np.maximum(cw_ijlk.shape, wake_radius_ijlk.shape)
+            #     return self._cal_overlapping_area_factor(
+            #         np.broadcast_to(wake_radius_ijlk, shape),
+            #         np.broadcast_to(D_dst_ijl[..., na, na] / 2, shape),
+            #         cabs(cw_ijlk))
+            # else:
+            return self._cal_overlapping_area_factor(wake_radius_ijlk,
+                                                     (D_dst_ijl[..., na] / 2),
+                                                     cabs(cw_ijlk))
 
     def _cal_overlapping_area_factor(self, R1, R2, d):
         """ Calculate the overlapping area of two circles with radius R1 and

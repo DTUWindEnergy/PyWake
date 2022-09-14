@@ -1,11 +1,12 @@
 from numpy import newaxis as na
 from py_wake import np
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel
-from py_wake.utils.area_overlapping_factor import AreaOverlappingFactor
 from py_wake.superposition_models import SqrMaxSum
+from py_wake.rotor_avg_models.area_overlap_model import AreaOverlapAvgModel
+from py_wake.deficit_models.deficit_model import WakeRadiusTopHat
 
 
-class GCLTurbulence(TurbulenceModel, AreaOverlappingFactor):
+class GCLTurbulence(TurbulenceModel, WakeRadiusTopHat):
     """G. C. Larsen model implemented according to
 
     Pierik, J. T. G., Dekker, J. W. M., Braam, H., Bulder, B. H., Winkelaar, D.,
@@ -14,10 +15,10 @@ class GCLTurbulence(TurbulenceModel, AreaOverlappingFactor):
     P. Helm, & H. Ehmann (Eds.), Wind energy for the next millennium. Proceedings (pp. 568-571).
     James and James Science Publishers.
     """
-    args4addturb = ['D_src_il', 'dw_ijlk', 'ct_ilk', 'D_dst_ijl', 'cw_ijlk', 'wake_radius_ijlk']
 
-    def __init__(self, addedTurbulenceSuperpositionModel=SqrMaxSum(), **kwargs):
-        TurbulenceModel.__init__(self, addedTurbulenceSuperpositionModel, **kwargs)
+    def __init__(self, addedTurbulenceSuperpositionModel=SqrMaxSum(),
+                 rotorAvgModel=AreaOverlapAvgModel(), groundModel=None):
+        TurbulenceModel.__init__(self, addedTurbulenceSuperpositionModel, rotorAvgModel, groundModel=groundModel)
 
     def calc_added_turbulence(self, dw_ijlk, D_src_il, ct_ilk, wake_radius_ijlk,
                               D_dst_ijl, cw_ijlk, **_):
@@ -42,8 +43,7 @@ class GCLTurbulence(TurbulenceModel, AreaOverlappingFactor):
         """
         dw_ijlk_gt0 = np.maximum(dw_ijlk, 1e-10)
         r = 0.29 * np.sqrt(1 - np.sqrt(1 - ct_ilk))[:, na] / (dw_ijlk_gt0 / D_src_il[:, na, :, na])**(1 / 3)
-        area_overlap_ijlk = self.overlapping_area_factor(wake_radius_ijlk, dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl)
-        return area_overlap_ijlk * r * (dw_ijlk > 0)
+        return r * (dw_ijlk > 0) * (cw_ijlk < wake_radius_ijlk)
 
 
 def main():

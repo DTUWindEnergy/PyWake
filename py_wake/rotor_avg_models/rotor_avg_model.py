@@ -1,49 +1,53 @@
 from py_wake import np
 from numpy import newaxis as na
-from py_wake.utils.model_utils import check_model
+from py_wake.utils.model_utils import check_model, Model, ModelMethodWrapper
+from numpy.polynomial.legendre import leggauss
 
 
-class RotorAvgModel():
+class RotorAvgModel(Model, ModelMethodWrapper):
+    """"""
+    # def calc_deficit_convection(self, deficitModel, D_dst_ijl, **kwargs):
+    #     self.deficitModel = deficitModel
+    #     return self.deficitModel.calc_deficit_convection(D_dst_ijl=D_dst_ijl, **kwargs)
+
+
+class RotorCenter(RotorAvgModel):
+    nodes_weight = None
+
+    def __init__(self):
+        # Using this model corresponds to rotorAvgModel=None, but it can be used to override the rotorAvgModel
+        # specified for the windFarmModel in e.g. the turbulence model
+        self.nodes_x = np.asarray([0])
+        self.nodes_y = np.asarray([0])
+
+    def __call__(self, func, **kwargs):
+        return func(**kwargs)
+
+    def _calc_layout_terms(self, func, **kwargs):
+        func(**kwargs)
+
+
+class NodeRotorAvgModel(RotorAvgModel):
     """Wrap a DeficitModel.
     The RotorAvgModel
     - add an extra dimension (one or more points covering the downstream rotors)
     - Call the wrapped DeficitModel to calculate the deficit at all points
     - Compute a (weighted) mean of the deficit values covering the downstream rotors
     """
-    args4rotor_avg_deficit = ['hcw_ijlk', 'dh_ijlk', 'D_dst_ijl']
-
-    def __init__(self):
-        pass
-
-    def calc_deficit_convection(self, deficitModel, D_dst_ijl, **kwargs):
-        self.deficitModel = deficitModel
-        return self.deficitModel.calc_deficit_convection(D_dst_ijl=D_dst_ijl, **kwargs)
 
     def __call__(self, func, D_dst_ijl, **kwargs):
         # add extra dimension, p, with 40 points distributed over the destination rotors
         kwargs = self._update_kwargs(D_dst_ijl=D_dst_ijl, **kwargs)
 
         values_ijlkp = func(**kwargs)
+
         # Calculate weighted sum of deficit over the destination rotors
         if self.nodes_weight is None:
             return np.mean(values_ijlkp, -1)
         return np.sum(self.nodes_weight[na, na, na, na, :] * values_ijlkp, -1)
 
 
-class RotorCenter(RotorAvgModel):
-    args4rotor_avg_deficit = ['D_dst_ijl']
-    nodes_x = [0]
-    nodes_y = [0]
-    nodes_weight = [1]
-
-    def __call__(self, func, **kwargs):
-        return func(**kwargs)
-
-    def _calc_layout_terms(self, deficitModel, **kwargs):
-        deficitModel._calc_layout_terms(**kwargs)
-
-
-class GridRotorAvg(RotorAvgModel):
+class GridRotorAvg(NodeRotorAvgModel):
     nodes_weight = None
 
     def __init__(self, nodes_x=[-1 / 3, 1 / 3, -1 / 3, 1 / 3],
@@ -67,8 +71,8 @@ class GridRotorAvg(RotorAvgModel):
         new_kwargs.update({k: v[..., na] for k, v in kwargs.items() if k not in new_kwargs and k != 'IJLK'})
         return new_kwargs
 
-    def _calc_layout_terms(self, deficitModel, **kwargs):
-        deficitModel._calc_layout_terms(**self._update_kwargs(**kwargs))
+    def _calc_layout_terms(self, func, **kwargs):
+        func(**self._update_kwargs(**kwargs))
 
 
 class EqGridRotorAvg(GridRotorAvg):
@@ -129,7 +133,7 @@ class CGIRotorAvg(GridRotorAvg):
         GridRotorAvg.__init__(self, nodes_x, nodes_y, nodes_weight=nodes_weight)
 
 
-class WSPowerRotorAvg(RotorAvgModel):
+class WSPowerRotorAvg(NodeRotorAvgModel):
     '''Compute the wind speed average, ws_avg = sum(ws_point^alpha)^(1/alpha).
     Node weights are ignored'''
 
@@ -144,7 +148,6 @@ class WSPowerRotorAvg(RotorAvgModel):
         """
         check_model(rotorAvgModel, cls=RotorAvgModel, arg_name='rotorAvgModel', accept_None=False)
         self.rotorAvgModel = rotorAvgModel
-        self.args4rotor_avg_deficit = set(rotorAvgModel.args4rotor_avg_deficit) | {'WS_ilk'}
         self.alpha = alpha
 
     def __getattribute__(self, name):
@@ -165,8 +168,9 @@ class WSPowerRotorAvg(RotorAvgModel):
 
 
 def gauss_quadrature(n_x, n_y):
-    nodes_x, nodes_x_weight = np.polynomial.legendre.leggauss(n_x)
-    nodes_y, nodes_y_weight = np.polynomial.legendre.leggauss(n_y)
+
+    nodes_x, nodes_x_weight = leggauss(n_x)
+    nodes_y, nodes_y_weight = leggauss(n_y)
     X, Y = np.meshgrid(nodes_x, nodes_y)
     weights = np.prod(np.meshgrid(nodes_x_weight, nodes_y_weight), 0) / 4
     return X.flatten(), Y.flatten(), weights.flatten()

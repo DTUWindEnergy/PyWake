@@ -54,7 +54,7 @@ setup(name='py_wake',
       install_requires=[
           'matplotlib',  # for plotting
           'numpy',  # for numerical calculations
-          'xarray',  # for WaspGridSite data storage
+          'xarray', 'netcdf4', 'h5netcdf',
           'autograd',  # gradient calculation
           'pyyaml',  # for reading yaml files
           'scipy',  # constraints

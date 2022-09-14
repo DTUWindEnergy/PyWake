@@ -1,7 +1,10 @@
+import warnings
+
 from numpy import newaxis as na
+
 from py_wake import np
-from py_wake.turbulence_models.turbulence_model import TurbulenceModel
 from py_wake.superposition_models import LinearSum
+from py_wake.turbulence_models.turbulence_model import TurbulenceModel
 from py_wake.utils.gradients import hypot, cabs
 
 
@@ -15,9 +18,9 @@ class FrandsenWeight():
 
     def apply_weight(self, dw_ijlk, cw_ijlk, D_src_il, TI_ilk, TI_add_ijlk):
         s_ijlk = dw_ijlk / D_src_il[:, na, :, na]
-        with np.warnings.catch_warnings():
-            np.warnings.filterwarnings('ignore', r'divide by zero encountered in true_divide')
-            np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', r'divide by zero encountered in true_divide')
+            warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
 
             # Theta_w is the characteristic view angle defined in Eq. (3.18)
             theta_w = (180.0 / np.pi * np.arctan(1 / s_ijlk) + 10) / 2
@@ -59,11 +62,10 @@ class IECWeight():
 class STF2017TurbulenceModel(TurbulenceModel):
     """Steen Frandsen model implemented according to IEC61400-1, 2017"""
 
-    args4addturb = ['dw_ijlk', 'cw_ijlk', 'D_src_il', 'ct_ilk', 'TI_ilk']
-
     def __init__(self, c=[1.5, 0.8], addedTurbulenceSuperpositionModel=LinearSum(),
-                 weight_function=FrandsenWeight(), **kwargs):
-        TurbulenceModel.__init__(self, addedTurbulenceSuperpositionModel, **kwargs)
+                 weight_function=FrandsenWeight(), rotorAvgModel=None, groundModel=None):
+        TurbulenceModel.__init__(self, addedTurbulenceSuperpositionModel,
+                                 rotorAvgModel=rotorAvgModel, groundModel=groundModel)
         self.c = c
         self.apply_weight = weight_function.apply_weight
 
@@ -73,7 +75,7 @@ class STF2017TurbulenceModel(TurbulenceModel):
         # TI_add = 1/(1.5 + 0.8*d/sqrt(Ct))
         return 1 / (self.c[0] + self.c[1] * dist_ijlk / np.sqrt(ct_ilk)[:, na])
 
-    def calc_added_turbulence(self, dw_ijlk, cw_ijlk, D_src_il, TI_ilk, **kwargs):
+    def calc_added_turbulence(self, WS_ilk, dw_ijlk, cw_ijlk, D_src_il, TI_ilk, ct_ilk, **kwargs):
         """ Calculate the added turbulence intensity at locations specified by
         downstream distances (dw_jl) and crosswind distances (cw_jl)
         caused by the wake of a turbine (diameter: D_src_l, thrust coefficient: Ct_lk).
@@ -85,10 +87,11 @@ class STF2017TurbulenceModel(TurbulenceModel):
         """
         # In the standard (see page 103), the maximal added TI is calculated as
         # TI_add = 1/(1.5 + 0.8*d/sqrt(Ct))
-        with np.warnings.catch_warnings():
-            np.warnings.filterwarnings('ignore', r'divide by zero encountered in true_divide')
-            np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
-            TI_add_ijlk = self.max_centre_wake_turbulence(dw_ijlk=dw_ijlk, cw_ijlk=cw_ijlk, D_src_il=D_src_il, **kwargs)
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', r'divide by zero encountered in true_divide')
+            warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
+            TI_add_ijlk = self.max_centre_wake_turbulence(WS_ilk=WS_ilk, dw_ijlk=dw_ijlk, cw_ijlk=cw_ijlk,
+                                                          D_src_il=D_src_il, ct_ilk=ct_ilk, **kwargs)
         # TI_add_ijlk[np.isnan(TI_add_ijlk)] = 0
         TI_add_ijlk = np.where(np.isnan(TI_add_ijlk), 0, TI_add_ijlk)
 
@@ -97,8 +100,6 @@ class STF2017TurbulenceModel(TurbulenceModel):
 
 class STF2005TurbulenceModel(STF2017TurbulenceModel):
     """Steen Frandsen model implemented according to IEC61400-1, 2005"""
-
-    args4addturb = ['dw_ijlk', 'cw_ijlk', 'D_src_il', 'WS_ilk', 'TI_ilk']
 
     def max_centre_wake_turbulence(self, WS_ilk, dw_ijlk, D_src_il, **_):
         # In the standard (see page 73), the maximal added TI is calculated as
@@ -125,7 +126,7 @@ def main():
             print(sim_res.TI_eff_ilk[:, 0])
             # plot wake map
             flow_map = sim_res.flow_map(wd=0, ws=9.8)
-            c = flow_map.plot_ti_map(ax=ax)
+            flow_map.plot_ti_map(ax=ax)
             ax.set_title('Turbulence intensity calculated by %s' % lbl)
         plt.show()
 

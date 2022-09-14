@@ -1,17 +1,32 @@
 from abc import abstractmethod
-from py_wake.superposition_models import AddedTurbulenceSuperpositionModel, LinearSum, SqrMaxSum, MaxSum
-from py_wake.utils.model_utils import check_model
+from py_wake.superposition_models import AddedTurbulenceSuperpositionModel
+from py_wake.utils.model_utils import check_model, method_args, RotorAvgAndGroundModelContainer
+from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel
+from py_wake.ground_models.ground_models import GroundModel
 
 
-class TurbulenceModel():
+class TurbulenceModel(RotorAvgAndGroundModelContainer):
 
-    def __init__(self, addedTurbulenceSuperpositionModel, rotorAvgModel=None):
-        check_model(
-            addedTurbulenceSuperpositionModel,
-            AddedTurbulenceSuperpositionModel,
-            'addedTurbulenceSuperpositionModel')
+    def __init__(self, addedTurbulenceSuperpositionModel, rotorAvgModel=None, groundModel=None):
+        for model, cls, name in [(addedTurbulenceSuperpositionModel, AddedTurbulenceSuperpositionModel, 'addedTurbulenceSuperpositionModel'),
+                                 (rotorAvgModel, RotorAvgModel, 'rotorAvgModel'),
+                                 (groundModel, GroundModel, 'groundModel')]:
+            check_model(model, cls, name)
+
         self.addedTurbulenceSuperpositionModel = addedTurbulenceSuperpositionModel
-        self.rotorAvgModel = rotorAvgModel
+        RotorAvgAndGroundModelContainer.__init__(self, groundModel, rotorAvgModel)
+
+    @property
+    def args4model(self):
+        args4model = RotorAvgAndGroundModelContainer.args4model.fget(self)  # @UndefinedVariable
+        args4model |= method_args(self.calc_added_turbulence)
+        return args4model
+
+    def __call__(self, **kwargs):
+        f = self.calc_added_turbulence
+        if self.rotorAvgModel:
+            f = self.rotorAvgModel.wrap(f)
+        return f(**kwargs)
 
     @abstractmethod
     def calc_added_turbulence(self):
@@ -19,9 +34,6 @@ class TurbulenceModel():
         for all wind directions(l) and wind speeds(k) on a set of points(j)
 
         This method must be overridden by subclass
-
-        Arguments required by this method must be added to the class list
-        args4addturb
 
         See class documentation for examples and available arguments
 

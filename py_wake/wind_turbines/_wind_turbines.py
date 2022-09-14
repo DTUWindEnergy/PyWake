@@ -223,6 +223,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         for i, (y_, z_, h_, d, t, yaw_, tilt_) in enumerate(
                 zip(y, z, h, D, types, yaw, tilt)):
             if len(np.atleast_1d(wd)) == 1:
+                wd = np.atleast_1d(wd)[0]
                 ty = y_ - np.cos(np.deg2rad(wd)) * d / 20
                 ax.plot([ty, ty], [z_, z_ + h_], 'k')  # tower (d/20 behind rotor)
                 ax.plot([ty, y_], [z_ + h_, z_ + h_], 'k')  # shaft

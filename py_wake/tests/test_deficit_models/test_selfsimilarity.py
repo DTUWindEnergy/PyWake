@@ -3,13 +3,10 @@ import pytest
 import matplotlib.pyplot as plt
 from py_wake import np
 from py_wake.deficit_models import SelfSimilarityDeficit, SelfSimilarityDeficit2020
-from py_wake.deficit_models.no_wake import NoWakeDeficit
-from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.examples.data import hornsrev1
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site
-from py_wake.superposition_models import LinearSum
 from py_wake.tests import npt
-from py_wake.wind_farm_models.engineering_models import All2AllIterative
+
 
 debug = False
 

@@ -7,6 +7,7 @@ import py_wake
 from py_wake.flow_map import Grid
 from pathlib import Path
 import xarray
+import warnings
 
 
 def get_notebooks():
@@ -35,6 +36,8 @@ def test_notebooks(notebook):
         default_resolution = Grid.default_resolution
         Grid.default_resolution = 100
         plt.rcParams.update({'figure.max_open_warning': 0})
+        # with warnings.catch_warnings:
+        #    warnings.simplefilter('error')
         notebook.check_code()
         notebook.check_links()
         notebook.remove_empty_end_cell()

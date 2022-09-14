@@ -30,7 +30,7 @@ class GCLHillDeflection(DeflectionModel):
 
     @property
     def args4deflection(self):
-        return set(['D_src_il', 'yaw_ilk', 'ct_ilk', 'tilt_ilk']) | \
+        return DeflectionModel.args4deflection.fget(self) | \
             set(self.wake_deficitModel.args4deficit) - {'dw_ijlk', 'hcw_ijlk', 'cw_ijlk', 'dh_ijlk'}
 
     @property

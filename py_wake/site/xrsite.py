@@ -90,7 +90,9 @@ class XRSite(Site):
 
     def elevation(self, x_i, y_i):
         if hasattr(self, "elevation_interpolator"):
-            return self.elevation_interpolator(x_i, y_i, mode='valid')
+            return self.elevation_interpolator(np.asarray(x_i, dtype=(float, np.complex128)[np.iscomplexobj(x_i)]),
+                                               np.asarray(y_i, dtype=(float, np.complex128)[np.iscomplexobj(y_i)]),
+                                               mode='valid')
         else:
             return x_i * 0
 

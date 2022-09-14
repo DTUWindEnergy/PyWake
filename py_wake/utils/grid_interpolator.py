@@ -158,6 +158,6 @@ class EqDistRegGrid2DInterpolator():
         if isinstance(xp, ArrayBox) or isinstance(yp, ArrayBox):
             z = z0 + (z1 - z0) * yif
         else:
-            z = np.empty_like(xp) + np.nan
+            z = np.full(xp.shape, np.nan, dtype=xp.dtype)
             z[valid] = z0 + (z1 - z0) * yif
         return z
