@@ -2,11 +2,11 @@ import pytest
 
 import matplotlib.pyplot as plt
 from py_wake import np
-from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel, DeficitModel
+from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel
 from py_wake.deficit_models.fuga import FugaDeficit, Fuga
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, IEA37SimpleBastankhahGaussianDeficit,\
-    ZongGaussianDeficit, NiayifarGaussianDeficit, BastankhahGaussian, IEA37SimpleBastankhahGaussian, ZongGaussian,\
-    NiayifarGaussian, CarbajofuertesGaussianDeficit, TurboGaussianDeficit
+    ZongGaussianDeficit, NiayifarGaussianDeficit, BastankhahGaussian, ZongGaussian,\
+    NiayifarGaussian, CarbajofuertesGaussianDeficit, TurboGaussianDeficit, IEA37SimpleBastankhahGaussian
 from py_wake.deficit_models.gcl import GCLDeficit, GCL, GCLLocal
 from py_wake.deficit_models.noj import NOJDeficit, NOJ, NOJLocalDeficit, NOJLocal, TurboNOJDeficit
 from py_wake.deficit_models import VortexDipole
@@ -25,6 +25,7 @@ from py_wake.utils.model_utils import get_models
 from numpy import newaxis as na
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.rotor_avg_models.rotor_avg_model import CGIRotorAvg
+import warnings
 
 
 class GCLLocalDeficit(GCLDeficit):
@@ -85,7 +86,7 @@ class GCLLocalDeficit(GCLDeficit):
                               25374.06361, 39250.03042, 42699.02591, 23034.28679, 13479.45387,
                               14791.05027, 32446.01148, 69635.02796, 17982.12684, 12136.24637,
                               7803.89434])),
-        (TurboGaussianDeficit(),
+        (TurboGaussianDeficit(rotorAvgModel=None),
          (333612.8032572539, [7696.10577, 7913.67274, 11102.28219, 13503.62483, 17184.49031,
                               24381.54484, 38283.7317, 40227.83645, 19394.18655, 12536.27008,
                               14613.38763, 31681.28939, 58287.76333, 17558.30497, 11990.4719,
@@ -227,19 +228,20 @@ def test_deficitModel_wake_map(deficitModel, ref):
 @pytest.mark.parametrize(
     'deficitModel,wake_radius_ref',
     # test that the result is equal to last run (no evidens that  these number are correct)
-    [(NOJDeficit(), [100., 75., 150., 100., 100.]),
-     (NOJLocalDeficit(), [71., 46., 92., 71., 61.5]),
-     (TurboNOJDeficit(), [99.024477, 61.553917, 123.107833, 92.439673, 97.034049]),
-     (BastankhahGaussianDeficit(), [83.336286, 57.895893, 115.791786, 75.266662, 83.336286]),
-     (IEA37SimpleBastankhahGaussianDeficit(), [83.336286, 57.895893, 115.791786, 75.266662, 83.336286]),
-     (FugaDeficit(LUT_path=tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/'), [100, 50, 100, 100, 100]),
-     (GCLDeficit(), [156.949964, 97.763333, 195.526667, 113.225695, 111.340236]),
-     (GCLLocalDeficit(), [156.949964, 97.763333, 195.526667, 113.225695, 111.340236]),
-     (ZongGaussianDeficit(eps_coeff=0.35), [91.15734, 66.228381, 132.456762, 94.90156, 79.198215]),
-     (NiayifarGaussianDeficit(), [92.880786, 67.440393, 134.880786, 84.811162, 73.880786]),
-     (CarbajofuertesGaussianDeficit(), [102.914211, 68.866465, 137.866624, 102.914211, 85.457105]),
-     (TurboGaussianDeficit(), [76.674176, 41.548202, 83.096405, 64.831198, 76.143396]),
-     ])
+    [
+        (NOJDeficit(), [100., 75., 150., 100., 100.]),
+        (NOJLocalDeficit(), [71., 46., 92., 71., 61.5]),
+        (TurboNOJDeficit(), [99.024477, 61.553917, 123.107833, 92.439673, 97.034049]),
+        (BastankhahGaussianDeficit(), [83.336286, 57.895893, 115.791786, 75.266662, 83.336286]),
+        (IEA37SimpleBastankhahGaussianDeficit(), [103.166178, 67.810839, 135.621678, 103.166178, 103.166178]),
+        (FugaDeficit(LUT_path=tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/'), [100, 50, 100, 100, 100]),
+        (GCLDeficit(), [156.949964, 97.763333, 195.526667, 113.225695, 111.340236]),
+        (GCLLocalDeficit(), [156.949964, 97.763333, 195.526667, 113.225695, 111.340236]),
+        (ZongGaussianDeficit(eps_coeff=0.35), [91.15734, 66.228381, 132.456762, 94.90156, 79.198215]),
+        (NiayifarGaussianDeficit(), [92.880786, 67.440393, 134.880786, 84.811162, 73.880786]),
+        (CarbajofuertesGaussianDeficit(), [102.914211, 68.866465, 137.866624, 102.914211, 85.457105]),
+        (TurboGaussianDeficit(), [76.674176, 41.548202, 83.096405, 64.831198, 76.143396]),
+    ])
 def test_wake_radius(deficitModel, wake_radius_ref):
 
     mean_ref = [105, 68, 135, 93, 123]
@@ -262,19 +264,27 @@ def test_wake_radius(deficitModel, wake_radius_ref):
     wfm(x=[0, 500], y=[0, 0], wd=[30], ws=[10])
 
     if 0:
+        ax1, ax2 = plt.subplots(2, 1)[1]
         sim_res = wfm([0], [0], wd=[270], ws=10)
-        sim_res.flow_map(HorizontalGrid(x=np.arange(-100, 1500, 10))).WS_eff.plot()
+        fm = sim_res.flow_map(HorizontalGrid(x=np.arange(-100, 1500, 10)))
+        fm.WS_eff.plot(ax=ax1)
         x = np.arange(0, 1500, 10)
         wr = deficitModel.wake_radius(
+            WS_ilk=np.reshape([10], (1, 1, 1)),
             D_src_il=np.reshape([130], (1, 1)),
             dw_ijlk=np.reshape(x, (1, len(x), 1, 1)),
             ct_ilk=sim_res.CT.values,
             TI_ilk=np.reshape(sim_res.TI.values, (1, 1, 1)),
             TI_eff_ilk=sim_res.TI_eff.values)[0, :, 0, 0]
-        plt.title(deficitModel.__class__.__name__)
-        plt.plot(x, wr)
-        plt.plot(x, -wr)
-        plt.axis('equal')
+        ax1.set_title(deficitModel.__class__.__name__)
+        ax1.plot(x, wr)
+        ax1.plot(x, -wr)
+        ax1.axvline(500, linestyle='--', color='k')
+        ax1.axis('equal')
+        fm.WS_eff.sel(x=500).plot(ax=ax2)
+        ax2.axvline(-wr[x == 500], color='k')
+        ax2.axvline(wr[x == 500], color='k')
+        ax2.grid()
         plt.show()
 
 
@@ -284,7 +294,6 @@ def test_wake_radius_not_implemented():
     windTurbines = IEA37_WindTurbines()
 
     class MyDeficitModel(WakeDeficitModel):
-        args4deficit = ['WS_ilk', 'dw_ijlk', 'cw_ijlk']
 
         def calc_deficit(self, WS_ilk, dw_ijlk, cw_ijlk, **_):
             # 10% deficit in downstream triangle
@@ -458,22 +467,24 @@ def test_deficitModel_wake_map_convection_all2all(deficitModel, ref):
                   26419.65189, 40603.68618, 45768.58091, 24390.71103, 14567.43106,
                   15197.82861, 32985.67922, 75062.92788, 18281.21981, 12470.01322,
                   8433.77587])),
-     (ZongGaussian,
-      (354835.94834511646, [8980.11244, 8114.89785, 11330.44682, 13937.09531, 19989.40257,
-                            25164.19987, 39070.50626, 41250.73072, 22629.88335, 12975.84852,
-                            14779.98654, 32311.99639, 66753.4865, 17907.85342, 12127.16844,
-                            7512.33335])),
-     (NiayifarGaussian,
-      (362228.4003016239, [9210.01349, 8330.06642, 11392.04851, 14082.13366, 20643.45247,
-                           25426.07466, 39282.9259, 42344.50431, 23209.23399, 13390.08421,
-                           14807.66824, 32535.89096, 69640.3283, 18031.93957, 12149.88163,
-                           7752.15401])),
+     (ZongGaussian, (354835.94834511646,
+                     [8980.11244, 8114.89785, 11330.44682, 13937.09531, 19989.40257,
+                      25164.19987, 39070.50626, 41250.73072, 22629.88335, 12975.84852,
+                      14779.98654, 32311.99639, 66753.4865, 17907.85342, 12127.16844,
+                      7512.33335])),
+     (NiayifarGaussian, (362228.4003016239,
+                         [9210.01349, 8330.06642, 11392.04851, 14082.13366, 20643.45247,
+                          25426.07466, 39282.9259, 42344.50431, 23209.23399, 13390.08421,
+                          14807.66824, 32535.89096, 69640.3283, 18031.93957, 12149.88163,
+                          7752.15401])),
      ])
 def test_IEA37_ex16_windFarmModel(windFarmModel, aep_ref):
     site = IEA37Site(16)
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
-    wf_model = windFarmModel(site, windTurbines, turbulenceModel=GCLTurbulence())
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', category=DeprecationWarning)
+        wf_model = windFarmModel(site, windTurbines, turbulenceModel=GCLTurbulence())
     wf_model.superpositionModel = SquaredSum()
 
     aep_ilk = wf_model(x, y, wd=np.arange(0, 360, 22.5), ws=[9.8]).aep_ilk(normalize_probabilities=True)
@@ -505,19 +516,12 @@ def test_own_deficit_is_zero():
                                                        [8, 8, 8]])])  # -2 downstream
 def test_wake_blockage_split(upstream_only, ref):
     class MyWakeModel(WakeDeficitModel):
-        args4deficit = []
-
-        def __init__(self):
-            DeficitModel.__init__(self, groundModel=None)
-
         def calc_deficit(self, dw_ijlk, **kwargs):
             return np.ones_like(dw_ijlk) * 2
 
     class MyBlockageModel(BlockageDeficitModel):
-        args4deficit = []
 
         def __init__(self, upstream_only):
-            DeficitModel.__init__(self, groundModel=None)
             BlockageDeficitModel.__init__(self, upstream_only=upstream_only)
 
         def calc_deficit(self, dw_ijlk, **kwargs):
@@ -539,16 +543,14 @@ def test_wake_blockage_split(upstream_only, ref):
 
 @pytest.mark.parametrize('deficitModel', get_models(WakeDeficitModel))
 def test_All2AllIterative_WakeDeficit_RotorAvg(deficitModel):
+
     site = IEA37Site(16)
     windTurbines = IEA37_WindTurbines()
     wf_model = All2AllIterative(site, windTurbines,
-                                wake_deficitModel=deficitModel(),
-                                turbulenceModel=STF2017TurbulenceModel(),
-                                rotorAvgModel=CGIRotorAvg(4))
-    sim_res = wf_model([0, 500, 1000, 1500], [0, 0, 0, 0],
-                       wd=270, ws=10)
+                                wake_deficitModel=deficitModel(rotorAvgModel=CGIRotorAvg(4)),
+                                turbulenceModel=STF2017TurbulenceModel())
+    sim_res = wf_model([0, 500, 1000, 1500], [0, 0, 0, 0], wd=270, ws=10)
 
     if 0:
-        sim_res.flow_map(
-            XYGrid(x=np.linspace(-200, 2000, 100))).plot_wake_map()
+        sim_res.flow_map(XYGrid(x=np.linspace(-200, 2000, 100))).plot_wake_map()
         plt.show()

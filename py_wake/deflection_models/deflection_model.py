@@ -1,8 +1,12 @@
 from abc import ABC, abstractmethod
+from py_wake.utils.model_utils import method_args
 
 
 class DeflectionModel(ABC):
-    args4deflection = ["ct_ilk"]
+
+    @property
+    def args4deflection(self):
+        return method_args(self.calc_deflection)
 
     @abstractmethod
     def calc_deflection(self, dw_ijl, hcw_ijl, dh_ijl, **kwargs):

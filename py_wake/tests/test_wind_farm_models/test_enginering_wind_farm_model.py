@@ -1,34 +1,50 @@
-from py_wake import np
-import xarray as xr
-import pytest
-from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
-from py_wake import NOJ, examples
-from py_wake.site._site import UniformSite
-from py_wake.tests import npt
-from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y, V80
-from py_wake.flow_map import HorizontalGrid
-from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind
-from py_wake.deficit_models.noj import NOJDeficit
-from py_wake.superposition_models import SquaredSum, WeightedSum
-from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
-from py_wake.turbulence_models.stf import STF2005TurbulenceModel
-from py_wake.deflection_models.jimenez import JimenezWakeDeflection
-from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit, BastankhahGaussian
+import os
+
 from numpy import newaxis as na
+import pytest
+
 import matplotlib.pyplot as plt
-from py_wake.utils.gradients import autograd, cs, fd, plot_gradients
+import pandas as pd
+from py_wake import NOJ, examples
+from py_wake import np
 from py_wake.deficit_models.fuga import FugaDeficit
-from py_wake.superposition_models import LinearSum
+from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit, BastankhahGaussian,\
+    IEA37SimpleBastankhahGaussian
 from py_wake.deficit_models.no_wake import NoWakeDeficit
+from py_wake.deficit_models.noj import NOJDeficit
+from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
+from py_wake.deflection_models.jimenez import JimenezWakeDeflection
+from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y, V80
+from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
+from py_wake.flow_map import HorizontalGrid
+from py_wake.site._site import UniformSite
+from py_wake.superposition_models import LinearSum, SuperpositionModel
+from py_wake.superposition_models import SquaredSum, WeightedSum
+from py_wake.tests import npt
+from py_wake.turbulence_models.stf import STF2005TurbulenceModel
+from py_wake.utils.gradients import autograd, cs, fd, plot_gradients
+from py_wake.utils.profiling import profileit
+from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.wind_turbines import WindTurbines
+from py_wake.wind_turbines.power_ct_functions import PowerCtFunctionList, PowerCtTabular
 from py_wake.wind_turbines.wind_turbines_deprecated import DeprecatedOneTypeWindTurbines
-import pandas as pd
-import os
-from py_wake.utils.profiling import profileit
+import xarray as xr
+from py_wake.rotor_avg_models.rotor_avg_model import CGIRotorAvg
+import warnings
 
 
 WindFarmModel.verbose = False
+
+
+class OperatableV80(V80):
+    def __init__(self, method='linear'):
+        V80.__init__(self, method=method)
+        self.powerCtFunction = PowerCtFunctionList(
+            key='operating',
+            powerCtFunction_lst=[PowerCtTabular(ws=[0, 100], power=[0, 0], power_unit='w', ct=[0, 0]),  # 0=No power and ct
+                                 self.powerCtFunction],  # 1=Normal operation
+            default_value=1)
 
 
 def test_wake_model():
@@ -95,14 +111,17 @@ def test_str():
                                 wake_deficitModel=NOJDeficit(),
                                 superpositionModel=SquaredSum(),
                                 blockage_deficitModel=SelfSimilarityDeficit(),
+                                rotorAvgModel=CGIRotorAvg(4),
                                 deflectionModel=JimenezWakeDeflection(),
                                 turbulenceModel=STF2005TurbulenceModel())
-    assert str(wf_model) == "All2AllIterative(EngineeringWindFarmModel, NOJDeficit-wake, SelfSimilarityDeficit-blockage, RotorCenter-rotor-average, SquaredSum-superposition, JimenezWakeDeflection-deflection, STF2005TurbulenceModel-turbulence)"
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', DeprecationWarning)
+        assert str(wf_model) == "All2AllIterative(EngineeringWindFarmModel, NOJDeficit-wake, SelfSimilarityDeficit-blockage, SquaredSum-superposition, JimenezWakeDeflection-deflection, STF2005TurbulenceModel-turbulence)"
 
 
 @pytest.mark.parametrize('wake_deficitModel,deflectionModel,superpositionModel',
                          [(NOJDeficit(), None, SquaredSum()),
-                          (IEA37SimpleBastankhahGaussianDeficit(), JimenezWakeDeflection(), WeightedSum())])
+                             (IEA37SimpleBastankhahGaussianDeficit(), JimenezWakeDeflection(), WeightedSum())])
 def test_huge_flow_map(wake_deficitModel, deflectionModel, superpositionModel):
     site = IEA37Site(16)
     windTurbines = IEA37_WindTurbines()
@@ -166,7 +185,6 @@ def test_aep_mixed_type():
 
 def test_dAEP_2wt():
     site = Hornsrev1Site()
-    iea37_site = IEA37Site(16)
 
     wsp_cut_in = 4
     wsp_cut_out = 25
@@ -198,7 +216,7 @@ def test_dAEP_2wt():
     wt = DeprecatedOneTypeWindTurbines(name='test', diameter=130, hub_height=110,
                                        ct_func=ct, power_func=power, power_unit='w')
     wt.set_gradient_funcs(dpower, dct)
-    wfm = IEA37SimpleBastankhahGaussian(site, wt)
+    wfm = PropagateDownwind(site, wt, IEA37SimpleBastankhahGaussianDeficit())
 
     # plot 2 wt case
     x, y = np.array([[0, 130 * 4], [0, 0]], dtype=float)
@@ -455,15 +473,11 @@ def test_time_series_operating_wrong_shape():
     wd, ws, ws_std = [d[k][:6 * 24] for k in ['wd', 'ws', 'ws_std']]
     ws += 3
     t = np.arange(6 * 24)
-    wt = V80()
+    wt = OperatableV80()
     site = Hornsrev1Site()
 
     # replace powerCtFunction
-    wt.powerCtFunction = PowerCtFunctionList(
-        key='operating',
-        powerCtFunction_lst=[PowerCtTabular(ws=[0, 100], power=[0, 0], power_unit='w', ct=[0, 0]),  # 0=No power and ct
-                             wt.powerCtFunction],  # 1=Normal operation
-        default_value=1)
+
     wfm = NOJ(site, wt)
     x, y = site.initial_position.T
     operating = (t < 48) | (t > 72)
@@ -475,7 +489,7 @@ def test_aep_wind_atlas_method():
     site = Hornsrev1Site()
 
     wt = IEA37_WindTurbines()
-    wfm = IEA37SimpleBastankhahGaussian(site, wt)
+    wfm = PropagateDownwind(site, wt, IEA37SimpleBastankhahGaussianDeficit(), superpositionModel=SquaredSum())
     x, y = [0], [0]
     wd = np.arange(360)
     aep_lps = wfm(x, y, wd=wd, ws=np.arange(3, 27)).aep(linear_power_segments=True)

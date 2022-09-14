@@ -1,12 +1,13 @@
 from numpy import newaxis as na
 from py_wake import np
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel
-from py_wake.utils.area_overlapping_factor import AreaOverlappingFactor
 from py_wake.superposition_models import SqrMaxSum
 from py_wake.utils.gradients import cabs
+from py_wake.deficit_models.deficit_model import WakeRadiusTopHat
+from py_wake.rotor_avg_models.area_overlap_model import AreaOverlapAvgModel
 
 
-class CrespoHernandez(TurbulenceModel, AreaOverlappingFactor):
+class CrespoHernandez(TurbulenceModel, WakeRadiusTopHat):
     """
     Implemented according to:
     A. Crespo and J. Hernández
@@ -14,10 +15,11 @@ class CrespoHernandez(TurbulenceModel, AreaOverlappingFactor):
     J. of Wind Eng. and Industrial Aero. 61 (1996) 71-85
 
     """
-    args4addturb = ['dw_ijlk', 'cw_ijlk', 'D_src_il', 'ct_ilk', 'TI_ilk', 'D_dst_ijl', 'wake_radius_ijlk']
 
-    def __init__(self, addedTurbulenceSuperpositionModel=SqrMaxSum(), **kwargs):
-        TurbulenceModel.__init__(self, addedTurbulenceSuperpositionModel, **kwargs)
+    def __init__(self, addedTurbulenceSuperpositionModel=SqrMaxSum(),
+                 rotorAvgModel=AreaOverlapAvgModel(), groundModel=None):
+        TurbulenceModel.__init__(self, addedTurbulenceSuperpositionModel, rotorAvgModel=rotorAvgModel,
+                                 groundModel=groundModel)
 
     def calc_added_turbulence(self, dw_ijlk, cw_ijlk, D_src_il, ct_ilk, TI_ilk, D_dst_ijl, wake_radius_ijlk, **_):
         """ Calculate the added turbulence intensity at locations specified by
@@ -37,6 +39,4 @@ class CrespoHernandez(TurbulenceModel, AreaOverlappingFactor):
         TI_add_ijlk = 0.73 * a_ilk[:, na, :, :]**0.8325 * TI_ilk[:, na, :, :]**0.0325 * \
             cabs(D_src_il[:, na, :, na] / dw_ijlk_gt0)**(0.32) * (dw_ijlk > 0)
 
-        area_overlap_ijlk = self.overlapping_area_factor(wake_radius_ijlk, dw_ijlk, cw_ijlk, D_src_il, D_dst_ijl)
-
-        return TI_add_ijlk * area_overlap_ijlk * (dw_ijlk > 0)  # ensure zero upstream
+        return TI_add_ijlk * (cw_ijlk < wake_radius_ijlk) * (dw_ijlk > 0)  # ensure zero upstream

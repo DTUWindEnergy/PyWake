@@ -25,9 +25,8 @@ def test_yaw_wrong_name():
 def test_yaw_dimensions():
     site = Hornsrev1Site()
     windTurbines = HornsrevV80()
-    wake_deficitModel = NOJDeficit()
 
-    wf_model = PropagateDownwind(site, windTurbines, wake_deficitModel=wake_deficitModel)
+    wf_model = NOJ(site, windTurbines)
 
     x, y = wt9_x, wt9_y
 

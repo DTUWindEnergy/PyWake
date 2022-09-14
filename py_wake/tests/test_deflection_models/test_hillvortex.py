@@ -78,7 +78,7 @@ def test_N():
         return fm.min_WS_eff().values[-1]
 
     N_lst = [10, 20, 100]
-    res = [timeit(deflection_20d, min_runs=10)(N) for N in N_lst]
+    res = [timeit(deflection_20d, min_runs=1)(N) for N in N_lst]
     plt.plot(N_lst, [d for d, _ in res])
     plt.ylabel('Deflection 20D downstream [m]')
     plt.xlabel('N')

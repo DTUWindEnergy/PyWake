@@ -1,2 +1,4 @@
-from .rotor_avg_model import RotorAvgModel, EqGridRotorAvg, GQGridRotorAvg, GridRotorAvg, PolarGridRotorAvg, RotorCenter,\
+from .rotor_avg_model import RotorAvgModel, RotorCenter, EqGridRotorAvg, GQGridRotorAvg, GridRotorAvg, PolarGridRotorAvg, \
     CGIRotorAvg, WSPowerRotorAvg, polar_gauss_quadrature, gauss_quadrature
+from .area_overlap_model import AreaOverlapAvgModel
+from .gaussian_overlap_model import GaussianOverlapAvgModel

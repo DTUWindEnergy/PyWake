@@ -124,16 +124,3 @@ def test_convergence2():
     if 0:
         sim_res.flow_map().plot_wake_map()
         plt.show()
-
-
-def test_convergence3():
-    # Wake of WT1 makes WT0 and WT2 unstable as in test_convergence
-    wfm = get_convergence_wfm([-400, -200, 0, 200], [1, 1, 1, .955], NOJDeficit())
-
-    sim_res = wfm(np.r_[200, -400, 0, [0] * 9], np.r_[-100, -50, 0, np.arange(9) * 200 + 500],
-                  wd=270, ws=4.6)
-    assert wfm.blockage_deficitModel.counter == 7
-
-    if 0:
-        sim_res.flow_map().plot_wake_map()
-        plt.show()

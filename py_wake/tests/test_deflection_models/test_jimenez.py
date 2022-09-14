@@ -1,12 +1,14 @@
-from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian
+from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit
 from py_wake.examples.data.hornsrev1 import V80
 from py_wake.examples.data.iea37._iea37 import IEA37Site
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
-from py_wake.flow_map import YZGrid, XYGrid, Points, XZGrid
+from py_wake.flow_map import YZGrid, XYGrid, XZGrid
 import matplotlib.pyplot as plt
 from py_wake import np
 import pytest
 from py_wake.tests import npt
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind
+from py_wake.superposition_models import SquaredSum
 
 
 @pytest.mark.parametrize('yaw,tilt,cx,cz', [
@@ -19,7 +21,8 @@ def test_yaw_tilt(yaw, tilt, cx, cz):
     windTurbines = V80()
 
     D = windTurbines.diameter()
-    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines, deflectionModel=JimenezWakeDeflection())
+    wfm = PropagateDownwind(site, windTurbines, IEA37SimpleBastankhahGaussianDeficit(), superpositionModel=SquaredSum(),
+                            deflectionModel=JimenezWakeDeflection())
     x_lst = np.linspace(-200, 1000, 100)
     y_lst = np.linspace(-100, 100, 201)
     z_lst = np.arange(10, 200, 1)

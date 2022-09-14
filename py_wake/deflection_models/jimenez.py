@@ -11,8 +11,6 @@ class JimenezWakeDeflection(DeflectionModel):
     the wake deflection of a wind turbine in yaw. Wind Energ., 13: 559-572. doi:10.1002/we.380
     """
 
-    args4deflection = ['D_src_il', 'yaw_ilk', 'ct_ilk', 'tilt_ilk']
-
     def __init__(self, N=20, beta=.1):
         self.beta = beta
         self.N = N

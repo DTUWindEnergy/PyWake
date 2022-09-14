@@ -95,7 +95,6 @@ def test_NOJLocal_6_turbines_in_row():
 
 def test_NOJConvection():
     site = UniformSite([1], 0.1)
-    wfm = NOJ(site, NibeA0(), superpositionModel=WeightedSum())
-    with pytest.raises(NotImplementedError):
-        wfm([0, 100], [0, 100])
-    wfm = None
+    with pytest.raises(NotImplementedError, match='calc_deficit_convection not implemented for NOJ'):
+        wfm = NOJ(site, NibeA0(), superpositionModel=WeightedSum())
+        wfm([0, 500], [0, 0])

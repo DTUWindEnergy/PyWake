@@ -4,6 +4,7 @@ from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
 from py_wake.utils.gradients import hypot
 from py_wake.deficit_models.utils import a0
+import warnings
 
 
 class RankineHalfBody(BlockageDeficitModel):
@@ -16,12 +17,10 @@ class RankineHalfBody(BlockageDeficitModel):
             induction and wind farm blockage - Technical Paper, Frazer-Nash Consultancy, 2019
     """
 
-    args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk']
-
-    def __init__(self, limiter=1e-10, exclude_wake=True, superpositionModel=None, groundModel=None,
-                 upstream_only=False):
-        DeficitModel.__init__(self, groundModel=groundModel)
-        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel)
+    def __init__(self, limiter=1e-10, exclude_wake=True, superpositionModel=None,
+                 rotorAvgModel=None, groundModel=None, upstream_only=False):
+        BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
         # limiter to avoid singularities
         self.limiter = limiter
         # if used in a wind farm simulation, set deficit in wake region to
@@ -32,8 +31,8 @@ class RankineHalfBody(BlockageDeficitModel):
         """
         Find all points lying outside Rankine Half Body, stagnation line given on p.3
         """
-        with np.warnings.catch_warnings():
-            np.warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
             cos_ijlk = dw_ijlk / r_ijlk
         # avoid division by zero
         f_ilk = a0_ilk * R_il[:, :, na]

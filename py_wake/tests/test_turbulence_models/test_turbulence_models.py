@@ -18,9 +18,7 @@ from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2A
 from py_wake.turbulence_models.gcl_turb import GCLTurbulence
 import matplotlib.pyplot as plt
 from py_wake.turbulence_models.crespo import CrespoHernandez
-from py_wake.deficit_models.gaussian import BastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit,\
-    IEA37SimpleBastankhahGaussian
-import xarray as xr
+from py_wake.deficit_models.gaussian import BastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 from py_wake.rotor_avg_models.rotor_avg_model import EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
@@ -34,8 +32,8 @@ WindFarmModel.verbose = False
                                 0.075, 0.075, 0.075, 0.075, 0.104, 0.136, 0.098, 0.104]),
     (STF2017TurbulenceModel(), [0.075, 0.075, 0.075, 0.114, 0.197, 0.142, 0.075, 0.075,
                                 0.075, 0.075, 0.075, 0.075, 0.115, 0.158, 0.108, 0.115]),
-    (STF2017TurbulenceModel(weight_function=IECWeight()), [0.075, 0.075, 0.075, 0.215, 0.229, 0.179, 0.075, 0.075, 0.075,
-                                                           0.075, 0.075, 0.075, 0.075, 0.215, 0.075, 0.075]),
+    (STF2017TurbulenceModel(weight_function=IECWeight()),
+     [0.075, 0.075, 0.075, 0.215, 0.229, 0.179, 0.075, 0.075, 0.075, 0.075, 0.075, 0.075, 0.075, 0.215, 0.075, 0.075]),
     (GCLTurbulence(), [0.075, 0.075, 0.075, 0.117, 0.151, 0.135, 0.075, 0.075, 0.075,
                        0.075, 0.075, 0.075, 0.128, 0.127, 0.117, 0.128]),
     (CrespoHernandez(), [0.075, 0.075, 0.075, 0.129, 0.17, 0.151, 0.075,
@@ -47,21 +45,21 @@ def test_models_with_noj(turbulence_model, ref_ti):
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
 
-    for wake_model in [NOJ(site, windTurbines, turbulenceModel=turbulence_model),
-                       All2AllIterative(site, windTurbines,
-                                        wake_deficitModel=NOJDeficit(),
-                                        superpositionModel=SquaredSum(),
-                                        turbulenceModel=turbulence_model),
-                       ]:
+    for wfm in [NOJ(site, windTurbines, turbulenceModel=turbulence_model),
+                All2AllIterative(site, windTurbines,
+                                 wake_deficitModel=NOJDeficit(),
+                                 superpositionModel=SquaredSum(),
+                                 turbulenceModel=turbulence_model),
+                ]:
 
-        res = wake_model(x, y)
+        res = wfm(x, y)
         # print(turbulence_model.__class__.__name__, np.round(res.TI_eff_ilk[:, 0, 0], 3).tolist())
         if 0:
-            plt.title("%s, %s" % (wake_model.__class__.__name__, turbulence_model.__class__.__name__))
+            plt.title("%s, %s" % (wfm.__class__.__name__, turbulence_model.__class__.__name__))
             res.flow_map(wd=0).plot_ti_map()
             plt.show()
 
-        npt.assert_array_almost_equal(res.TI_eff_ilk[:, 0, 0], ref_ti, 3)
+        npt.assert_array_almost_equal(res.TI_eff_ilk[:, 0, 0], ref_ti, 3, err_msg=str(wfm))
 
 
 @pytest.mark.parametrize('turbulence_model,ref_ti', [
@@ -149,9 +147,10 @@ def test_own_turbulence_is_zero(turbulenceModel):
 def test_RotorAvg_deficit():
     site = IEA37Site(16)
     windTurbines = IEA37_WindTurbines()
-    wfm = IEA37SimpleBastankhahGaussian(site,
-                                        windTurbines,
-                                        turbulenceModel=STF2017TurbulenceModel())
+    wfm = PropagateDownwind(site, windTurbines,
+                            wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
+                            superpositionModel=SquaredSum(),
+                            turbulenceModel=STF2017TurbulenceModel())
     flow_map = wfm([0, 500], [0, 0], wd=270, ws=10).flow_map(HorizontalGrid(x=[500], y=np.arange(-100, 100)))
     plt.plot(flow_map.Y[:, 0], flow_map.TI_eff_xylk[:, 0, 0, 0])
     R = windTurbines.diameter() / 2
@@ -165,9 +164,10 @@ def test_RotorAvg_deficit():
             ('RotorCGI4', CGIRotorAvg(21), 0.19849398318014355)]:
 
         # test with PropagateDownwind
-        wfm = IEA37SimpleBastankhahGaussian(site,
-                                            windTurbines,
-                                            turbulenceModel=STF2017TurbulenceModel(rotorAvgModel=rotorAvgModel))
+        wfm = PropagateDownwind(site, windTurbines,
+                                wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
+                                superpositionModel=SquaredSum(),
+                                turbulenceModel=STF2017TurbulenceModel(rotorAvgModel=rotorAvgModel))
         sim_res = wfm([0, 500], [0, 0], wd=270, ws=10)
         npt.assert_almost_equal(ref1, sim_res.TI_eff_ilk[1, 0, 0], ref1, err_msg=name)
 
@@ -186,26 +186,6 @@ def test_RotorAvg_deficit():
     plt.close('all')
 
 
-@pytest.mark.parametrize('WFM', [All2AllIterative, PropagateDownwind])
-@pytest.mark.parametrize('turbulenceModel', get_models(TurbulenceModel))
-def test_with_all_turbulence_models(WFM, turbulenceModel):
-    site = IEA37Site(16)
-    windTurbines = IEA37_WindTurbines()
-    if turbulenceModel is None:
-        return
-
-    wfm = WFM(site, windTurbines, wake_deficitModel=NoWakeDeficit(),
-              rotorAvgModel=CGIRotorAvg(4),
-              superpositionModel=LinearSum(),
-              turbulenceModel=turbulenceModel())
-
-    wfm2 = WFM(site, windTurbines, wake_deficitModel=NoWakeDeficit(),
-               superpositionModel=LinearSum(),
-               turbulenceModel=turbulenceModel(rotorAvgModel=CGIRotorAvg(4)))
-    kwargs = {'x': [0, 0, 500, 500], 'y': [0, 500, 0, 500], 'wd': [0], 'ws': [8]}
-    npt.assert_array_equal(wfm(**kwargs).TI_eff, wfm2(**kwargs).TI_eff, turbulenceModel.__name__)
-
-
 @pytest.mark.parametrize('turbulenceModel', get_models(TurbulenceModel))
 def test_turbulence_models_upstream(turbulenceModel):
     site = IEA37Site(16)
@@ -214,9 +194,8 @@ def test_turbulence_models_upstream(turbulenceModel):
         return
 
     wfm = All2AllIterative(site, windTurbines, wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
-                           rotorAvgModel=CGIRotorAvg(4),
                            superpositionModel=LinearSum(),
-                           turbulenceModel=turbulenceModel())
+                           turbulenceModel=turbulenceModel(rotorAvgModel=CGIRotorAvg(4),))
     kwargs = {'x': [0, 0, 500, 500], 'y': [0, 500, 0, 500], 'wd': [0], 'ws': [8]}
 
     fm = wfm(**kwargs).flow_map()

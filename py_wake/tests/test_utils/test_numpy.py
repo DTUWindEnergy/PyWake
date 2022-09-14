@@ -27,6 +27,8 @@ from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2A
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 
+from py_wake.rotor_avg_models.gaussian_overlap_model import GaussianOverlapAvgModel
+
 
 @pytest.mark.parametrize('v,dtype,dtype32', [(5., float, np.float32),
                                              (5 + 0j, complex, np.complex64)])
@@ -110,27 +112,32 @@ def check_numpy32(wfm, name):
 
 
 @pytest.mark.parametrize('model_type,model',
-                         [(mt.__name__, m) for mt in [WindFarmModel,
-                                                      WakeDeficitModel,
-                                                      BlockageDeficitModel,
-                                                      SuperpositionModel,
-                                                      RotorAvgModel,
-                                                      DeflectionModel,
-                                                      TurbulenceModel,
-                                                      AddedTurbulenceSuperpositionModel,
-                                                      GroundModel,
-                                                      Site,
-                                                      Shear,
-                                                      StraightDistance,
-                                                      ] for m in get_models(mt)])
+                         [(mt.__name__, m) for mt in [
+                             WindFarmModel,
+                             WakeDeficitModel,
+                             BlockageDeficitModel,
+                             SuperpositionModel,
+                             RotorAvgModel,
+                             DeflectionModel,
+                             TurbulenceModel,
+                             AddedTurbulenceSuperpositionModel,
+                             GroundModel,
+                             Site,
+                             Shear,
+                             StraightDistance,
+                         ] for m in get_models(mt)])
 def test_all_models(model_type, model):
     if model is None:
         return
+
     d = {'WindFarmModel': (PropagateDownwind, All2AllIterative)[model_type == 'BlockageDeficitModel'],
          'WakeDeficitModel': IEA37SimpleBastankhahGaussianDeficit,
          'TurbulenceModel': STF2005TurbulenceModel}
+
     if model_type == 'AddedTurbulenceSuperpositionModel':
         d['TurbulenceModel'] = STF2017TurbulenceModel(addedTurbulenceSuperpositionModel=model())
+    elif model in [GaussianOverlapAvgModel]:
+        d['TurbulenceModel'] = None
     elif model_type == 'GroundModel':
         d['WakeDeficitModel'] = IEA37SimpleBastankhahGaussianDeficit(groundModel=model())
     elif model_type in ['Site', 'Shear']:

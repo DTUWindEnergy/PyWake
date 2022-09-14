@@ -1,28 +1,35 @@
 from abc import ABC, abstractmethod
 from py_wake import np
 from numpy import newaxis as na
-import inspect
 from py_wake.utils.gradients import cabs
-from py_wake.ground_models.ground_models import NoGround
+from py_wake.utils.model_utils import method_args, RotorAvgAndGroundModelContainer
+from py_wake.superposition_models import WeightedSum
 
 
-class DeficitModel(ABC):
+class DeficitModel(ABC, RotorAvgAndGroundModelContainer):
     deficit_initalized = False
     _groundModel = None
+    _rotorAvgModel = None
 
-    def __init__(self, groundModel=None):
-        if not hasattr(self, 'args4deficit'):
-            self.args4deficit = set(inspect.getfullargspec(self.calc_deficit).args) - {'self'}
-        self.groundModel = groundModel or NoGround()
+    def __init__(self, rotorAvgModel=None, groundModel=None, use_effective_ws=True, use_effective_ti=False):
+        RotorAvgAndGroundModelContainer.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel)
+
+        self.WS_key = ['WS_ilk', 'WS_eff_ilk'][use_effective_ws]
+        self.TI_key = ['TI_ilk', 'TI_eff_ilk'][use_effective_ti]
 
     @property
-    def groundModel(self):
-        return self._groundModel
+    def additional_args(self):
+        return {self.WS_key, self.TI_key}
 
-    @groundModel.setter
-    def groundModel(self, groundModel):
-        self._groundModel = groundModel
-        groundModel.deficitModel = self
+    @property
+    def args4deficit(self):
+        args4deficit = RotorAvgAndGroundModelContainer.args4model.fget(self)  # @UndefinedVariable
+        args4deficit |= method_args(self.calc_deficit)
+        args4deficit |= method_args(self.calc_deficit_downwind)
+        args4deficit |= method_args(self._calc_layout_terms)
+        args4deficit |= self.additional_args
+
+        return args4deficit
 
     def _calc_layout_terms(self, **_):
         """Calculate layout dependent terms, which is not updated during simulation"""
@@ -36,9 +43,6 @@ class DeficitModel(ABC):
         for all wind directions(l) and wind speeds(k) on a set of points(j)
 
         This method must be overridden by subclass
-
-        Arguments required by this method must be added to the class list
-        args4deficit
 
         See documentation of EngineeringWindFarmModel for a list of available input arguments
 
@@ -55,9 +59,19 @@ class DeficitModel(ABC):
         else:
             return self.calc_deficit(yaw_ilk=yaw_ilk, **kwargs)
 
+    def __call__(self, **kwargs):
+        return self.wrap(self.calc_deficit_downwind)(**kwargs)
+
+    def calc_layout_terms(self, **kwargs):
+        return self.wrap(self._calc_layout_terms, '_calc_layout_terms')(**kwargs)
+
+
+class WakeRadiusTopHat():
+    """Super class of Models with a tophat shapt limited by the wake radius, e.g. NOJDeficit, GCLTurbulence etc"""
+
 
 class BlockageDeficitModel(DeficitModel):
-    def __init__(self, upstream_only=False, superpositionModel=None):
+    def __init__(self, upstream_only=False, superpositionModel=None, rotorAvgModel=None, groundModel=None):
         """Parameters
         ----------
         upstream_only : bool, optional
@@ -66,11 +80,12 @@ class BlockageDeficitModel(DeficitModel):
             Superposition model used to sum blockage deficit.
             If None, the superposition model of the wind farm model is used
         """
+        DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel)
         self.upstream_only = upstream_only
         self.superpositionModel = superpositionModel
 
     def calc_blockage_deficit(self, dw_ijlk, **kwargs):
-        deficit_ijlk = self.calc_deficit(dw_ijlk=dw_ijlk, **kwargs)
+        deficit_ijlk = self.wrap(self.calc_deficit)(dw_ijlk=dw_ijlk, **kwargs)
         if self.upstream_only:
             rotor_pos = -1e-10
             deficit_ijlk *= (dw_ijlk < rotor_pos)
@@ -102,6 +117,17 @@ class WakeDeficitModel(DeficitModel, ABC):
 
 
 class ConvectionDeficitModel(WakeDeficitModel):
+
+    @property
+    def args4deficit(self):
+        args4deficit = WakeDeficitModel.args4deficit.fget(self)
+        try:
+            if isinstance(self.windFarmModel.superpositionModel, WeightedSum):
+                args4deficit |= method_args(self.calc_deficit_convection)
+        except AttributeError:
+            # A deficit model instantiated and not attached to a wind farm model has no windFarmModel attribute)
+            pass
+        return args4deficit
 
     @abstractmethod
     def calc_deficit_convection(self):

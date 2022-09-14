@@ -11,8 +11,7 @@ from py_wake.wind_turbines._wind_turbines import WindTurbine
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 from py_wake.tests import npt
 from py_wake.deflection_models.fuga_deflection import FugaDeflection
-from scipy.interpolate.fitpack2 import InterpolatedUnivariateSpline
-from py_wake.examples.data.hornsrev1 import V80, Hornsrev1Site
+from scipy.interpolate import InterpolatedUnivariateSpline
 
 
 def test_fuga_deflection_vs_notebook():

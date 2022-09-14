@@ -9,7 +9,6 @@ from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit
 from py_wake.superposition_models import SquaredSum
-from py_wake.rotor_avg_models import RotorCenter
 import xarray as xr
 from py_wake.utils.gradients import hypot
 
@@ -536,7 +535,7 @@ def plot_windrose(case, mwc_out, cLES=cLES, cRANS=cRANS, lw=lw):
     '''
     plt.figure()
     fig, ax = plt.subplots(1, 1, figsize=(15, 5))
-    color = cm.tab10(np.linspace(0, 1, len(mwc_out[case]['deficit_setups'])))
+    color = cm.tab10(np.linspace(0, 1, len(mwc_out[case]['deficit_setups'])))  # @UndefinedVariable
     # Get reference data
     keys = ['WFdata', 'RANS', 'LES']
     dat = load_data(data_path, keys, case, 'WFeff')
@@ -582,7 +581,7 @@ def plot_rows(case, mwc_out, plot, cLES=cLES, cRANS=cRANS, lw=lw):
 
     plt.figure()
     fig, ax = plt.subplots(1, 1, figsize=(15, 5))
-    color = cm.tab10(np.linspace(0, 1, len(mwc_out[case]['deficit_setups'])))
+    color = cm.tab10(np.linspace(0, 1, len(mwc_out[case]['deficit_setups'])))  # @UndefinedVariable
     for key in dat.keys():
         if key[:6] == 'WFdata':
             ldata = ax.errorbar(dat[key][:, 0], dat[key][:, 1] / dat[key][0, 1], yerr=dat[key][:, 2] / np.sqrt(dat[key][:, 3]),

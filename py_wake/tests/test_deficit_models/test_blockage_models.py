@@ -15,12 +15,13 @@ from py_wake.examples.data import hornsrev1
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37_WindTurbines
 from py_wake.flow_map import XYGrid
-from py_wake.rotor_avg_models.rotor_avg_model import CGIRotorAvg
+from py_wake.rotor_avg_models.rotor_avg_model import CGIRotorAvg, RotorCenter
 from py_wake.superposition_models import LinearSum
 from py_wake.tests import npt
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.utils.model_utils import get_models
 from py_wake.wind_farm_models.engineering_models import All2AllIterative
+from py_wake.tests.test_wind_farm_models.test_enginering_wind_farm_model import OperatableV80
 
 
 debug = False
@@ -168,16 +169,15 @@ def test_aep_two_turbines(setup, blockage_model, blockage_loss):
 
 
 @pytest.mark.parametrize('deficitModel', get_models(BlockageDeficitModel))
-def test_All2AllIterative_Blockage_Deficit_RotorAvg(deficitModel):
+def test_All2AllIterative_all_blockage_DeficitModels_with_RotorAvg(deficitModel):
     if deficitModel is None:
         return
     site = IEA37Site(16)
     windTurbines = IEA37_WindTurbines()
     wf_model = All2AllIterative(site, windTurbines,
                                 wake_deficitModel=NoWakeDeficit(),
-                                blockage_deficitModel=deficitModel(),
-                                turbulenceModel=STF2017TurbulenceModel(),
-                                rotorAvgModel=CGIRotorAvg(4))
+                                blockage_deficitModel=deficitModel(rotorAvgModel=CGIRotorAvg(4)),
+                                turbulenceModel=STF2017TurbulenceModel())
     sim_res = wf_model([0, 500, 1000, 1500], [0, 0, 0, 0],
                        wd=270, ws=10)
 
@@ -185,3 +185,27 @@ def test_All2AllIterative_Blockage_Deficit_RotorAvg(deficitModel):
         sim_res.flow_map(
             XYGrid(x=np.linspace(-200, 2000, 100))).plot_wake_map()
         plt.show()
+
+
+def test_All2AllIterative_Blockage_Deficit_RotorAvg():
+    site = IEA37Site(16)
+    windTurbines = OperatableV80()
+    x = [0] + [-100] * 20
+    y = np.r_[0, np.linspace(0, 100, 20)]
+    operation = [1] + [0] * 20
+
+    for rotorAvgModel, ref in [(RotorCenter(), 9.773495754070602),
+                               (CGIRotorAvg(21), 9.793666125993367)]:
+        wf_model = All2AllIterative(site, windTurbines,
+                                    wake_deficitModel=NoWakeDeficit(),
+                                    blockage_deficitModel=SelfSimilarityDeficit(rotorAvgModel=rotorAvgModel))
+        sim_res = wf_model(x, y, operating=operation, wd=270, ws=10)
+
+        plt.plot(y[1:], sim_res.WS_eff.values[1:, 0, 0], label=rotorAvgModel.__class__.__name__)
+
+        # print(sim_res.WS_eff[2, 0, 0].item())
+        npt.assert_almost_equal(sim_res.WS_eff[2, 0, 0].item(), ref)
+    if 0:
+        plt.legend()
+        plt.show()
+    plt.close('all')

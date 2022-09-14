@@ -3,13 +3,14 @@ from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models.deficit_model import WakeDeficitModel
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.superposition_models import LinearSum
-na = np.newaxis
+from numpy import newaxis as na
+import warnings
 
 
 def my_power(term, factor):
-    with np.warnings.catch_warnings():
+    with warnings.catch_warnings():
         # if term is 0, exp(log(0))=0 as expected for a positive factor
-        np.warnings.filterwarnings('ignore', r'divide by zero encountered in log')
+        warnings.filterwarnings('ignore', r'divide by zero encountered in log')
         return np.exp(factor * np.log(term))
 
 
@@ -163,29 +164,20 @@ class GCLDeficit(WakeDeficitModel):
         on the rotor thrust and the ambient turbulence conditions, respectively.
     """
 
-    def __init__(self, use_effective_ws=False, use_effective_ti=False, groundModel=None):
-        DeficitModel.__init__(self, groundModel=groundModel)
-        self.use_effective_ws = use_effective_ws
-        self.use_effective_ti = use_effective_ti
-        self.args4deficit = ['WS_ilk', 'D_src_il', 'dw_ijlk', 'cw_ijlk', 'ct_ilk', 'TI_ilk']
-        if use_effective_ws:
-            self.args4deficit.append('WS_eff_ilk', )
-        if use_effective_ti:
-            self.args4deficit.append('TI_eff_ilk')
+    def __init__(self, use_effective_ws=False, use_effective_ti=False, rotorAvgModel=None, groundModel=None):
+        DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
+                              use_effective_ws=use_effective_ws, use_effective_ti=use_effective_ti)
 
-    def wake_radius(self, dw_ijlk, D_src_il, TI_ilk, ct_ilk, **kwargs):
-        if self.use_effective_ti:
-            TI_ilk = kwargs['TI_eff_ilk']
-        with np.warnings.catch_warnings():
+    def wake_radius(self, dw_ijlk, D_src_il, ct_ilk, **kwargs):
+        TI_ilk = kwargs[self.TI_key]
+        with warnings.catch_warnings():
             # if term is 0, exp(log(0))=0 as expected for a positive factor
-            np.warnings.filterwarnings('ignore', r'invalid value encountered in log')
+            warnings.filterwarnings('ignore', r'invalid value encountered in log')
             return get_Rw(x=dw_ijlk, R=(D_src_il / 2)[:, na, :, na], TI=TI_ilk[:, na], CT=ct_ilk[:, na])[0]
 
-    def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, TI_ilk, **kwargs):
-        if self.use_effective_ws:
-            WS_ilk = kwargs['WS_eff_ilk']
-        if self.use_effective_ti:
-            TI_ilk = kwargs['TI_eff_ilk']
+    def calc_deficit(self, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **kwargs):
+        WS_ilk = kwargs[self.WS_key]
+        TI_ilk = kwargs[self.TI_key]
         eps = 1e-10
         dw_ijlk_gt0 = np.maximum(dw_ijlk, eps)
         R_src_il = D_src_il / 2.
@@ -196,8 +188,10 @@ class GCLDeficit(WakeDeficitModel):
 class GCL(PropagateDownwind):
     def __init__(self, site, windTurbines, rotorAvgModel=None, superpositionModel=LinearSum(),
                  deflectionModel=None, turbulenceModel=None, groundModel=None):
-        PropagateDownwind.__init__(self, site, windTurbines, wake_deficitModel=GCLDeficit(groundModel=groundModel),
-                                   rotorAvgModel=rotorAvgModel, superpositionModel=superpositionModel,
+        PropagateDownwind.__init__(self, site, windTurbines,
+                                   wake_deficitModel=GCLDeficit(rotorAvgModel=rotorAvgModel,
+                                                                groundModel=groundModel),
+                                   superpositionModel=superpositionModel,
                                    deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
 
 
@@ -207,9 +201,12 @@ class GCLLocal(PropagateDownwind):
 
         PropagateDownwind.__init__(self, site, windTurbines,
                                    wake_deficitModel=GCLDeficit(
-                                       use_effective_ws=True, use_effective_ti=True, groundModel=groundModel),
-                                   rotorAvgModel=rotorAvgModel, superpositionModel=superpositionModel,
-                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
+                                       use_effective_ws=True, use_effective_ti=True,
+                                       rotorAvgModel=rotorAvgModel,
+                                       groundModel=groundModel),
+                                   superpositionModel=superpositionModel,
+                                   deflectionModel=deflectionModel, turbulenceModel=turbulenceModel,
+                                   )
 
 
 def main():

@@ -14,10 +14,9 @@ from py_wake.utils.gradients import cabs
 class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
     ams = 5
     invL = 0
-    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijlk', 'h_il', 'ct_ilk', 'D_src_il']
 
     def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/', remove_wriggles=False,
-                 method='linear', groundModel=None):
+                 method='linear', rotorAvgModel=None, groundModel=None):
         """
         Parameters
         ----------
@@ -29,8 +28,7 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
             and out in the lateral direction) is set to zero.
             This means that all speed-up regions are also removed
         """
-        DeficitModel.__init__(self, groundModel=groundModel)
-        BlockageDeficitModel.__init__(self, upstream_only=True)
+        BlockageDeficitModel.__init__(self, upstream_only=True, rotorAvgModel=rotorAvgModel, groundModel=groundModel)
         FugaUtils.__init__(self, LUT_path, on_mismatch='input_par')
         self.remove_wriggles = remove_wriggles
         x, y, z, du = self.load()
@@ -96,10 +94,9 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
 
 
 class FugaYawDeficit(FugaDeficit):
-    args4deficit = ['WS_ilk', 'WS_eff_ilk', 'dw_ijlk', 'hcw_ijlk', 'dh_ijlk', 'h_il', 'ct_ilk', 'D_src_il', 'yaw_ilk']
 
     def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/',
-                 remove_wriggles=False, method='linear', groundModel=None):
+                 remove_wriggles=False, method='linear', rotorAvgModel=None, groundModel=None):
         """
         Parameters
         ----------
@@ -111,8 +108,7 @@ class FugaYawDeficit(FugaDeficit):
             and out in the lateral direction) is set to zero.
             This means that all speed-up regions are also removed
         """
-        DeficitModel.__init__(self, groundModel=groundModel)
-        BlockageDeficitModel.__init__(self, upstream_only=True)
+        BlockageDeficitModel.__init__(self, upstream_only=True, rotorAvgModel=rotorAvgModel, groundModel=groundModel)
         FugaUtils.__init__(self, LUT_path, on_mismatch='input_par')
         self.remove_wriggles = remove_wriggles
         x, y, z, dUL = self.load()
@@ -245,10 +241,10 @@ class Fuga(PropagateDownwind):
             Site object
         windTurbines : WindTurbines
             WindTurbines object representing the wake generating wind turbines
-        rotorAvgModel : RotorAvgModel
+        rotorAvgModel : RotorAvgModel, optional
             Model defining one or more points at the down stream rotors to
             calculate the rotor average wind speeds from.\n
-            Defaults to RotorCenter that uses the rotor center wind speed (i.e. one point) only
+            if None, default, the wind speed at the rotor center is used
         deflectionModel : DeflectionModel
             Model describing the deflection of the wake due to yaw misalignment, sheared inflow, etc.
         turbulenceModel : TurbulenceModel
@@ -272,10 +268,10 @@ class FugaBlockage(All2AllIterative):
             Site object
         windTurbines : WindTurbines
             WindTurbines object representing the wake generating wind turbines
-        rotorAvgModel : RotorAvgModel
+        rotorAvgModel : RotorAvgModel, optional
             Model defining one or more points at the down stream rotors to
             calculate the rotor average wind speeds from.\n
-            Defaults to RotorCenter that uses the rotor center wind speed (i.e. one point) only
+            if None, default, the wind speed at the rotor center is used
         deflectionModel : DeflectionModel
             Model describing the deflection of the wake due to yaw misalignment, sheared inflow, etc.
         turbulenceModel : TurbulenceModel

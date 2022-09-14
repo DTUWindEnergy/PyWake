@@ -1,5 +1,4 @@
 import os
-from numpy import newaxis as na
 import pytest
 import matplotlib.pyplot as plt
 from py_wake import np
@@ -7,15 +6,13 @@ from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.examples.data import wtg_path, hornsrev1
 from py_wake.examples.data.hornsrev1 import V80, wt9_x, wt9_y, Hornsrev1Site
-from py_wake.examples.data.iea37 import iea37_reader
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37WindTurbines, IEA37Site
 from py_wake.superposition_models import SquaredSum
 from py_wake.tests import npt
 from py_wake.utils import gradients
 from py_wake.utils.gradients import autograd, plot_gradients
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
-from py_wake.wind_turbines import WindTurbines, WindTurbine, OneTypeWindTurbines, wind_turbines_deprecated,\
-    power_ct_functions
+from py_wake.wind_turbines import WindTurbines, WindTurbine, OneTypeWindTurbines
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 
 
@@ -49,7 +46,6 @@ def test_DeprecatedWindTurbines():
 
         types0 = [0] * 9
         for wfm in get_wfms(wts):
-            # wfm = NOJ(Hornsrev1Site(), wts)
             npt.assert_array_equal(wts.types(), [0])
             npt.assert_almost_equal(wfm.aep(wt9_x, wt9_y, type=types0), 81.2066072392765)
 

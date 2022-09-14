@@ -1,7 +1,7 @@
 def main():
     if __name__ == '__main__':
         from py_wake import NOJ
-        from py_wake import IEA37SimpleBastankhahGaussian, Fuga
+        from py_wake import BastankhahGaussian, Fuga
         import py_wake
         import os
         import matplotlib.pyplot as plt
@@ -15,7 +15,7 @@ def main():
         windTurbines = HornsrevV80()
         site = Hornsrev1Site()
 
-        wake_models = [NOJ(site, windTurbines), IEA37SimpleBastankhahGaussian(
+        wake_models = [NOJ(site, windTurbines), BastankhahGaussian(
             site, windTurbines), Fuga(LUT_path, site, windTurbines)]
 
         for wake_model in wake_models:
