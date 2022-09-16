@@ -1,5 +1,6 @@
 from numpy import newaxis as na
 import pytest
+import xarray as xr
 
 import matplotlib.pyplot as plt
 from py_wake import np
@@ -15,7 +16,7 @@ from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site, IE
 from py_wake.ground_models.ground_models import GroundModel
 from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel
 from py_wake.site.distance import StraightDistance
-from py_wake.site.shear import Shear, LogShear, PowerShear
+from py_wake.site.shear import LogShear, PowerShear, Shear
 from py_wake.superposition_models import SuperpositionModel, AddedTurbulenceSuperpositionModel
 from py_wake.tests import npt
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel, STF2005TurbulenceModel
@@ -27,6 +28,7 @@ from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2A
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.site.jit_streamline_distance import JITStreamlineDistance
+from py_wake.site.xrsite import XRSite
 
 
 def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110, 110, 110], fd_step=1e-6, fd_decimal=6,
@@ -188,7 +190,13 @@ def test_ground_models(model):
 
 
 @pytest.mark.parametrize('site', [IEA37Site(16), Hornsrev1Site(),
-                                  ParqueFicticioSite(distance=StraightDistance())])
+                                  ParqueFicticioSite(distance=StraightDistance()),
+                                  # site with irregular grid
+                                  XRSite(ds=xr.Dataset({'P': 1, 'TI': .1,
+                                                        'Speedup': (('x', 'h'), np.broadcast_to([1, 1.1, 1.2], (2, 3)))},
+                                                       coords={'x': [-2000, 2000], 'h': [50, 100, 140]}),
+                                         initial_position=[[0, 0], [0, 0], [0, 0], [0, 0]])
+                                  ])
 def test_sites(site):
     x, y = site.initial_position[3]
     check_gradients(lambda site, wt, s=site: PropagateDownwind(

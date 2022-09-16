@@ -30,8 +30,9 @@ class GridInterpolator(object):
         self.x0 = np.array([x[0] for x in x])
         dx = np.array([x[min(1, len(x) - 1)] - x[0] for x in x])
         self.dx = np.where(dx == 0, 1, dx)
-        self.irregular_axes = np.where([np.allclose(np.diff(x), dx) is False for dx, x in zip(self.dx, x)])[0]
-        for i in self.irregular_axes:
+        self.irregular_axes = np.array([np.allclose(np.diff(x), dx) is False for dx, x in zip(self.dx, x)])
+        self.irregular_axes_indexes = np.where(self.irregular_axes)[0]
+        for i in self.irregular_axes_indexes:
             self.x[i] = np.r_[self.x[i], self.x[i][-1] + 1]
         self.V = np.asarray(V)
         if not np.all(self.V.shape[:len(self.n)] == self.n):
@@ -64,14 +65,15 @@ class GridInterpolator(object):
         assert xp_shape[-1] == len(self.x), xp_shape
         xp = np.reshape(xp, (-1, xp_shape[-1]))
         xpi = (xp - self.x0) / self.dx
-        if len(self.irregular_axes):
+        if len(self.irregular_axes_indexes):
             irreg_i = np.array([np.searchsorted(self.x[i], xp[:, i], side='right') - 1
-                                for i in self.irregular_axes])
-            irreg_x0 = np.array([np.asarray(self.x[i])[irreg_i] for i, irreg_i in zip(self.irregular_axes, irreg_i)])
+                                for i in self.irregular_axes_indexes])
+            irreg_x0 = np.array([np.asarray(self.x[i])[irreg_i]
+                                 for i, irreg_i in zip(self.irregular_axes_indexes, irreg_i)])
             irreg_x1 = np.array([np.asarray(self.x[i])[irreg_i + 1]
-                                 for i, irreg_i in zip(self.irregular_axes, irreg_i)])
+                                 for i, irreg_i in zip(self.irregular_axes_indexes, irreg_i)])
             irreg_dx = irreg_x1 - irreg_x0
-            xpi[:, self.irregular_axes] = irreg_i.T + (xp[:, self.irregular_axes] - irreg_x0.T) / irreg_dx.T
+            xpi = np.where(self.irregular_axes, (irreg_i.T + (xp - irreg_x0.T) / irreg_dx.T), xpi)
 
         if method == 'linear' and bounds == 'check' and (np.any(xpi < 0) or np.any(xpi + 1 > self.n[na])):
             if -xpi.min() > (xpi + 1 - self.n[na]).max():
