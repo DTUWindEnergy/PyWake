@@ -86,7 +86,7 @@ def test_grid_interpolator_2d_plus_2d():
     npt.assert_array_equal(eq(x).shape, (11, 2, 5))
 
 
-def test_grid_interpolator_non_regular():
+def test_grid_interpolator_irregular():
 
     x = [6, 10, 14]
     y = [200, 300, 400, 500]
