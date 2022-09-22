@@ -24,7 +24,7 @@ from py_wake.tests import npt
 from py_wake.turbulence_models.stf import STF2005TurbulenceModel
 from py_wake.utils.gradients import autograd, cs, fd, plot_gradients
 from py_wake.utils.profiling import profileit
-from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind
+from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind, EngineeringWindFarmModel
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.wind_turbines import WindTurbines
 from py_wake.wind_turbines.power_ct_functions import PowerCtFunctionList, PowerCtTabular
@@ -32,6 +32,8 @@ from py_wake.wind_turbines.wind_turbines_deprecated import DeprecatedOneTypeWind
 import xarray as xr
 from py_wake.rotor_avg_models.rotor_avg_model import CGIRotorAvg
 import warnings
+from py_wake.literature.iea37_case_study1 import IEA37CaseStudy1
+from py_wake.utils.model_utils import get_models
 
 
 WindFarmModel.verbose = False
@@ -503,3 +505,15 @@ def test_aep_wind_atlas_method():
         plt.show()
     npt.assert_almost_equal(aep_lps.sum(), 16.73490444)
     npt.assert_almost_equal(aep.sum(), 16.69320343)
+
+
+def test_compare_wfm():
+    w = IEA37CaseStudy1(16)
+
+    x, y = w.site.initial_position.T
+
+    res = []
+    for cls in get_models(WindFarmModel):
+        wfm = cls(w.site, w.windTurbines, w.wake_deficitModel, w.superpositionModel)
+        res.append(wfm(x, y).aep().sum().item())
+    npt.assert_allclose(res, res[0])
