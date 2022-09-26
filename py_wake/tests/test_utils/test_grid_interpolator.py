@@ -90,23 +90,24 @@ def test_grid_interpolator_irregular():
 
     x = [6, 10, 14]
     y = [200, 300, 400, 500]
-    v = np.arange(12).reshape(3, 4)
+    z = [80, 90, 100]
+    v = np.arange(36).reshape(3, 4, 3) / 3
 
-    eq = GridInterpolator([x, y], v)
+    eq = GridInterpolator([x, y, z], v)
 
-    xp = [[i, 200] for i in np.linspace(6, 14, 9)]
+    xp = [[i, 200, 80] for i in np.linspace(6, 14, 9)]
     npt.assert_array_almost_equal(eq(xp), np.linspace(0, 8, 9))
 
     x = [6, 12, 14]
     y = [200, 300, 400, 500]
-    v = np.arange(12).reshape(3, 4)
-    v[1, 0] = 6
-    eq = GridInterpolator([x, y], v)
+    z = [80, 90, 110]
+    v[1, 0, 0] = 6
+    eq = GridInterpolator([x, y, z], v)
 
-    xp = [[i, 200] for i in np.linspace(6, 14, 9)]
+    xp = [[i, 200, 80] for i in np.linspace(6, 14, 9)]
     npt.assert_array_almost_equal(eq(xp), np.linspace(0, 8, 9))
 
-    xp = [[i, 200] for i in np.linspace(6, 14, 10)]
+    xp = [[i, 200, 80] for i in np.linspace(6, 14, 10)]
     npt.assert_array_almost_equal(eq(xp), np.linspace(0, 8, 10))
     npt.assert_array_almost_equal(eq(xp, 'nearest'), [0., 0., 0., 0., 6., 6., 6., 6., 8., 8.])
 

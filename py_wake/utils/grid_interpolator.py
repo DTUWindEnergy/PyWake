@@ -64,16 +64,15 @@ class GridInterpolator(object):
         xp_shape = xp.shape
         assert xp_shape[-1] == len(self.x), xp_shape
         xp = np.reshape(xp, (-1, xp_shape[-1]))
-        xpi = (xp - self.x0) / self.dx
         if len(self.irregular_axes_indexes):
-            irreg_i = np.array([np.searchsorted(self.x[i], xp[:, i], side='right') - 1
-                                for i in self.irregular_axes_indexes])
-            irreg_x0 = np.array([np.asarray(self.x[i])[irreg_i]
-                                 for i, irreg_i in zip(self.irregular_axes_indexes, irreg_i)])
-            irreg_x1 = np.array([np.asarray(self.x[i])[irreg_i + 1]
-                                 for i, irreg_i in zip(self.irregular_axes_indexes, irreg_i)])
-            irreg_dx = irreg_x1 - irreg_x0
-            xpi = np.where(self.irregular_axes, (irreg_i.T + (xp - irreg_x0.T) / irreg_dx.T), xpi)
+            xpi0 = np.array([np.minimum(np.searchsorted(x, xp, side='right') - 1, n - 2)
+                             for x, xp, n in zip(self.x, xp.T, self.n)])
+            xp0 = np.array([np.asarray(x)[xpi0] for x, xpi0 in zip(self.x, xpi0)])
+            xp1 = np.array([np.asarray(x)[xpi0 + 1] for x, xpi0 in zip(self.x, xpi0)])
+            xp_dx = xp1 - xp0
+            xpi = xpi0.T + (xp - xp0.T) / xp_dx.T
+        else:
+            xpi = (xp - self.x0) / self.dx
 
         if method == 'linear' and bounds == 'check' and (np.any(xpi < 0) or np.any(xpi + 1 > self.n[na])):
             if -xpi.min() > (xpi + 1 - self.n[na]).max():
