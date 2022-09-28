@@ -101,6 +101,7 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
   - pip install pypandoc
   - pip install sphinx --upgrade
   - pip install nbsphinx --upgrade
+  - pip install nbconvert --upgrade
   - pip install git+https://gitlab.windenergy.dtu.dk/TOPFARM/TopFarm2.git
   - pip install -e .[test]
   - cd docs/validation_report

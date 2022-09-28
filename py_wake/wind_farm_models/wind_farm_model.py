@@ -319,13 +319,12 @@ class WindFarmModel(ABC):
         """Method to compute the gradients of the AEP with respect to wrt_arg using the gradient_method
 
         Note, this method has two behaviours:
-        - Without specifying additional key-word arguments, kwargs, the method returns the function to
-          compute the gradients of the aep:
-          gradient_function = wfm.aep_gradietns(autograd, ['x','y'])
-          gradients = gradient_function(x,y)
-        - With additional key-word arguments, kwargs, the method returns the gradients of the aep:
-          gradients = wfm.aep_gradients(autograd,['x','y'],x=x,y=y)
-
+        1) Without specifying additional key-word arguments, kwargs, the method returns the function to
+        compute the gradients of the aep:
+        gradient_function = wfm.aep_gradietns(autograd, ['x','y'])
+        gradients = gradient_function(x,y)
+        2) With additional key-word arguments, kwargs, the method returns the gradients of the aep:
+        gradients = wfm.aep_gradients(autograd,['x','y'],x=x,y=y)
 
         Parameters
         ----------
