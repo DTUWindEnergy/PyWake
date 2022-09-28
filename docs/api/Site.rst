@@ -16,14 +16,12 @@ Site classes
 Site
 -----------------
 
-.. autoclass:: py_wake.site.Site
+.. autoclass:: py_wake.site._site.Site
     :members:
        
     .. autosummary::
-        distances
         elevation
         local_wind
-        probability
         plot_ws_distribution
         plot_wd_distribution
         
