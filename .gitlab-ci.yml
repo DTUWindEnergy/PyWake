@@ -3,6 +3,7 @@ image: continuumio/anaconda3
 stages:
   - test
   - test_plugins
+  - build
   - deploy
 
 # ===== TEST PyWake debian=====
@@ -22,7 +23,7 @@ test_PyWake:  # name the job what we like
 #  stage:  # build, test, deploy defined by default [2]
 #    test
 #  script:
-#  - apt update  
+#  - apt update
 #  - apt install libgl1-mesa-glx -y
 #  - python -m pip install --upgrade --force-reinstall pip
 #  - pip install tensorflow --user
@@ -33,7 +34,7 @@ test_PyWake:  # name the job what we like
 #  - ci-ubuntu
 
 
-  
+
 # ===== Check code style =====
 check_code_style:  # name the job what we like
   stage:  # build, test, deploy defined by default [2]
@@ -121,14 +122,14 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
     paths:
     - public
   only:  # only run for these branches
-  - /^test_doc.*/ 
+  - /^test_doc.*/
   - master
   tags:  # only runners with this tag can do the job [3]
   - ci-ubuntu
 
 
 pypi_linux:
-  stage:  
+  stage:
     deploy
   only:
     - tags
@@ -146,12 +147,36 @@ pypi_linux:
     - python -c 'from git_utils import rename_dist_file; rename_dist_file()'
     - twine upload dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD
     #- twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD # for testing purposes
-  tags:  
+  tags:
   - ci-ubuntu
+
+build_conda_linux:
+  stage: build
+  image: condaforge/mambaforge:latest
+  dependencies: []
+  script:
+    - export VERSION=`git describe --tags --always | sed 's/v//' | sed 's/-/.dev/' | sed 's/-/_/'
+    - mamba install -y boa conda-verify
+    - conda mambabuild --no-anaconda-upload -c conda-forge --override-channels --output-folder ./conda_channel ./recipe
+  artifacts:
+    untracked: false
+    expire_in: "3 days"
+    paths: ["conda_channel/noarch/py_wake*.tar.bz2"]
+  rules:
+    - if: $CI_COMMIT_TAG && $CI_COMMIT_REF_PROTECTED
+    - if:  $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+      allow_failure: true
+      changes:
+        - setup.py
+        - recipe/meta.yaml
+    - when: never
+  tags:
+    - docker
 
 # current
 # pypi_windows:
-#   stage:  
+#   stage:
 #     deploy
 #   only:
 #     - tags
@@ -160,6 +185,6 @@ pypi_linux:
 #     - c:/Anaconda3/envs/pyTopfarm/python.exe setup.py bdist_wheel
 #     - twine upload dist/* -u %TWINE_USERNAME% -p %TWINE_PASSWORD%
 #     #- twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u %TWINE_USERNAME% -p %TWINE_PASSWORD% # for testing purposes
-#   tags:  
+#   tags:
 #     - CPAV_old_PC
 
