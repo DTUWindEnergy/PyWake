@@ -172,7 +172,7 @@ build_conda_linux:
         - recipe/meta.yaml
     - when: never
   tags:
-    - docker
+    - conda_channel
 
 # current
 # pypi_windows:
