@@ -152,11 +152,11 @@ pypi_linux:
 
 build_conda_linux:
   stage: build
-  image: condaforge/mambaforge:latest
+  image: continuumio/anaconda3
   dependencies: []
   script:
     - export VERSION=`git describe --tags --always | sed 's/v//' | sed 's/-/.dev/' | sed 's/-/_/'
-    - mamba install -y boa conda-verify
+    - conda install -y boa conda-verify
     - conda mambabuild --no-anaconda-upload -c conda-forge --override-channels --output-folder ./conda_channel ./recipe
   artifacts:
     untracked: false
