@@ -155,7 +155,7 @@ build_conda_linux:
   image: continuumio/anaconda3
   dependencies: []
   script:
-    - export VERSION=`git describe --tags --always | sed 's/v//' | sed 's/-/.dev/' | sed 's/-/_/'
+    - export VERSION=`git describe --tags --always | sed 's/v//' | sed 's/-/.dev/' | sed 's/-/_/'`
     - conda install -y boa conda-verify
     - conda mambabuild --no-anaconda-upload -c conda-forge --override-channels --output-folder ./conda_channel ./recipe
   artifacts:
