@@ -150,7 +150,7 @@ pypi_linux:
   tags:
   - ci-ubuntu
 
-build_conda_linux:
+build_conda:
   stage: build
   image: condaforge/mambaforge:latest
   dependencies: []
@@ -173,6 +173,25 @@ build_conda_linux:
     - when: never
   tags:
     -  ci-ubuntu
+
+deploy_conda:
+  stage: deploy
+  image: docker:latest
+  dependencies: ["build_conda"]
+  before_script:
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$CC_SSH_KEY")
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  script:
+    - scp -p -P $CC_PORT ./conda_channel/noarch/py_wake*.tar.bz2 "$CC_USER"@"$CC_HOST":/home/$CC_USER/repos/open/noarch/.
+    - ssh -p $CC_PORT "$CC_USER"@"$CC_HOST" "conda index /home/$CC_USER/repos/open"
+  rules:
+    - if: $CI_COMMIT_TAG && $CI_COMMIT_REF_PROTECTED
+    - when: never
+  tags:
+    -  conda_channel
 
 # current
 # pypi_windows:
