@@ -128,27 +128,27 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
   - ci-ubuntu
 
 
-pypi_linux:
-  stage:
-    deploy
-  only:
-    - tags
-    - test_pypi
-  script:
-    - apt-get update
-    - apt-get install -y pandoc
-    - pip install --upgrade pip
-    - pip install pypandoc
-    - pip install -e .[test] --upgrade
-    - python -c 'from git_utils import get_tag; get_tag(verbose=True)'
-    - python -m pip install -U setuptools wheel
-    - python setup.py sdist bdist_wheel
-    - python -m pip install -U twine
-    - python -c 'from git_utils import rename_dist_file; rename_dist_file()'
-    - twine upload dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD
-    #- twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD # for testing purposes
-  tags:
-  - ci-ubuntu
+# pypi_linux:
+#   stage:
+#     deploy
+#   only:
+#     - tags
+#     - test_pypi
+#   script:
+#     - apt-get update
+#     - apt-get install -y pandoc
+#     - pip install --upgrade pip
+#     - pip install pypandoc
+#     - pip install -e .[test] --upgrade
+#     - python -c 'from git_utils import get_tag; get_tag(verbose=True)'
+#     - python -m pip install -U setuptools wheel
+#     - python setup.py sdist bdist_wheel
+#     - python -m pip install -U twine
+#     - python -c 'from git_utils import rename_dist_file; rename_dist_file()'
+#     - twine upload dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD
+#     #- twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD # for testing purposes
+#   tags:
+#   - ci-ubuntu
 
 build_conda:
   stage: build
@@ -178,14 +178,11 @@ deploy_conda:
   stage: deploy
   image: docker:latest
   dependencies: ["build_conda"]
+  needs: ["build_conda"]
   script:
     - cp -p ./conda_channel/noarch/py_wake*.tar.bz2 /conda_channel_open/noarch/.
   rules:
     - if: $CI_COMMIT_TAG && $CI_COMMIT_REF_PROTECTED
-    - if:  $CI_PIPELINE_SOURCE == "merge_request_event"
-      when: manual
-      allow_failure: true
-    - when: never
   tags:
     -  conda_channel
 
