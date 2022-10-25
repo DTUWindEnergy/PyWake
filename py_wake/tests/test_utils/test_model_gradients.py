@@ -32,7 +32,7 @@ from py_wake.site.xrsite import XRSite
 
 
 def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110, 110, 110], fd_step=1e-6, fd_decimal=6,
-                    output=(lambda wfm: wfm.aep, 'AEP [GWh]'), kwargs={}):
+                    ad_decimal=10, output=(lambda wfm: wfm.aep, 'AEP [GWh]'), kwargs={}):
     if wfm is None:
         return
     site = IEA37Site(16)
@@ -54,15 +54,15 @@ def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110,
 
         dOutputdx_lst = [grad(output_func, True, 0)(xp, wt_y, **kwargs)[2] for grad in [fdstep, cs, autograd]]
         npt.assert_almost_equal(dOutputdx_lst[0], dOutputdx_lst[1], fd_decimal)
-        npt.assert_almost_equal(dOutputdx_lst[1], dOutputdx_lst[2], 10)
+        npt.assert_almost_equal(dOutputdx_lst[1], dOutputdx_lst[2], ad_decimal)
 
         dOutputdy_lst = [grad(output_func, True, 1)(wt_x, yp, **kwargs)[2] for grad in [fdstep, cs, autograd]]
         npt.assert_almost_equal(dOutputdy_lst[0], dOutputdy_lst[1], fd_decimal)
-        npt.assert_almost_equal(dOutputdy_lst[1], dOutputdy_lst[2], 10)
+        npt.assert_almost_equal(dOutputdy_lst[1], dOutputdy_lst[2], ad_decimal)
 
         dOutputdh_lst = [grad(output_func, True, 2)(wt_x, wt_y, hp, **kwargs)[2] for grad in [fdstep, cs, autograd]]
         npt.assert_almost_equal(dOutputdh_lst[0], dOutputdh_lst[1], fd_decimal)
-        npt.assert_almost_equal(dOutputdh_lst[1], dOutputdh_lst[2], 10)
+        npt.assert_almost_equal(dOutputdh_lst[1], dOutputdh_lst[2], ad_decimal)
 
         if 0:
             # wfm(wt_x, wt_y, **kwargs).flow_map().plot_wake_map()
@@ -247,7 +247,8 @@ def test_windturbines(wt):
         return PropagateDownwind(site, wt_, wake_deficitModel=BastankhahGaussianDeficit(),
                                  turbulenceModel=STF2017TurbulenceModel())
     iea34 = wt.name() == 'IEA 3.4MW'
-    check_gradients(get_wfm, wt.__class__.__name__, fd_step=(1e-6, 1e-3)[iea34], fd_decimal=(6, 2)[iea34])
+    check_gradients(get_wfm, wt.__class__.__name__, fd_step=(1e-6, 1e-3)[iea34],
+                    fd_decimal=(6, 2)[iea34], ad_decimal=(10, 7)[iea34])
 
 
 output_lst = ['WS_eff', 'TI_eff', 'power', 'ct']
