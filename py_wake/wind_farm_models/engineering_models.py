@@ -217,7 +217,13 @@ class EngineeringWindFarmModel(WindFarmModel):
                     return np.concatenate([np.concatenate(v_ilk[i::ws_chunks], axis=1)
                                            for i in range(ws_chunks)], axis=2)
                 else:
-                    v_ilk = [np.broadcast_to(v, WS_eff.shape) for v, WS_eff in zip(v_ilk, WS_eff_ilk)]
+                    def broadcast(a, shape):
+                        if len(a.shape)!=len(shape):
+                            for _ in np.arange(len(shape) - 1):
+                                a = a[:, na]
+                        return np.broadcast_to(a, shape)
+                    v_ilk = [broadcast(v, WS_eff.shape) for v, WS_eff in zip(v_ilk, WS_eff_ilk)]
+                    #v_ilk = [np.broadcast_to(v, WS_eff.shape) for v, WS_eff in zip(v_ilk, WS_eff_ilk)]
                     return np.concatenate(v_ilk, axis=1)
 
             return ([concatenate(v) for v in [WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk]] +
