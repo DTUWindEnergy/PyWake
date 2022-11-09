@@ -48,7 +48,8 @@ setup(name='py_wake',
                       'examples/data/iea34_130rwt/*/*/*.json',
                       'examples/data/ParqueFicticio/*.grd',
                       'examples/data/NEG-Micon-2750.wtg',
-                      'examples/data/Vestas V112-3.0 MW.wtg'
+                      'examples/data/Vestas V112-3.0 MW.wtg',
+                      'rotor_avg_models/gaussian_overlap_.02_.02_128_512.nc'
                       ],
       },
       install_requires=[
