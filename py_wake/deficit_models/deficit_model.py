@@ -8,8 +8,6 @@ from py_wake.superposition_models import WeightedSum
 
 class DeficitModel(ABC, RotorAvgAndGroundModelContainer):
     deficit_initalized = False
-    _groundModel = None
-    _rotorAvgModel = None
 
     def __init__(self, rotorAvgModel=None, groundModel=None, use_effective_ws=True, use_effective_ti=False):
         RotorAvgAndGroundModelContainer.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel)

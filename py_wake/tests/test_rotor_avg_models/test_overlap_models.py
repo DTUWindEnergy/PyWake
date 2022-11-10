@@ -19,7 +19,8 @@ from py_wake.utils.model_utils import get_models
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.wind_turbines._wind_turbines import WindTurbines
 from py_wake.wind_turbines.power_ct_functions import PowerCtFunction
-from py_wake.superposition_models import WeightedSum
+from py_wake.superposition_models import WeightedSum, SquaredSum
+import warnings
 
 
 def test_overlapping_area_factor_shapes():
@@ -99,3 +100,38 @@ def test_GaussianOverlapAvgModel_WeightedSum():
                             WeightedSum())
     with pytest.raises(NotImplementedError, match=r"calc_deficit_convection \(WeightedSum\) cannot be used in combination with rotorAvgModels and GroundModels"):
         wfm([0, 1000], [0, 0])
+
+
+def test_area_overlapping_deprecated_way():
+    wts = WindTurbines(names=['V80'] * 2, diameters=[80] * 2,
+                       hub_heights=[70] * 2,
+                       # only define for ct
+                       powerCtFunctions=[PowerCtFunction(['ws'], lambda ws, run_only: np.interp(ws, ct_curve[:, 0], ct_curve[:, 1]), 'w'),
+                                         PowerCtFunction(['ws'], lambda ws, run_only: ws * 0, 'w')])
+
+    site = UniformSite([1], 0.1)
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', category=DeprecationWarning)
+        wfm = PropagateDownwind(site, wts, rotorAvgModel=AreaOverlapAvgModel(),
+                                wake_deficitModel=NOJDeficit(rotorAvgModel=None),
+                                superpositionModel=SquaredSum())
+
+    y_lst = np.linspace(-250, 250, 50)
+    y = np.r_[0, y_lst]
+    x = np.r_[0, y_lst * 0 + 400]
+    t = np.r_[0, y_lst * 0 + 1]
+    WS_eff = wfm(x, y, type=t, ws=10, wd=270).WS_eff.values[1:, 0, 0]
+    plt.plot(y_lst, WS_eff, '.-')
+    # print(list(np.round(WS_eff[12:23], 2)))
+    ref = [10.0, 9.99, 9.88, 9.71, 9.51, 9.29, 9.06, 8.83, 8.64, 8.58, 8.58]
+    npt.assert_array_almost_equal(ref, WS_eff[12:23], decimal=2)
+    wfm = PropagateDownwind(site, wts, NOJDeficit(rotorAvgModel=None))
+    WS_eff = wfm(x, y, type=t, ws=10, wd=270).WS_eff.values[1:, 0, 0]
+    # print(list(np.round(WS_eff[12:23], 2)))
+    plt.plot(y_lst, WS_eff)
+    ref = [10.0, 10.0, 10.0, 10.0, 10.0, 8.58, 8.58, 8.58, 8.58, 8.58, 8.58]
+    plt.plot(y_lst[12:23], ref)
+    if 0:
+        plt.show()
+    npt.assert_array_almost_equal(ref, WS_eff[12:23], decimal=2)
+    plt.close('all')

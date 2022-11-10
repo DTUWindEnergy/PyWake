@@ -37,12 +37,11 @@ def test_All2AllIterativeDeflection(deflection_model, count):
 
     site = IEA37Site(16)
     windTurbines = IEA37_WindTurbines()
-    deficit_model = FugaDeficitCount()
+    deficit_model = FugaDeficitCount(rotorAvgModel=CGIRotorAvg(4),)
     wf_model = All2AllIterative(site, windTurbines,
                                 wake_deficitModel=deficit_model,
                                 superpositionModel=LinearSum(),
                                 blockage_deficitModel=SelfSimilarityDeficit(),
-                                rotorAvgModel=CGIRotorAvg(4),
                                 deflectionModel=deflection_model, convergence_tolerance=0)
     sim_res = wf_model([0, 500, 1000, 1500], [0, 0, 0, 0],
                        wd=270, ws=10, yaw=[30, -30, 30, -30])
