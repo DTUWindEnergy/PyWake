@@ -29,6 +29,7 @@ from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.site.jit_streamline_distance import JITStreamlineDistance
 from py_wake.site.xrsite import XRSite
+from py_wake.rotor_avg_models.area_overlap_model import AreaOverlapAvgModel
 
 
 def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110, 110, 110], fd_step=1e-6, fd_decimal=6,
@@ -144,9 +145,12 @@ def test_superposition_models(model):
 @pytest.mark.parametrize('model', get_models(RotorAvgModel))
 def test_rotor_average_models(model):
     if model is not None:
+        if model is AreaOverlapAvgModel:
+            wake_deficitModel = NOJDeficit(rotorAvgModel=model())
+        else:
+            wake_deficitModel = BastankhahGaussianDeficit(rotorAvgModel=model())
         check_gradients(lambda site, wt: PropagateDownwind(
-            site, wt, wake_deficitModel=BastankhahGaussianDeficit(),
-            rotorAvgModel=model()),
+            site, wt, wake_deficitModel=wake_deficitModel),
             model.__name__)
 
 

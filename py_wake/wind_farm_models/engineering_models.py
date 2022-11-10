@@ -73,7 +73,7 @@ class EngineeringWindFarmModel(WindFarmModel):
             if a rotorAvgModel has not already been specified for the wake_deficitModel""",
                           DeprecationWarning, stacklevel=2)
             check_model(rotorAvgModel, RotorAvgModel, 'rotorAvgModel')
-            self.wake_deficitModel._rotorAvgModel = self.wake_deficitModel._rotorAvgModel or rotorAvgModel
+            self.wake_deficitModel.rotorAvgModel = self.wake_deficitModel.rotorAvgModel or rotorAvgModel
 
         self.superpositionModel = superpositionModel
         self.blockage_deficitModel = blockage_deficitModel

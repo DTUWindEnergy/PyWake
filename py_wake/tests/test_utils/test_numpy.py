@@ -28,6 +28,9 @@ from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 
 from py_wake.rotor_avg_models.gaussian_overlap_model import GaussianOverlapAvgModel
+from py_wake.rotor_avg_models.area_overlap_model import AreaOverlapAvgModel
+from py_wake.deficit_models.noj import NOJDeficit
+import warnings
 
 
 @pytest.mark.parametrize('v,dtype,dtype32', [(5., float, np.float32),
@@ -138,6 +141,8 @@ def test_all_models(model_type, model):
         d['TurbulenceModel'] = STF2017TurbulenceModel(addedTurbulenceSuperpositionModel=model())
     elif model in [GaussianOverlapAvgModel]:
         d['TurbulenceModel'] = None
+    elif model in [AreaOverlapAvgModel]:
+        d['WakeDeficitModel'] = NOJDeficit
     elif model_type == 'GroundModel':
         d['WakeDeficitModel'] = IEA37SimpleBastankhahGaussianDeficit(groundModel=model())
     elif model_type in ['Site', 'Shear']:
@@ -168,5 +173,7 @@ def test_all_models(model_type, model):
                                      ('turbulenceModel', 'TurbulenceModel')] if v in d}
 
     wt = IEA37_WindTurbines()
-    wfm = d['WindFarmModel'](site, wt, **kwargs)
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', category=DeprecationWarning)
+        wfm = d['WindFarmModel'](site, wt, **kwargs)
     check_numpy32(wfm, model.__name__)
