@@ -98,6 +98,28 @@ class NOJLocalDeficit(NOJDeficit):
                               use_effective_ws=use_effective_ws, use_effective_ti=use_effective_ti)
         self.a = a
 
+    def _calc_layout_terms(self, **kwargs):
+        """Layout factor cannot be precomputed as it may depend on TI_eff if a[0]!=0"""
+
+    def calc_deficit(self, ct_ilk, D_src_il, wake_radius_ijlk, dw_ijlk, cw_ijlk, **kwargs):
+        # ws-dependent layout factor
+        WS_ref_ilk = kwargs[self.WS_key]
+        R_src_il = D_src_il / 2
+        with catch_warnings():
+            filterwarnings('ignore', r'invalid value encountered in true_divide')
+            term_denominator_ijlk = np.where(dw_ijlk > 0, ((wake_radius_ijlk / R_src_il[:, na, :, na])**2), 1)
+
+        in_wake_ijlk = wake_radius_ijlk > cw_ijlk
+
+        with catch_warnings():
+            filterwarnings(
+                'ignore', r'invalid value encountered in true_divide')
+            layout_factor_ijlk = WS_ref_ilk[:, na] * (dw_ijlk > 0) * (in_wake_ijlk / term_denominator_ijlk)
+
+        ct_ilk = np.minimum(ct_ilk, 1)   # treat ct_ilk for np.sqrt()
+        term_numerator_ilk = (1 - np.sqrt(1 - ct_ilk))
+        return term_numerator_ilk[:, na] * layout_factor_ijlk
+
 
 class NOJLocal(PropagateDownwind):
     def __init__(self, site, windTurbines, rotorAvgModel=AreaOverlapAvgModel(),

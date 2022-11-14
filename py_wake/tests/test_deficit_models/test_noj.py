@@ -98,3 +98,11 @@ def test_NOJConvection():
     with pytest.raises(NotImplementedError, match='calc_deficit_convection not implemented for NOJ'):
         wfm = NOJ(site, NibeA0(), superpositionModel=WeightedSum())
         wfm([0, 500], [0, 0])
+
+
+def test_NOJLocal_ti_eff_dependence():
+    site = UniformSite([1], 0.1)
+    wfm = NOJLocal(site, NibeA0())
+
+    npt.assert_array_almost_equal(wfm([0, 40], [0, 0], wd=270, ws=[10, 10], TI=[[[.1, .2]]]).WS_eff.isel(wt=1),
+                                  [[4.32651153, 5.045581]])
