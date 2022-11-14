@@ -543,14 +543,14 @@ def test_wake_blockage_split(upstream_only, ref):
 
 @pytest.mark.parametrize('deficitModel', get_models(WakeDeficitModel))
 def test_All2AllIterative_WakeDeficit_RotorAvg(deficitModel):
+    if deficitModel == NOJLocalDeficit:
+        site = IEA37Site(16)
+        windTurbines = IEA37_WindTurbines()
+        wf_model = All2AllIterative(site, windTurbines,
+                                    wake_deficitModel=deficitModel(rotorAvgModel=CGIRotorAvg(4)),
+                                    turbulenceModel=STF2017TurbulenceModel())
+        sim_res = wf_model([0, 500, 1000, 1500], [0, 0, 0, 0], wd=270, ws=10)
 
-    site = IEA37Site(16)
-    windTurbines = IEA37_WindTurbines()
-    wf_model = All2AllIterative(site, windTurbines,
-                                wake_deficitModel=deficitModel(rotorAvgModel=CGIRotorAvg(4)),
-                                turbulenceModel=STF2017TurbulenceModel())
-    sim_res = wf_model([0, 500, 1000, 1500], [0, 0, 0, 0], wd=270, ws=10)
-
-    if 0:
-        sim_res.flow_map(XYGrid(x=np.linspace(-200, 2000, 100))).plot_wake_map()
-        plt.show()
+        if 0:
+            sim_res.flow_map(XYGrid(x=np.linspace(-200, 2000, 100))).plot_wake_map()
+            plt.show()
