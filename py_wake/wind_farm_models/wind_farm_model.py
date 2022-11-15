@@ -71,9 +71,6 @@ class WindFarmModel(ABC):
         ws_chunks : int, optional
             The wind speeds are divided into <ws_chunks> chunks. More chunks reduces the memory usage
             and allows parallel execution if n_cpu>1.
-        time_chunks : int, optional
-            The time != False, flow case time series is divided into <time_chunks> chunks.
-            More chunks reduces the memory usage and allows parallel execution if n_cpu>1.
 
         Returns
         -------

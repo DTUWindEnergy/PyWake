@@ -1,13 +1,14 @@
 import pytest
 from py_wake import np
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian
-from py_wake.deficit_models.noj import NOJ, NOJDeficit
+from py_wake.deficit_models.noj import NOJ
+
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80, HornsrevV80, wt9_y, wt9_x, wt16_x, wt16_y
 from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37_WindTurbines
+from py_wake.wind_turbines import WindTurbines
 from py_wake.tests import npt
 from py_wake.utils.gradients import autograd, cs, fd
 from py_wake.utils.profiling import timeit, profileit
-from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 import matplotlib.pyplot as plt
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
 from py_wake.flow_map import XYGrid
@@ -198,3 +199,23 @@ def test_wt_kwargs_dimensions(n_wt, shape, dims):
                        wd=np.linspace(0, 337.5, 16),
                        Air_density=np.full(shape, 1.225))
     assert sim_res.Air_density.dims == dims
+
+
+@pytest.mark.parametrize('ws,time', [([7], False),
+                                     ([7.0, 8, 9, 10, 11], True)])
+def test_wake_model_two_turbine_types(ws, time):
+    site = IEA37Site(16)
+    wt = WindTurbines.from_WindTurbine_lst([IEA37_WindTurbines(), IEA37_WindTurbines()])
+    wake_model = NOJ(site, wt)
+
+    # n_cpu > 1 does not work when type is used, i.e. more than one wtg type. Reason is attempt to broadcast type (1d)
+    # to the parameters which have shape reflecting multiple time steps
+    wake_model(
+        x=[0, 0, 1, 1],
+        y=[0, 1, 0, 1],
+        type=[0, 0, 1, 1],
+        ws=ws,
+        wd=[269.0, 270, 273, 267, 268],
+        time=time,
+        n_cpu=2,
+    )

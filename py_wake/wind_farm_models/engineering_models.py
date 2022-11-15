@@ -206,13 +206,18 @@ class EngineeringWindFarmModel(WindFarmModel):
             def concatenate(v_ilk):
                 if all([v is None for v in v_ilk]):
                     return None
+
+                def fix_shape(v, shape):
+                    while len(v.shape) < 3:
+                        v = np.expand_dims(v, -1)
+                    return np.broadcast_to(v, shape)
                 if time is False:
-                    v_ilk = [np.broadcast_to(v, WS_eff.shape) for v, WS_eff in zip(v_ilk, WS_eff_ilk)]
+                    v_ilk = [fix_shape(v, WS_eff.shape) for v, WS_eff in zip(v_ilk, WS_eff_ilk)]
 
                     return np.concatenate([np.concatenate(v_ilk[i::ws_chunks], axis=1)
                                            for i in range(ws_chunks)], axis=2)
                 else:
-                    v_ilk = [np.broadcast_to(v, WS_eff.shape) for v, WS_eff in zip(v_ilk, WS_eff_ilk)]
+                    v_ilk = [fix_shape(v, WS_eff.shape) for v, WS_eff in zip(v_ilk, WS_eff_ilk)]
                     return np.concatenate(v_ilk, axis=1)
 
             return ([concatenate(v) for v in [WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk]] +
