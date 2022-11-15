@@ -198,7 +198,10 @@ class FugaMultiLUTDeficit(FugaDeficit):
             ds['TI'] = fuga_utils.ti(ds.z0, ds.hubheight)
             return ds
 
-        self.ds_lst = [open_dataset(f) for f in glob.glob(LUT_path_lst)]
+        if isinstance(LUT_path_lst, str):
+            self.ds_lst = [open_dataset(f) for f in glob.glob(LUT_path_lst)]
+        else:
+            self.ds_lst = [open_dataset(f) for f in LUT_path_lst]
 
         x_lst, y_lst, z_lst = [self.ds_lst[0][k].values for k in 'xyz']
         assert np.all([np.all(ds.x == self.ds_lst[0].x) for ds in self.ds_lst])
