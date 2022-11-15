@@ -121,7 +121,7 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
     paths:
     - public
   only:  # only run for these branches
-  - /^test_doc.*/ 
+  - /^test_docdeploy.*/ 
   - master
   tags:  # only runners with this tag can do the job [3]
   - ci-ubuntu
