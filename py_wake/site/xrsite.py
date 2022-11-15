@@ -19,8 +19,37 @@ class XRSite(Site):
 
     def __init__(self, ds, initial_position=None, interp_method='linear', shear=None, distance=None,
                  default_ws=np.arange(3, 26), bounds='check'):
-        assert interp_method in [
-            'linear', 'nearest'], 'interp_method "%s" not implemented. Must be "linear" or "nearest"' % interp_method
+        """Instantiate a site from an xarray dataset
+
+        Parameters
+        ----------
+        ds : xarray dataset
+            See https://topfarm.pages.windenergy.dtu.dk/PyWake/notebooks/Site.html#XRSite for details
+        initial_position : array_like, optional
+            initial position of turbines can be stored in the site object
+        interp_method : {'linear', 'nearest'} or dict
+            interpolation method. Default is linear.
+            Methods can be mixed by specifying the variable and corresponding method in a dict, e.g.
+            {'wd': 'nearest', 'x': 'linear'}
+        shear : Shear-object or function (lw, WS_ref, lw.h) -> WS_z
+            Function to compute the wind speed at different heights
+        distance : Distance-object or None
+            If None, default, the distance method is set to StraightDistance
+        default_ws : array_like
+            The default range of wind speeds
+        bounds : {'check', 'limit', 'ignore'}
+            Specifies how bounds is handled:\n
+            - 'check': bounds check is performed. An error is raised if interpolation point outside area
+            - 'limit': interpolation points are forced inside the area
+            - 'ignore': Faster option with no check. Use this option if data is guaranteed to be inside the area
+
+        """
+        if isinstance(interp_method, dict):
+            assert all([v in ['linear', 'nearest'] for v in interp_method.values()]), \
+                'interp_method "%s" not implemented. Values must be "linear" or "nearest"' % interp_method
+        else:
+            assert interp_method in ['linear', 'nearest'],\
+                'interp_method "%s" not implemented. Must be "linear" or "nearest"' % interp_method
         assert bounds in ['check', 'limit', 'ignore'], 'bounds must be "check", "limit" or "ignore"'
         distance = distance or StraightDistance()
 

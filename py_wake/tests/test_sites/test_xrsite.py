@@ -545,6 +545,22 @@ def test_interp_special_cases():
     npt.assert_array_almost_equal(ip1.data, ip2.data)
 
 
+@pytest.mark.parametrize('method,ref', [('linear', (2.333333, 2.666666)),
+                                        ('nearest', (3, 4)),
+                                        ({'wd': 'nearest', 'x': 'linear'}, (2, 3)),
+                                        ({'wd': 'linear', 'x': 'nearest'}, (3.333333, 3.666666))
+                                        ])
+def test_interp_mixed_methods(method, ref):
+
+    ds = xr.Dataset({'P': (['x', 'wd'], np.arange(6).reshape((2, 3)))},
+                    coords={'x': [0, 600], 'wd': [0, 30, 60]}
+                    )
+    site = XRSite(ds, interp_method=method)
+
+    lw = LocalWind(x_i=[400], y_i=[0], wd=[10, 20], h_i=100, ws=10, time=False, wd_bin_size=1)
+    npt.assert_array_almost_equal(site.interp(site.ds.P, lw).squeeze(), ref)
+
+
 def test_from_pywasp_pwc_point(pywasp_pwc_point):
 
     site = XRSite.from_pywasp_pwc(pywasp_pwc_point)
