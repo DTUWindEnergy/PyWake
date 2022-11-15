@@ -103,6 +103,9 @@ class interp_ilk():
         data, i_indices = pre_sel(data, 'i')
 
         if len(ip_dims) > 0:
+            if isinstance(interp_method, dict):
+                interp_method = [interp_method[k] for k in ip_dims]
+
             grid_interp = GridInterpolator([var.coords[k].data for k in ip_dims], data,
                                            method=interp_method, bounds=bounds)
 
