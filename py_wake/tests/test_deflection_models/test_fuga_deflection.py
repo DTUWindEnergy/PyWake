@@ -19,7 +19,7 @@ def test_fuga_deflection_vs_notebook():
     p = Path(tfp) / "fuga/v80_deflection_x.csv"
     x, notebook_deflection = np.array([v.split(",") for v in p.read_text().strip().split("\n")], dtype=float).T
 
-    path = tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00'
+    path = tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00.nc'
     fuga_deflection = -FugaDeflection(path).calc_deflection(dw_ijl=np.reshape(x, (1, 41, 1)),
                                                             hcw_ijl=np.reshape(x * 0, (1, 41, 1)),
                                                             dh_ijl=np.reshape(x * 0, (1, 41, 1)),
@@ -46,7 +46,7 @@ def test_fuga_wake_center_vs_notebook():
     powerCtFunction = PowerCtTabular([0, 100], [0, 0], 'w', [0.850877, 0.850877])
     wt = WindTurbine(name='', diameter=80, hub_height=70, powerCtFunction=powerCtFunction)
 
-    path = tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00'
+    path = tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00.nc'
     site = UniformSite([1, 0, 0, 0], ti=0.075)
 
     wfm = PropagateDownwind(
@@ -79,7 +79,7 @@ def test_fuga_deflection_time_series_gradient_evaluation():
     powerCtFunction = PowerCtTabular([0, 100], [0, 0], 'w', [0.850877, 0.850877])
     wt = WindTurbine(name='', diameter=80, hub_height=70, powerCtFunction=powerCtFunction)
 
-    path = tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00'
+    path = tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00.nc'
     site = UniformSite([1, 0, 0, 0], ti=0.075)
 
     wfm = PropagateDownwind(

@@ -72,6 +72,33 @@ def test_grid_interpolator_2d():
     plt.close('all')
 
 
+@pytest.mark.parametrize('method,ref', [
+    ('linear', [15.5, 40.5, 42.5, 47.5, 48]),
+    (['linear', 'linear', 'linear'], [15.5, 40.5, 42.5, 47.5, 48]),
+    ('nearest', [25, 46, 48, 53, 54]),  # [25, 47, 49, 54, 54]
+    (['nearest', 'nearest', 'nearest'], [25, 46, 48, 53, 54]),  # [25, 47, 49, 54, 54]
+    ('linear', [15.5, 40.5, 42.5, 47.5, 48]),
+    (['linear', 'linear', 'nearest'], [15, 40, 42, 47, 48]),  # [15, 41, 43, 48, 48]
+    (['nearest', 'linear', 'nearest'], [23, 48, 50, 55, 56]),  # [23, 49, 51, 56, 56]
+
+])
+def test_grid_interpolator_3d_methods(method, ref):
+
+    x = [5, 10, 15]
+    y = [200, 300, 400, 500]
+    z = [1000, 1002, 1004, 1006, 1008]
+    v = np.arange(3 * 4 * 5).reshape(3, 4, 5)
+    eq = GridInterpolator([x, y, z], v)
+    # print(v)
+    xp = [[8, 260, 1001],
+          [13, 340, 1003],
+          [13, 340, 1007],
+          [13, 440, 1007],
+          [13, 440, 1008],
+          ]
+    npt.assert_array_almost_equal(eq(xp, method=method), ref, 10)
+
+
 def test_grid_interpolator_2d_plus_1d():
     eq = GridInterpolator([[5, 10, 15], [200, 300, 400, 500]], np.arange(12).repeat(2).reshape(3, 4, 2))
     x = [[i, 200] for i in np.arange(5, 16)]

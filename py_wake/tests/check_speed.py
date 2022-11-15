@@ -14,7 +14,7 @@ from py_wake.tests.test_files import tfp
 import sys
 from py_wake.utils.profiling import timeit
 
-path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
+path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc'
 
 
 def Fuga(site, wt):

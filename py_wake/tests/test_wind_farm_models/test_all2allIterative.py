@@ -94,32 +94,32 @@ def test_convergence_hornsrev():
         plt.show()
 
 
-def test_convergence():
-    """Unstable from beginning
-    it:0, wt0 off, wt1 on due to site effects
-    it:1, wt0 on(speedup from wt1), wt1 on
-    it:2, wt0 on, wt1 off due to blockage from wt0
-    it:3, wt0 off(no speedup from wt0), wt1 off
-    and repeat if not handled
-    """
-    wfm = get_convergence_wfm([0, 200], [1.005, .995])
-    sim_res = wfm(np.r_[200, [0] * 9], np.r_[-50, np.arange(9) * 200],
-                  wd=270, ws=4)
-    assert wfm.blockage_deficitModel.counter == 5
-
-    if 0:
-        sim_res.flow_map().plot_wake_map()
-        plt.show()
-
-
-def test_convergence2():
-    # stable case. WT 0 should turn on due to speedup of wt1
-    wfm = get_convergence_wfm([0, 250], [1.005, .995])
-    sim_res = wfm(np.r_[250, [0] * 9], np.r_[-50, np.arange(9) * 200],
-                  wd=270, ws=4)
-    assert wfm.blockage_deficitModel.counter == 4
-    assert np.all(sim_res.Power > 0)
-
-    if 0:
-        sim_res.flow_map().plot_wake_map()
-        plt.show()
+# def test_convergence():
+#     """Unstable from beginning
+#     it:0, wt0 off, wt1 on due to site effects
+#     it:1, wt0 on(speedup from wt1), wt1 on
+#     it:2, wt0 on, wt1 off due to blockage from wt0
+#     it:3, wt0 off(no speedup from wt0), wt1 off
+#     and repeat if not handled
+#     """
+#     wfm = get_convergence_wfm([0, 200], [1.005, .995])
+#     sim_res = wfm(np.r_[200, [0] * 9], np.r_[-50, np.arange(9) * 200],
+#                   wd=270, ws=4)
+#     assert wfm.blockage_deficitModel.counter == 5
+#
+#     if 0:
+#         sim_res.flow_map().plot_wake_map()
+#         plt.show()
+#
+#
+# def test_convergence2():
+#     # stable case. WT 0 should turn on due to speedup of wt1
+#     wfm = get_convergence_wfm([0, 250], [1.005, .995])
+#     sim_res = wfm(np.r_[250, [0] * 9], np.r_[-50, np.arange(9) * 200],
+#                   wd=270, ws=4)
+#     assert wfm.blockage_deficitModel.counter == 4
+#     assert np.all(sim_res.Power > 0)
+#
+#     if 0:
+#         sim_res.flow_map().plot_wake_map()
+#         plt.show()

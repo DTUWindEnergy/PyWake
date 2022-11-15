@@ -440,8 +440,12 @@ class CubePowerSimpleCt(PowerCtFunction):
 
     def _power(self, ws):
         ws = np.asarray(ws)
+
+        def cube(x):
+            return x * x * x
+
         return np.where((ws > self.ws_cutin) & (ws <= self.ws_cutout),
-                        np.minimum(self.power_rated * ((ws - self.ws_cutin) / (self.ws_rated - self.ws_cutin))**3,
+                        np.minimum(self.power_rated * cube((ws - self.ws_cutin) / (self.ws_rated - self.ws_cutin)),
                                    self.power_rated),
                         0)
 

@@ -24,9 +24,9 @@ def simple_wfm(deflectionModel):
 
 @pytest.mark.parametrize('deflectionModel,dy10d', [
     (JimenezWakeDeflection, 0.5672964),
-    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00/')), 0.4625591892703828),
-    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/')), 0.37719329354768527),
-    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/')), 0.32787746772608933),
+    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00.nc')), 0.4625591892703828),
+    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00.nc')), 0.37719329354768527),
+    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc')), 0.32787746772608933),
 ])
 def test_deflection_model_dy10d(deflectionModel, dy10d):
     # center line deflection 10d downstream
@@ -58,9 +58,9 @@ def test_deflection_model_dy10d(deflectionModel, dy10d):
 @pytest.mark.parametrize('deflectionModel,dy', [
     (JimenezWakeDeflection,
      [2., 12., 20., 26., -1., -10., -18., -24., 1., 11., 18., 25.]),
-    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00/')),
+    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00.nc')),
      [1., 6., 12., 18., 1., -3., -7., -11., -0., 3., 7., 10.]),
-    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/')),
+    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc')),
      [1., 6., 11., 15., 1., -2., -6., -8., -0., 3., 6., 8.]),
 ])
 def test_deflection_model(deflectionModel, dy):
@@ -87,9 +87,9 @@ def test_deflection_model(deflectionModel, dy):
 @pytest.mark.parametrize('deflectionModel,dy', [
     (JimenezWakeDeflection,
      [2.0, 12.0, 20.0, 26.0, 2.0, -5.0, -11.0, -16.0, -0.0, 8.0, 15.0, 20.0]),
-    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00/')),
+    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00.nc')),
      [1.0, 6.0, 12.0, 18.0, 2.0, -0.0, -4.0, -7.0, -1.0, 2.0, 4.0, 7.0]),
-    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/')),
+    ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc')),
      [1.0, 6.0, 11.0, 15.0, 2.0, -0.0, -3.0, -5.0, -1.0, 2.0, 4.0, 6.0]),
 ])
 def test_deflection_model_All2AllIterative(deflectionModel, dy):
