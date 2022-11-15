@@ -331,14 +331,17 @@ def test_ti(case, ti):
     npt.assert_almost_equal(fuga_utils.TI, ti, 2)
 
 
-def test_FugaMultiLUTDeficit():
+@pytest.mark.parametrize('LUT_path_lst', [tfp + 'fuga/*.nc',
+                                          [tfp + 'fuga/LUTs_Zeta0=0.00_16_32_D120_zhub90_zi400_z0=0.00001000_z29.6-207.9_UL_nx512_ny128_dx30.0_dy7.5.nc',
+                                           tfp + 'fuga/LUTs_Zeta0=0.00_16_32_D80_zhub70_zi400_z0=0.00001000_z29.6-207.9_UL_nx512_ny128_dx20.0_dy5.0.nc']])
+def test_FugaMultiLUTDeficit(LUT_path_lst):
     site = UniformSite()
     wt = WindTurbine.from_WindTurbine_lst([
         WindTurbine(name='WT80_70', diameter=80, hub_height=70,
                     powerCtFunction=CubePowerSimpleCt(power_rated=2000)),
         WindTurbine(name="WT120_90", diameter=120, hub_height=90,
                     powerCtFunction=CubePowerSimpleCt(power_rated=4500))])
-    deficitModel = FugaMultiLUTDeficit()
+    deficitModel = FugaMultiLUTDeficit(LUT_path_lst=LUT_path_lst)
     wfm = All2AllIterative(site, wt, deficitModel,
                            blockage_deficitModel=deficitModel,
                            initialize_with_PropagateDownwind=False)
