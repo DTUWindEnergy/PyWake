@@ -1,20 +1,22 @@
 from py_wake import np
-from py_wake.examples.data.hornsrev1 import HornsrevV80, V80
+from py_wake.examples.data.hornsrev1 import HornsrevV80
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
 from py_wake.tests.test_files import tfp
 from py_wake import Fuga
 from py_wake.examples.data import hornsrev1
 import matplotlib.pyplot as plt
-from py_wake.deficit_models.fuga import FugaBlockage, FugaDeficit, LUTInterpolator, FugaUtils, FugaYawDeficit
-from py_wake.flow_map import HorizontalGrid, XYGrid
+from py_wake.deficit_models.fuga import FugaBlockage, FugaDeficit, LUTInterpolator, FugaUtils, FugaYawDeficit,\
+    FugaMultiLUTDeficit
+from py_wake.flow_map import HorizontalGrid, XYGrid, XZGrid
 from py_wake.utils.grid_interpolator import GridInterpolator
-from py_wake.wind_farm_models.engineering_models import PropagateDownwind
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 import pytest
 from pathlib import Path
-from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
+from py_wake.wind_turbines.power_ct_functions import PowerCtTabular, CubePowerSimpleCt
 from py_wake.wind_turbines._wind_turbines import WindTurbine
 from py_wake.utils.profiling import timeit
+import warnings
 
 
 def test_fuga():
@@ -23,8 +25,8 @@ def test_fuga():
     wt_y = [433, 300, 0, 0, 0, -433, -433]
     wts = HornsrevV80()
 
-    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
     site = UniformSite([1, 0, 0, 0], ti=0.075)
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc'
     wake_model = Fuga(path, site, wts)
     res, _ = timeit(wake_model.__call__, verbose=0, line_profile=0,
                     profile_funcs=[FugaDeficit.interpolate, LUTInterpolator.__call__, GridInterpolator.__call__])(x=wt_x, y=wt_y, wd=[30], ws=[10])
@@ -74,7 +76,7 @@ def test_fuga():
 
 def test_fuga_blockage_wt_row():
     wts = HornsrevV80()
-    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc'
     site = hornsrev1.Hornsrev1Site()
     fuga_pdw = Fuga(path, site, wts)
     fuga_a2a = FugaBlockage(path, site, wts)
@@ -96,7 +98,7 @@ def test_fuga_blockage_wt_row():
         plt.show()
 
 
-def test_fuga_new_format():
+def test_fuga_new_casedata_bin_format():
     # move turbine 1 600 300
     wt_x = [-250, 600, -500, 0, 500, -250, 250]
     wt_y = [433, 300, 0, 0, 0, -433, -433]
@@ -104,18 +106,20 @@ def test_fuga_new_format():
 
     path = tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/'
     site = UniformSite([1, 0, 0, 0], ti=0.075)
-    wake_model = Fuga(path, site, wts)
-    res = wake_model(x=wt_x, y=wt_y, wd=[30], ws=[10])
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', DeprecationWarning)
+        wake_model = Fuga(path, site, wts)
+        res = wake_model(x=wt_x, y=wt_y, wd=[30], ws=[10])
 
-    npt.assert_array_almost_equal(res.WS_eff_ilk.flatten(), [10.00647891, 10., 8.21713928, 10.03038884, 9.36889964,
-                                                             8.23084088, 7.80662141], 8)
-    npt.assert_array_almost_equal(res.ct_ilk.flatten(), [0.79265014, 0.793, 0.80621714, 0.791359, 0.80183541,
-                                                         0.80623084, 0.80580662], 8)
+        npt.assert_array_almost_equal(res.WS_eff_ilk.flatten(), [10.00647891, 10., 8.21713928, 10.03038884, 9.36889964,
+                                                                 8.23084088, 7.80662141], 8)
+        npt.assert_array_almost_equal(res.ct_ilk.flatten(), [0.79265014, 0.793, 0.80621714, 0.791359, 0.80183541,
+                                                             0.80623084, 0.80580662], 8)
 
-    x_j = np.linspace(-1500, 1500, 500)
-    y_j = np.linspace(-1500, 1500, 300)
+        x_j = np.linspace(-1500, 1500, 500)
+        y_j = np.linspace(-1500, 1500, 300)
 
-    wake_model = Fuga(path, site, wts)
+        wake_model = Fuga(path, site, wts)
     sim_res = wake_model(wt_x, wt_y, wd=[30], ws=[10])
     flow_map70 = sim_res.flow_map(HorizontalGrid(x_j, y_j, h=70))
     flow_map73 = sim_res.flow_map(HorizontalGrid(x_j, y_j, h=73))
@@ -152,7 +156,7 @@ def test_fuga_new_format():
 def test_fuga_downwind():
     wts = HornsrevV80()
 
-    path = tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00'
+    path = tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00.nc'
     site = UniformSite([1, 0, 0, 0], ti=0.075)
     wfm_UL = Fuga(path, site, wts)
 
@@ -183,7 +187,7 @@ def test_fuga_downwind_vs_notebook():
     powerCtFunction = PowerCtTabular([0, 100], [0, 0], 'w', [0.850877, 0.850877])
     wt = WindTurbine(name='', diameter=80, hub_height=70, powerCtFunction=powerCtFunction)
 
-    path = tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00'
+    path = tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00.nc'
     site = UniformSite([1, 0, 0, 0], ti=0.075)
     wfm_ULT = PropagateDownwind(site, wt, FugaYawDeficit(path))
     WS = 10
@@ -203,7 +207,7 @@ def test_fuga_downwind_vs_notebook():
 def test_fuga_table_edges():
 
     wts = HornsrevV80()
-    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc'
     site = hornsrev1.Hornsrev1Site()
     fuga = FugaBlockage(path, site, wts)
 
@@ -231,7 +235,7 @@ def test_fuga_table_edges():
 
 def test_fuga_wriggles():
     wts = HornsrevV80()
-    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc'
     site = hornsrev1.Hornsrev1Site()
     fuga = PropagateDownwind(site, wts, FugaDeficit(path, remove_wriggles=True))
 
@@ -256,37 +260,39 @@ def test_fuga_wriggles():
     assert np.all(flow_map_cw_lst > 0)
 
 
-# def test_fuga_utils_mismatch():
-#     path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
-#     with pytest.raises(ValueError, match="Mismatch between CaseData.bin and 2MW_FIT_input.par: low_level 102!=155"):
-#         FugaUtils(path)
-
-
 def test_mirror():
-    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
+    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc'
     fuga_utils = FugaUtils(path, on_mismatch='input_par')
     npt.assert_array_almost_equal(fuga_utils.mirror([0, 1, 3]), [3, 1, 0, 1, 3])
     npt.assert_array_almost_equal(fuga_utils.mirror([0, 1, 3], anti_symmetric=True), [-3, -1, 0, 1, 3])
 
 
 def test_lut_exists():
-    path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
-    fuga_utils = FugaUtils(path, on_mismatch='input_par')
-    assert sorted(fuga_utils.lut_exists()) == ['UL', 'UT', 'VL', 'VT']
-    assert fuga_utils.lut_exists([154]) == set([])
-    assert sorted(fuga_utils.lut_exists([155])) == ['UL', 'UT', 'VL', 'VT']
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', DeprecationWarning)
+        fuga_utils = FugaUtils(tfp + "fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/", on_mismatch='input_par')
+        assert sorted(fuga_utils.lut_exists()) == ['UL', 'UT', 'VL', 'VT']
+        assert fuga_utils.lut_exists([154]) == set([])
+        assert sorted(fuga_utils.lut_exists([155])) == ['UL', 'UT', 'VL', 'VT']
 
-    path = tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/'
-    fuga_utils = FugaUtils(path, on_mismatch='input_par')
-    assert fuga_utils.lut_exists() == {'UL', 'UT', 'VL', 'VT'}
-    assert fuga_utils.lut_exists([154]) == set([])
-    assert fuga_utils.lut_exists([9999]) == {'UL', 'UT', 'VL', 'VT'}
+        fuga_utils = FugaUtils(tfp + "fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/", on_mismatch='input_par')
+        assert fuga_utils.lut_exists() == {'UL', 'UT', 'VL', 'VT'}
+        assert fuga_utils.lut_exists([154]) == set([])
+        assert fuga_utils.lut_exists([9999]) == {'UL', 'UT', 'VL', 'VT'}
+
+
+def test_lut_exists_newformat():
+    fuga_utils = FugaUtils(tfp + "fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc", on_mismatch='input_par')
+    assert sorted(fuga_utils.lut_exists()) == ['UL', 'UT', 'VL', 'VT']
+
+    fuga_utils = FugaUtils(tfp + "fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00.nc", on_mismatch='input_par')
+    assert sorted(fuga_utils.lut_exists()) == ['UL', 'UT', 'VL', 'VT']
 
 
 def test_interpolation():
     wts = HornsrevV80()
 
-    path = tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/'
+    path = tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00.nc'
     site = UniformSite([1, 0, 0, 0], ti=0.075)
 
     plot = 0
@@ -316,13 +322,46 @@ def test_interpolation():
         plt.close('all')
 
 
-@pytest.mark.parametrize('case,ti', [('Z0=0.00001000Zi=00400Zeta0=0.00E+00', .06),
-                                     ('Z0=0.00408599Zi=00400Zeta0=0.00E+00/', .10),
-                                     ('Z0=0.03000000Zi=00401Zeta0=0.00E+00/', .12), ])
+@pytest.mark.parametrize('case,ti', [('Z0=0.00001000Zi=00400Zeta0=0.00E+00.nc', .06),
+                                     ('Z0=0.00408599Zi=00400Zeta0=0.00E+00.nc', .10),
+                                     ('Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc', .12), ])
 def test_ti(case, ti):
     path = tfp + f'fuga/2MW/{case}'
     fuga_utils = FugaUtils(path, on_mismatch='input_par')
     npt.assert_almost_equal(fuga_utils.TI, ti, 2)
+
+
+def test_FugaMultiLUTDeficit():
+    site = UniformSite()
+    wt = WindTurbine.from_WindTurbine_lst([
+        WindTurbine(name='WT80_70', diameter=80, hub_height=70,
+                    powerCtFunction=CubePowerSimpleCt(power_rated=2000)),
+        WindTurbine(name="WT120_90", diameter=120, hub_height=90,
+                    powerCtFunction=CubePowerSimpleCt(power_rated=4500))])
+    deficitModel = FugaMultiLUTDeficit()
+    wfm = All2AllIterative(site, wt, deficitModel,
+                           blockage_deficitModel=deficitModel,
+                           initialize_with_PropagateDownwind=False)
+    x = np.arange(2) * 500
+    y = x * 0
+    sim_res = wfm(x, y, type=[0, 1], wd=[90, 240, 270])
+    # sim_res = wfm([0], [0], type=[0], wd=[90, 240, 270])
+    z = deficitModel.ds_lst[0].z
+
+    if 0:
+        print(np.round(sim_res.flow_map(grid=XZGrid(y=0, x=[200], z=z), wd=[90, 270]).WS_eff.squeeze()[::2], 2).T)
+        ax = plt.gca()
+        for wd in [90, 270]:
+            plt.figure()
+            sim_res.flow_map(grid=XZGrid(y=0, x=np.linspace(-200, 1000), z=z), wd=wd).plot_wake_map()
+            sim_res.flow_map(grid=XZGrid(y=0, x=[200], z=z), wd=wd).WS_eff[::2].plot(marker='.', ax=ax, y='h')
+        plt.show()
+    uz = sim_res.flow_map(grid=XZGrid(y=0, x=[200], z=z), wd=[90, 270]).WS_eff.squeeze()[::2].T
+    npt.assert_array_almost_equal(uz, [
+        [10.05, 9.59, 9.09, 8.62, 8.2, 7.81, 7.51, 7.29, 7.15, 7.08, 7.09,
+         7.19, 7.42, 7.85, 8.46, 9.3, 10.25, 11.09, 11.65, 11.93],
+        [10.72, 10.14, 9.5, 8.94, 8.51, 8.16, 7.95, 7.84, 7.83, 7.93, 8.18,
+            8.66, 9.48, 10.59, 11.42, 11.84, 11.99, 12.02, 12.02, 12.01]], 2)
 
 
 # def cmp_fuga_with_colonel():

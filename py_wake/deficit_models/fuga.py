@@ -1,21 +1,20 @@
 from numpy import newaxis as na
-
+import xarray as xr
 from py_wake import np
-from py_wake.deficit_models.deficit_model import DeficitModel, WakeDeficitModel, BlockageDeficitModel
+from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel
 from py_wake.superposition_models import LinearSum
 from py_wake.tests.test_files import tfp
-from py_wake.utils.fuga_utils import FugaUtils
+from py_wake.utils.fuga_utils import FugaUtils, LUTInterpolator
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from scipy.interpolate import RectBivariateSpline
-from py_wake.utils import gradients
+from py_wake.utils import fuga_utils
 from py_wake.utils.gradients import cabs
+from py_wake.utils.grid_interpolator import GridInterpolator
 
 
 class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
-    ams = 5
-    invL = 0
 
-    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/', remove_wriggles=False,
+    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc', remove_wriggles=False,
                  method='linear', rotorAvgModel=None, groundModel=None):
         """
         Parameters
@@ -46,32 +45,9 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
                 return du_interpolator.ev(x, y)
             self.lut_interpolator = interp
 
-    def zeta0_factor(self):
-        def psim(zeta):
-            return self.ams * zeta
-
-        if not self.zeta0 >= 0:  # pragma: no cover
-            # See Colonel.u2b.psim
-            raise NotImplementedError
-        return 1 / (1 - (psim(self.zHub * self.invL) - psim(self.zeta0)) / np.log(self.zHub / self.z0))
-
     def load(self):
-
-        mdUL = self.load_luts(['UL'])[0]
-
-        du = -np.array(mdUL, dtype=np.float32) * self.zeta0_factor()  # minus because it is deficit
-
-        if self.remove_wriggles:
-            # remove all positive and negative deficits after first zero crossing in lateral direction
-            du *= (np.cumsum(du < 0, 1) == 0)
-
-        # smooth edges to zero
-        n = 250
-        du[:, :, :n] = du[:, :, n][:, :, na] * np.arange(n) / n
-        du[:, :, -n:] = du[:, :, -n][:, :, na] * np.arange(n)[::-1] / n
-        n = 50
-        du[:, -n:, :] = du[:, -n, :][:, na, :] * np.arange(n)[::-1][na, :, na] / n
-
+        du = self.init_lut(self.load_luts(['UL'])[0], self.zHub, smooth2zero_x=250, smooth2zero_y=50,
+                           remove_wriggles=self.remove_wriggles)
         return self.x, self.y, self.z, du
 
     def interpolate(self, x, y, z):
@@ -95,7 +71,7 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
 
 class FugaYawDeficit(FugaDeficit):
 
-    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/',
+    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00.nc',
                  remove_wriggles=False, method='linear', rotorAvgModel=None, groundModel=None):
         """
         Parameters
@@ -114,7 +90,7 @@ class FugaYawDeficit(FugaDeficit):
         x, y, z, dUL = self.load()
 
         mdUT = self.load_luts(['UT'])[0]
-        dUT = np.array(mdUT, dtype=np.float32) * self.zeta0_factor()
+        dUT = np.array(mdUT, dtype=np.float32) * self.zeta0_factor(self.zHub)
         dU = np.concatenate([dUL[:, :, :, na], dUT[:, :, :, na]], 3)
         err_msg = "Method must be 'linear' or 'spline'. Spline is supports only height level only"
         assert method == 'linear' or (method == 'spline' and len(z) == 1), err_msg
@@ -153,80 +129,6 @@ class FugaYawDeficit(FugaDeficit):
     def calc_deficit(self, **kwargs):
         # fuga result is already downwind
         return self.calc_deficit_downwind(**kwargs)
-
-
-class LUTInterpolator(object):
-    # Faster than scipy.interpolate.interpolate.RegularGridInterpolator
-    def __init__(self, x, y, z, V):
-        self.x = x
-        self.y = y
-        self.z = z
-        self.V = V
-        self.nx = nx = len(x)
-        self.ny = ny = len(y)
-        self.nz = nz = len(z)
-        assert V.shape[:3] == (nz, ny, nx)
-        self.dx, self.dy = [xy[1] - xy[0] for xy in [x, y]]
-
-        self.x0 = x[0]
-        self.y0 = y[0]
-
-        Ve = np.concatenate((V, V[-1:]), 0)
-        Ve = np.concatenate((Ve, Ve[:, -1:]), 1)
-        Ve = np.concatenate((Ve, Ve[:, :, -1:]), 2)
-
-        self.V000 = np.array([V,
-                              Ve[:-1, :-1, 1:],
-                              Ve[:-1, 1:, :-1],
-                              Ve[:-1, 1:, 1:],
-                              Ve[1:, :-1, :-1],
-                              Ve[1:, :-1, 1:],
-                              Ve[1:, 1:, :-1],
-                              Ve[1:, 1:, 1:]])
-        if V.shape == (nz, ny, nx, 2):
-            # Both UL and UT
-            self.V000 = self.V000.reshape((8, nz * ny * nx, 2))
-        else:
-            self.V000 = self.V000.reshape((8, nz * ny * nx))
-
-    def __call__(self, xyz):
-        xp, yp, zp = xyz
-        xp = np.maximum(np.minimum(xp, self.x[-1]), self.x[0])
-        yp = np.maximum(np.minimum(yp, self.y[-1]), self.y[0])
-
-        xif, xi0 = gradients.modf((xp - self.x0) / self.dx)
-        yif, yi0 = gradients.modf((yp - self.y0) / self.dy)
-
-        zif, zi0 = gradients.modf(gradients.interp(zp, self.z, np.arange(self.nz)))
-
-        nx, ny = self.nx, self.ny
-        idx = zi0 * nx * ny + yi0 * nx + xi0
-        v000, v001, v010, v011, v100, v101, v110, v111 = self.V000[:, idx]
-        if len(self.V000.shape) == 3:
-            # Both UL and UT
-            xif = xif[..., na]
-            yif = yif[..., na]
-            zif = zif[..., na]
-        v_00 = v000 + (v100 - v000) * zif
-        v_01 = v001 + (v101 - v001) * zif
-        v_10 = v010 + (v110 - v010) * zif
-        v_11 = v011 + (v111 - v011) * zif
-        v__0 = v_00 + (v_10 - v_00) * yif
-        v__1 = v_01 + (v_11 - v_01) * yif
-
-        return (v__0 + (v__1 - v__0) * xif)
-#         # Slightly slower
-#         xif1, yif1, zif1 = 1 - xif, 1 - yif, 1 - zif
-#         w = np.array([xif1 * yif1 * zif1,
-#                       xif * yif1 * zif1,
-#                       xif1 * yif * zif1,
-#                       xif * yif * zif1,
-#                       xif1 * yif1 * zif,
-#                       xif * yif1 * zif,
-#                       xif1 * yif * zif,
-#                       xif * yif * zif])
-#
-#         return np.sum(w * self.V01[:, zi0, yi0, xi0], 0)
 
 
 class Fuga(PropagateDownwind):
@@ -284,6 +186,61 @@ class FugaBlockage(All2AllIterative):
                                   turbulenceModel=turbulenceModel, convergence_tolerance=convergence_tolerance)
 
 
+class FugaMultiLUTDeficit(FugaDeficit):
+    def __init__(self, LUT_path_lst=tfp + 'fuga/*.nc', remove_wriggles=False,
+                 method='linear', rotorAvgModel=None, groundModel=None):
+        BlockageDeficitModel.__init__(self, upstream_only=True, rotorAvgModel=rotorAvgModel, groundModel=groundModel)
+
+        import glob
+
+        def open_dataset(f):
+            ds = xr.open_dataset(f).transpose('z', 'y', 'x')
+            ds['TI'] = fuga_utils.ti(ds.z0, ds.hubheight)
+            return ds
+
+        self.ds_lst = [open_dataset(f) for f in glob.glob(LUT_path_lst)]
+
+        x_lst, y_lst, z_lst = [self.ds_lst[0][k].values for k in 'xyz']
+        assert np.all([np.all(ds.x == self.ds_lst[0].x) for ds in self.ds_lst])
+        assert np.all([np.all(ds.y == self.ds_lst[0].y) for ds in self.ds_lst])
+        assert np.all([np.all(ds.z == self.ds_lst[0].z) for ds in self.ds_lst])
+        assert np.all([np.all(ds.z0 == self.ds_lst[0].z0) for ds in self.ds_lst])
+        assert np.all([np.all(ds.zeta0 == self.ds_lst[0].zeta0) for ds in self.ds_lst])
+        self.z0 = self.ds_lst[0].z0.item()
+        self.zeta0 = self.ds_lst[0].zeta0.item()
+
+        data = np.concatenate([self.init_lut(ds.UL.values, ds.hubheight.item(), remove_wriggles=remove_wriggles)[na]
+                               for ds in self.ds_lst], 0)
+
+        i_lst = np.arange(len(self.ds_lst))
+        self.interpolator = GridInterpolator([i_lst, z_lst, y_lst, x_lst], data,
+                                             method=['nearest', 'linear', 'linear', 'linear'])
+
+        def list_indexer(lst):
+            return lambda x, lst=lst: np.searchsorted(lst, np.minimum(x, lst[-1]))
+
+        d_lst = np.sort(np.unique([ds.diameter.item() for ds in self.ds_lst]))
+        h_lst = np.sort(np.unique([ds.hubheight.item() for ds in self.ds_lst]))
+        # ti_lst = np.sort(np.unique([ds.TI.item() for ds in self.ds_lst]))
+        d_index, h_index = [list_indexer(lst) for lst in [d_lst, h_lst]]
+        # ti_searcher =
+
+        index_arr = np.full((len(d_lst), len(h_lst)), -1)
+        for i, ds in enumerate(self.ds_lst):
+            index_arr[d_index(ds.diameter.item()), h_index(ds.hubheight.item())] = i
+        self.index_arr = index_arr
+        self.d_index, self.h_index = d_index, h_index
+
+    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_il, dh_ijlk, D_src_il, **kwargs):
+
+        i_il = self.index_arr[self.d_index(D_src_il), self.h_index(h_il)]
+        i_ijlk = np.broadcast_to(i_il[:, na, :, na], dw_ijlk.shape)
+        xp = np.array([i_ijlk, h_il[:, na, :, na] + dh_ijlk, cabs(hcw_ijlk), dw_ijlk])
+        self.mdu_ijlk = self.interpolator(xp.reshape((4, -1)).T, bounds='limit').reshape(dw_ijlk.shape)
+
+        self.mdu_ijlk *= ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na]))  # avoid wake on itself
+
+
 def main():
     if __name__ == '__main__':
         from py_wake.examples.data.iea37._iea37 import IEA37Site
@@ -295,7 +252,7 @@ def main():
         x, y = site.initial_position.T
         windTurbines = IEA37_WindTurbines()
 
-        path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/'
+        path = tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc'
 
         for wf_model in [Fuga(path, site, windTurbines),
                          FugaBlockage(path, site, windTurbines)]:
@@ -313,7 +270,6 @@ def main():
             flow_map.plot_wake_map()
             flow_map.plot_windturbines()
             plt.title('AEP: %.2f GWh' % aep)
-            plt.show()
         plt.show()
 
 

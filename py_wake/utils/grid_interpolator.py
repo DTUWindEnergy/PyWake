@@ -56,17 +56,19 @@ class GridInterpolator(object):
         bounds : {'check', 'limit', 'ignore'} or None
             Overrides self.bounds if not None
         """
-        method = method or self.method
+        method = np.atleast_1d(method or self.method)
+        assert np.all([m in ['linear', 'nearest'] for m in method]), 'method must be "linear" or "nearest"'
+        assert len(method) in [1, len(self.x)]
+        linear = [method[min(len(method) - 1, i)] == 'linear' for i in range(len(self.x))]
         bounds = bounds or self.bounds
-        assert method in ['linear', 'nearest'], 'method must be "linear" or "nearest"'
         assert bounds in ['check', 'limit', 'ignore'], 'bounds must be "check", "limit" or "ignore"'
         xp = np.atleast_2d(xp)
         xp_shape = xp.shape
         assert xp_shape[-1] == len(self.x), xp_shape
         xp = np.reshape(xp, (-1, xp_shape[-1]))
         if len(self.irregular_axes_indexes):
-            xpi0 = np.array([np.minimum(np.searchsorted(x, xp, side='right') - 1, n - 2)
-                             for x, xp, n in zip(self.x, xp.T, self.n)])
+            xpi0 = np.array([np.clip(np.searchsorted(x, xp, side='right') - 1, 0, n - 2, dtype=int)
+                             for x, xp, n in zip(self.x, xp.T, self.n)], dtype=int)
             xp0 = np.array([np.asarray(x)[xpi0] for x, xpi0 in zip(self.x, xpi0)])
             xp1 = np.array([np.asarray(x)[xpi0 + 1] for x, xpi0 in zip(self.x, xpi0)])
             xp_dx = xp1 - xp0
@@ -74,7 +76,7 @@ class GridInterpolator(object):
         else:
             xpi = (xp - self.x0) / self.dx
 
-        if method == 'linear' and bounds == 'check' and (np.any(xpi < 0) or np.any(xpi + 1 > self.n[na])):
+        if bounds == 'check' and (np.any(xpi < 0) or np.any(xpi + 1 > self.n[na])):
             if -xpi.min() > (xpi + 1 - self.n[na]).max():
                 point, dimension = np.unravel_index(xpi.argmin(), np.atleast_2d(xpi).shape)
             else:
@@ -84,12 +86,16 @@ class GridInterpolator(object):
         if bounds == 'limit':
             xpi = np.minimum(np.maximum(xpi, 0), self.n - 1)
 
+        if 'nearest' in method:
+            # round x.5 down to match old results
+            xpi = np.where(linear, xpi, np.round(xpi - .1 * (gradients.mod(xpi, 2) == 1.5)))
         xpif, xpi0 = gradients.modf(xpi)
 
-        if method == 'nearest':
-            xpif = np.round(xpif)
+        int_box_axes = [[0, (0, 1)][l] for l in linear]
+        ui = np.moveaxis(np.meshgrid(*int_box_axes, indexing='ij'), 0, -1)
 
-        indexes = (self.ui.T[:, :, na] + xpi0.T[:, na])
+        ui = ui.reshape((-1, len(self.x)))
+        indexes = (ui.T[:, :, na] + xpi0.T[:, na])
 
         indexes = np.minimum(indexes, (self.n - 1)[:, na, na], dtype=int)
         v = np.moveaxis(self.V[tuple(indexes)], [0, 1], [-2, -1])
@@ -104,8 +110,10 @@ class GridInterpolator(object):
             if i == xpif.shape[1]:
                 return weights
             else:
-
-                return np.array([mul_weight(weights * xpif1[:, i], i + 1), mul_weight(weights * xpif[:, i], i + 1)])
+                if linear[i]:
+                    return np.array([mul_weight(weights * xpif1[:, i], i + 1), mul_weight(weights * xpif[:, i], i + 1)])
+                else:
+                    return np.array([mul_weight(weights * xpif1[:, i], i + 1)])
 
         w = np.reshape(mul_weight(1, 0), (-1, xpif.shape[0]))
 

@@ -9,15 +9,16 @@ from scipy.interpolate import RegularGridInterpolator
 
 class FugaDeflection(FugaUtils, DeflectionModel):
 
-    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00', on_mismatch='raise'):
+    def __init__(self, LUT_path=tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00.nc', on_mismatch='raise'):
         FugaUtils.__init__(self, path=LUT_path, on_mismatch=on_mismatch)
-        if len(self.zlevels) == 1:
-            tabs = self.load_luts(['VL', 'VT']).reshape(2, -1, self.nx)
+        if len(self.z) == 1:
+            assert np.allclose(self.z, self.zHub)
+            tabs = self.load_luts(['VL', 'VT']).reshape(2, -1, len(self.x))
         else:
             # interpolate to hub height
             jh = np.floor(np.log(self.zHub / self.z0) / self.ds)
             zlevels = [jh, jh + 1]
-            tabs = self.load_luts(['VL', 'VT'], zlevels).reshape(2, 2, -1, self.nx)
+            tabs = self.load_luts(['VL', 'VT'], zlevels).reshape(2, 2, -1, len(self.x))
             t = np.modf(np.log(self.zHub / self.z0) / self.ds)[0]
             tabs = tabs[:, 0] * (1 - t) + t * tabs[:, 1]
 
@@ -25,8 +26,8 @@ class FugaDeflection(FugaUtils, DeflectionModel):
         VL = -VL
         self.VL, self.VT = VL, VT
 
-        nx0 = self.nx0
-        ny = self.ny // 2
+        nx0 = len(self.x) // 4
+        ny = len(self.y)
 
         fL = np.cumsum(np.concatenate([np.zeros((ny, 1)), ((VL[:, :-1] + VL[:, 1:]) / 2)], 1), 1)
         fT = np.cumsum(np.concatenate([np.zeros((ny, 1)), ((VT[:, :-1] + VT[:, 1:]) / 2)], 1), 1)
@@ -163,7 +164,7 @@ def main():
         site = IEA37Site(16)
         x, y = [0, 600, 1200], [0, 0, 0]  # site.initial_position[:2].T
         windTurbines = IEA37_WindTurbines()
-        path = tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/'
+        path = tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00.nc'
         noj = Fuga(path, site, windTurbines, deflectionModel=FugaDeflection(path))
         yaw = [-30, 30, 0]
         noj(x, y, yaw=yaw, wd=270, ws=10).flow_map().plot_wake_map()
