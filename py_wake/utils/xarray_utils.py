@@ -2,7 +2,11 @@ from numpy import newaxis as na
 
 from py_wake import np
 import xarray as xr
-from xarray.plot.plot import _PlotMethods
+try:  # pragma: no cover
+    from xarray.plot.plot import _PlotMethods as DataArrayPlotAccessor
+except ModuleNotFoundError:  # pragma: no cover
+    from xarray.plot.accessor import DataArrayPlotAccessor
+
 import warnings
 from py_wake.utils.grid_interpolator import GridInterpolator
 
@@ -168,16 +172,16 @@ class sel_interp_all():
         return da.interp(**interp_coords, method=method, kwargs=kwargs)
 
 
-class plot_xy_map(_PlotMethods):
+class plot_xy_map(DataArrayPlotAccessor):
     def __init__(self, darray):
-        _PlotMethods.__init__(self, darray)
+        DataArrayPlotAccessor.__init__(self, darray)
 
     def __call__(self, **kwargs):
         if ('x' in self._da.coords and 'y' in self._da.coords and 'x' not in kwargs and
 
                 self._da.squeeze().shape == (len(np.atleast_1d(self._da.x)), len(np.atleast_1d(self._da.y)))):
             kwargs['x'] = 'x'
-        _PlotMethods(self._da)(**kwargs)
+        DataArrayPlotAccessor(self._da)(**kwargs)
 
 
 if not hasattr(xr.DataArray(None), 'ilk'):
