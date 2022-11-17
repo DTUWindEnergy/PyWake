@@ -53,6 +53,7 @@ setup(name='py_wake',
                       'rotor_avg_models/gaussian_overlap_.02_.02_128_512.nc'
                       ],
       },
+      # When adding extra requirements be sure to update recipe/meta.yaml
       install_requires=[
           'matplotlib',  # for plotting
           'numpy',  # for numerical calculations
