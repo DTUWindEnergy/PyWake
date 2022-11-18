@@ -98,7 +98,8 @@ After that pass the new netcdf file to Fuga instead of the old folder""",
 
                 self.z = self.z0 * np.exp(self.zlevels * self.ds)
         else:
-            self.dataset = ds = xr.open_dataset(path)
+            ds = xr.open_dataset(path)
+            self.dataset_path = path
             self.x, self.y, self.z = ds.x.values, ds.y.values, ds.z.values
             self.dx, self.dy = np.diff(self.x[:2]), np.diff(self.y[:2])
             self.zeta0, self.zHub, self.z0 = ds.zeta0.item(), ds.hubheight.item(), ds.z0.item()
@@ -109,17 +110,18 @@ After that pass the new netcdf file to Fuga instead of the old folder""",
         return np.concatenate([((1, -1)[anti_symmetric]) * x[::-1], x[1:]])
 
     def lut_exists(self, zlevels=None):
-        if hasattr(self, 'dataset'):
+        if hasattr(self, 'dataset_path'):
             return [k for k in ['UL', 'UT', 'VL', 'VT', 'WL', 'WT', 'PL', 'PT']
-                    if k in self.dataset]
+                    if k in xr.open_dataset(self.dataset_path)]
         else:
             return {uvwp_lt for uvwp_lt in ['UL', 'UT', 'VL', 'VT', 'WL', 'WT', 'PL', 'PT']
                     if np.all([(self.path / (self.prefix + '%04d%s.dat' % (j, uvwp_lt))).exists()
                                for j in (zlevels or self.zlevels)])}
 
     def load_luts(self, UVLT=['UL', 'UT', 'VL', 'VT'], zlevels=None):
-        if hasattr(self, 'dataset'):
-            return np.array([self.dataset[k].load().transpose('z', 'y', 'x').values for k in UVLT])
+        if hasattr(self, 'dataset_path'):
+            dataset = xr.load_dataset(self.dataset_path)
+            return np.array([dataset[k].load().transpose('z', 'y', 'x').values for k in UVLT])
         else:
             luts = np.array([[np.fromfile(str(self.path / (self.prefix + '%04d%s.dat' % (j, uvlt))), np.dtype('<f'), -1)
                               for j in (zlevels or self.zlevels)] for uvlt in UVLT])

@@ -186,6 +186,14 @@ class FugaBlockage(All2AllIterative):
                                   turbulenceModel=turbulenceModel, convergence_tolerance=convergence_tolerance)
 
 
+class list_indexer:
+    def __init__(self, lst):
+        self.lst = lst
+
+    def __call__(self, x):
+        return np.searchsorted(self.lst, np.minimum(x, self.lst[-1]))
+
+
 class FugaMultiLUTDeficit(FugaDeficit):
     def __init__(self, LUT_path_lst=tfp + 'fuga/*.nc', remove_wriggles=False,
                  method='linear', rotorAvgModel=None, groundModel=None):
@@ -199,37 +207,38 @@ class FugaMultiLUTDeficit(FugaDeficit):
             return ds
 
         if isinstance(LUT_path_lst, str):
-            self.ds_lst = [open_dataset(f) for f in glob.glob(LUT_path_lst)]
+            ds_lst = [open_dataset(f) for f in glob.glob(LUT_path_lst)]
         else:
-            self.ds_lst = [open_dataset(f) for f in LUT_path_lst]
+            ds_lst = [open_dataset(f) for f in LUT_path_lst]
 
-        x_lst, y_lst, z_lst = [self.ds_lst[0][k].values for k in 'xyz']
-        assert np.all([np.all(ds.x == self.ds_lst[0].x) for ds in self.ds_lst])
-        assert np.all([np.all(ds.y == self.ds_lst[0].y) for ds in self.ds_lst])
-        assert np.all([np.all(ds.z == self.ds_lst[0].z) for ds in self.ds_lst])
-        assert np.all([np.all(ds.z0 == self.ds_lst[0].z0) for ds in self.ds_lst])
-        assert np.all([np.all(ds.zeta0 == self.ds_lst[0].zeta0) for ds in self.ds_lst])
-        self.z0 = self.ds_lst[0].z0.item()
-        self.zeta0 = self.ds_lst[0].zeta0.item()
+        x_lst, y_lst, z_lst = [ds_lst[0][k].values for k in 'xyz']
+        assert np.all([np.all(ds.x == ds_lst[0].x) for ds in ds_lst])
+        assert np.all([np.all(ds.y == ds_lst[0].y) for ds in ds_lst])
+        assert np.all([np.all(ds.z == ds_lst[0].z) for ds in ds_lst])
+        assert np.all([np.all(ds.z0 == ds_lst[0].z0) for ds in ds_lst])
+        assert np.all([np.all(ds.zeta0 == ds_lst[0].zeta0) for ds in ds_lst])
+
+        self.x = ds_lst[0].x.values
+        self.y = ds_lst[0].y.values
+        self.z = ds_lst[0].z.values
+        self.z0 = ds_lst[0].z0.item()
+        self.zeta0 = ds_lst[0].zeta0.item()
 
         data = np.concatenate([self.init_lut(ds.UL.values, ds.hubheight.item(), remove_wriggles=remove_wriggles)[na]
-                               for ds in self.ds_lst], 0)
+                               for ds in ds_lst], 0)
 
-        i_lst = np.arange(len(self.ds_lst))
+        i_lst = np.arange(len(ds_lst))
         self.interpolator = GridInterpolator([i_lst, z_lst, y_lst, x_lst], data,
                                              method=['nearest', 'linear', 'linear', 'linear'])
 
-        def list_indexer(lst):
-            return lambda x, lst=lst: np.searchsorted(lst, np.minimum(x, lst[-1]))
-
-        d_lst = np.sort(np.unique([ds.diameter.item() for ds in self.ds_lst]))
-        h_lst = np.sort(np.unique([ds.hubheight.item() for ds in self.ds_lst]))
-        # ti_lst = np.sort(np.unique([ds.TI.item() for ds in self.ds_lst]))
+        d_lst = np.sort(np.unique([ds.diameter.item() for ds in ds_lst]))
+        h_lst = np.sort(np.unique([ds.hubheight.item() for ds in ds_lst]))
+        # ti_lst = np.sort(np.unique([ds.TI.item() for ds in ds_lst]))
         d_index, h_index = [list_indexer(lst) for lst in [d_lst, h_lst]]
         # ti_searcher =
 
         index_arr = np.full((len(d_lst), len(h_lst)), -1)
-        for i, ds in enumerate(self.ds_lst):
+        for i, ds in enumerate(ds_lst):
             index_arr[d_index(ds.diameter.item()), h_index(ds.hubheight.item())] = i
         self.index_arr = index_arr
         self.d_index, self.h_index = d_index, h_index
