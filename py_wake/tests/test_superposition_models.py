@@ -2,16 +2,19 @@ import pytest
 from py_wake import np
 from py_wake import NOJ
 from py_wake.site._site import UniformSite
-from py_wake.superposition_models import LinearSum, SquaredSum, MaxSum, SqrMaxSum
+from py_wake.superposition_models import LinearSum, SquaredSum, MaxSum, SqrMaxSum, WeightedSum
 from py_wake.tests import npt
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.turbulence_models import TurbulenceModel
-from py_wake.flow_map import HorizontalGrid
+from py_wake.flow_map import HorizontalGrid, XYGrid
 from py_wake.tests.test_deficit_models.test_noj import NibeA0
 from py_wake.examples.data.hornsrev1 import V80
 from py_wake.deficit_models.deficit_model import BlockageDeficitModel, WakeDeficitModel
 from py_wake.deficit_models import NoWakeDeficit
+from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37_WindTurbines
+from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit
+from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
 
 d02 = 8.1 - 5.7
 d12 = 8.1 - 4.90473373
@@ -116,3 +119,16 @@ def test_diff_wake_blockage_superposition():
     y = x * 0
     sim_res = wfm(x, y, ws=10, wd=270)
     npt.assert_array_almost_equal(sim_res.WS_eff.squeeze(), [10 - (4 - i) * .3 - np.sqrt(i * 2**2) for i in range(5)])
+
+
+def test_WeightedSum_blockage():
+    site = IEA37Site(16)
+    x, y = site.initial_position.T
+    windTurbines = IEA37_WindTurbines()
+
+    wfm = All2AllIterative(site, windTurbines, wake_deficitModel=BastankhahGaussianDeficit(),
+                           # blockage_deficitModel=SelfSimilarityDeficit(),
+                           superpositionModel=WeightedSum())
+    wfm(x, y, wd=270)  # .flow_map().plot_wake_map()
+    # import matplotlib.pyplot as plt
+    # plt.show()
