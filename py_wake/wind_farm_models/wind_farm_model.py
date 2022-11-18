@@ -9,8 +9,9 @@ from numpy import newaxis as na
 from py_wake.utils.model_utils import check_model, fix_shape
 from py_wake.utils.xarray_utils import ilk2da, ijlk2da
 import multiprocessing
-from py_wake.utils.parallelization import get_pool
+from py_wake.utils.parallelization import get_pool_map, get_pool_starmap
 from py_wake.utils.functions import arg2ilk, coords2ILK
+from py_wake.utils.gradients import autograd
 
 
 class WindFarmModel(ABC):
@@ -257,7 +258,7 @@ class WindFarmModel(ABC):
         wd_i = np.linspace(0, len(wd) + 1, wd_chunks + 1).astype(int)
         ws_i = np.linspace(0, len(ws) + 1, ws_chunks + 1).astype(int)
         if n_cpu > 1:
-            map_func = get_pool(n_cpu).map
+            map_func = get_pool_map(n_cpu)
         else:
             map_func = map
 
@@ -311,7 +312,7 @@ class WindFarmModel(ABC):
         return np.sum([np.array(aep) / self.site.wd_bin_size(args['wd']) * wd_bin_size
                        for args, aep in zip(kwargs_lst, map_func(aep_function, kwargs_lst))], 0)
 
-    def aep_gradients(self, gradient_method, wrt_arg, gradient_method_kwargs={},
+    def aep_gradients(self, gradient_method=autograd, wrt_arg=['x', 'y'], gradient_method_kwargs={},
                       n_cpu=1, wd_chunks=None, ws_chunks=None, **kwargs):
         """Method to compute the gradients of the AEP with respect to wrt_arg using the gradient_method
 
@@ -623,7 +624,7 @@ class SimulationResult(xr.Dataset):
         wd_chunks = np.minimum(wd_chunks or n_cpu, len(wd))
         if n_cpu != 1:
             n_cpu = n_cpu or multiprocessing.cpu_count()
-            map = get_pool(n_cpu).starmap  # @ReservedAssignment
+            map = get_pool_starmap(n_cpu)  # @ReservedAssignment
             if len(wd) >= n_cpu:
                 # chunkification more efficient on wd than j
                 wd_i = np.linspace(0, len(wd), n_cpu + 1).astype(int)

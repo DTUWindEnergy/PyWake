@@ -131,7 +131,7 @@ class EngineeringWindFarmModel(WindFarmModel):
         rotor_pos = -1e-10
         if self.blockage_deficitModel is None:
             deficit *= (dw_ijlk > rotor_pos)
-            blockage = np.zeros_like(deficit)
+            blockage = None
         elif (self.blockage_deficitModel != self.wake_deficitModel):
             blockage = self.blockage_deficitModel.calc_blockage_deficit(dw_ijlk=dw_ijlk, **kwargs)
             deficit *= (dw_ijlk > rotor_pos)
@@ -601,8 +601,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
                 # Calculate deficit
                 if isinstance(self.superpositionModel, WeightedSum):
-                    deficit, uc, sigma_sqr, blockage = self._calc_deficit_convection(**model_kwargs)
-                    deficit += blockage
+                    deficit, uc, sigma_sqr, _ = self._calc_deficit_convection(**model_kwargs)
                     uc_nk.append(uc[0])
                     sigma_sqr_nk.append(sigma_sqr[0])
                 else:

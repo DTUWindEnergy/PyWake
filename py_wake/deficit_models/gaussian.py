@@ -198,9 +198,12 @@ class IEA37SimpleBastankhahGaussianDeficit(BastankhahGaussianDeficit):
     def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):
         if not self.deficit_initalized:
             self._calc_layout_terms(WS_ilk, D_src_il, dw_ijlk, cw_ijlk)
-        ct_factor_ijlk = (1. - ct_ilk[:, na] / self.denominator_ijlk)
-        # deficit_ijlk
-        return self.layout_factor_ijlk * (1 - np.sqrt(ct_factor_ijlk))
+
+        # ct_factor_ijlk = (1. - ct_ilk[:, na] / self.denominator_ijlk)
+        # # deficit_ijlk
+        # return self.layout_factor_ijlk * (1 - np.sqrt(ct_factor_ijlk))
+
+        return self.layout_factor_ijlk * (1 - np.sqrt((1. - ct_ilk[:, na] / self.denominator_ijlk)))
 
 
 class IEA37SimpleBastankhahGaussian(PropagateDownwind, DeprecatedModel):
