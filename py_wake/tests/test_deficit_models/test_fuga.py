@@ -349,7 +349,7 @@ def test_FugaMultiLUTDeficit(LUT_path_lst):
     y = x * 0
     sim_res = wfm(x, y, type=[0, 1], wd=[90, 240, 270])
     # sim_res = wfm([0], [0], type=[0], wd=[90, 240, 270])
-    z = deficitModel.ds_lst[0].z
+    z = deficitModel.z
 
     if 0:
         print(np.round(sim_res.flow_map(grid=XZGrid(y=0, x=[200], z=z), wd=[90, 270]).WS_eff.squeeze()[::2], 2).T)
@@ -366,6 +366,37 @@ def test_FugaMultiLUTDeficit(LUT_path_lst):
         [10.72, 10.14, 9.5, 8.94, 8.51, 8.16, 7.95, 7.84, 7.83, 7.93, 8.18,
             8.66, 9.48, 10.59, 11.42, 11.84, 11.99, 12.02, 12.02, 12.01]], 2)
 
+
+def test_FugaMultiLUTDeficit_multiprocessing():
+    site = UniformSite()
+    wt = WindTurbine.from_WindTurbine_lst([
+        WindTurbine(name='WT80_70', diameter=80, hub_height=70,
+                    powerCtFunction=CubePowerSimpleCt(power_rated=2000)),
+        WindTurbine(name="WT120_90", diameter=120, hub_height=90,
+                    powerCtFunction=CubePowerSimpleCt(power_rated=4500))])
+    deficitModel = FugaMultiLUTDeficit()
+    wfm = All2AllIterative(site, wt, deficitModel,
+                           blockage_deficitModel=deficitModel,
+                           initialize_with_PropagateDownwind=False)
+    x = np.arange(2) * 500
+    y = x * 0
+    sim_res = wfm(x, y, type=[0, 1], wd=[90, 240, 270], n_cpu=2)
+    # sim_res = wfm([0], [0], type=[0], wd=[90, 240, 270])
+    z = deficitModel.z
+    if 0:
+        print(np.round(sim_res.flow_map(grid=XZGrid(y=0, x=[200], z=z), wd=[90, 270]).WS_eff.squeeze()[::2], 2).T)
+        ax = plt.gca()
+        for wd in [90, 270]:
+            plt.figure()
+            sim_res.flow_map(grid=XZGrid(y=0, x=np.linspace(-200, 1000), z=z), wd=wd).plot_wake_map()
+            sim_res.flow_map(grid=XZGrid(y=0, x=[200], z=z), wd=wd).WS_eff[::2].plot(marker='.', ax=ax, y='h')
+        plt.show()
+    uz = sim_res.flow_map(grid=XZGrid(y=0, x=[200], z=z), wd=[90, 270]).WS_eff.squeeze()[::2].T
+    npt.assert_array_almost_equal(uz, [
+        [10.05, 9.59, 9.09, 8.62, 8.2, 7.81, 7.51, 7.29, 7.15, 7.08, 7.09,
+         7.19, 7.42, 7.85, 8.46, 9.3, 10.25, 11.09, 11.65, 11.93],
+        [10.72, 10.14, 9.5, 8.94, 8.51, 8.16, 7.95, 7.84, 7.83, 7.93, 8.18,
+            8.66, 9.48, 10.59, 11.42, 11.84, 11.99, 12.02, 12.02, 12.01]], 2)
 
 # def cmp_fuga_with_colonel():
 #     from py_wake.aep_calculator import AEPCalculator
