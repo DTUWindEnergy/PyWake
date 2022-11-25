@@ -15,6 +15,7 @@ from autograd.numpy.numpy_boxes import ArrayBox
 
 
 class XRSite(Site):
+    """The flexible general base class behind all Sites"""
     use_WS_bins = False
 
     def __init__(self, ds, initial_position=None, interp_method='linear', shear=None, distance=None,

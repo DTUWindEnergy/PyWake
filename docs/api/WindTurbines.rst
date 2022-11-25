@@ -1,20 +1,18 @@
-
-
 WindTurbine classes
 ===================
 
 .. inheritance-diagram:: py_wake.wind_turbines.OneTypeWindTurbines
     :parts: 1
 
-- `WindTurbines`_ is the base class that allows multiple wind turbine types, 
+- `WindTurbine`_ is the base class that allows multiple wind turbine types, 
 - `OneTypeWindTurbines`_ subclass allowing multiple wind turbines but only type
     
     
-WindTurbines
+WindTurbine
 ------------
 
 
-.. autoclass:: py_wake.wind_turbines.WindTurbines
+.. autoclass:: py_wake.wind_turbines.WindTurbine
     :members:
     
        
@@ -32,8 +30,7 @@ WindTurbines
     .. automethod:: __init__
     
     
-    
-
+   
 OneTypeWindTurbines
 -------------------
 .. autoclass:: py_wake.wind_turbines.OneTypeWindTurbines

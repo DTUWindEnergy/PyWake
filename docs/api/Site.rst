@@ -1,4 +1,3 @@
-
 Site classes
 =================
 
@@ -6,11 +5,11 @@ Site classes
     :top-classes: py_wake.site._site.Site
     :parts: 1
 
-
 - `Site`_: base class
 - `UniformSite`_: Site with uniform (same wind over all, i.e. flat uniform terrain) and constant wind speed probability of 1. Only for one fixed wind speed
 - `UniformWeibullSite`_: Site with uniform (same wind over all, i.e. flat uniform terrain) and weibull distributed wind speed
 - `WaspGridSite`_: Site with non-uniform (different wind at different locations, e.g. complex non-flat terrain) weibull distributed wind speed. Data obtained from WAsP grid files
+- `XRSite`_: The flexible general base class behind all Sites.
 
 
 Site
@@ -26,8 +25,6 @@ Site
         plot_wd_distribution
         
 
-    
-    
 UniformSite
 -----------------
 
@@ -54,5 +51,14 @@ WaspGridSite
 
        
     .. automethod:: __init__
-    
+
+XRSite
+------------
+
+.. autoclass:: py_wake.site.XRSite
+
+    .. automethod:: __init__
+	
+
+
     
