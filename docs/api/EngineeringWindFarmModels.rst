@@ -1,5 +1,3 @@
-
-
 Engineering wind farm model classes
 ===================================
 
