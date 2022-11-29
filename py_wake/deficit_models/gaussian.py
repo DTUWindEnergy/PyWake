@@ -86,7 +86,7 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
 class BastankhahGaussian(PropagateDownwind):
     """Predefined wind farm model"""
 
-    def __init__(self, site, windTurbines, k=0.0324555, ceps=.2,
+    def __init__(self, site, windTurbines, k=0.0324555, ceps=.2, use_effective_ws=False,
                  rotorAvgModel=None, superpositionModel=SquaredSum(),
                  deflectionModel=None, turbulenceModel=None, groundModel=None):
         """
@@ -111,6 +111,7 @@ class BastankhahGaussian(PropagateDownwind):
         """
         PropagateDownwind.__init__(self, site, windTurbines,
                                    wake_deficitModel=BastankhahGaussianDeficit(k=k, ceps=ceps,
+                                                                               use_effective_ws=use_effective_ws,
                                                                                rotorAvgModel=rotorAvgModel,
                                                                                groundModel=groundModel),
                                    superpositionModel=superpositionModel, deflectionModel=deflectionModel,
