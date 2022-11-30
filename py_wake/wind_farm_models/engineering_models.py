@@ -689,7 +689,7 @@ class All2AllIterative(EngineeringWindFarmModel):
         WS_eff_ilk = WS_eff_ilk.astype(dtype)
         WS_eff_ilk_last = WS_eff_ilk + 0  # fast autograd-friendly copy
         diff_lk = np.zeros((L, K))
-        diff_lk_last, diff_lk_lastlast = None, None
+        diff_lk_last = None
         dw_iil, hcw_iil, dh_iil = self.site.distance(wd_l=wd, WD_il=mean_deg(WD_ilk, 2))
 
         ct_ilk = self.windTurbines.ct(WS_ILK, **kwargs)
@@ -771,26 +771,30 @@ class All2AllIterative(EngineeringWindFarmModel):
 
             # Check if converged
             diff_ilk = cabs(WS_eff_ilk_last - WS_eff_ilk)
-            diff_lk = diff_ilk.max(0)
-            max_diff = np.max(diff_lk)
+            diff_lk = diff_ilk.mean(0)
+            max_diff = np.max(diff_ilk.max(0))
 
             if (self.convergence_tolerance and max_diff < self.convergence_tolerance):
                 break
             # i_, l_, k_ = list(zip(*np.where(diff_ilk == max_diff)))[0]
-            # print("Iteration: %d, max diff_ilk: %.8f, WT: %d, WD: %d, WS: %f, WS_eff: %f" %
-            #       (j, max_diff, i_, lw.wd[l_], lw.ws[k_], WS_eff_ilk[i_, l_, k_]))
+            # wsi, wsl, wsk = WS_ilk.shape
 
-            # assume flow case to be unstable if slope of improvement of two iterations is lower than
-            # needed to converge within next 20 iteration
+            # print("Iteration: %d, max diff_ilk: %.8f, WT: %d, WD: %d, WS: %f, WS_eff: %f" %
+            #       (j, max_diff, i_, wd[l_],
+            #        WS_ilk[min(i_, wsi - 1), min(l_, wsl - 1), min(k_, wsk - 1)],
+            #        WS_eff_ilk[i_, l_, k_]))
+            # print(j, diff_ilk.mean(0), WS_eff_ilk.squeeze())
+
+            # assume flow case to be unstable if mean difference of two iterations increases
             if j > 1:
-                unstable_lk |= (diff_lk_lastlast - diff_lk) / 2 <= (diff_lk -
-                                                                    self.convergence_tolerance) / min(20, (I - j))
+                unstable_lk |= diff_lk_last < diff_lk
+
             WS_eff_ilk_last = WS_eff_ilk + 0  # fast autograd-friendly copy
-            diff_lk_lastlast = diff_lk_last
             diff_lk_last = diff_lk
 
-        # print("All2AllIterative converge after %d iterations" % j)
-        self.iterations = j
+        # print("All2AllIterative converge after %d iterations" % (j + 1))
+        self.iterations = j + 1
+
         self._reset_deficit()
         return WS_eff_ilk, TI_eff_ilk, ct_ilk
 
