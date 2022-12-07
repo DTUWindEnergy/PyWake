@@ -162,7 +162,7 @@ def test_functionSurrogate():
     load_sensors = ['del_blade_flap', 'del_blade_edge']
 
     loadFunction = FunctionSurrogates(
-        [TensorflowSurrogate(surrogate_path / s, 'operating') for s in load_sensors],
+        [TensorflowSurrogate.from_dtu_json(surrogate_path / s, 'operating') for s in load_sensors],
         input_parser=lambda ws, TI_eff=.1, Alpha=0: [ws, TI_eff, Alpha])
 
     assert loadFunction.output_keys == [

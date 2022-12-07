@@ -15,9 +15,9 @@ class IEA34_130_PowerCtSurrogate(PowerCtSurrogate):
     def __init__(self, surrogate_path, input_parser):
         PowerCtSurrogate.__init__(
             self,
-            power_surrogate=TensorflowSurrogate(surrogate_path / "electrical_power", 'operating'),
+            power_surrogate=TensorflowSurrogate.from_dtu_json(surrogate_path / "electrical_power", 'operating'),
             power_unit='W',
-            ct_surrogate=TensorflowSurrogate(surrogate_path / 'thrust', 'operating'),
+            ct_surrogate=TensorflowSurrogate.from_dtu_json(surrogate_path / 'thrust', 'operating'),
             input_parser=input_parser)
 
         ws_idx = self.function_surrogate_lst[0].input_channel_names.index('ws')
@@ -96,7 +96,8 @@ class IEA34_130_1WT_Surrogate(IEA34_130_Base):
     def __init__(self):
         surrogate_path = Path(example_data_path) / 'iea34_130rwt' / 'one_turbine'
         loadFunction = ThreeRegionLoadSurrogates(
-            [[TensorflowSurrogate(surrogate_path / s, n) for n in self.set_names] for s in self.load_sensors],
+            [[TensorflowSurrogate.from_dtu_json(surrogate_path / s, n)
+              for n in self.set_names] for s in self.load_sensors],
             input_parser=lambda ws, TI_eff=.1, Alpha=0: [ws, TI_eff, Alpha])
         powerCtFunction = IEA34_130_PowerCtSurrogate(
             surrogate_path,
@@ -108,7 +109,8 @@ class IEA34_130_2WT_Surrogate(IEA34_130_Base):
     def __init__(self):
         surrogate_path = Path(example_data_path) / 'iea34_130rwt' / 'two_turbines'
         loadFunction = ThreeRegionLoadSurrogates(
-            [[TensorflowSurrogate(surrogate_path / s, n) for n in self.set_names] for s in self.load_sensors],
+            [[TensorflowSurrogate.from_dtu_json(surrogate_path / s, n)
+              for n in self.set_names] for s in self.load_sensors],
             input_parser=self.get_input)
         self.max_dist = loadFunction.function_surrogate_lst[0][0].input_scaler.data_max_[4]
         self.max_angle = loadFunction.function_surrogate_lst[0][0].input_scaler.data_max_[3]

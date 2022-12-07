@@ -15,9 +15,9 @@ class DTU10MW_PowerCtSurrogate(PowerCtSurrogate):
     def __init__(self, surrogate_path, input_parser):
         PowerCtSurrogate.__init__(
             self,
-            power_surrogate=TensorflowSurrogate(surrogate_path / "Power", 'operating'),
+            power_surrogate=TensorflowSurrogate.from_dtu_json(surrogate_path / "Power", 'operating'),
             power_unit='kW',
-            ct_surrogate=TensorflowSurrogate(surrogate_path / 'Ct', 'operating'),
+            ct_surrogate=TensorflowSurrogate.from_dtu_json(surrogate_path / 'Ct', 'operating'),
             input_parser=input_parser)
 
         ws_idx = self.function_surrogate_lst[0].input_channel_names.index('U')
@@ -65,9 +65,11 @@ class DTU10MW_Base(WindTurbine):
 class DTU10MW_1WT_Surrogate(DTU10MW_Base):
     def __init__(self):
         surrogate_path = Path(example_data_path) / 'dtu10mw_surrogate' / 'one_turbine'
-        function_surrogate_lst = [TensorflowSurrogate(surrogate_path / n, 'operating') for n in self.load_sensors]
+        function_surrogate_lst = [TensorflowSurrogate.from_dtu_json(surrogate_path / n, 'operating')
+                                  for n in self.load_sensors]
         loadFunction = FunctionSurrogates(function_surrogate_lst=function_surrogate_lst,
-                                          input_parser=lambda ws, TI_eff=.1, Alpha=0.2, yaw=0: [ws, TI_eff * 100, Alpha, yaw],
+                                          input_parser=lambda ws, TI_eff=.1, Alpha=0.2, yaw=0: [
+                                              ws, TI_eff * 100, Alpha, yaw],
                                           )
         powerCtFunction = DTU10MW_PowerCtSurrogate(
             surrogate_path,

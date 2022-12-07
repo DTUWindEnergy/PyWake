@@ -38,14 +38,24 @@ def extra_data_pkl2json(path):  # pragma: no cover
 
 class TensorflowSurrogate():
 
-    def __init__(self, path, set_name):
+    def __init__(self, model_path, input_scaler, output_scaler):
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', r'Call to deprecated create function')
+            warnings.filterwarnings('ignore', r'.*is deprecated and will be removed in Pillow 10')
+            warnings.filterwarnings('ignore', r'.*is a deprecated alias for the builtin')  # np.bool
+            warnings.filterwarnings('ignore', r'the imp module is deprecated in favour of importlib')
+            import tensorflow as tf
+        self.model = tf.keras.models.load_model(model_path, compile=False)
+        self.input_scaler = input_scaler
+        self.output_scaler = output_scaler
 
+    @staticmethod
+    def from_dtu_json(path, set_name):
         # Load extra data.
         path = Path(path)
+
         with open(path / 'extra_data.json') as fid:
             extra_data = json.load(fid)
-        for k, v in extra_data.items():
-            setattr(self, k, v)
 
         # Create the MinMaxScaler scaler objects.
         def json2scaler(d):
@@ -54,10 +64,12 @@ class TensorflowSurrogate():
                 setattr(scaler, k, v)
             return scaler
 
-        self.input_scaler = json2scaler(self.input_scalers[set_name])
-        self.output_scaler = json2scaler(self.output_scalers[set_name])
-        import tensorflow as tf
-        self.model = tf.keras.models.load_model(path / f'model_set_{set_name}.h5')
+        input_scaler = json2scaler(extra_data['input_scalers'][set_name])
+        output_scaler = json2scaler(extra_data['output_scalers'][set_name])
+        tensorflowSurrogate = TensorflowSurrogate(path / f'model_set_{set_name}.h5', input_scaler, output_scaler)
+        for k, v in extra_data.items():
+            setattr(tensorflowSurrogate, k, v)
+        return tensorflowSurrogate
 
     def predict_output_gradients_scaled(self, x_scaled):
         import tensorflow as tf
@@ -99,32 +111,39 @@ class TensorflowSurrogate():
         """
 
         # Scale the input.
-        if np.iscomplexobj(x):
-            x_scaled = self.input_scaler.transform(x.real)
-        else:
-            x_scaled = self.input_scaler.transform(x)
+        x_scaled = x
+        if np.iscomplexobj(x_scaled):
+            x_scaled = x_scaled.real
+
         assert bounds in ['warn', 'ignore']
-        if bounds == 'warn':
-            if x_scaled.min() < self.input_scaler.feature_range[0]:
-                for i, k in enumerate(self.input_channel_names):
-                    min_v = x[:, i].min()
-                    if min_v < self.input_scaler.data_min_[i]:
-                        mi, ma = self.input_scaler.data_min_[i], self.input_scaler.data_max_[i]
-                        warnings.warn(f"Input, {k}, with value, {min_v} outside range {mi}-{ma}")
-            if x_scaled.max() > self.input_scaler.feature_range[1]:
-                for i, k in enumerate(self.input_channel_names):
-                    max_v = x[:, i].max()
-                    if max_v > self.input_scaler.data_max_[i]:
-                        mi, ma = self.input_scaler.data_min_[i], self.input_scaler.data_max_[i]
-                        warnings.warn(f"Input, {k}, with value, {max_v} outside range {mi}-{ma}")
+        for input_scaler in np.atleast_1d(self.input_scaler):
+            x_scaled = input_scaler.transform(x_scaled)
+            if bounds == 'warn':
+                if x_scaled.min() < input_scaler.feature_range[0]:
+                    for i, k in enumerate(self.input_channel_names):
+                        min_v = x[:, i].min()
+                        if min_v < input_scaler.data_min_[i]:
+                            mi, ma = input_scaler.data_min_[i], input_scaler.data_max_[i]
+                            warnings.warn(f"Input, {k}, with value, {min_v} outside range {mi}-{ma}")
+                if x_scaled.max() > self.input_scaler.feature_range[1]:
+                    for i, k in enumerate(self.input_channel_names):
+                        max_v = x[:, i].max()
+                        if max_v > self.input_scaler.data_max_[i]:
+                            mi, ma = self.input_scaler.data_min_[i], self.input_scaler.data_max_[i]
+                            warnings.warn(f"Input, {k}, with value, {max_v} outside range {mi}-{ma}")
 
         if np.iscomplexobj(x):
             output, gradients = self.predict_output_gradients_scaled(x_scaled)
-            return (self.output_scaler.inverse_transform(output) +
+            for output_scaler in np.atleast_1d(self.output_scaler):
+                output = output_scaler.inverse_transform(output)
+            return (output +
                     1j * np.sum(x.imag * gradients * self.input_scaler.scale_ / self.output_scaler.scale_, 1)[:, na])
         else:
-            output_scaled = self.predict_output_scaled(x_scaled)
-            return self.output_scaler.inverse_transform(output_scaled)
+            output = self.predict_output_scaled(x_scaled)
+
+            for output_scaler in np.atleast_1d(self.output_scaler):
+                output = output_scaler.inverse_transform(output)
+            return output
 
     @property
     def input_space(self):
