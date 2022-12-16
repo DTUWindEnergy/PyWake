@@ -381,10 +381,11 @@ class PowerCtXr(PowerCtNDTabular):
             list of additional models.
         """
         assert method == 'linear'
-        assert 'power' in ds
-        assert 'ct' in ds
+        keys = {k.lower(): k for k in ds}
+        assert 'power' in keys
+        assert 'ct' in keys
         assert 'ws' in ds.dims
-        ds = ds[['power', 'ct']]
+        ds = ds[[keys['power'], keys['ct']]]
         power_arr, ct_arr = ds.to_array()
 
         if list(power_arr.dims).index('ws') > 0:

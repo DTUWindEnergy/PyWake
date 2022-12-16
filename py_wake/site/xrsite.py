@@ -124,7 +124,7 @@ class XRSite(Site):
                                                np.asarray(y_i, dtype=(float, np.complex128)[np.iscomplexobj(y_i)]),
                                                mode='valid')
         else:
-            return x_i * 0
+            return np.asarray(x_i) * 0
 
     def _local_wind(self, localWind, ws_bins=None):
         """
