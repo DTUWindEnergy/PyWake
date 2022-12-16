@@ -12,6 +12,7 @@ import multiprocessing
 from py_wake.utils.parallelization import get_pool_map, get_pool_starmap
 from py_wake.utils.functions import arg2ilk, coords2ILK
 from py_wake.utils.gradients import autograd
+from py_wake.noise_models.iso import ISONoiseModel
 
 
 class WindFarmModel(ABC):
@@ -588,6 +589,25 @@ class SimulationResult(xr.Dataset):
                 lifetime_years, n_eq_lifetime)
 
         return ds
+
+    def noise_model(self, noiseModel=ISONoiseModel):
+        WS_eff_ilk = self.WS_eff_ilk
+        freqs, sound_power_level = self.windFarmModel.windTurbines.sound_power_level(WS_eff_ilk, **self.wt_inputs)
+        return noiseModel(src_x=self.x.values, src_y=self.y.values, src_h=self.h.values,
+                          freqs=freqs, sound_power_level=sound_power_level,
+                          elevation_function=self.windFarmModel.site.elevation)
+
+    def noise_map(self, noiseModel=ISONoiseModel, grid=None, ground_type=0, temperature=20, relative_humidity=80):
+        if grid is None:
+            grid = HorizontalGrid(h=2)
+        nm = self.noise_model(noiseModel)
+        X, Y, x_j, y_j, h_j, plane = self._get_grid(grid)
+        spl_jlk, spl_jlkf = nm(x_j, y_j, h_j, temperature, relative_humidity, ground_type=ground_type)
+        return xr.Dataset({'Total sound pressure level': (('y', 'x', 'wd', 'ws'),
+                                                          spl_jlk.reshape(X.shape + (spl_jlk.shape[1:]))),
+                           'Sound pressure level': (('y', 'x', 'wd', 'ws', 'freq'),
+                                                    spl_jlkf.reshape(X.shape + (spl_jlkf.shape[1:])))},
+                          coords={'x': X[0], 'y': Y[:, 0], 'wd': self.wd, 'ws': self.ws, 'freq': nm.freqs})
 
     def flow_box(self, x, y, h, wd=None, ws=None):
         X, Y, H = np.meshgrid(x, y, h)
