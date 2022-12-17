@@ -16,12 +16,13 @@ class SWT_DD_142_4100(WindTurbine):
     """
 
     def __init__(self):
-        ds = xr.load_dataset(os.path.dirname(swt_dd_142_4100_noise.__file__) + '/SWT-DD-142_4100.nc')
+        self.ds = ds = xr.load_dataset(os.path.dirname(swt_dd_142_4100_noise.__file__) + '/SWT-DD-142_4100.nc')
         power_ct = PowerCtXr(ds, 'kW')
         ip = GridInterpolator([ds.mode.values, ds.ws.values], ds.SoundPower.transpose('mode', 'ws', 'freq').values,
                               method=['nearest', 'linear'])
 
         def sound_power_level(ws, mode, **_):
+            ws = np.atleast_1d(ws)
             mode = np.zeros_like(ws) + mode
             return ds.freq.values, ip(np.array([np.round(mode).flatten(), ws.flatten()]).T).reshape(ws.shape + (-1,))
 
@@ -50,18 +51,22 @@ def make_netcdf():
     ds.to_netcdf('SWT-DD-142_4100.nc')
 
 
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    wt = SWT_DD_142_4100()
+def main():
+    if __name__ == '__main__':
+        import matplotlib.pyplot as plt
+        wt = SWT_DD_142_4100()
 
-    ws = np.arange(3, 26)
-    for m in range(7):
-        plt.plot(ws, wt.power(ws, mode=m) / 1000, label=f'mode: {m}')
-    setup_plot(xlabel='Wind speed [m/s]', ylabel='Power [kW]')
+        ws = np.arange(3, 26)
+        for m in range(7):
+            plt.plot(ws, wt.power(ws, mode=m) / 1000, label=f'mode: {m}')
+        setup_plot(xlabel='Wind speed [m/s]', ylabel='Power [kW]')
 
-    plt.figure()
-    for m in range(7):
-        freq, sound_power = wt.sound_power(ws=10, mode=m)
-        plt.plot(freq, sound_power[0], label=f'mode: {m}')
-    setup_plot(xlabel='Frequency [Hz]', ylabel='Sound power [dB]')
-    plt.show()
+        plt.figure()
+        for m in range(7):
+            freq, sound_power = wt.sound_power_level(ws=10, mode=m)
+            plt.plot(freq, sound_power[0], label=f'mode: {m}')
+        setup_plot(xlabel='Frequency [Hz]', ylabel='Sound power [dB]')
+        plt.show()
+
+
+main()

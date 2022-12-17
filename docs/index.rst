@@ -61,14 +61,15 @@ Lastly, the remaining notebooks illustrate some relevant examples and exercises 
         :maxdepth: 1
 	:caption: Tutorials
        
-	notebooks/Quickstart
+	    notebooks/Quickstart
         notebooks/Site
         notebooks/WindTurbines
         notebooks/EngineeringWindFarmModels
-	notebooks/RunWindFarmSimulation
-	notebooks/gradients_parallellization
+	    notebooks/RunWindFarmSimulation
+	    notebooks/gradients_parallellization
         notebooks/Optimization
         notebooks/YawMisalignment
+        notebooks/Noise
         notebooks/exercises/CombineModels
         notebooks/exercises/Validation
         notebooks/exercises/Improve_layout
