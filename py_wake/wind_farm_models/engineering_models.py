@@ -375,7 +375,7 @@ class EngineeringWindFarmModel(WindFarmModel):
             TI_eff_jlk = None
         return WS_eff_jlk, TI_eff_jlk
 
-    def _aep_map(self, x_j, y_j, h_j, sim_res_data):
+    def _aep_map(self, x_j, y_j, h_j, type_j, sim_res_data):
         arg_funcs, lw_j, wd, WD_il = self.get_map_args(x_j, y_j, h_j, sim_res_data)
         P = lw_j.P_ilk
         I, J, L, K = arg_funcs['IJLK']()
@@ -384,6 +384,11 @@ class EngineeringWindFarmModel(WindFarmModel):
         wd_i = np.round(np.linspace(0, L, wd_chunks + 1)).astype(int)
         wd_slices = [slice(i0, i1) for i0, i1 in zip(wd_i[:-1], wd_i[1:])]
         aep_j = np.zeros(len(x_j))
+        power_kwargs = {}
+        if 'type' in (self.windTurbines.powerCtFunction.required_inputs +
+                      self.windTurbines.powerCtFunction.optional_inputs):
+            power_kwargs['type'] = type_j
+
         for l_slice in tqdm(wd_slices, disable=len(wd_slices) <= 1 or not self.verbose,
                             desc='Calculate flow map', unit='wd'):
             ws_eff_jlk = self._get_flow_l(arg_funcs, l_slice, lw_j, wd, WD_il, I, J, L, K)[0]
@@ -391,7 +396,7 @@ class EngineeringWindFarmModel(WindFarmModel):
             # p_bin = self.windTurbines.power(np.arange(0, 50, .01))
             # power_jlk = p_bin[(ws_eff_jlk * 100).astype(int)]
 
-            power_jlk = self.windTurbines.power(ws_eff_jlk)
+            power_jlk = self.windTurbines.power(ws_eff_jlk, **power_kwargs)
 
             aep_j += (power_jlk * P[:, l_slice]).sum((1, 2))
         return aep_j * 365 * 24 * 1e-9
