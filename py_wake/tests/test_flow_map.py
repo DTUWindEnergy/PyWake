@@ -8,10 +8,12 @@ from py_wake.examples.data.iea37 import IEA37Site, IEA37_WindTurbines
 from py_wake import IEA37SimpleBastankhahGaussian
 import pytest
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
-from py_wake.wind_turbines._wind_turbines import WindTurbines
-from py_wake.examples.data import wtg_path
+from py_wake.wind_turbines._wind_turbines import WindTurbines, WindTurbine
+from py_wake.examples.data import wtg_path, hornsrev1
 from py_wake.utils.profiling import timeit
 from py_wake.utils.parallelization import get_pool
+from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
+from py_wake.examples.data.hornsrev1 import V80
 
 
 @pytest.fixture(autouse=True)
@@ -336,6 +338,23 @@ def test_aep_map():
     grid = Points(x=np.linspace(-100, 2000, 50), y=np.full(50, -500), h=np.full(50, windTurbines.hub_height()))
     aep_line = sim_res.aep_map(grid, normalize_probabilities=True)
     npt.assert_array_almost_equal(aep_map[0], aep_line)
+
+
+def test_aep_map_type():
+    site = IEA37Site(16)
+    x, y = [0, 600, 1200], [0, 0, 0]  # site.initial_position[:2].T
+    v80 = V80()
+    v120 = WindTurbine('V80_low_induc', 80, 70, powerCtFunction=PowerCtTabular(
+        hornsrev1.power_curve[:, 0], hornsrev1.power_curve[:, 1] * 1.5, 'w', hornsrev1.ct_curve[:, 1]))
+
+    wts = WindTurbines.from_WindTurbines([v80, v120])
+    wfm = IEA37SimpleBastankhahGaussian(site, wts)
+
+    sim_res = wfm(x, y)
+    grid = XYGrid(x=np.linspace(-100, 2000, 50), y=np.linspace(-500, 500, 25))
+    aep_map0 = sim_res.aep_map(grid, normalize_probabilities=True)
+    aep_map1 = sim_res.aep_map(grid, type=1, normalize_probabilities=True)
+    npt.assert_array_almost_equal(aep_map0 * 1.5, aep_map1)
 
 
 def test_aep_map_parallel():

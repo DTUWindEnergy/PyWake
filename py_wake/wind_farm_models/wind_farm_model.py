@@ -636,7 +636,7 @@ class SimulationResult(xr.Dataset):
             plane = (None,)
         return grid + (plane, )
 
-    def aep_map(self, grid=None, wd=None, ws=None, normalize_probabilities=False, n_cpu=1, wd_chunks=None):
+    def aep_map(self, grid=None, wd=None, ws=None, type=0, normalize_probabilities=False, n_cpu=1, wd_chunks=None):
         X, Y, x_j, y_j, h_j, plane = self._get_grid(grid)
         wd, ws = self._wd_ws(wd, ws)
         sim_res = self.sel(wd=wd, ws=ws)
@@ -648,17 +648,17 @@ class SimulationResult(xr.Dataset):
             if len(wd) >= n_cpu:
                 # chunkification more efficient on wd than j
                 wd_i = np.linspace(0, len(wd), n_cpu + 1).astype(int)
-                args_lst = [[x_j, y_j, h_j, sim_res.sel(wd=wd[i0:i1])] for i0, i1 in zip(wd_i[:-1], wd_i[1:])]
+                args_lst = [[x_j, y_j, h_j, type, sim_res.sel(wd=wd[i0:i1])] for i0, i1 in zip(wd_i[:-1], wd_i[1:])]
                 aep_lst = map(self.windFarmModel._aep_map, args_lst)
                 aep_j = np.sum(aep_lst, 0)
             else:
                 j_i = np.linspace(0, len(x_j), n_cpu + 1).astype(int)
-                args_lst = [[xyh_j[i0:i1] for xyh_j in [x_j, y_j, h_j]] + [sim_res]
+                args_lst = [[xyh_j[i0:i1] for xyh_j in [x_j, y_j, h_j]] + [type, sim_res]
                             for i0, i1 in zip(j_i[:-1], j_i[1:])]
                 aep_lst = map(self.windFarmModel._aep_map, args_lst)
                 aep_j = np.concatenate(aep_lst)
         else:
-            aep_j = self.windFarmModel._aep_map(x_j, y_j, h_j, sim_res)
+            aep_j = self.windFarmModel._aep_map(x_j, y_j, h_j, type, sim_res)
         if normalize_probabilities:
             lw_j = self.windFarmModel.site.local_wind(x_i=x_j, y_i=y_j, h_i=h_j, wd=wd, ws=ws)
             aep_j /= lw_j.P_ilk.sum((1, 2))
