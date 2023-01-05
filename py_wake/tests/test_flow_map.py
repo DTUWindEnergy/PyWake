@@ -1,19 +1,21 @@
-from py_wake.flow_map import HorizontalGrid, YZGrid, Grid, Points, XYGrid
+from py_wake.flow_map import HorizontalGrid, YZGrid, Points, XYGrid
 from py_wake.tests import npt
 import matplotlib.pyplot as plt
 from py_wake import np
 from py_wake.examples.data.ParqueFicticio._parque_ficticio import ParqueFicticioSite
 from py_wake.site.distance import StraightDistance
 from py_wake.examples.data.iea37 import IEA37Site, IEA37_WindTurbines
-from py_wake import IEA37SimpleBastankhahGaussian
 import pytest
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
 from py_wake.wind_turbines._wind_turbines import WindTurbines, WindTurbine
 from py_wake.examples.data import wtg_path, hornsrev1
 from py_wake.utils.profiling import timeit
-from py_wake.utils.parallelization import get_pool
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 from py_wake.examples.data.hornsrev1 import V80
+from py_wake.literature.iea37_case_study1 import IEA37CaseStudy1
+from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind
+from py_wake.superposition_models import SquaredSum
 
 
 @pytest.fixture(autouse=True)
@@ -26,12 +28,8 @@ def close_plots():
 
 
 def test_power_xylk():
-    site = IEA37Site(16)
-    x, y = site.initial_position.T
-    windTurbines = IEA37_WindTurbines()
-
-    # NOJ wake model
-    wind_farm_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
+    wind_farm_model = IEA37CaseStudy1(16)
+    x, y = wind_farm_model.site.initial_position.T
     simulation_result = wind_farm_model(x, y)
     fm = simulation_result.flow_map(grid=HorizontalGrid(resolution=3))
     npt.assert_array_almost_equal(fm.power_xylk(with_wake_loss=False)[:, :, 0, 0] * 1e-6, 3.35)
@@ -48,8 +46,9 @@ def test_power_xylk_wt_args():
     x, y = site.initial_position.T
     windTurbines = WindTurbines.from_WAsP_wtg(wtg_path + "Vestas V112-3.0 MW.wtg", default_mode=None)
 
-    # NOJ wake model
-    wind_farm_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
+    wind_farm_model = PropagateDownwind(site, windTurbines,
+                                        wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
+                                        superpositionModel=SquaredSum())
     simulation_result = wind_farm_model(x, y, wd=[0, 270], ws=[6, 8, 10], mode=0)
     fm = simulation_result.flow_map(XYGrid(resolution=3))
     npt.assert_array_almost_equal(fm.power_xylk(mode=1).sum(['wd', 'ws']).isel(h=0),
@@ -74,12 +73,10 @@ def test_power_xylk_wt_args():
 
 def test_YZGrid_perpendicular():
 
-    site = IEA37Site(16)
-    x, y = site.initial_position.T
+    wind_farm_model = IEA37CaseStudy1(16)
+    x, y = wind_farm_model.site.initial_position.T
     m = x < -1000
-    windTurbines = IEA37_WindTurbines()
 
-    wind_farm_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
     simulation_result = wind_farm_model(x[m], y[m], wd=270)
     fm = simulation_result.flow_map(grid=YZGrid(-1000, z=110, resolution=20))
     if 0:
@@ -95,12 +92,9 @@ def test_YZGrid_perpendicular():
 
 
 def test_YZGrid_parallel():
-    site = IEA37Site(16)
-    x, y = site.initial_position.T
+    wind_farm_model = IEA37CaseStudy1(16)
+    x, y = wind_farm_model.site.initial_position.T
     m = x < -1000
-    windTurbines = IEA37_WindTurbines()
-
-    wind_farm_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
     simulation_result = wind_farm_model(x[m], y[m], wd=0)
     fm = simulation_result.flow_map(grid=YZGrid(-1000, z=110, resolution=20))
     if 0:
@@ -116,12 +110,10 @@ def test_YZGrid_parallel():
 
 
 def test_YZGrid_plot_wake_map_perpendicular():
-    site = IEA37Site(16)
-    x, y = site.initial_position.T
-    windTurbines = IEA37_WindTurbines()
+    wfm = IEA37CaseStudy1(16)
+    x, y = wfm.site.initial_position.T
 
-    wf_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
-    sim_res = wf_model(x, y)
+    sim_res = wfm(x, y)
     sim_res.flow_map(grid=YZGrid(x=-100, y=None, resolution=100, extend=.1), wd=270, ws=None).plot_wake_map()
     if 0:
         plt.show()
@@ -129,12 +121,9 @@ def test_YZGrid_plot_wake_map_perpendicular():
 
 
 def test_YZGrid_variables():
-    site = IEA37Site(16)
+    wfm = IEA37CaseStudy1(16)
     x, y = [0], [0]
-    windTurbines = IEA37_WindTurbines()
-
-    wf_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
-    sim_res = wf_model(x, y)
+    sim_res = wfm(x, y)
 
     fm = sim_res.flow_map(grid=YZGrid(x=100, y=None, resolution=100, extend=.1), wd=270, ws=None)
     fm.WS_eff.plot()
@@ -149,12 +138,10 @@ def test_YZGrid_variables():
 
 
 def test_YZGrid_plot_wake_map_parallel():
-    site = IEA37Site(16)
-    x, y = site.initial_position.T
-    windTurbines = IEA37_WindTurbines()
+    wfm = IEA37CaseStudy1(16)
+    x, y = wfm.site.initial_position.T
 
-    wf_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
-    sim_res = wf_model(x, y)
+    sim_res = wfm(x, y)
     sim_res.flow_map(wd=0, ws=None).plot_wake_map()
     plt.axvline(-450, ls='--')
     plt.figure()
@@ -169,8 +156,11 @@ def test_YZGrid_terrain_perpendicular():
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
 
-    wind_farm_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
-    simulation_result = wind_farm_model(x, y, wd=270, ws=10)
+    wfm = PropagateDownwind(site, windTurbines,
+                            wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
+                            superpositionModel=SquaredSum())
+
+    simulation_result = wfm(x, y, wd=270, ws=10)
     x = x.max() + 10
     fm = simulation_result.flow_map(grid=YZGrid(x, z=110, resolution=20, extend=0))
     y = fm.X[0]
@@ -198,21 +188,24 @@ def test_YZGrid_terrain_parallel():
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
 
-    wind_farm_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
-    simulation_result = wind_farm_model(x, y, wd=0, ws=10)
+    wfm = PropagateDownwind(site, windTurbines,
+                            wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
+                            superpositionModel=SquaredSum())
+
+    simulation_result = wfm(x, y, wd=0, ws=10)
     x = 264000
     fm = simulation_result.flow_map(grid=YZGrid(x, z=110, resolution=20, extend=0))
-    y = fm.X[0]
-    x = np.zeros_like(y) + x
-    z = site.elevation(x, y)
-    simulation_result.flow_map(XYGrid(extend=0.005)).plot_wake_map()
-    plt.plot(x, y, '.')
-    plt.figure()
-    simulation_result.flow_map(grid=YZGrid(fm.x.item(), fm.y, z=np.arange(30, 210, 10))).plot_wake_map()
-    plt.plot(y, z + 110, '.')
-    plt.plot(y, fm.WS_eff_xylk[:, 0, 0, 0] * 100, label="ws*100")
-    plt.legend()
     if 0:
+        y = fm.X[0]
+        x = np.zeros_like(y) + x
+        z = site.elevation(x, y)
+        simulation_result.flow_map(XYGrid(extend=0.005)).plot_wake_map()
+        plt.plot(x, y, '.')
+        plt.figure()
+        simulation_result.flow_map(grid=YZGrid(fm.x.item(), fm.y, z=np.arange(30, 210, 10))).plot_wake_map()
+        plt.plot(y, z + 110, '.')
+        plt.plot(y, fm.WS_eff_xylk[:, 0, 0, 0] * 100, label="ws*100")
+        plt.legend()
         print(np.round(fm.WS_eff_xylk[:, 0, 0, 0], 2).values.tolist())
         plt.show()
     plt.close('all')
@@ -222,14 +215,11 @@ def test_YZGrid_terrain_parallel():
 
 
 def test_Points():
-    site = IEA37Site(16)
-    x, y = site.initial_position.T
-    windTurbines = IEA37_WindTurbines()
+    wfm = IEA37CaseStudy1(16)
+    x, y = wfm.site.initial_position.T
+    sim_res = wfm(x, y)
 
-    wf_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
-    sim_res = wf_model(x, y)
-
-    flow_map = sim_res.flow_map(Points(x, y, x * 0 + windTurbines.hub_height()), wd=0, ws=None)
+    flow_map = sim_res.flow_map(Points(x, y, x * 0 + wfm.windTurbines.hub_height()), wd=0, ws=None)
     if 0:
         flow_map.WS_eff.plot()
         plt.show()
@@ -237,34 +227,25 @@ def test_Points():
 
 
 def test_not_implemented_plane():
-    site = IEA37Site(16)
-    x, y = site.initial_position.T
-    windTurbines = IEA37_WindTurbines()
-
-    wf_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
-    sim_res = wf_model(x, y)
+    wfm = IEA37CaseStudy1(16)
+    x, y = wfm.site.initial_position.T
+    sim_res = wfm(x, y)
     grid = YZGrid(x=-100, y=None, resolution=100, extend=.1)
-    grid = grid(x, y, windTurbines.hub_height(x * 0), windTurbines.hub_height(x * 0))
+    grid = grid(x, y, wfm.windTurbines.hub_height(x * 0), wfm.windTurbines.hub_height(x * 0))
     with pytest.raises(NotImplementedError):
         sim_res.flow_map(grid=grid, wd=270, ws=None).plot_wake_map()
 
 
 def test_FlowBox():
-    site = IEA37Site(16)
-    x, y = site.initial_position.T
-    windTurbines = IEA37_WindTurbines()
-
-    wf_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
-    sim_res = wf_model(x, y)
+    wfm = IEA37CaseStudy1(16)
+    x, y = wfm.site.initial_position.T
+    sim_res = wfm(x, y)
     sim_res.flow_box(x=np.arange(0, 100, 10), y=np.arange(0, 100, 10), h=np.arange(0, 100, 10))
 
 
 def test_min_ws_eff_line():
-
-    site = IEA37Site(16)
+    wfm = IEA37CaseStudy1(16, deflectionModel=JimenezWakeDeflection())
     x, y = [0, 600, 1200], [0, 0, 0]  # site.initial_position[:2].T
-    windTurbines = IEA37_WindTurbines()
-    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines, deflectionModel=JimenezWakeDeflection())
 
     yaw_ilk = np.reshape([-30, 30, 0], (3, 1, 1))
 
@@ -286,11 +267,8 @@ def test_min_ws_eff_line():
 
 
 def test_plot_windturbines_with_wd_ws_dependent_yaw():
-    # plot
-    site = IEA37Site(16)
+    wfm = IEA37CaseStudy1(16, deflectionModel=JimenezWakeDeflection())
     x, y = [0, 600, 1200], [0, 0, 0]  # site.initial_position[:2].T
-    windTurbines = IEA37_WindTurbines()
-    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines, deflectionModel=JimenezWakeDeflection())
 
     yaw_ilk = np.broadcast_to(np.reshape([-30, 30, 0], (3, 1, 1)), (3, 4, 2))
 
@@ -306,10 +284,8 @@ def test_plot_windturbines_with_wd_ws_dependent_yaw():
 
 def flow_map_j_wd_chunks():
     # demonstrate that wd chunkification is more efficient than j chunkification
-    site = IEA37Site(16)
+    wfm = IEA37CaseStudy1(16, deflectionModel=JimenezWakeDeflection())
     x, y = [0, 600, 1200], [0, 0, 0]  # site.initial_position[:2].T
-    windTurbines = IEA37_WindTurbines()
-    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines, deflectionModel=JimenezWakeDeflection())
 
     yaw_ilk = np.reshape([-30, 30, 0], (3, 1, 1))
 
@@ -324,10 +300,8 @@ def flow_map_j_wd_chunks():
 
 
 def test_aep_map():
-    site = IEA37Site(16)
+    wfm = IEA37CaseStudy1(16)
     x, y = [0, 600, 1200], [0, 0, 0]  # site.initial_position[:2].T
-    windTurbines = IEA37_WindTurbines()
-    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines)
 
     sim_res = wfm(x, y)
     grid = XYGrid(x=np.linspace(-100, 2000, 50), y=np.linspace(-500, 500, 25))
@@ -335,21 +309,23 @@ def test_aep_map():
     fm = sim_res.flow_map(grid)
     npt.assert_array_almost_equal(fm.aep_xy(normalize_probabilities=True).sel(h=110), aep_map)
 
-    grid = Points(x=np.linspace(-100, 2000, 50), y=np.full(50, -500), h=np.full(50, windTurbines.hub_height()))
+    grid = Points(x=np.linspace(-100, 2000, 50), y=np.full(50, -500), h=np.full(50, wfm.windTurbines.hub_height()))
     aep_line = sim_res.aep_map(grid, normalize_probabilities=True)
     npt.assert_array_almost_equal(aep_map[0], aep_line)
 
 
 def test_aep_map_type():
     site = IEA37Site(16)
+
     x, y = [0, 600, 1200], [0, 0, 0]  # site.initial_position[:2].T
     v80 = V80()
     v120 = WindTurbine('V80_low_induc', 80, 70, powerCtFunction=PowerCtTabular(
         hornsrev1.power_curve[:, 0], hornsrev1.power_curve[:, 1] * 1.5, 'w', hornsrev1.ct_curve[:, 1]))
 
-    wts = WindTurbines.from_WindTurbines([v80, v120])
-    wfm = IEA37SimpleBastankhahGaussian(site, wts)
-
+    windTurbines = WindTurbines.from_WindTurbines([v80, v120])
+    wfm = PropagateDownwind(site, windTurbines,
+                            wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
+                            superpositionModel=SquaredSum())
     sim_res = wfm(x, y)
     grid = XYGrid(x=np.linspace(-100, 2000, 50), y=np.linspace(-500, 500, 25))
     aep_map0 = sim_res.aep_map(grid, normalize_probabilities=True)
@@ -358,10 +334,8 @@ def test_aep_map_type():
 
 
 def test_aep_map_parallel():
-    site = IEA37Site(16)
+    wfm = IEA37CaseStudy1(16)
     x, y = [0, 600, 1200], [0, 0, 0]  # site.initial_position[:2].T
-    windTurbines = IEA37_WindTurbines()
-    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines)
 
     sim_res = wfm(x, y)
     grid = XYGrid(x=np.linspace(-100, 2000, 50), y=np.linspace(-500, 500, 25))
@@ -379,7 +353,10 @@ def test_aep_map_smartstart_griddedsite_terrainfollowingdistance():
     site = ParqueFicticioSite()
     x, y = site.initial_position[:3].T
     windTurbines = IEA37_WindTurbines()
-    wfm = IEA37SimpleBastankhahGaussian(site, windTurbines)
+
+    wfm = PropagateDownwind(site, windTurbines,
+                            wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
+                            superpositionModel=SquaredSum())
 
     for i in range(3):
         sim_res = wfm(x[:i], y[:i], wd=[0, 1])

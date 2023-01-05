@@ -276,7 +276,8 @@ class EngineeringWindFarmModel(WindFarmModel):
         d_ijl_keys = ({k for l in self.windTurbines.function_inputs for k in l} &
                       {'dw_ijl', 'hcw_ijl', 'dh_ijl', 'cw_ijl'})
         if d_ijl_keys:
-            d_ijl_dict = {k: lambda v=v: v for k, v in zip(['dw_ijl', 'hcw_ijl', 'dh_ijl'], self.site.distance(wd[na]))}
+            d_ijl_dict = {k: lambda v=v: v for k, v in zip(
+                ['dw_ijl', 'hcw_ijl', 'dh_ijl'], self.site.distance(lw.WD_ilk))}
             d_ijl_dict['cw_ijl'] = lambda d_ijl_dict=d_ijl_dict: np.sqrt(
                 d_ijl_dict['dw_ijl']**2 + d_ijl_dict['hcw_ijl']**2)
             wt_kwargs.update({k: d_ijl_dict[k]() for k in d_ijl_keys})
@@ -322,7 +323,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                 'IJLK': lambda l=wd: (I, J, len(np.atleast_1d(l)), K)}, lw_j, wd, WD_il
 
     def _get_flow_l(self, arg_funcs, l, lw_j, wd, WD_il, I, J, L, K):
-        dw_ijl, hcw_ijl, dh_ijl = self.site.distance(wd_l=wd[l], WD_il=WD_il[:, l, :].mean(2))
+        dw_ijl, hcw_ijl, dh_ijl = self.site.distance(wd_l=wd[l], WD_ilk=WD_il[:, l, :])
         WS_ilk, TI_ilk = lw_j.WS_ilk, lw_j.TI_ilk
 
         if self.wec != 1:
@@ -579,15 +580,15 @@ class PropagateDownwind(EngineeringWindFarmModel):
                              }
                 model_kwargs = {k: arg_funcs[k]() for k in self.args4all if k in arg_funcs}
 
-                dw_jl, hcw_jl, dh_jl = self.site.distance(wd_l=wd, WD_il=wd, src_idx=i_wt_l, dst_idx=i_dw.T)
+                dw_ijl, hcw_ijl, dh_ijl = self.site.distance(wd_l=wd, WD_ilk=WD_ilk, src_idx=i_wt_l, dst_idx=i_dw.T)
                 if self.wec != 1:
-                    hcw_jl = hcw_jl / self.wec
+                    hcw_ijl = hcw_ijl / self.wec
 
                 if self.deflectionModel:
                     dw_ijlk, hcw_ijlk, dh_ijlk = self.deflectionModel.calc_deflection(
-                        dw_ijl=dw_jl[na], hcw_ijl=hcw_jl[na], dh_ijl=dh_jl[na], **model_kwargs)
+                        dw_ijl=dw_ijl, hcw_ijl=hcw_ijl, dh_ijl=dh_ijl, **model_kwargs)
                 else:
-                    dw_ijlk, hcw_ijlk, dh_ijlk = [v[na, :, :, na] for v in [dw_jl, hcw_jl, dh_jl]]
+                    dw_ijlk, hcw_ijlk, dh_ijlk = [v[:, :, :, na] for v in [dw_ijl, hcw_ijl, dh_ijl]]
 
                 model_kwargs.update({'dw_ijlk': dw_ijlk, 'hcw_ijlk': hcw_ijlk, 'dh_ijlk': dh_ijlk})
                 hcw_nk.append(hcw_ijlk[0])
@@ -695,7 +696,7 @@ class All2AllIterative(EngineeringWindFarmModel):
         WS_eff_ilk_last = WS_eff_ilk + 0  # fast autograd-friendly copy
         diff_lk = np.zeros((L, K))
         diff_lk_last = None
-        dw_iil, hcw_iil, dh_iil = self.site.distance(wd_l=wd, WD_il=mean_deg(WD_ilk, 2))
+        dw_iil, hcw_iil, dh_iil = self.site.distance(wd_l=wd, WD_ilk=WD_ilk)
 
         ct_ilk = self.windTurbines.ct(WS_ILK, **kwargs)
         ct_ilk_idle = self.windTurbines.ct(0.1 * np.ones_like(WS_ILK), **kwargs)
@@ -845,7 +846,7 @@ class All2All(EngineeringWindFarmModel):
         else:
             dtype = float
 
-        dw_iil, hcw_iil, dh_iil = self.site.distance(wd_l=wd, WD_il=mean_deg(WD_ilk, 2))
+        dw_iil, hcw_iil, dh_iil = self.site.distance(wd_l=wd, WD_ilk=WD_ilk)
 
         D_src_il = D_i[:, na]
         model_kwargs = {'WS_ilk': WS_ilk,

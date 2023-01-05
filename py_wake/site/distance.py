@@ -14,11 +14,11 @@ class StraightDistance():
         sin = np.sin(theta)
         return cos, sin
 
-    def plot(self, wd_il, src_idx=slice(None), dst_idx=slice(None)):
+    def plot(self, WD_ilk, src_idx=slice(None), dst_idx=slice(None)):
         import matplotlib.pyplot as plt
 
-        dw_ijl, hcw_ijl, _ = self(wd_il)
-        wdirs = mean_deg(wd_il, 0)
+        dw_ijl, hcw_ijl, _ = self(WD_ilk)
+        wdirs = mean_deg(WD_ilk, (0, 2))
         for l, wd in enumerate(wdirs):
             plt.figure()
             ax = plt.gca()
@@ -66,21 +66,20 @@ class StraightDistance():
                 if k not in {'src_x_i', 'src_y_i', 'src_h_i', 'dst_x_j', 'dst_y_j', 'dst_h_j',
                              'dx_ii', 'dy_ii', 'dh_ii', 'dx_ij', 'dy_ij', 'dh_ij', 'src_eq_dst'}}
 
-    def __call__(self, WD_il, wd_l=None, src_idx=slice(None), dst_idx=slice(None)):
+    def __call__(self, WD_ilk, wd_l=None, src_idx=slice(None), dst_idx=slice(None)):
         assert hasattr(self, 'dx_ij'), "method setup must be called first"
-        WD_il = np.asarray(WD_il)
-        if len(np.shape(WD_il)) == 1:
-            cos_l, sin_l = self._cos_sin(WD_il)
+
+        WD_l = mean_deg(WD_ilk, (0, 2))  # mean over wind turbines and wind speeds
+        if len(np.shape(dst_idx)) == 2:
+            # dst_idx depends on wind direction
+            cos_l, sin_l = self._cos_sin(WD_l)
             dx_ij, dy_ij = self.dx_ii[src_idx, dst_idx], self.dy_ii[src_idx, dst_idx]
             dw_jl = (-cos_l[na] * dx_ij - sin_l[na] * dy_ij)
             hcw_jl = (sin_l[na] * dx_ij - cos_l[na] * dy_ij)
-            return dw_jl, hcw_jl, self.dh_ii[src_idx, dst_idx]
+            return dw_jl[na], hcw_jl[na], self.dh_ii[src_idx, dst_idx][na]
         else:
-            # WD_il
-            # mean over all source points
-            wd_l = mean_deg(WD_il, (0))
-            wd_ijl = wd_l[na, na]
-            cos_ijl, sin_ijl = self._cos_sin(wd_ijl)
+            # dst_idx independent of wind direction
+            cos_ijl, sin_ijl = self._cos_sin(WD_l[na, na])
             dx_ijl = self.dx_ij[src_idx][:, dst_idx][:, :, na]
             dy_ijl = self.dy_ij[src_idx][:, dst_idx][:, :, na]
 
@@ -151,16 +150,19 @@ class TerrainFollowingDistance(StraightDistance):
         self.d_ij = d_ij
         self.theta_ij = gradients.arctan2(self.dst_y_j - self.src_y_i[:, na], self.dst_x_j - self.src_x_i[:, na])
 
-    def __call__(self, WD_il, wd_l=None, src_idx=slice(None), dst_idx=slice(None)):
+    def __call__(self, WD_ilk, wd_l=None, src_idx=slice(None), dst_idx=slice(None)):
         # instead of projecting the distances onto first x,y and then onto down wind direction
         # we offset the wind direction by the direction between source and destination
-        _, hcw_ijl, dh_ijl = StraightDistance.__call__(self, WD_il, src_idx=src_idx, dst_idx=dst_idx)
-        if len(np.shape(WD_il)) == 1:
-            dir_ij = 90 - rad2deg(self.theta_ij[src_idx, dst_idx])
-            wdir_offset_ij = np.asarray(WD_il)[na] - dir_ij
-            theta_ij = deg2rad(90 - wdir_offset_ij)
-            sin_ij = np.sin(theta_ij)
-            dw_ijl = - sin_ij * self.d_ij[src_idx, dst_idx]
+        WD_il = mean_deg(WD_ilk, 2)
+        _, hcw_ijl, dh_ijl = StraightDistance.__call__(self, WD_ilk, src_idx=src_idx, dst_idx=dst_idx)
+        if len(np.shape(dst_idx)) == 2:
+            # dst_idx depends on wind direction
+            WD_l = mean_deg(WD_il, 0)
+            dir_jl = 90 - rad2deg(self.theta_ij[src_idx, dst_idx])
+            wdir_offset_jl = WD_l[na] - dir_jl
+            theta_jl = deg2rad(90 - wdir_offset_jl)
+
+            dw_ijl = (- np.sin(theta_jl) * self.d_ij[src_idx, dst_idx])[na]
         else:
             dir_ij = 90 - rad2deg(self.theta_ij[src_idx, ][:, dst_idx])
             wdir_offset_ijl = np.asarray(WD_il)[:, na] - dir_ij[:, :, na]
@@ -183,12 +185,12 @@ class TerrainFollowingDistance2():
         self.calc_all = calc_all
         self.terrain_step = terrain_step
 
-    def __call__(self, WD_il):
+    def __call__(self, WD_ilk):
         if not self.src_x_i.shape == self.dst_x_j.shape or not np.allclose(self.src_x_i, self.dst_x_j):
             raise NotImplementedError(
                 'Different source and destination postions are not yet implemented for the terrain following distance calculation')
         return self.cal_dist_terrain_following(self.site, self.src_x_i, self.src_y_i, self.src_h_i,
-                                               self.dst_x_j, self.dst_y_j, self.dst_h_j, WD_il,
+                                               self.dst_x_j, self.dst_y_j, self.dst_h_j, mean_deg(WD_ilk, 2),
                                                self.terrain_step, self.calc_all)
 
     def setup(self, src_x_i, src_y_i, src_h_i, dst_xyh_j=None):

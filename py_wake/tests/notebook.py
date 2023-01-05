@@ -113,20 +113,20 @@ except ModuleNotFoundError:
             return
         try:
             import contextlib
-
+            name = f'tmp_{os.path.basename(self.filename).replace(".","_")}'
             with contextlib.redirect_stdout(StringIO()):
                 with contextlib.redirect_stderr(StringIO()):
                     matplotlib_backend = matplotlib.get_backend()
                     matplotlib.use('Agg')
 
                     code_str = "\n".join(lines)
-                    p = Path(tfp + "tmp_nb.py")
+                    p = Path(tfp + name + '.py')
                     p.write_text(code_str)
 
-                    if "py_wake.tests.test_files.tmp_nb" in sys.modules:
-                        importlib.reload(sys.modules["py_wake.tests.test_files.tmp_nb"])
+                    if f"py_wake.tests.test_files.{name}" in sys.modules:
+                        importlib.reload(sys.modules[f"py_wake.tests.test_files.{name}"])
                     else:
-                        from py_wake.tests.test_files import tmp_nb
+                        importlib.import_module(f"py_wake.tests.test_files.{name}")
                     p.unlink()
 
         except Exception as e:
