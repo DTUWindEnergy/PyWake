@@ -25,16 +25,19 @@ class JITStreamlineDistance(StraightDistance):
         self.vectorField = vectorField
         self.step_size = step_size
 
-    def __call__(self, wd_l, WD_il, src_idx=slice(None), dst_idx=slice(None)):
+    def __call__(self, wd_l, WD_ilk, src_idx=slice(None), dst_idx=slice(None)):
         start_points_m = np.array([self.src_x_i[src_idx], self.src_y_i[src_idx], self.src_h_i[src_idx]]).T
 
-        if len(np.shape(WD_il)) == 1:
-            dw_jl, hcw_jl, dh_jl = StraightDistance.__call__(self, WD_il=wd_l, src_idx=src_idx, dst_idx=dst_idx)
+        if len(np.shape(dst_idx)) == 2:
+            # dst_idx depends on wind direction
+            dw_jl, hcw_jl, dh_jl = [v[0] for v in StraightDistance.__call__(self, WD_ilk=wd_l[na, :, na],
+                                                                            src_idx=src_idx, dst_idx=dst_idx)]
             dw_mj, hcw_mj, dh_mj = [np.moveaxis(v, 0, 1) for v in [dw_jl, hcw_jl, dh_jl]]
             wd_m = wd_l
         else:
-            # WD_il
-            dw_ijl, hcw_ijl, dh_ijl = StraightDistance.__call__(self, WD_il=wd_l[na], src_idx=src_idx, dst_idx=dst_idx)
+            # dst_idx independent of wind direction
+            dw_ijl, hcw_ijl, dh_ijl = StraightDistance.__call__(self, WD_ilk=wd_l[na, :, na],
+                                                                src_idx=src_idx, dst_idx=dst_idx)
             I, J, L = dw_ijl.shape
             dw_mj, hcw_mj, dh_mj = [np.moveaxis(v, 1, 2).reshape(I * L, J) for v in [dw_ijl, hcw_ijl, dh_ijl]]
             wd_m = np.tile(wd_l, I)
@@ -57,8 +60,8 @@ class JITStreamlineDistance(StraightDistance):
             dh_mj[m, dw] += np.interp(dw_j[dw], dw_s, dh_s)
             dw_mj[m, dw] = np.interp(dw_j[dw], dw_s, length_s)
 
-        if len(np.shape(WD_il)) == 1:
-            return [np.moveaxis(v, 0, 1) for v in [dw_mj, hcw_mj, dh_mj]]
+        if len(np.shape(dst_idx)) == 2:
+            return [np.moveaxis(v, 0, 1)[na] for v in [dw_mj, hcw_mj, dh_mj]]
         else:
             return [v.reshape((I, J, L)) for v in [dw_mj, hcw_mj, dh_mj]]
 

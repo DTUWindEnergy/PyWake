@@ -19,7 +19,7 @@ def mean_deg(dir, axis=0):
     mean_deg : float
         Mean angle
     """
-    return gradients.rad2deg(mean_rad(gradients.deg2rad(dir), axis))
+    return gradients.rad2deg(mean_rad(gradients.deg2rad(np.asarray(dir)), axis))
 
 
 def mean_rad(dir, axis=0):
