@@ -39,9 +39,9 @@ PyWake is equipped with many capabilities that can range from basic to complex. 
 
 Explanations of PyWake's core objects can be found in the following tutorials:
 
-	* :ref:`Site </notebooks/Site.ipynb>`: this tutorial walks through the set up of pre-defined sites in PyWake as well as the possibility for user-defined sites.
-	* :ref:`Wind Turbine </notebooks/WindTurbines.ipynb>`: this example demonstrates how to set up a wind turbine object and also to create user-defined turbines with specific power and CT curves.
-	* :ref:`Engineering Wind Farm Models </notebooks/EngineeringWindFarmModels.ipynb>`: here there is a detailed explanation of all the wake deficit models available in PyWake as well as other engineering models such as wake superposition, deflection, etc.
+    * :ref:`Site </notebooks/Site.ipynb>`: this tutorial walks through the set up of pre-defined sites in PyWake as well as the possibility for user-defined sites.
+    * :ref:`Wind Turbine </notebooks/WindTurbines.ipynb>`: this example demonstrates how to set up a wind turbine object and also to create user-defined turbines with specific power and CT curves.
+    * :ref:`Engineering Wind Farm Models </notebooks/EngineeringWindFarmModels.ipynb>`: here there is a detailed explanation of all the wake deficit models available in PyWake as well as other engineering models such as wake superposition, deflection, etc.
 
 The :ref:`Wind farm simulation </notebooks/RunWindFarmSimulation.ipynb>` example shows how to execute PyWake and extract relevant information about the wind farm studied. In addition, PyWake's capablities to calculate gradients are demonstrated in the :ref:`Gradients, parallelization and precision </notebooks/gradients_parallellization.ipynb>` example, and an optimization with TOPFARM is available in the :ref:`Optimization </notebooks/Optimization.ipynb>` tutorial.
 
@@ -50,7 +50,7 @@ Lastly, the remaining notebooks illustrate some relevant examples and exercises 
 
     .. toctree::
         :maxdepth: 1
-	:caption: Contents
+    :caption: Contents
     
         installation
         notebooks/Overview  
@@ -59,14 +59,14 @@ Lastly, the remaining notebooks illustrate some relevant examples and exercises 
                
     .. toctree::
         :maxdepth: 1
-	:caption: Tutorials
+    :caption: Tutorials
        
-	    notebooks/Quickstart
+        notebooks/Quickstart
         notebooks/Site
         notebooks/WindTurbines
         notebooks/EngineeringWindFarmModels
-	    notebooks/RunWindFarmSimulation
-	    notebooks/gradients_parallellization
+        notebooks/RunWindFarmSimulation
+        notebooks/gradients_parallellization
         notebooks/Optimization
         notebooks/YawMisalignment
         notebooks/Noise
@@ -77,19 +77,19 @@ Lastly, the remaining notebooks illustrate some relevant examples and exercises 
 
     .. toctree::
         :maxdepth: 1
-	:caption: Model Verification       
+    :caption: Model Verification       
 
         notebooks/literature_verification/TurbOPark
         
     .. toctree::
         :maxdepth: 2
-	:caption: Validation
+    :caption: Validation
     
         validation
         
     .. toctree::
         :maxdepth: 1
-	:caption: API Reference
+    :caption: API Reference
             
         api/WindTurbines
         api/Site
