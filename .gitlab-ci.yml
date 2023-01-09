@@ -43,7 +43,7 @@ check_code_style:  # name the job what we like
   - pip install -e . --user
   - pycodestyle --ignore=E501,W504,E741 py_wake
   tags:  # only runners with this tag can do the job [3]
-  - python
+  - ci-ubuntu
 
 # ===== TEST PyWake on Windows =====
 test_PyWake_windows:  # name the job what we like
