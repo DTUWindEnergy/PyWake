@@ -51,77 +51,77 @@ class ISONoiseModel:
         self.freqs = freqs
         self.sound_power_level = sound_power_level
 
-    def ground_eff(self, ground_distance_ij, distance_ij, ground_type):
+    def ground_eff(self, ground_distance_ijlk, distance_ijlk, ground_type):
         # Ground effects ISO
 
         freqs_init = np.array([63.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 8000.0])
 
-        src_h_ij = self.src_h[:, na]
-        rec_h_ij = self.distance.dst_h_j[na]
+        src_h_ijlk = self.distance.src_h_ilk[:, na]
+        rec_h_ijlk = self.distance.dst_h_j[na, :, na, na]
 
-        hei_check_ij = 30.0 * (src_h_ij + rec_h_ij)
+        hei_check_ijlk = 30.0 * (src_h_ijlk + rec_h_ijlk)
 
-        q_ij = np.where(ground_distance_ij <= hei_check_ij, 0, 1 - hei_check_ij / ground_distance_ij)
+        q_ijlk = np.where(ground_distance_ijlk <= hei_check_ijlk, 0, 1 - hei_check_ijlk / ground_distance_ijlk)
 
         Gs = Gr = Gm = ground_type
 
         # for f=63Hz Am =-3*q, for other frequencies Am = -3 * q * (1-Gm)
         fak = np.where(freqs_init == 63.0, 1, (1 - Gm))
-        Am_fij = -3.0 * q_ij[na] * fak[:, na, na]
+        Am_fijlk = -3.0 * q_ijlk[na] * fak[:, na, na, na, na]
 
         # 125 Hz
-        a_source_ij = 1.5 + 3.0 * np.exp(-0.12 * (src_h_ij - 5.0)**2) * (1.0 - np.exp(-ground_distance_ij / 50.0)) + \
-            5.7 * np.exp(-0.09 * src_h_ij**2) * \
-            (1.0 - np.exp(-2.8 * (10.0**(-6.0)) * (ground_distance_ij**2)))
-        a_rec_ij = 1.5 + 3.0 * np.exp(-0.12 * (rec_h_ij - 5.0)**2) * (1.0 - np.exp(-ground_distance_ij / 50.0)) + \
-            5.7 * np.exp(-0.09 * rec_h_ij**2) * (1.0 - np.exp(-2.8 * (10.0**(-6.0)) * (ground_distance_ij**2)))
+        a_source_ijlk = 1.5 + 3.0 * np.exp(-0.12 * (src_h_ijlk - 5.0)**2) * (1.0 - np.exp(-ground_distance_ijlk / 50.0)) + \
+            5.7 * np.exp(-0.09 * src_h_ijlk**2) * \
+            (1.0 - np.exp(-2.8 * (10.0**(-6.0)) * (ground_distance_ijlk**2)))
+        a_rec_ijlk = 1.5 + 3.0 * np.exp(-0.12 * (rec_h_ijlk - 5.0)**2) * (1.0 - np.exp(-ground_distance_ijlk / 50.0)) + \
+            5.7 * np.exp(-0.09 * rec_h_ijlk**2) * (1.0 - np.exp(-2.8 * (10.0**(-6.0)) * (ground_distance_ijlk**2)))
 
         # 250 Hz
-        b_source_ij = 1.5 + 8.6 * np.exp(-0.09 * src_h_ij**2) * (1.0 - np.exp(-ground_distance_ij / 50.0))
-        b_rec_ij = 1.5 + 8.6 * np.exp(-0.09 * rec_h_ij**2) * (1.0 - np.exp(-ground_distance_ij / 50.0))
+        b_source_ijlk = 1.5 + 8.6 * np.exp(-0.09 * src_h_ijlk**2) * (1.0 - np.exp(-ground_distance_ijlk / 50.0))
+        b_rec_ijlk = 1.5 + 8.6 * np.exp(-0.09 * rec_h_ijlk**2) * (1.0 - np.exp(-ground_distance_ijlk / 50.0))
 
         # 500 Hz
-        c_source_ij = 1.5 + 14.0 * np.exp(-0.46 * src_h_ij**2) * (1.0 - np.exp(-ground_distance_ij / 50.0))
-        c_rec_ij = 1.5 + 14.0 * np.exp(-0.46 * rec_h_ij**2) * (1.0 - np.exp(-ground_distance_ij / 50.0))
+        c_source_ijlk = 1.5 + 14.0 * np.exp(-0.46 * src_h_ijlk**2) * (1.0 - np.exp(-ground_distance_ijlk / 50.0))
+        c_rec_ijlk = 1.5 + 14.0 * np.exp(-0.46 * rec_h_ijlk**2) * (1.0 - np.exp(-ground_distance_ijlk / 50.0))
 
         # 1000 Hz
-        d_source_ij = 1.5 + 5.0 * np.exp(-0.9 * src_h_ij**2) * (1.0 - np.exp(-ground_distance_ij / 50.0))
-        d_rec_ij = 1.5 + 5.0 * np.exp(-0.9 * rec_h_ij**2) * (1.0 - np.exp(-ground_distance_ij / 50.0))
+        d_source_ijlk = 1.5 + 5.0 * np.exp(-0.9 * src_h_ijlk**2) * (1.0 - np.exp(-ground_distance_ijlk / 50.0))
+        d_rec_ijlk = 1.5 + 5.0 * np.exp(-0.9 * rec_h_ijlk**2) * (1.0 - np.exp(-ground_distance_ijlk / 50.0))
 
-        zeros = np.zeros_like(ground_distance_ij)
-        As_fij = np.array([zeros - 1.5,  # 63Hz
-                           -1.5 + Gs * a_source_ij,  # 125Hz
-                           -1.5 + Gs * b_source_ij,  # 250Hz
-                           -1.5 + Gs * c_source_ij,  # 500Hz
-                           -1.5 + Gs * d_source_ij,  # 1000Hz
-                           zeros - 1.5 * (1.0 - Gs),  # 2000Hz
-                           zeros - 1.5 * (1.0 - Gs)  # 8000Hz
-                           ])
+        zeros = np.zeros_like(ground_distance_ijlk)
+        As_fijlk = np.array([zeros - 1.5,  # 63Hz
+                             -1.5 + Gs * a_source_ijlk,  # 125Hz
+                             -1.5 + Gs * b_source_ijlk,  # 250Hz
+                             -1.5 + Gs * c_source_ijlk,  # 500Hz
+                             -1.5 + Gs * d_source_ijlk,  # 1000Hz
+                             zeros - 1.5 * (1.0 - Gs),  # 2000Hz
+                             zeros - 1.5 * (1.0 - Gs)  # 8000Hz
+                             ])
 
-        Ar_fij = np.array([zeros - 1.5,  # 63 Hz
-                           -1.5 + Gr * a_rec_ij,  # 125 Hz
-                           -1.5 + Gr * b_rec_ij,  # 250 Hz
-                           -1.5 + Gr * c_rec_ij,  # 500 Hz
-                           -1.5 + Gr * d_rec_ij,  # 1000 Hz
-                           zeros - 1.5 * (1.0 - Gr),  # 2000 Hz
-                           zeros - 1.5 * (1.0 - Gr)  # 8000 Hz
-                           ])
+        Ar_fijlk = np.array([zeros - 1.5,  # 63 Hz
+                             -1.5 + Gr * a_rec_ijlk,  # 125 Hz
+                             -1.5 + Gr * b_rec_ijlk,  # 250 Hz
+                             -1.5 + Gr * c_rec_ijlk,  # 500 Hz
+                             -1.5 + Gr * d_rec_ijlk,  # 1000 Hz
+                             zeros - 1.5 * (1.0 - Gr),  # 2000 Hz
+                             zeros - 1.5 * (1.0 - Gr)  # 8000 Hz
+                             ])
 
         # Interpolation to other frequencies are actually not following the standard completely.
-        ip = GridInterpolator([freqs_init], np.moveaxis([As_fij, Ar_fij, Am_fij], 0, -1))
+        ip = GridInterpolator([freqs_init], np.moveaxis([As_fijlk, Ar_fijlk, Am_fijlk], 0, -1))
 
         # interpolate to freq and sum up As+Ar+Am
-        Agr_ijf = np.moveaxis(ip(np.array([self.freqs]).T).sum(-1), 0, -1)
+        Agr_ijlkf = np.moveaxis(ip(np.array([self.freqs]).T).sum(-1), 0, -1)
 
         # Area of sphere: 4pi R^2
         # 10*log_10(4pi) ~ 11
         # 10 * log_10(R^2) = 20 * log_10(R) =
         # reference area = 1.0 m^2
-        Adiv_ij = 20.0 * np.log10(distance_ij / 1.0) + 11.0  # The geometrical spreading (divergence)
+        Adiv_ijlk = 20.0 * np.log10(distance_ijlk / 1.0) + 11.0  # The geometrical spreading (divergence)
 
-        ISO_ground_ijf = - Adiv_ij[:, :, na] - Agr_ijf
+        ISO_ground_ijlkf = - Adiv_ijlk[:, :, :, :, na] - Agr_ijlkf
 
-        return ISO_ground_ijf
+        return ISO_ground_ijlkf
 
     def atmab(self, distance_ij, T0, RH0):
         # Atmospheric absorption
@@ -148,13 +148,13 @@ class ISONoiseModel:
         if self.elevation_function:
             rec_h += self.elevation_function(rec_x, rec_y)
         self.distance.setup(self.src_x, self.src_y, self.src_h, [rec_x, rec_y, rec_h])
-        ground_distance_ij = np.sqrt(self.distance.dx_ij**2 + self.distance.dy_ij**2)
-        distance_ij = np.sqrt(self.distance.dx_ij**2 + self.distance.dy_ij**2 + self.distance.dh_ij**2)
+        ground_distance_ijlk = np.sqrt(self.distance.dx_ijlk**2 + self.distance.dy_ijlk**2)
+        distance_ijlk = np.sqrt(self.distance.dx_ijlk**2 + self.distance.dy_ijlk**2 + self.distance.dh_ijlk**2)
 
-        atm_abs_ijf = self.atmab(distance_ij, T0=Temp, RH0=RHum)  # The atmospheric absorption term
-        ground_eff_ijf = self.ground_eff(ground_distance_ij, distance_ij, ground_type)
+        atm_abs_ijlkf = self.atmab(distance_ijlk, T0=Temp, RH0=RHum)  # The atmospheric absorption term
+        ground_eff_ijlkf = self.ground_eff(ground_distance_ijlk, distance_ijlk, ground_type)
 
-        return ground_eff_ijf - atm_abs_ijf  # Delta_SPL
+        return ground_eff_ijlkf - atm_abs_ijlkf  # Delta_SPL
 
     def __call__(self, rec_x, rec_y, rec_h, Temp, RHum, ground_type):
         """Calculate the sound pressure level at a list of reveicers
@@ -185,18 +185,16 @@ class ISONoiseModel:
         """
 
         # Computing total transmission loss
-        Delta_SPL_ijf = self.transmission_loss(rec_x, rec_y, rec_h, ground_type, Temp, RHum)
-        sound_power_ijxxf = self.sound_power_level[:, na]
-        I, J, F = Delta_SPL_ijf.shape
-        shape = [I, J] + [1] * (len(sound_power_ijxxf.shape) - len(Delta_SPL_ijf.shape)) + [F]
-        Delta_SPL_ijxxf = Delta_SPL_ijf.reshape(shape)
+        Delta_SPL_ijlkf = self.transmission_loss(rec_x, rec_y, rec_h, ground_type, Temp, RHum)
+        sound_power_ijlkf = np.expand_dims(self.sound_power_level,
+                                           tuple(range(1, 6 - len(np.shape(self.sound_power_level)))))
 
         # Add negative transmission loss to emitted sound and sum over sources to get sound pressure level
-        spl_jxxf = 10.0 * np.log10(np.sum(10.0**((self.sound_power_level[:, na] + Delta_SPL_ijxxf) / 10.0), axis=0))
+        spl_jlkf = 10.0 * np.log10(np.sum(10.0**((sound_power_ijlkf + Delta_SPL_ijlkf) / 10.0), axis=0))
 
         # Sum over frequencies to get total sound pressure level
-        total_spl_jxx = 10.0 * np.log10(np.sum(10.0**(spl_jxxf / 10.0), axis=-1))
-        return total_spl_jxx, spl_jxxf
+        total_spl_jlk = 10.0 * np.log10(np.sum(10.0**(spl_jlkf / 10.0), axis=-1))
+        return total_spl_jlk, spl_jlkf
 
 
 def main():

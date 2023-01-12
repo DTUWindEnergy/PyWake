@@ -42,7 +42,6 @@ def test_notebooks(notebook):
         notebook.check_links()
         notebook.remove_empty_end_cell()
         notebook.check_pip_header()
-        pass
     except Exception as e:
         raise Exception(notebook.filename + " failed") from e
     finally:

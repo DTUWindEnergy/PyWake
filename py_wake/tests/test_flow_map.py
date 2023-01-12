@@ -322,7 +322,7 @@ def test_aep_map_type():
     v120 = WindTurbine('V80_low_induc', 80, 70, powerCtFunction=PowerCtTabular(
         hornsrev1.power_curve[:, 0], hornsrev1.power_curve[:, 1] * 1.5, 'w', hornsrev1.ct_curve[:, 1]))
 
-    windTurbines = WindTurbines.from_WindTurbines([v80, v120])
+    windTurbines = WindTurbines.from_WindTurbine_lst([v80, v120])
     wfm = PropagateDownwind(site, windTurbines,
                             wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
                             superpositionModel=SquaredSum())
@@ -362,3 +362,33 @@ def test_aep_map_smartstart_griddedsite_terrainfollowingdistance():
         sim_res = wfm(x[:i], y[:i], wd=[0, 1])
         grid = XYGrid(x=site.ds.x, y=site.ds.y)
         sim_res.aep_map(grid, normalize_probabilities=True)
+
+
+def test_wd_dependent_flow_map():
+    wfm = IEA37CaseStudy1(16)
+    sim_res = wfm(x=[0], y=[0], wd=[0, 90, 180])
+    for wd in [[0], [0, 90], None]:
+        fm = sim_res.flow_map(wd=wd)
+        if 0:
+            fm.plot_wake_map()
+            plt.show()
+
+
+def test_ws_dependent_flow_map():
+    wfm = IEA37CaseStudy1(16)
+    sim_res = wfm(x=[0], y=[0], ws=[8, 9, 10], wd=270)
+    for ws in [[8], [8, 9], None]:
+        fm = sim_res.flow_map(ws=ws)
+        if 0:
+            fm.plot_wake_map()
+            plt.show()
+
+
+def test_time_dependent_flow_map():
+    wfm = IEA37CaseStudy1(16)
+    sim_res = wfm(x=[0], y=[0], wd=[0, 90, 180], ws=[8, 9, 10], time=True)
+    for t in [[0], [0, 1], None]:
+        fm = sim_res.flow_map(time=t)
+        if 0:
+            fm.plot_wake_map()
+            plt.show()

@@ -118,13 +118,13 @@ class IEA34_130_2WT_Surrogate(IEA34_130_Base):
         powerCtFunction = IEA34_130_PowerCtSurrogate(
             surrogate_path,
             input_parser=(lambda ws, TI=.1, Alpha=0, get_input=self.get_input:
-                          get_input(ws, TI=TI, Alpha=Alpha, dw_ijl=np.array([0]), hcw_ijl=0)))
+                          get_input(ws, TI=TI, Alpha=Alpha, dw_ijlk=np.array([0]), hcw_ijlk=0)))
         IEA34_130_Base.__init__(self, powerCtFunction=powerCtFunction, loadFunction=loadFunction)
 
-    def get_input(self, ws, dw_ijl, hcw_ijl, TI, Alpha=0):
+    def get_input(self, ws, dw_ijlk, hcw_ijlk, TI, Alpha=0):
         # ['ws','ti', 'shear', 'wdir', 'dist']
-        dist = np.atleast_1d((hypot(dw_ijl, hcw_ijl) / 130))
-        wd = np.atleast_1d(np.rad2deg(np.arctan2(hcw_ijl, dw_ijl)))
+        dist = np.atleast_1d((hypot(dw_ijlk, hcw_ijlk) / 130))
+        wd = np.atleast_1d(np.rad2deg(np.arctan2(hcw_ijlk, dw_ijlk)))
         unwaked = (dist == 0) | (dist > self.max_dist) | (np.abs(wd) > self.max_angle)
         dist[unwaked] = 20
         wd[unwaked] = 20
@@ -225,11 +225,11 @@ def main():
         sensors = wt.loadFunction.output_keys
         axes = [plt.figure().gca() for _ in sensors]
         for ti in [0.01, .05, .1, .3]:
-            loads = wt.loads(u, TI=ti, Alpha=.12, dw_ijl=0, hcw_ijl=0)
+            loads = wt.loads(u, TI=ti, Alpha=.12, dw_ijlk=0, hcw_ijlk=0)
             for ax, l in zip(axes, loads):
                 ax.plot(u, l, label=f'TI={ti}')
         for alpha in [-0.09, .1, .3, .49]:
-            loads = wt.loads(u, TI=.1, Alpha=alpha, dw_ijl=np.array([1000]), hcw_ijl=0)
+            loads = wt.loads(u, TI=.1, Alpha=alpha, dw_ijlk=np.array([1000]), hcw_ijlk=0)
             for ax, l in zip(axes, loads):
                 ax.plot(u, l, '--', label=f'Alpha={alpha}')
         for ax, s in zip(axes, sensors):

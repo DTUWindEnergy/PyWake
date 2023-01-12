@@ -20,9 +20,9 @@ def test_fuga_deflection_vs_notebook():
     x, notebook_deflection = np.array([v.split(",") for v in p.read_text().strip().split("\n")], dtype=float).T
 
     path = tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00.nc'
-    fuga_deflection = -FugaDeflection(path).calc_deflection(dw_ijl=np.reshape(x, (1, 41, 1)),
-                                                            hcw_ijl=np.reshape(x * 0, (1, 41, 1)),
-                                                            dh_ijl=np.reshape(x * 0, (1, 41, 1)),
+    fuga_deflection = -FugaDeflection(path).calc_deflection(dw_ijlk=np.reshape(x, (1, 41, 1, 1)),
+                                                            hcw_ijlk=np.reshape(x * 0, (1, 41, 1, 1)),
+                                                            dh_ijlk=np.reshape(x * 0, (1, 41, 1, 1)),
                                                             WS_ilk=np.array([[[9.5]]]),
                                                             WS_eff_ilk=np.array([[[9.5]]]),
                                                             yaw_ilk=np.array([[[17.4493]]]),

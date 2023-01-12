@@ -132,8 +132,6 @@ def check_numpy32(wfm, name):
 def test_all_models(model_type, model):
     if model is None:
         return
-    if model.__name__ != "FugaMultiLUTDeficit":
-        return
 
     d = {'WindFarmModel': (PropagateDownwind, All2AllIterative)[model_type == 'BlockageDeficitModel'],
          'WakeDeficitModel': IEA37SimpleBastankhahGaussianDeficit,

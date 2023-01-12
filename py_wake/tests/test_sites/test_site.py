@@ -39,7 +39,7 @@ def test_local_wind(site):
     lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=[50], wd=wdir_lst, ws=wsp_lst)
     npt.assert_array_equal(lw.WS_ilk.shape, (1, 4, 3))
 
-    lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=50)
+    lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=x_i * 0 + 50)
     npt.assert_array_equal(lw.WS_ilk.shape, (1, 360, 23))
     assert lw.WS.attrs['description'] == 'Local free-stream wind speed [m/s]'
 
@@ -224,7 +224,7 @@ def test_iea37_distances():
     # Wind direction.
     wdir = np.rad2deg(np.arctan2(hcw_iil, dw_iil))
     npt.assert_allclose(
-        wdir[:, 0, 0],
+        wdir[:, 0, 0, 0],
         [180, -90, -18, 54, 126, -162, -90, -54, -18, 18, 54, 90, 126, 162, -162, -126],
         atol=1e-4)
 

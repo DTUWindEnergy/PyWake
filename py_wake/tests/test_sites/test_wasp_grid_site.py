@@ -7,7 +7,7 @@ from py_wake.site.wasp_grid_site import WaspGridSite
 import os
 import time
 from py_wake.tests.test_files.wasp_grid_site import one_layer
-from py_wake.site.distance import TerrainFollowingDistance, StraightDistance, TerrainFollowingDistance2
+from py_wake.site.distance import TerrainFollowingDistance, StraightDistance
 import math
 from py_wake import NOJ
 from py_wake.wind_turbines import OneTypeWindTurbines
@@ -30,13 +30,6 @@ def close_plots():
 @pytest.fixture
 def site():
     return ParqueFicticioSite()
-
-
-@pytest.fixture
-def site2():
-    site = ParqueFicticioSite(distance=TerrainFollowingDistance2())
-    x, y = site.initial_position.T
-    return site, x, y
 
 
 def test_WaspGridSiteDistanceClass(site):
@@ -198,41 +191,20 @@ def test_wasp_resources_grid_point(site):
 
 
 @pytest.mark.parametrize('site,dw_ref', [
-    (ParqueFicticioSite(distance=TerrainFollowingDistance2()),
-     [0., 207.3842238, 484.3998264, 726.7130743, 1039.148129, 1263.1335982, 1490.3841602, 1840.6508086]),
     (ParqueFicticioSite(distance=TerrainFollowingDistance()),
      [0, 209.803579, 480.8335365, 715.6003233, 1026.9476322, 1249.5510034, 1475.1467251, 1824.1317343]),
     (ParqueFicticioSite(distance=StraightDistance()),
      [-0, 207, 477, 710, 1016, 1236, 1456, 1799])])
 def test_distances(site, dw_ref):
     x, y = site.initial_position.T
-    site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
+    site.distance.setup(src_x_ilk=x, src_y_ilk=y, src_h_ilk=np.array([70]),
                         dst_xyh_j=(x, y, np.array([70])))
-    dw_ijl, cw_ijl, dh_ijl = site.distance(WD_ilk=np.array([[[0]]]))
-    npt.assert_almost_equal(dw_ijl[0, :, 0], dw_ref)
+    dw_ijlk, cw_ijlk, dh_ijlk = site.distance(WD_ilk=np.array([[[0]]]))
+    npt.assert_almost_equal(dw_ijlk[0, :, 0, 0], dw_ref)
 
     cw_ref = [236.1, 0., -131.1, -167.8, -204.5, -131.1, -131.1, -45.4]
-    npt.assert_almost_equal(cw_ijl[:, 1, 0], cw_ref)
-    npt.assert_almost_equal(dh_ijl, np.zeros_like(dh_ijl))
-
-
-def test_distances_different_points(site2):
-    site, x, y = site2
-    with pytest.raises(NotImplementedError):
-        site.distance.setup(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
-                            dst_xyh_j=(x[1:], y[1:], np.array([70])))
-        site.distance(WD_ilk=[[[0]]])
-
-
-# def test_distances_wd_shape():
-#     site = ParqueFicticioSite(distance=TerrainFollowingDistance2())
-#     x, y = site.initial_position.T
-#     dw_ijl, cw_ijl, dh_ijl, dwo = site.distances(src_x_i=x, src_y_i=y, src_h_i=np.array([70]),
-#                                                  dst_x_j=x, dst_y_j=y, dst_h_j=np.array([70]),
-#                                                  wd_il=np.ones((len(x), 1)) * 180)
-#     npt.assert_almost_equal(dw_ijl[0, :, 0], np.array([0., -207., -477., -710., -1016., -1236., -1456., -1799.]))
-#     npt.assert_almost_equal(cw_ijl[:, 1, 0], np.array([-236.1, 0., 131.1, 167.8, 204.5, 131.1, 131.1, 45.4]))
-#     npt.assert_almost_equal(dh_ijl, np.zeros_like(dh_ijl))
+    npt.assert_almost_equal(cw_ijlk[:, 1, 0, 0], cw_ref)
+    npt.assert_almost_equal(dh_ijlk, np.zeros_like(dh_ijlk))
 
 
 def test_speed_up_using_pickle():

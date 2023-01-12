@@ -235,7 +235,7 @@ class IEA37SimpleBastankhahGaussian(PropagateDownwind, DeprecatedModel):
                                    wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit(),
                                    rotorAvgModel=rotorAvgModel, superpositionModel=superpositionModel,
                                    deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
-        DeprecatedModel.__init__(self, 'py_wake.literature.IEA37SimpleBastankhahGaussian')
+        DeprecatedModel.__init__(self, 'py_wake.literature.iea37_case_study1.IEA37CaseStudy1')
 
 
 class ZongGaussianDeficit(NiayifarGaussianDeficit):

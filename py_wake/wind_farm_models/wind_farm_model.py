@@ -285,14 +285,18 @@ class WindFarmModel(ABC):
             s = np.shape(arg)
             if s in [(), (I,)]:
                 return arg
-            elif s == (I, L):
+            elif s == (I, L) or s == (I, L, 1):
                 return arg[:, wd_slice]
             elif s == (I, L, K):
                 return arg[:, wd_slice][:, :, ws_slice]
+            elif s == (I, 1, 1) or s == (1, 1, 1):
+                return arg
             elif s == (L,):
                 return arg[wd_slice]
             elif s == (L, K):
                 return arg[wd_slice][:, ws_slice]
+            else:  # pragma: no cover
+                raise ValueError(f'Shape, {s}, of argument {k} is invalid')
 
         arg_lst = [{'wd': wd[wd_slice], 'ws': ws[ws_slice], 'time':get_subtask_arg('time', time, wd_slice, ws_slice),
                     ** {k: get_subtask_arg(k, v, wd_slice, ws_slice) for k, v in kwargs.items()}} for wd_slice, ws_slice in slice_lst]
@@ -381,31 +385,33 @@ class SimulationResult(xr.Dataset):
             ('wt', 'wt', np.arange(n_wt), 'Wind turbine number'),
             ('wd', ('wd', 'time')['time' in lw], lw.wd, 'Ambient reference wind direction [deg]'),
             ('ws', ('ws', 'time')['time' in lw], lw.ws, 'Ambient reference wind speed [m/s]'),
-            ('x', 'wt', lw.x, 'Wind turbine x coordinate [m]'),
-            ('y', 'wt', lw.y, 'Wind turbine y coordinate [m]'),
-            ('h', 'wt', lw.h, 'Wind turbine hub height [m]'),
             ('type', 'wt', type_i, 'Wind turbine type')]}
         if 'time' in lw:
             coords['time'] = lw.time
 
         ilk_dims = (['wt', 'wd', 'ws'], ['wt', 'time'])['time' in lw]
+        data_vars = {k: (ilk_dims, (v, v[:, :, 0])['time' in lw], {'Description': d})
+                     for k, v, d in [('WS_eff', WS_eff_ilk, 'Effective local wind speed [m/s]'),
+                                     ('TI_eff', np.zeros_like(WS_eff_ilk) + TI_eff_ilk,
+                                      'Effective local turbulence intensity'),
+                                     ('Power', power_ilk, 'Power [W]'),
+                                     ('CT', ct_ilk, 'Thrust coefficient'),
+                                     ]}
+        for k, v, d in [('x', lw.x, 'Wind turbine x coordinate [m]'),
+                        ('y', lw.y, 'Wind turbine y coordinate [m]'),
+                        ('h', lw.h, 'Wind turbine hub height [m]')]:
+            data_vars[k] = (ilk_dims[:len(np.shape(v))], v, {'Description': d})
         xr.Dataset.__init__(self,
-                            data_vars={k: (ilk_dims, (v, v[:, :, 0])['time' in lw], {'Description': d})
-                                       for k, v, d in [('WS_eff', WS_eff_ilk, 'Effective local wind speed [m/s]'),
-                                                       ('TI_eff', np.zeros_like(WS_eff_ilk) + TI_eff_ilk,
-                                                        'Effective local turbulence intensity'),
-                                                       ('Power', power_ilk, 'Power [W]'),
-                                                       ('CT', ct_ilk, 'Thrust coefficient'),
-                                                       ]},
+                            data_vars=data_vars,
                             coords=coords)
         for n in localWind:
             if n[-4:] == '_ilk':
                 self[n[:-4]] = getattr(localWind, n[:-4])
             elif n in ['ws_lower', 'ws_upper']:
-
-                v = localWind[n]
-                dims = [n for n, d in zip(('wt', 'wd', 'ws'), v.shape) if d > 1]
-                self[n[:-4]] = (dims, v.squeeze())
+                if 'time' not in lw:
+                    v = localWind[n]
+                    dims = [n for n, d in zip(('wt', 'wd', 'ws'), v.shape) if d > 1]
+                    self[n[:-4]] = (dims, v.squeeze())
             else:
                 self[n] = localWind[n]
         # self.attrs.update(localWind.attrs)
@@ -543,7 +549,7 @@ class SimulationResult(xr.Dataset):
                 ws_iilk = np.broadcast_to(WS_eff_ilk[na], (I, I, L, K))
 
                 def _fix_shape(k, v):
-                    if k[-3:] == 'ijl':
+                    if k[-4:] == 'ijlk':
                         return fix_shape(v, ws_iilk)
                     else:
                         return np.broadcast_to(fix_shape(v, WS_eff_ilk)[na], (I, I, L, K))
@@ -673,7 +679,7 @@ class SimulationResult(xr.Dataset):
         else:  # pragma: no cover
             raise NotImplementedError()
 
-    def flow_map(self, grid=None, wd=None, ws=None):
+    def flow_map(self, grid=None, wd=None, ws=None, time=None):
         """Return a FlowMap object with WS_eff and TI_eff of all grid points
 
         Parameters
@@ -689,8 +695,15 @@ class SimulationResult(xr.Dataset):
         """
         X, Y, x_j, y_j, h_j, plane = self._get_grid(grid)
         wd, ws = self._wd_ws(wd, ws)
-        lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(x_j, y_j, h_j, self.sel(wd=wd, ws=ws))
-        return FlowMap(self, X, Y, lw_j, WS_eff_jlk, TI_eff_jlk, plane=plane)
+        if 'time' in self:
+            sim_res = self.sel(time=(time, slice(time))[time is None])
+        else:
+            sim_res = self.sel(wd=wd, ws=ws)
+        for k in self.__slots__:
+            setattr(sim_res, k, getattr(self, k))
+
+        lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(x_j, y_j, h_j, sim_res)
+        return FlowMap(sim_res, X, Y, lw_j, WS_eff_jlk, TI_eff_jlk, plane=plane)
 
     def _wd_ws(self, wd, ws):
         if wd is None:

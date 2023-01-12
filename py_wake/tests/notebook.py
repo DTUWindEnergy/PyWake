@@ -143,8 +143,10 @@ except ModuleNotFoundError:
             label, url = link.groups()
             # print(label)
             # print(url)
-            if url.startswith('attachment') or '#' in url:
+            if url.startswith('attachment') or '.ipynb' in url or url[0] == '#':
                 continue
+            if "#" in url:
+                url = url[:url.index("#")]
             if url.startswith("../_static") or url.startswith("images/"):
                 assert os.path.isfile(os.path.join(os.path.dirname(self.filename), url))
                 return

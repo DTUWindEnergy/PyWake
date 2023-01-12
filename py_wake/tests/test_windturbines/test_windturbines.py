@@ -291,3 +291,8 @@ def test_method():
                                                       (wt_spline, 0.8, dpdu_spline_pts, [205555.17794162, 211859.45965873])]:
         assert np.diff(np.diff(wt.power(ws_lst))).max() < diff_grad_max
         npt.assert_array_almost_equal(dpdu_pts, ref_dpdu_pts)
+
+
+def test_windturbine_from_WindTurbine_lst():
+    with pytest.raises(NotImplementedError, match='Use WindTurbines.from_WindTurbine_lst instead'):
+        WindTurbine.from_WindTurbine_lst([V80(), V80()])

@@ -22,7 +22,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         except TypeError:
             return super(WindTurbines, cls).__new__(cls)
 
-    def __init__(self, names, diameters, hub_heights, powerCtFunctions, loadFunctions=None):
+    def __init__(self, names, diameters, hub_heights, powerCtFunctions, **windTurbineFunctions):
         """Initialize WindTurbines
 
         Parameters
@@ -41,8 +41,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         self._hub_heights = np.array(hub_heights)
         assert len(names) == len(diameters) == len(hub_heights) == len(powerCtFunctions)
         self.powerCtFunction = PowerCtFunctionList('type', powerCtFunctions)
-#         if loadFunctions:
-#             self.loadfunction =
+        self.__dict__.update(windTurbineFunctions)
 
     @property
     def function_inputs(self):
@@ -146,8 +145,13 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
 
         """
         import matplotlib.pyplot as plt
+
         if types is None:
-            types = np.zeros_like(x)
+            types = np.zeros_like(x).astype(int)
+        else:
+            # ensure same length as x
+            types = (np.zeros(len(x)) + types).astype(int)
+
         if ax is None:
             ax = plt.gca()
         markers = np.array(list("213v^<>o48spP*hH+xXDd|_"))
@@ -155,7 +159,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
 
         from matplotlib.patches import Circle
         assert len(x) == len(y)
-        types = (np.zeros_like(x) + types).astype(int)  # ensure same length as x
+
         yaw = np.zeros_like(x) + yaw
         tilt = np.zeros_like(x) + tilt
 
@@ -171,6 +175,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
                     circle = Ellipse((x_, y_), 2 * r * np.sin(np.deg2rad(tilt_)), 2 * r,
                                      angle=90 - wd_ + yaw_, ec=colors[t], fc="None")
                     ax.add_artist(circle)
+                    ax.plot(x_, y_, '.', color=colors[t])
 
         for t, m, c in zip(np.unique(types), markers, colors):
             # ax.plot(np.asarray(x)[types == t], np.asarray(y)[types == t], '%sk' % m, label=self._names[int(t)])
@@ -257,8 +262,8 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         ax2 = ax.twinx()
         ax2.plot(ws, ct, '--')
 
-    @staticmethod
-    def from_WindTurbine_lst(wt_lst):
+    @classmethod
+    def from_WindTurbine_lst(cls, wt_lst):
         """Generate a WindTurbines object from a list of (Onetype)WindTurbines
 
         Parameters
@@ -266,13 +271,15 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         wt_lst : array_like
             list of (OneType)WindTurbines
         """
-        def get(att):
-            lst = []
-            for wt in wt_lst:
-                lst.extend(getattr(wt, att))
-            return lst
-        return WindTurbines(*[get(n) for n in ['_names', '_diameters', '_hub_heights']] +
-                            [[getattr(wt, 'powerCtFunction') for wt in wt_lst]])
+
+        def key(k):
+            return {'_names': 'names',
+                    '_diameters': 'diameters',
+                    '_hub_heights': 'hub_heights',
+                    'powerCtFunction': 'powerCtFunctions'}.get(k, k)
+
+        attrs = set.intersection(*[set(dir(wt)) - set(dir(WindTurbines)) for wt in wt_lst])
+        return cls(**{key(k): np.array([getattr(wt, k) for wt in wt_lst]).flatten() for k in attrs})
 
     @staticmethod
     def from_WindTurbines(wt_lst):
@@ -302,7 +309,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         Note: it is assumed that the power_unit inside multiple .wtg files is the same, i.e., power_unit.
         """
         if isinstance(wtg_file, (list, tuple)):
-            return WindTurbine.from_WindTurbine_lst([WindTurbines.from_WAsP_wtg(f) for f in wtg_file])
+            return WindTurbines.from_WindTurbine_lst([WindTurbines.from_WAsP_wtg(f) for f in wtg_file])
 
         cut_ins = []
         cut_outs = []
@@ -376,6 +383,10 @@ class WindTurbine(WindTurbines):
         self.powerCtFunction = powerCtFunction
         for k, v in windTurbineFunctions.items():
             setattr(self, k, v)
+
+    @classmethod
+    def from_WindTurbine_lst(cls, wt_lst):
+        raise NotImplementedError("Use WindTurbines.from_WindTurbine_lst instead")
 
 
 def main():
