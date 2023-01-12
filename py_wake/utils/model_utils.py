@@ -167,18 +167,19 @@ def get_signature(cls, kwargs={}, indent_level=0):
 def get_model_input(wfm, x, y, ws=10, wd=270, yaw=[[[0]]], tilt=[[[0]]]):
     ws, wd = [np.atleast_1d(v) for v in [ws, wd]]
     x, y = map(np.asarray, [x, y])
-    wfm.site.distance.setup(src_x_i=[0], src_y_i=[0], src_h_i=[0],
+    wfm.site.distance.setup(src_x_ilk=[[[0]]], src_y_ilk=[[[0]]], src_h_ilk=[[[0]]],
                             dst_xyh_j=(x, y, x * 0))
-    dw_ijl, hcw_ijl, dh_ijl = wfm.site.distance(WD_ilk=wd[na, :, na])
+    dw_ijlk, hcw_ijlk, dh_ijlk = wfm.site.distance(WD_ilk=wd[na, :, na])
     sim_res = wfm([0], [0], ws=ws, wd=wd, yaw=yaw)
 
-    args = {'dw_ijl': dw_ijl, 'hcw_ijl': hcw_ijl, 'dh_ijl': dh_ijl,
+    args = {'dw_ijlk': dw_ijlk, 'hcw_ijlk': hcw_ijlk, 'dh_ijlk': dh_ijlk,
             'D_src_il': np.atleast_1d(wfm.windTurbines.diameter())[na]}
     args.update({k: sim_res[n].ilk() for k, n in [('yaw_ilk', 'yaw'),
                                                   ('tilt_ilk', 'tilt'),
                                                   ('WS_ilk', 'WS'),
                                                   ('WS_eff_ilk', 'WS_eff'),
                                                   ('ct_ilk', 'CT')]})
+    args['IJLK'] = (1, len(x), len(wd), len(ws))
     return args
 
 
@@ -209,7 +210,7 @@ def fix_shape(arr, shape_or_arr_to_match, allow_number=False, allow_None=False):
         shape = shape_or_arr_to_match
     else:
         shape = np.asarray(shape_or_arr_to_match).shape
-    return np.broadcast_to(arr.reshape(arr.shape + (1,) * (len(shape) - len(arr.shape))), shape)
+    return np.broadcast_to(np.expand_dims(arr, tuple(range(len(arr.shape), len(shape)))), shape)
 
 
 def method_args(method):

@@ -30,22 +30,23 @@ class GCLHillDeflection(DeflectionModel):
 
     @property
     def args4deflection(self):
-        return DeflectionModel.args4deflection.fget(self) | \
-            set(self.wake_deficitModel.args4deficit) - {'dw_ijlk', 'hcw_ijlk', 'cw_ijlk', 'dh_ijlk'}
+        return (DeflectionModel.args4deflection.fget(self) |  # @UndefinedVariable
+                set(self.wake_deficitModel.args4deficit) - {'dw_ijlk', 'hcw_ijlk', 'cw_ijlk', 'dh_ijlk'})
 
     @property
     def wake_deficitModel(self):
         return self._wake_deficitModel or self.windFarmModel.wake_deficitModel
 
-    def calc_deflection(self, WS_eff_ilk, dw_ijl, hcw_ijl, dh_ijl, yaw_ilk, tilt_ilk, **kwargs):
+    def calc_deflection(self, WS_eff_ilk, dw_ijlk, hcw_ijlk, dh_ijlk, yaw_ilk, tilt_ilk, IJLK, **kwargs):
 
         dw_lst = (np.logspace(0, 1.1, self.N) - 1) / (10**1.1 - 1)
-        dw_ijlkx = dw_ijl[:, :, :, na, na] * dw_lst[na, na, na, na, :]
+        dw_ijlkx = dw_ijlk[..., na] * dw_lst[na, na, na, na, :]
         z = np.zeros_like(dw_ijlkx)
         U_w_ijlx = self.wake_deficitModel.calc_deficit(
             WS_eff_ilk=(WS_eff_ilk * np.cos(np.deg2rad(yaw_ilk)))[..., na],
             dw_ijlk=dw_ijlkx, hcw_ijlk=z, cw_ijlk=z, dh_ijlk=z,
             tilt_ilk=tilt_ilk[..., na],
+            IJLK=IJLK,
             **{k: v[..., na] for k, v in kwargs.items()})
 
         theta_yaw_ilk, theta_tilt_ilk = np.deg2rad(yaw_ilk), np.deg2rad(-tilt_ilk)
@@ -56,9 +57,9 @@ class GCLHillDeflection(DeflectionModel):
         U_a_ijlkx = WS_eff_ilk[:, na, :, :, na] - 0.4 * U_w_ijlx * np.cos(theta_ilk)[:, na, :, :, na]
 
         deflection_ijlk = gradients.trapz(U_d_ijlkx / U_a_ijlkx, dw_ijlkx, axis=4)
-        self.hcw_ijlk = hcw_ijl[..., na] - deflection_ijlk * np.cos(theta_deflection_ilk[:, na])
-        self.dh_ijlk = dh_ijl[..., na] + deflection_ijlk * np.sin(theta_deflection_ilk[:, na])
-        return dw_ijl[..., na], self.hcw_ijlk, self.dh_ijlk
+        self.hcw_ijlk = hcw_ijlk - deflection_ijlk * np.cos(theta_deflection_ilk[:, na])
+        self.dh_ijlk = dh_ijlk + deflection_ijlk * np.sin(theta_deflection_ilk[:, na])
+        return dw_ijlk, self.hcw_ijlk, self.dh_ijlk
 
 
 def main():

@@ -1,6 +1,4 @@
-import multiprocessing
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site, wt_x, wt_y
-from py_wake import IEA37SimpleBastankhahGaussian
 from py_wake.tests.check_speed import timeit
 from py_wake import np
 from py_wake.tests import npt
@@ -9,12 +7,14 @@ from py_wake.examples.data import wtg_path
 import pytest
 from py_wake.utils import parallelization
 from py_wake.utils.parallelization import get_pool
+from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 
 
 def get_wfm():
     wt = WindTurbines.from_WAsP_wtg(wtg_path + "Vestas-V80.wtg", )
     site = Hornsrev1Site()
-    return IEA37SimpleBastankhahGaussian(site, wt)
+    return PropagateDownwind(site, wt, wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit())
 
 
 wd_lst = np.arange(0, 360, 180)

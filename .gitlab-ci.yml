@@ -120,6 +120,7 @@ build_pages:  # "pages" is a job specifically for GitLab pages [1]
     - if: $CI_COMMIT_BRANCH == "master"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: manual
+      allow_failure: true
   tags:  # only runners with this tag can do the job [3]
   - ci-ubuntu
 
@@ -139,6 +140,7 @@ pages:  # "pages" is a job specifically for GitLab pages [1]
     - if: $CI_COMMIT_BRANCH == "master"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: manual
+      allow_failure: true
   tags:  # only runners with this tag can do the job [3]
   - ci-ubuntu
 

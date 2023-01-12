@@ -47,10 +47,10 @@ def test_iso_noise_model():
                          -108.0533933516973, -145.81906793231144, -292.12576375254764],
                       [-79.70589475152278, -89.3092674680563, -93.29138286495427, -96.46309784962982, -104.01291072740128,
                          -119.40308086820056, -169.44754252350324, -363.32306335554176]]]
-    npt.assert_array_almost_equal(delta_SPL_ref, Delta_SPL, 8)
+    npt.assert_array_almost_equal(delta_SPL_ref, Delta_SPL[:, :, 0, 0], 8)
     total_spl, spl = iso(rec_x, rec_y, z_rec, ground_type=ground_type, Temp=Temp, RHum=RHum)
     npt.assert_array_almost_equal([23.068816073636583, 18.034141554900494, 15.043308370722233],
-                                  total_spl)
+                                  total_spl[:, 0, 0])
 
 
 def test_iso_noise_map():

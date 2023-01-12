@@ -1,6 +1,6 @@
 import pytest
 from py_wake import np
-from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian
+from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit
 from py_wake.deficit_models.noj import NOJ
 
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80, HornsrevV80, wt9_y, wt9_x, wt16_x, wt16_y
@@ -14,6 +14,8 @@ from py_wake.deflection_models.jimenez import JimenezWakeDeflection
 from py_wake.flow_map import XYGrid
 import os
 from py_wake import examples
+from py_wake.literature.iea37_case_study1 import IEA37CaseStudy1
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 
 
 def test_yaw_wrong_name():
@@ -24,10 +26,7 @@ def test_yaw_wrong_name():
 
 
 def test_yaw_dimensions():
-    site = Hornsrev1Site()
-    windTurbines = HornsrevV80()
-
-    wf_model = NOJ(site, windTurbines)
+    wf_model = NOJ(Hornsrev1Site(), V80())
 
     x, y = wt9_x, wt9_y
 
@@ -49,10 +48,8 @@ def test_yaw_dimensions():
 
 
 def test_calc_wt_interaction_parallel_results():
-    site = Hornsrev1Site()
     x, y = wt16_x, wt16_y
-    wt = HornsrevV80()
-    wfm = NOJ(site, wt)
+    wfm = NOJ(Hornsrev1Site(), V80())
     WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, *_ = wfm.calc_wt_interaction(x, y, wd_chunks=3, ws_chunks=2, n_cpu=None)
     WS_ref, TI_ref, power_ref, ct_ref, *_ = wfm.calc_wt_interaction(x, y)
     npt.assert_array_equal(WS_eff_ilk, WS_ref)
@@ -62,10 +59,8 @@ def test_calc_wt_interaction_parallel_results():
 
 
 def test_chunks_results():
-    site = Hornsrev1Site()
     x, y = wt16_x, wt16_y
-    wt = HornsrevV80()
-    wfm = NOJ(site, wt)
+    wfm = NOJ(Hornsrev1Site(), V80())
 
     sim_res_ref, t_ref, mem_ref = profileit(wfm)(x, y)
     sim_res, t, mem = profileit(wfm)(x, y, wd_chunks=3, ws_chunks=2)
@@ -77,10 +72,8 @@ def test_chunks_results():
 
 @pytest.mark.parametrize('wd', [np.arange(360), np.arange(0, 360, 22.5), np.arange(3) * 2])
 def test_aep_chunks_results(wd):
-    site = Hornsrev1Site()
     x, y = wt16_x, wt16_y
-    wt = HornsrevV80()
-    wfm = NOJ(site, wt)
+    wfm = NOJ(Hornsrev1Site(), V80())
 
     aep_ref = wfm.aep(x, y, wd=wd)
     aep = wfm.aep(x, y, wd_chunks=3, ws_chunks=2, wd=wd)
@@ -89,10 +82,8 @@ def test_aep_chunks_results(wd):
 
 
 def test_aep_time_chunks_results():
-    site = Hornsrev1Site()
     x, y = wt16_x, wt16_y
-    wt = HornsrevV80()
-    wfm = NOJ(site, wt)
+    wfm = NOJ(Hornsrev1Site(), V80())
 
     d = np.load(os.path.dirname(examples.__file__) + "/data/time_series.npz")
     wd, ws = [d[k][:6 * 24] for k in ['wd', 'ws']]
@@ -105,10 +96,8 @@ def test_aep_time_chunks_results():
 @pytest.mark.parametrize('rho', [1.225, 1.3, np.full((16,), 1.3), np.full((16, 360), 1.3),
                                  np.full((16, 360, 23), 1.3), np.full((360), 1.3), np.full((360, 23), 1.3)])
 def test_aep_chunks_input_dims(rho):
-    site = Hornsrev1Site()
     x, y = wt16_x, wt16_y
-    wt = HornsrevV80()
-    wfm = NOJ(site, wt)
+    wfm = NOJ(Hornsrev1Site(), V80())
 
     aep1 = wfm(x, y, wd_chunks=3, ws_chunks=2, Air_density=rho).aep().sum()
     aep_ref = wfm(x, y, Air_density=rho).aep().sum()
@@ -124,13 +113,9 @@ def test_aep_chunks_input_dims(rho):
                                      'yaw'
                                      ])
 def test_aep_gradients_function(wrt_arg):
-    site = Hornsrev1Site()
-    iea37_site = IEA37Site(16)
-
-    wt = IEA37_WindTurbines()
-    wfm = IEA37SimpleBastankhahGaussian(site, wt, deflectionModel=JimenezWakeDeflection())
-    x, y = iea37_site.initial_position[np.array([0, 2, 5, 8, 14])].T
-    kwargs = {'x': x, 'y': y, 'h': x * 0 + wt.hub_height(),
+    wfm = IEA37CaseStudy1(16, deflectionModel=JimenezWakeDeflection())
+    x, y = wfm.site.initial_position[np.array([0, 2, 5, 8, 14])].T
+    kwargs = {'x': x, 'y': y, 'h': x * 0 + wfm.windTurbines.hub_height(),
               'wd': [0], 'ws': 9.8, 'yaw': np.arange(1, 6).reshape((5, 1, 1)) * 5}
     dAEP_autograd = wfm.aep_gradients(gradient_method=autograd, wrt_arg=wrt_arg)(**kwargs)
     dAEP_cs = wfm.aep_gradients(gradient_method=cs, wrt_arg=wrt_arg)(**kwargs)
@@ -149,13 +134,9 @@ def test_aep_gradients_function(wrt_arg):
 
 
 def test_aep_gradients_parallel():
-    site = Hornsrev1Site()
-    iea37_site = IEA37Site(16)
-
-    wt = IEA37_WindTurbines()
-    wfm = IEA37SimpleBastankhahGaussian(site, wt, deflectionModel=JimenezWakeDeflection())
-    x, y = iea37_site.initial_position[np.array([0, 2, 5, 8, 14])].T
-    kwargs = {'x': x, 'y': y, 'h': x * 0 + wt.hub_height(), 'wd': None, 'ws': [10]}
+    wfm = IEA37CaseStudy1(16, deflectionModel=JimenezWakeDeflection())
+    x, y = wfm.site.initial_position[np.array([0, 2, 5, 8, 14])].T
+    kwargs = {'x': x, 'y': y, 'h': x * 0 + wfm.windTurbines.hub_height(), 'wd': None, 'ws': [10]}
     dAEP_ref, t_seq = timeit(lambda: wfm.aep_gradients(gradient_method=autograd, wrt_arg=['x', 'y'], **kwargs))()
 
     dAEP_autograd, t_par = timeit(lambda: wfm.aep_gradients(gradient_method=autograd, wrt_arg=['x', 'y'], n_cpu=2, **kwargs),
@@ -168,13 +149,9 @@ def test_aep_gradients_parallel():
 
 
 def test_aep_gradients_chunks():
-    site = Hornsrev1Site()
-    iea37_site = IEA37Site(16)
-
-    wt = IEA37_WindTurbines()
-    wfm = IEA37SimpleBastankhahGaussian(site, wt, deflectionModel=JimenezWakeDeflection())
-    x, y = iea37_site.initial_position[np.array([0, 2, 5, 8, 14])].T
-    kwargs = {'x': x, 'y': y, 'h': x * 0 + wt.hub_height(), 'wd': None, 'ws': [10]}
+    wfm = IEA37CaseStudy1(16, deflectionModel=JimenezWakeDeflection())
+    x, y = wfm.site.initial_position[np.array([0, 2, 5, 8, 14])].T
+    kwargs = {'x': x, 'y': y, 'h': x * 0 + wfm.windTurbines.hub_height(), 'wd': None, 'ws': [10]}
     dAEP_ref = wfm.aep_gradients(gradient_method=autograd, wrt_arg=['x', 'y'], **kwargs)
 
     dAEP_autograd = wfm.aep_gradients(gradient_method=autograd, wrt_arg=['x', 'y'], wd_chunks=2, **kwargs)
@@ -194,10 +171,11 @@ def test_aep_gradients_chunks():
 def test_wt_kwargs_dimensions(n_wt, shape, dims):
     site = Hornsrev1Site(16)
     x, y = site.initial_position[:n_wt].T
-    wf_model = IEA37SimpleBastankhahGaussian(site, IEA37_WindTurbines())
-    sim_res = wf_model(x, y,  # wind turbine positions
-                       wd=np.linspace(0, 337.5, 16),
-                       Air_density=np.full(shape, 1.225))
+    wfm = PropagateDownwind(site, IEA37_WindTurbines(), wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit())
+
+    sim_res = wfm(x, y,  # wind turbine positions
+                  wd=np.linspace(0, 337.5, 16),
+                  Air_density=np.full(shape, 1.225))
     assert sim_res.Air_density.dims == dims
 
 
@@ -219,3 +197,40 @@ def test_wake_model_two_turbine_types(ws, time):
         time=time,
         n_cpu=2,
     )
+
+
+def test_wd_dependent_wt_positions():
+    wfm = IEA37CaseStudy1(16)
+    sim_res = wfm(x=[[-100, 0, 100], [100, 0, -100]], y=[[0, 100, 0],
+                                                         [0, -100, 0]], wd=[0, 90, 180], WS=[[[5]], [[10]]])
+    ws_eff = sim_res.flow_map().WS_eff.interp(
+        x=('z', [-100, -300, 100]), y=('z', [-300, 100, 300]), wd=('z', [0, 90, 180])).squeeze().values
+    npt.assert_array_equal(ws_eff[0], ws_eff)
+    if 0:
+        for wd, ax in zip(sim_res.wd, plt.subplots(3, 1, figsize=(4, 10))[1]):
+            sim_res.flow_map(wd=wd).plot_wake_map(ax=ax)
+        plt.show()
+
+
+def test_ws_dependent_wt_positions():
+    wfm = IEA37CaseStudy1(16)
+    sim_res = wfm(x=[[[0, 0, 0]], [[100, 200, 300]]], y=np.zeros((2, 1, 3)), wd=[270], ws=[8, 9, 10])
+    ws_eff = sim_res.flow_map().WS_eff.interp(x=400, y=0).squeeze()
+    npt.assert_array_almost_equal(ws_eff, [4.06513, 4.117601, 3.830711])
+    if 0:
+        for ws, ax in zip(sim_res.ws, plt.subplots(3, 1, figsize=(4, 10))[1]):
+            sim_res.flow_map(ws=ws).plot_wake_map(ax=ax)
+        plt.show()
+
+
+def test_time_dependent_wt_positions():
+    wfm = IEA37CaseStudy1(16)
+    sim_res = wfm(x=[[-100, 0, 100], [100, 0, -100]], y=[[0, 100, 0],
+                                                         [0, -100, 0]], wd=[0, 90, 180], ws=[10, 10, 10], time=True)
+    ws_eff = sim_res.flow_map(time=[0, 1, 2]).WS_eff.interp(
+        x=('time', [-100, -300, 100]), y=('time', [-300, 100, 300])).squeeze()
+    npt.assert_array_equal(ws_eff[0], ws_eff)
+    if 1:
+        for t, ax in zip(sim_res.time.values, plt.subplots(3, 1, figsize=(4, 10))[1]):
+            sim_res.flow_map(time=t).plot_wake_map(ax=ax)
+        plt.show()

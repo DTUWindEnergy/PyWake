@@ -47,7 +47,10 @@ class LocalWind(dict):
 
         for k, v in [('x', x_i), ('y', y_i), ('h', h_i)]:
             if v is not None:
-                coords[k] = np.zeros(n_i) + v
+                v = np.atleast_1d(v)
+                if n_i > 1 and np.shape(v)[0] == 1:
+                    v = np.repeat(v[:1], n_i)
+                coords[k] = v
 
         self.coords = coords
         for k, v in [('WD', WD), ('WS', WS), ('TI', TI), ('P', P)]:
@@ -135,7 +138,7 @@ class Site(ABC):
             ws = np.atleast_1d(ws)
         return wd, ws
 
-    def local_wind(self, x_i, y_i, h_i=None, wd=None, ws=None, time=False, wd_bin_size=None, ws_bins=None):
+    def local_wind(self, x_i, y_i, h_i=None, wd=None, ws=None, time=False, wd_bin_size=None, ws_bins=None, **_):
         """Local free flow wind conditions
 
         Parameters
@@ -173,6 +176,7 @@ class Site(ABC):
         """
         wd, ws = self.get_defaults(wd, ws)
         wd_bin_size = self.wd_bin_size(wd, wd_bin_size)
+
         lw = LocalWind(x_i, y_i, h_i, wd, ws, time, wd_bin_size)
         return self._local_wind(lw, ws_bins)
 

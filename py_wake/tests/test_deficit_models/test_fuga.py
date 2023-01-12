@@ -14,7 +14,7 @@ from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2A
 import pytest
 from pathlib import Path
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular, CubePowerSimpleCt
-from py_wake.wind_turbines._wind_turbines import WindTurbine
+from py_wake.wind_turbines._wind_turbines import WindTurbine, WindTurbines
 from py_wake.utils.profiling import timeit
 import warnings
 
@@ -336,7 +336,7 @@ def test_ti(case, ti):
                                            tfp + 'fuga/LUTs_Zeta0=0.00_16_32_D80_zhub70_zi400_z0=0.00001000_z29.6-207.9_UL_nx512_ny128_dx20.0_dy5.0.nc']])
 def test_FugaMultiLUTDeficit(LUT_path_lst):
     site = UniformSite()
-    wt = WindTurbine.from_WindTurbine_lst([
+    wt = WindTurbines.from_WindTurbine_lst([
         WindTurbine(name='WT80_70', diameter=80, hub_height=70,
                     powerCtFunction=CubePowerSimpleCt(power_rated=2000)),
         WindTurbine(name="WT120_90", diameter=120, hub_height=90,
@@ -369,7 +369,7 @@ def test_FugaMultiLUTDeficit(LUT_path_lst):
 
 def test_FugaMultiLUTDeficit_multiprocessing():
     site = UniformSite()
-    wt = WindTurbine.from_WindTurbine_lst([
+    wt = WindTurbines.from_WindTurbine_lst([
         WindTurbine(name='WT80_70', diameter=80, hub_height=70,
                     powerCtFunction=CubePowerSimpleCt(power_rated=2000)),
         WindTurbine(name="WT120_90", diameter=120, hub_height=90,

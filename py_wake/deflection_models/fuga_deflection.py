@@ -40,10 +40,10 @@ class FugaDeflection(FugaUtils, DeflectionModel):
         self.fTtab = fT = np.concatenate([fT[::-1], fT[1:]], 0)
         self.fLT = GridInterpolator([self.x, self.mirror(self.y, anti_symmetric=True)], np.array([fL, fT]).T)
 
-    def calc_deflection(self, dw_ijl, hcw_ijl, dh_ijl, WS_ilk, WS_eff_ilk, yaw_ilk, ct_ilk, D_src_il, **_):
+    def calc_deflection(self, dw_ijlk, hcw_ijlk, dh_ijlk, WS_ilk, WS_eff_ilk, yaw_ilk, ct_ilk, D_src_il, **_):
         I, L, K = ct_ilk.shape
         X = int(np.max(D_src_il) * 3 / self.dy + 1)
-        J = dw_ijl.shape[1]
+        J = dw_ijlk.shape[1]
 
         WS_hub_ilk = WS_ilk
 
@@ -63,8 +63,8 @@ class FugaDeflection(FugaUtils, DeflectionModel):
 
         if 0:  # J < 1000:
             # To find lut_y we calculate y for a range of lut_y grid points around y and interpolate
-            lut_y_ijlx = (np.round(hcw_ijl[:, :, :, na] / self.dy) + np.arange(-X // 2, X // 2)[na, na, na]) * self.dy
-            dw_ijlx = np.repeat(dw_ijl[:, :, :, na], X, 3)
+            lut_y_ijlx = (np.round(hcw_ijlk / self.dy) + np.arange(-X // 2, X // 2)[na, na, na]) * self.dy
+            dw_ijlx = np.repeat(dw_ijlk, X, 3)
             # calculate deflection, lambda(lut_y) =  # F * (cos(yaw) * fT(lut_y) + sin(yaw) * fL(lut_y)
             fL, fT = self.fLT(np.array([dw_ijlx.flatten(), lut_y_ijlx.flatten()]).T).T
 
@@ -73,7 +73,7 @@ class FugaDeflection(FugaUtils, DeflectionModel):
             # Calcuate deflected y
             y_ijlkx = lut_y_ijlx[:, :, :, na] + lambda_ijlkx
 
-            hcw_ijlk = np.array([[[[np.interp(hcw_ijl[i, j, l], y_ijlkx[i, j, l, k], lut_y_ijlx[i, j, l])
+            hcw_ijlk = np.array([[[[np.interp(hcw_ijlk[i, j, l, k], y_ijlkx[i, j, l, k], lut_y_ijlx[i, j, l])
                                     for k in range(K)]
                                    for l in range(L)]
                                   for j in range(J)]
@@ -110,48 +110,51 @@ class FugaDeflection(FugaUtils, DeflectionModel):
 #                                          for l in range(L)]
 #                                         for i in range(I)], 3, 1)
 
-            hcw_ijlk = np.array([self.get_hcw_jlk(i, K, L, x, y, dw_ijl, hcw_ijl, F_ilk, theta_ilk)
+            hcw_ijlk = np.array([self.get_hcw_jlk(i, K, L, x, y, dw_ijlk, hcw_ijlk, F_ilk, theta_ilk)
                                  for i in range(I)])
 #             npt.assert_array_almost_equal(hcw_ijlk_old, hcw_ijlk, 4)
 
-        return dw_ijl[:, :, :, na], hcw_ijlk, dh_ijl[..., na]
+        return dw_ijlk, hcw_ijlk, dh_ijlk
 
-    def get_hcw_jlk(self, i, K, L, x, y, dw_ijl, hcw_ijl, F_ilk, theta_ilk):
-        if (K == 1 and L > 1 and np.all(dw_ijl == dw_ijl[:1, :, :1]) and np.all(hcw_ijl == hcw_ijl[:1, :, :1]) and
+    def get_hcw_jlk(self, i, K, L, x, y, dw_ijlk, hcw_ijlk, F_ilk, theta_ilk):
+        if (K == 1 and L > 1 and np.all(dw_ijlk == dw_ijlk[:1, :, :1]) and np.all(hcw_ijlk == hcw_ijlk[:1, :, :1]) and
                 len(np.unique(theta_ilk[i, :, 0])) < L):
-            hcw_jlk = np.zeros((dw_ijl.shape[1], L, K))
+            hcw_jlk = np.zeros((dw_ijlk.shape[1], L, K))
             for theta, l in zip(*np.unique(theta_ilk[i], return_index=True)):
                 hcw_jlk[:, theta_ilk[i, :, 0] == theta] = np.array(self.get_hcw_jk(
-                    i, l, K, x, y, dw_ijl, hcw_ijl, F_ilk, theta_ilk)).T[:, na]
+                    i, l, K, x, y, dw_ijlk, hcw_ijlk, F_ilk, theta_ilk)).T[:, na]
             return hcw_jlk
 
         else:
-            return np.moveaxis([self.get_hcw_jk(i, l, K, x, y, dw_ijl, hcw_ijl, F_ilk, theta_ilk)
+            return np.moveaxis([self.get_hcw_jk(i, l, K, x, y, dw_ijlk, hcw_ijlk, F_ilk, theta_ilk)
                                 for l in range(L)], 2, 0)
 
-    def get_hcw_jk(self, i, l, K, x, y, dw_ijl, hcw_ijl, F_ilk, theta_ilk):
-        x_idx = (np.searchsorted(x, [dw_ijl.min(), dw_ijl.max()]) + np.array([-1, 1], dtype=int))
+    def get_hcw_jk(self, i, l, K, x, y, dw_ijlk, hcw_ijlk, F_ilk, theta_ilk):
+        x_idx = (np.searchsorted(x, [dw_ijlk.min(), dw_ijlk.max()]) + np.array([-1, 1], dtype=int))
         m_x = len(x) + 1
         x_slice = slice(*np.minimum([m_x, m_x], np.maximum([0, 0], x_idx, dtype=int), dtype=int))
 
-        y_idx = (np.searchsorted(y, [hcw_ijl.min(), hcw_ijl.max()]) + np.array([-20, 20], dtype=int))
+        y_idx = (np.searchsorted(y, [hcw_ijlk.min(), hcw_ijlk.max()]) + np.array([-20, 20], dtype=int))
         m_y = len(y) + 1
         y_slice = slice(*np.minimum([m_y, m_y], np.maximum([0, 0], y_idx, dtype=int), dtype=int))
 
         x_ = x[x_slice]
         y_ = y[y_slice]
         VLT = self.fLT.V[x_slice, y_slice]
-        return [self.get_hcw_j(i, l, k, F_ilk, VLT, theta_ilk, x_, y_, hcw_ijl, dw_ijl) for k in range(K)]
+        return [self.get_hcw_j(i, l, k, F_ilk, VLT, theta_ilk, x_, y_, hcw_ijlk, dw_ijlk) for k in range(K)]
 
-    def get_hcw_j(self, i, l, k, F_ilk, VLT, theta_ilk, x_, y_, hcw_ijl, dw_ijl):
+    def get_hcw_j(self, i, l, k, F_ilk, VLT, theta_ilk, x_, y_, hcw_ijlk, dw_ijlk):
         lambda2p = F_ilk[i, l, k] * \
             np.sum(VLT * [np.cos(theta_ilk[i, l, k]), np.sin(theta_ilk[i, l, k])], -1)
         lambda2 = RegularGridInterpolator(
             (x_, y_), [np.interp(y_, y_ + l2p_x, l2p_x) for l2p_x in lambda2p])
-
-        hcw_j = hcw_ijl[i, :, l].copy()
-        m = (hcw_ijl[i, :, l] > y_[0]) & (hcw_ijl[i, :, l] < y_[-1])
-        hcw_j[m] -= lambda2((dw_ijl[i, :, l][m], hcw_ijl[i, :, l][m]))
+        hcw_l = min(l, hcw_ijlk.shape[2] - 1)
+        hcw_k = min(k, hcw_ijlk.shape[3] - 1)
+        hcw_j = hcw_ijlk[i, :, hcw_l, hcw_k].copy()
+        hcw_ijlk = hcw_ijlk[i, :, hcw_l, hcw_k]
+        m = (hcw_ijlk > y_[0]) & (hcw_ijlk < y_[-1])
+        hcw_j[m] -= lambda2((dw_ijlk[i, :, min(k, dw_ijlk.shape[2] - 1), min(k, dw_ijlk.shape[3] - 1)][m],
+                             hcw_ijlk[m]))
         return hcw_j
 
 

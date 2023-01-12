@@ -26,20 +26,22 @@ class JITStreamlineDistance(StraightDistance):
         self.step_size = step_size
 
     def __call__(self, wd_l, WD_ilk, src_idx=slice(None), dst_idx=slice(None)):
-        start_points_m = np.array([self.src_x_i[src_idx], self.src_y_i[src_idx], self.src_h_i[src_idx]]).T
+        assert self.src_x_ilk.shape[1:] == (1, 1), 'JITStreamlineDistance does not support flowcase dependent positions'
+        start_points_m = np.array([self.src_x_ilk[src_idx], self.src_y_ilk[src_idx],
+                                   self.src_h_ilk[src_idx]])[:, :, 0, 0].T
 
         if len(np.shape(dst_idx)) == 2:
             # dst_idx depends on wind direction
-            dw_jl, hcw_jl, dh_jl = [v[0] for v in StraightDistance.__call__(self, WD_ilk=wd_l[na, :, na],
-                                                                            src_idx=src_idx, dst_idx=dst_idx)]
+            dw_jl, hcw_jl, dh_jl = [v[0, :, :, 0] for v in StraightDistance.__call__(self, WD_ilk=wd_l[na, :, na],
+                                                                                     src_idx=src_idx, dst_idx=dst_idx)]
             dw_mj, hcw_mj, dh_mj = [np.moveaxis(v, 0, 1) for v in [dw_jl, hcw_jl, dh_jl]]
             wd_m = wd_l
         else:
             # dst_idx independent of wind direction
-            dw_ijl, hcw_ijl, dh_ijl = StraightDistance.__call__(self, WD_ilk=wd_l[na, :, na],
-                                                                src_idx=src_idx, dst_idx=dst_idx)
-            I, J, L = dw_ijl.shape
-            dw_mj, hcw_mj, dh_mj = [np.moveaxis(v, 1, 2).reshape(I * L, J) for v in [dw_ijl, hcw_ijl, dh_ijl]]
+            dw_ijlk, hcw_ijlk, dh_ijlk = StraightDistance.__call__(self, WD_ilk=wd_l[na, :, na],
+                                                                   src_idx=src_idx, dst_idx=dst_idx)
+            I, J, L, K = dw_ijlk.shape
+            dw_mj, hcw_mj, dh_mj = [np.moveaxis(v, 1, 2).reshape(I * L, J) for v in [dw_ijlk, hcw_ijlk, dh_ijlk]]
             wd_m = np.tile(wd_l, I)
             start_points_m = np.repeat(start_points_m, L, 0)
 
@@ -61,9 +63,9 @@ class JITStreamlineDistance(StraightDistance):
             dw_mj[m, dw] = np.interp(dw_j[dw], dw_s, length_s)
 
         if len(np.shape(dst_idx)) == 2:
-            return [np.moveaxis(v, 0, 1)[na] for v in [dw_mj, hcw_mj, dh_mj]]
+            return [np.moveaxis(v, 0, 1)[na, :, :, na] for v in [dw_mj, hcw_mj, dh_mj]]
         else:
-            return [v.reshape((I, J, L)) for v in [dw_mj, hcw_mj, dh_mj]]
+            return [v.reshape((I, J, L, K)) for v in [dw_mj, hcw_mj, dh_mj]]
 
 
 def main():

@@ -17,7 +17,7 @@ class StraightDistance():
     def plot(self, WD_ilk, src_idx=slice(None), dst_idx=slice(None)):
         import matplotlib.pyplot as plt
 
-        dw_ijl, hcw_ijl, _ = self(WD_ilk)
+        dw_ijlk, hcw_ijlk, _ = self(WD_ilk)
         wdirs = mean_deg(WD_ilk, (0, 2))
         for l, wd in enumerate(wdirs):
             plt.figure()
@@ -27,77 +27,82 @@ class StraightDistance():
             ax.arrow(0, 0, -np.cos(theta) * 20, -np.sin(theta) * 20, width=1)
             colors = [c['color'] for c in iter(matplotlib.rcParams['axes.prop_cycle'])]
             f = 2
-            for i, x_, y_ in zip(np.arange(len(self.src_x_i))[src_idx], self.src_x_i[src_idx], self.src_y_i[src_idx]):
+            for i, x_, y_ in zip(np.arange(len(self.src_x_ilk))[
+                                 src_idx], self.src_x_ilk[src_idx, 0, 0], self.src_y_ilk[src_idx, 0, 0]):
                 c = colors[i % len(colors)]
                 ax.plot(x_, y_, '2', color=c, ms=10, mew=3)
                 for j, dst_x, dst_y in zip(np.arange(len(self.dst_x_j))[dst_idx],
-                                           self.dst_x_j[dst_idx], self.dst_y_j[dst_idx]):
-                    ax.arrow(x_ - j / f, y_ - j / f, -np.cos(theta) * dw_ijl[i, j, l], -
-                             np.sin(theta) * dw_ijl[i, j, l], width=.3, color=c)
-                    ax.plot([dst_x - i / f, dst_x - np.sin(theta) * hcw_ijl[i, j, l] - i / f],
-                            [dst_y - i / f, dst_y + np.cos(theta) * hcw_ijl[i, j, l] - i / f], '--', color=c)
-            plt.plot(self.src_x_i, self.src_y_i, 'k2')
+                                           self.dst_x_j[dst_idx, 0, 0], self.dst_y_j[dst_idx, 0, 0]):
+                    ax.arrow(x_ - j / f, y_ - j / f, -np.cos(theta) * dw_ijlk[i, j, l, 0], -
+                             np.sin(theta) * dw_ijlk[i, j, l, 0], width=.3, color=c)
+                    ax.plot([dst_x - i / f, dst_x - np.sin(theta) * hcw_ijlk[i, j, l, 0] - i / f],
+                            [dst_y - i / f, dst_y + np.cos(theta) * hcw_ijlk[i, j, l, 0] - i / f], '--', color=c)
+            plt.plot(self.src_x_ilk[:, 0, 0], self.src_y_ilk[:, 0, 0], 'k2')
             ax.axis('equal')
             ax.legend()
 
-    def setup(self, src_x_i, src_y_i, src_h_i, dst_xyh_j=None):
+    def setup(self, src_x_ilk, src_y_ilk, src_h_ilk, dst_xyh_j=None):
+        # ensure 3d and
         # +.0 ensures float or complex
-        src_x_i, src_y_i, src_h_i = [np.asarray(v) + .0 for v in [src_x_i, src_y_i, src_h_i]]
-        self.src_x_i, self.src_y_i, self.src_h_i = src_x_i, src_y_i, src_h_i
+        src_x_ilk, src_y_ilk, src_h_ilk = [np.expand_dims(v, tuple(range(len(np.shape(v)), 3))) + .0
+                                           for v in [src_x_ilk, src_y_ilk, src_h_ilk]]
+        self.src_x_ilk, self.src_y_ilk, self.src_h_ilk = src_x_ilk, src_y_ilk, src_h_ilk
 
-        self.dx_ii = src_x_i - src_x_i[:, na]
-        self.dy_ii = src_y_i - src_y_i[:, na]
-        self.dh_ii = src_h_i - src_h_i[:, na]
+        self.dx_iilk = src_x_ilk - src_x_ilk[:, na]
+        self.dy_iilk = src_y_ilk - src_y_ilk[:, na]
+        self.dh_iilk = src_h_ilk - src_h_ilk[:, na]
         if dst_xyh_j is None:
-            dst_x_j, dst_y_j, dst_h_j = src_x_i, src_y_i, src_h_i
-            self.dx_ij, self.dy_ij, self.dh_ij = self.dx_ii, self.dy_ii, self.dh_ii
+            dst_x_j, dst_y_j, dst_h_j = src_x_ilk, src_y_ilk, src_h_ilk
+            self.dx_ijlk, self.dy_ijlk, self.dh_ijlk = self.dx_iilk, self.dy_iilk, self.dh_iilk
             self.src_eq_dst = True
         else:
-            dst_x_j, dst_y_j, dst_h_j = dst_xyh_j
-            dst_x_j, dst_y_j, dst_h_j = map(np.asarray, [dst_x_j, dst_y_j, dst_h_j])
-            self.dx_ij = dst_x_j - src_x_i[:, na]
-            self.dy_ij = dst_y_j - src_y_i[:, na]
-            self.dh_ij = dst_h_j - src_h_i[:, na]
+            dst_x_j, dst_y_j, dst_h_j = map(np.asarray, dst_xyh_j)
+            self.dx_ijlk = dst_x_j[na, :, na, na] - src_x_ilk[:, na]
+            self.dy_ijlk = dst_y_j[na, :, na, na] - src_y_ilk[:, na]
+            self.dh_ijlk = dst_h_j[na, :, na, na] - src_h_ilk[:, na]
             self.src_eq_dst = False
         self.dst_x_j, self.dst_y_j, self.dst_h_j = dst_x_j, dst_y_j, dst_h_j
 
     def __getstate__(self):
         return {k: v for k, v in self.__dict__.items()
-                if k not in {'src_x_i', 'src_y_i', 'src_h_i', 'dst_x_j', 'dst_y_j', 'dst_h_j',
-                             'dx_ii', 'dy_ii', 'dh_ii', 'dx_ij', 'dy_ij', 'dh_ij', 'src_eq_dst'}}
+                if k not in {'src_x_ilk', 'src_y_ilk', 'src_h_ilk', 'dst_x_j', 'dst_y_j', 'dst_h_j',
+                             'dx_iilk', 'dy_iilk', 'dh_iilk', 'dx_ijlk', 'dy_ijlk', 'dh_ij', 'src_eq_dst'}}
 
     def __call__(self, WD_ilk, wd_l=None, src_idx=slice(None), dst_idx=slice(None)):
-        assert hasattr(self, 'dx_ij'), "method setup must be called first"
+        assert hasattr(self, 'dx_ijlk'), "method setup must be called first"
 
-        WD_l = mean_deg(WD_ilk, (0, 2))  # mean over wind turbines and wind speeds
+        WD_lk = mean_deg(WD_ilk, (0))  # mean over wind turbines
         if len(np.shape(dst_idx)) == 2:
             # dst_idx depends on wind direction
-            cos_l, sin_l = self._cos_sin(WD_l)
-            dx_ij, dy_ij = self.dx_ii[src_idx, dst_idx], self.dy_ii[src_idx, dst_idx]
-            dw_jl = (-cos_l[na] * dx_ij - sin_l[na] * dy_ij)
-            hcw_jl = (sin_l[na] * dx_ij - cos_l[na] * dy_ij)
-            return dw_jl[na], hcw_jl[na], self.dh_ii[src_idx, dst_idx][na]
+            cos_jlk, sin_jlk = self._cos_sin(WD_lk[na])
+            i_wd_l = np.arange(np.shape(dst_idx)[1])
+            dx_jlk = self.dx_iilk[src_idx, dst_idx, np.minimum(i_wd_l, self.dx_iilk.shape[2] - 1).astype(int)]
+            dy_jlk = self.dy_iilk[src_idx, dst_idx, np.minimum(i_wd_l, self.dy_iilk.shape[2] - 1).astype(int)]
+            dh_jlk = self.dh_iilk[src_idx, dst_idx, np.minimum(i_wd_l, self.dh_iilk.shape[2] - 1).astype(int)]
+            dw_jlk = (-cos_jlk * dx_jlk - sin_jlk * dy_jlk)
+            hcw_jlk = (sin_jlk * dx_jlk - cos_jlk * dy_jlk)
+            return dw_jlk[na], hcw_jlk[na], dh_jlk[na]
         else:
             # dst_idx independent of wind direction
-            cos_ijl, sin_ijl = self._cos_sin(WD_l[na, na])
-            dx_ijl = self.dx_ij[src_idx][:, dst_idx][:, :, na]
-            dy_ijl = self.dy_ij[src_idx][:, dst_idx][:, :, na]
+            cos_ijlk, sin_ijlk = self._cos_sin(WD_lk[na, na])
+            dx_ijlk = self.dx_ijlk[src_idx][:, dst_idx]
+            dy_ijlk = self.dy_ijlk[src_idx][:, dst_idx]
 
-            dw_ijl = -cos_ijl * dx_ijl - sin_ijl * dy_ijl
-            hcw_ijl = sin_ijl * dx_ijl - cos_ijl * dy_ijl
+            dw_ijlk = -cos_ijlk * dx_ijlk - sin_ijlk * dy_ijlk
+            hcw_ijlk = sin_ijlk * dx_ijlk - cos_ijlk * dy_ijlk
             # +0 ~ autograd safe copy (broadcast_to returns readonly array)
-            dh_ijl = np.broadcast_to(self.dh_ij[src_idx][:, dst_idx][:, :, na], dw_ijl.shape) + 0
-            return dw_ijl, hcw_ijl, dh_ijl
+            dh_ijlk = np.broadcast_to(self.dh_ijlk[src_idx][:, dst_idx], dw_ijlk.shape) + 0
+            return dw_ijlk, hcw_ijlk, dh_ijlk
 
     def dw_order_indices(self, wd_l):
-        assert hasattr(self, 'dx_ij'), "method setup must be called first"
-        I, J = self.dx_ij.shape
+        assert hasattr(self, 'dx_ijlk'), "method setup must be called first"
+        I, J, *_ = self.dx_ijlk.shape
         assert I == J
         cos_l, sin_l = self._cos_sin(np.asarray(wd_l))
-        # return np.argsort(-cos_l[:, na] * np.asarray(src_x_i)[na] - sin_l[:, na] * np.asarray(src_y_i)[na], 1)
-        dw_iil = -cos_l[na, na, :] * self.dx_ij[:, :, na] - sin_l[na, na, :] * self.dy_ij[:, :, na]
-        dw_order_indices_l = np.argsort((dw_iil > 0).sum(0), 0).T
-        return dw_order_indices_l
+        # return np.argsort(-cos_l[:, na] * np.asarray(src_x_ilk)[na] - sin_l[:, na] * np.asarray(src_y_ilk)[na], 1)
+        dw_iil = -cos_l[na, na, :, na] * self.dx_ijlk - sin_l[na, na, :, na] * self.dy_ijlk
+        dw_order_indices_lkd = np.moveaxis(np.argsort((dw_iil > 0).sum(0), 0), 0, -1)
+        return dw_order_indices_lkd
 
 
 class TerrainFollowingDistance(StraightDistance):
@@ -105,298 +110,78 @@ class TerrainFollowingDistance(StraightDistance):
         super().__init__(**kwargs)
         self.distance_resolution = distance_resolution
 
-    def setup(self, src_x_i, src_y_i, src_h_i, dst_xyh_j=None):
-        StraightDistance.setup(self, src_x_i, src_y_i, src_h_i, dst_xyh_j=dst_xyh_j)
+    def setup(self, src_x_ilk, src_y_ilk, src_h_ilk, dst_xyh_j=None):
+        StraightDistance.setup(self, src_x_ilk, src_y_ilk, src_h_ilk, dst_xyh_j=dst_xyh_j)
         # Calculate distance between src and dst and project to the down wind direction
+        assert self.src_x_ilk.shape[1:] == (
+            1, 1), 'TerrainFollowingDistance does not support flowcase dependent positions'
+        src_x_ilk, src_y_ilk, src_h_ilk = self.src_x_ilk[:, 0, 0], self.src_y_ilk[:, 0, 0], self.src_h_ilk[:, 0, 0]
+        if len(self.dst_x_j.shape) == 3:
+            dst_x_j, dst_y_j = self.dst_x_j[:, 0, 0], self.dst_y_j[:, 0, 0]
+        else:
+            dst_x_j, dst_y_j = self.dst_x_j, self.dst_y_j
 
         # Generate interpolation lines
 
-        if (self.src_eq_dst and self.dx_ij.shape[0] > 1):
+        if (self.src_eq_dst and self.dx_ijlk.shape[0] > 1):
             # calculate upper triangle of d_ij(distance from i to j) only
             xy = np.array([(np.linspace(src_x, dst_x, self.distance_resolution),
                             np.linspace(src_y, dst_y, self.distance_resolution))
-                           for i, (src_x, src_y) in enumerate(zip(self.src_x_i, self.src_y_i))
-                           for dst_x, dst_y in zip(self.dst_x_j[i + 1:], self.dst_y_j[i + 1:])])
+                           for i, (src_x, src_y) in enumerate(zip(src_x_ilk, src_y_ilk))
+                           for dst_x, dst_y in zip(dst_x_j[i + 1:], dst_y_j[i + 1:])])
             upper_tri_only = True
+            self.theta_ij = gradients.arctan2(dst_y_j[na, :] - src_y_ilk[:, na],
+                                              dst_x_j[na, :] - src_x_ilk[:, na])
         else:
             xy = np.array([(np.linspace(src_x, dst_x, self.distance_resolution),
                             np.linspace(src_y, dst_y, self.distance_resolution))
-                           for src_x, src_y in zip(self.src_x_i, self.src_y_i)
-                           for dst_x, dst_y in zip(self.dst_x_j, self.dst_y_j)])
+                           for src_x, src_y in zip(src_x_ilk, src_y_ilk)
+                           for dst_x, dst_y in zip(dst_x_j, dst_y_j)])
+            self.theta_ij = gradients.arctan2(dst_y_j[na, :, ] - src_y_ilk[:, na],
+                                              dst_x_j[na, :] - src_x_ilk[:, na])
             upper_tri_only = False
-        if len(xy):
-            x, y = xy[:, 0], xy[:, 1]
-        else:
-            x, y = np.zeros((0, 2)), np.zeros((0, 2))
+        x, y = xy[:, 0], xy[:, 1]
 
-        # find height and calculate surface distance
+        # find height along interpolation line
         h = self.site.elevation(x.flatten(), y.flatten()).reshape(x.shape)
+        # calculate horizontal and vertical distance between interpolation points
         dxy = np.sqrt((x[:, 1] - x[:, 0])**2 + (y[:, 1] - y[:, 0])**2)
-
         dh = np.diff(h, 1, 1)
+        # calculate distance along terrain following interpolation lines
         s = np.sum(np.sqrt(dxy[:, na]**2 + dh**2), 1)
+
         if upper_tri_only:
-            # d_ij = np.zeros(self.dx_ij.shape)
-            # d_ij[np.triu(np.eye(len(src_x_i)) == 0)] = s  # set upper triangle
+            # d_ij = np.zeros(self.dx_ijlk.shape)
+            # d_ij[np.triu(np.eye(len(src_x_ilk)) == 0)] = s  # set upper triangle
 
             # same as above without item assignment
-            n = len(src_x_i)
+            n = len(src_x_ilk)
             d_ij = np.array([np.concatenate([[0] * (i + 1),
                                              s[int(n * i - (i * (i + 1) / 2)):][:n - i - 1]])
                              for i in range(n)])  # set upper and lower triangle
             d_ij += d_ij.T
         else:
-            d_ij = s.reshape(self.dx_ij.shape)
+            d_ij = s.reshape(self.dx_ijlk.shape[:2])
         self.d_ij = d_ij
-        self.theta_ij = gradients.arctan2(self.dst_y_j - self.src_y_i[:, na], self.dst_x_j - self.src_x_i[:, na])
 
     def __call__(self, WD_ilk, wd_l=None, src_idx=slice(None), dst_idx=slice(None)):
+        # project terrain following distance between wts onto downwind direction
         # instead of projecting the distances onto first x,y and then onto down wind direction
         # we offset the wind direction by the direction between source and destination
         WD_il = mean_deg(WD_ilk, 2)
-        _, hcw_ijl, dh_ijl = StraightDistance.__call__(self, WD_ilk, src_idx=src_idx, dst_idx=dst_idx)
+        _, hcw_ijlk, dh_ijlk = StraightDistance.__call__(self, WD_ilk, src_idx=src_idx, dst_idx=dst_idx)
         if len(np.shape(dst_idx)) == 2:
             # dst_idx depends on wind direction
             WD_l = mean_deg(WD_il, 0)
             dir_jl = 90 - rad2deg(self.theta_ij[src_idx, dst_idx])
-            wdir_offset_jl = WD_l[na] - dir_jl
+            wdir_offset_jl = WD_l[na, :] - dir_jl
             theta_jl = deg2rad(90 - wdir_offset_jl)
 
-            dw_ijl = (- np.sin(theta_jl) * self.d_ij[src_idx, dst_idx])[na]
+            dw_ijlk = (- np.sin(theta_jl) * self.d_ij[src_idx, dst_idx])[na, :, :, na]
         else:
             dir_ij = 90 - rad2deg(self.theta_ij[src_idx, ][:, dst_idx])
             wdir_offset_ijl = np.asarray(WD_il)[:, na] - dir_ij[:, :, na]
             theta_ijl = deg2rad(90 - wdir_offset_ijl)
-            sin_ijl = np.sin(theta_ijl)
-            dw_ijl = - sin_ijl * self.d_ij[src_idx][:, dst_idx][:, :, na]
+            dw_ijlk = (- np.sin(theta_ijl) * self.d_ij[src_idx][:, dst_idx][:, :, na])[..., na]
 
-        return dw_ijl, hcw_ijl, dh_ijl
-
-
-class TerrainFollowingDistance2():
-    """Warning: This model is deprecated and will be removed in a future release.
-    It is very slow and has not been updated to match the newest api changes. Hence it may fail in some setup.
-    """
-
-    def __init__(self, k_star=0.075, r_i=None, calc_all=False, terrain_step=5, **kwargs):
-        super().__init__(**kwargs)
-        self.k_star = k_star
-        self.r_i = r_i
-        self.calc_all = calc_all
-        self.terrain_step = terrain_step
-
-    def __call__(self, WD_ilk):
-        if not self.src_x_i.shape == self.dst_x_j.shape or not np.allclose(self.src_x_i, self.dst_x_j):
-            raise NotImplementedError(
-                'Different source and destination postions are not yet implemented for the terrain following distance calculation')
-        return self.cal_dist_terrain_following(self.site, self.src_x_i, self.src_y_i, self.src_h_i,
-                                               self.dst_x_j, self.dst_y_j, self.dst_h_j, mean_deg(WD_ilk, 2),
-                                               self.terrain_step, self.calc_all)
-
-    def setup(self, src_x_i, src_y_i, src_h_i, dst_xyh_j=None):
-        StraightDistance.setup(self, src_x_i, src_y_i, src_h_i, dst_xyh_j=dst_xyh_j)
-
-    def cal_dist_terrain_following(self, site, src_x_i, src_y_i, src_h_i, dst_x_j,
-                                   dst_y_j, dst_h_j, wd_il, step, calc_all):
-        """ Calculate downwind and crosswind distances between a set of turbine
-        sites, for a range of inflow wind directions. This version assumes the
-        flow follows terrain at the same height above ground, and calculate the
-        terrain following downwind/crosswind distances.
-
-        Parameters
-        ----------
-        x_i: array:float
-            x coordinates [m]
-
-        y_i: array:float
-            y coordinates [m]
-
-        H_i: array:float
-            hub-heights [m]
-
-        wd: array:float
-            local inflow wind direction [deg] (N = 0, E = 90, S = 180, W = 270)
-
-        Note: wd can be a 1D array, which denotes the binned far field inflow
-        wind direction, or it can be a num_sites by num_wds 2D array, which
-        denotes the local wind direction for each sites. The 2D array version
-        is used when the wind farm is at complex terrain, and the differences
-        between local wind direction don't want to be neglected.
-
-        elev_interp_func: any:'scipy.interpolate.interpolate.RegularGridInterpolator'
-            interperating function to get elevation [m] at any site. It is a
-            RegularGridInterpolator based function provided by site_condition.
-            Its usage is like: elev = elev_interp_func(x, y), for sites
-            outside the legal area, it will return nan.
-
-        step: float
-            stepsize when integrating to calculate terrain following distances
-            [m], default: 5.0
-
-        calc_all: bool
-            If False (default) only distances to sites within wake are corrected
-            for effects of terrain elevation
-
-        Returns
-        -------
-        dist_down: array:float
-            downwind distances between turbine sites for different far field
-            inflow wind direction [m/s]
-
-        dist_cross: array:float
-            crosswind distances between turbine sites for all wd [m/s]
-
-        downwind_order: array:integer
-            downwind orders of turbine sites for different far field inflow
-            wind direction [-]
-
-        Note: dist_down[i, j, l] denotes downwind distance from site i to site
-        j under lth inflow wd. downwind_order[:, l] denotes the downwind order
-        of sites under lth inflow wd.
-        """
-
-        """ Calculate terrain following downwind distances from (x_start,
-        y_starts) to a set of points at (x_points, y_points), assuming
-        the wind blows along x direction. elev_interp_func is used to get elevation values,
-        cos_rotate_back and sin_rotate_back are used to tranform the
-        coordinates to real coordinates (to be used in elev_interp_func).
-        Suffixs:
-            - i: starting points
-            - l: wind direction
-            - s: destination points
-        """
-        wd_il = np.asarray(wd_il)
-        if wd_il.ndim == 2 and wd_il.shape[0] == 1:
-            wd_il = wd_il[0]
-        elev_interp_func = site.elevation_interpolator
-        x_i = src_x_i
-        y_i = src_y_i
-        H_i = src_h_i
-        dist_down_straight_iil, dist_cross_iil, downwind_order_il, x_rotated_il, y_rotated_il, cos_wd_il, sin_wd_il, hcw_iil, dh_iil = self._cal_dist(
-            x_i, y_i, H_i, dst_x_j, dst_y_j, dst_h_j, wd_il)
-
-        dist_down_isl = dist_down_straight_iil
-        dist_cross_isl = dist_cross_iil
-        dist_hcw_isl = hcw_iil
-        dist_dh_isl = dh_iil
-        x_start_il = x_rotated_il
-        y_start_il = y_rotated_il
-        x_points_sl = x_rotated_il
-        cos_rotate_back_il = cos_wd_il
-        sin_rotate_back_il = -sin_wd_il
-
-        I, L = x_start_il.shape
-        i_wd_l = np.arange(L)
-        na = np.newaxis
-        if calc_all or not np.array(self.r_i).any():
-            mask_isl = np.ones_like(dist_down_isl, dtype=bool)
-        else:  # pragma: no cover
-            r_i = self.r_i
-            # Only consider if: r0 + k_star * dist_down < dist_cross-r1 and straight distance > 2*r
-            # where r1 is radius of downwind turbine.
-            # dist_down is expected to be less than dist_straight + 20%
-            expected_wake_size = 1.2 * dist_down_isl * self.k_star * \
-                np.ones(len(r_i))[:, na, na] + r_i[:, na, na] + r_i[na, :, na]
-            mask_isl = (expected_wake_size > dist_cross_isl) & (dist_down_isl > (2 * r_i.max()))
-
-        any_sites_in_wake = np.any(mask_isl, 1)
-        for l in i_wd_l:
-            for i in range(I):
-                x_start = x_start_il[i, l]
-                y_start = y_start_il[i, l]
-
-                x_points_s = x_points_sl[:, l]
-
-                if not any_sites_in_wake[i, l]:  # pragma: no cover
-                    continue
-
-                # find most downstream relevant site
-                i_last_point = downwind_order_il[np.where(mask_isl[i, downwind_order_il[:, l], l])[0][-1], l]
-                x_last_point = x_points_sl[i_last_point, l]
-
-                cos_rotate_back = cos_rotate_back_il[i, l]
-                sin_rotate_back = sin_rotate_back_il[i, l]
-
-                # 2. if starting point is not already the most downwind point
-                if x_start < x_last_point:
-
-                    # 3. For points downwind of the starting point, do integration
-                    # along a line for starting points to the final point
-                    x_integ_line = np.arange(x_start, x_last_point + step, step)
-                    x_integ_line[-1] = x_last_point
-
-                    # note these coordinates need to be rotated back to get elevation
-                    x_integ_line_back = (x_integ_line * cos_rotate_back +
-                                         y_start * sin_rotate_back)
-                    y_integ_line_back = (y_start * cos_rotate_back -
-                                         x_integ_line * sin_rotate_back)
-                    x_max_inds = x_integ_line_back > elev_interp_func.x.max()
-                    y_max_inds = y_integ_line_back > elev_interp_func.y.max()
-                    x_min_inds = x_integ_line_back < elev_interp_func.x.min()
-                    y_min_inds = y_integ_line_back < elev_interp_func.y.min()
-                    x_integ_line_back[x_max_inds] = elev_interp_func.x.max()
-                    y_integ_line_back[y_max_inds] = elev_interp_func.y.max()
-                    x_integ_line_back[x_min_inds] = elev_interp_func.x.min()
-                    y_integ_line_back[y_min_inds] = elev_interp_func.y.min()
-                    z_integ_line = elev_interp_func(x_integ_line_back,
-                                                    y_integ_line_back,
-                                                    mode='extrapolate')
-
-                    # integration along the line
-                    dx = np.diff(x_integ_line)
-                    dz = np.diff(z_integ_line)
-                    ds = np.sqrt(dx**2 + dz**2)
-                    dist_line = np.cumsum(ds)
-
-                    downwind = x_start < x_points_s
-                    within_wake = mask_isl[i, :, l]
-                    update = downwind & within_wake
-                    dist_down_isl[i, update, l] = np.interp(x_points_s[update], x_integ_line[1:], dist_line)
-#                    if np.isnan(dist_down_isl).any():
-#                        print(dist_down_isl)
-        self.dist_down, self.dist_cross, self.downwind_order = dist_down_isl, dist_hcw_isl, downwind_order_il.T
-
-        return dist_down_isl, dist_hcw_isl, dist_dh_isl
-
-    def _cal_dist(self, x_i, y_i, H_i, dst_x_j, dst_y_j, dst_h_j, wd):
-        num_sites = len(x_i)
-
-        if len(wd.shape) == 2:  # pragma: no cover
-            num_wds = wd.shape[1]
-            wd_mean_l = mean_deg(wd, 0)
-            complex_flag = True
-        else:
-            complex_flag = False
-            num_wds = wd.shape[0]
-            wd_mean_l = wd
-
-        I, L = num_sites, num_wds
-        na = np.newaxis
-
-        # rotate the coordinate so that wind blows along x axis
-        rotate_angle_mean_l = (270 - wd_mean_l) * np.pi / 180.0
-
-        dx_ii, dy_ii, dH_ii = [np.subtract(*np.meshgrid(v, v)) for v in [x_i, y_i, H_i]]
-        if complex_flag:  # pragma: no cover
-            rotate_angle_il = (270 - wd) * np.pi / 180.0
-            cos_wd_il = np.cos(rotate_angle_il)
-            sin_wd_il = np.sin(rotate_angle_il)
-        else:
-            cos_wd_il = np.broadcast_to(np.cos(rotate_angle_mean_l), (I, L))
-            sin_wd_il = np.broadcast_to(np.sin(rotate_angle_mean_l), (I, L))
-
-        # using local wind direction to rotate
-        x_rotated_il = x_i[:, na] * cos_wd_il + y_i[:, na] * sin_wd_il
-        y_rotated_il = y_i[:, na] * cos_wd_il - x_i[:, na] * sin_wd_il
-
-        downwind_order_il = np.argsort(x_rotated_il, 0).astype(int)
-
-        dist_down_iil = dx_ii[:, :, na] * cos_wd_il[:, na, :] + dy_ii[:, :, na] * sin_wd_il[:, na, :]
-        dy_rotated_iil = dy_ii[:, :, na] * cos_wd_il[:, na, :] - dx_ii[:, :, na] * sin_wd_il[:, na, :]
-
-        # treat crosswind distances as usual
-        dist_cross_iil = np.sqrt(dy_rotated_iil**2 + dH_ii[:, :, na]**2)
-        hcw_iil = dy_rotated_iil
-        dh_iil = np.repeat(dH_ii[:, :, na], 360, axis=-1)
-
-        return dist_down_iil, dist_cross_iil, downwind_order_il, x_rotated_il, y_rotated_il, cos_wd_il, sin_wd_il, hcw_iil, dh_iil
+        return dw_ijlk, hcw_ijlk, dh_ijlk

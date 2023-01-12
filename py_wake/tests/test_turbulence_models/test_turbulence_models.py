@@ -23,6 +23,7 @@ from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 from py_wake.rotor_avg_models.rotor_avg_model import EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.utils.model_utils import get_models
+from numpy import newaxis as na
 
 WindFarmModel.verbose = False
 
@@ -93,10 +94,10 @@ def test_max_sum():
 def test_superposition_model_indices():
     class WTSite(UniformSite):
         def local_wind(self, x_i=None, y_i=None, h_i=None, wd=None,
-                       ws=None, time=False, wd_bin_size=None, ws_bins=None):
+                       ws=None, time=False, wd_bin_size=None, ws_bins=None, **_):
             lw = UniformSite.local_wind(self, x_i=x_i, y_i=y_i, h_i=h_i, wd=wd, ws=ws,
                                         wd_bin_size=wd_bin_size, ws_bins=ws_bins)
-            lw['TI_ilk'] = lw.TI_ilk + np.arange(len(x_i))[:, np.newaxis, np.newaxis] * .1
+            lw['TI_ilk'] = lw.TI_ilk + np.arange(len(x_i))[:, na, na] * .1
             return lw
 
     site = WTSite([1], 0.1)

@@ -14,19 +14,26 @@ class FlowBox(xr.Dataset):
         self.windFarmModel = self.simulationResult.windFarmModel
         lw_j = localWind_j
         wd, ws = lw_j.wd, lw_j.ws
+        time = 'time' in simulationResult
 
         if X is None and Y is None and H is None:
             coords = localWind_j.coords
             X = localWind_j.i
         else:
-            coords = {'x': X[0, :, 0], 'y': Y[:, 0, 0], 'h': H[0, 0, :], 'wd': wd, 'ws': ws}
+            coords = {'x': X[0, :, 0], 'y': Y[:, 0, 0], 'h': H[0, 0, :],
+                      **{k: (dep, v, {'Description': d}) for k, dep, v, d in [
+                          ('wd', ('wd', 'time')[time], wd, 'Ambient reference wind direction [deg]'),
+                          ('ws', ('ws', 'time')[time], ws, 'Ambient reference wind speed [m/s]')]}}
+            if time:
+                coords['time'] = lw_j.coords['time']
 
         def get_da(arr_jlk):
             if len(X.shape) == 1:
                 return ilk2da(arr_jlk, coords)
             else:
-                return xr.DataArray(arr_jlk.reshape(X.shape + (len(wd), len(ws))),
-                                    coords, dims=['y', 'x', 'h', 'wd', 'ws'])
+                shape = [X.shape + (len(wd), len(ws)), X.shape + (len(wd), )][time]
+                dims = ['y', 'x', 'h'] + [['wd', 'ws'], ['time']][time]
+                return xr.DataArray(arr_jlk.reshape(shape), coords, dims)
         JLK = WS_eff_jlk.shape
         xr.Dataset.__init__(self, data_vars={k: get_da(np.broadcast_to(v, JLK)) for k, v in [
             ('WS_eff', WS_eff_jlk), ('TI_eff', TI_eff_jlk),
@@ -217,7 +224,7 @@ class FlowMap(FlowBox):
                                         normalize_with=normalize_with, ax=ax)
         else:  # self.plane[0] == "XY":
             fm.windTurbines.plot_xy(x_i, y_i, type_i,
-                                    wd=self.wd, yaw=yaw, tilt=tilt, normalize_with=normalize_with, ax=ax)
+                                    wd=self.wd.values, yaw=yaw, tilt=tilt, normalize_with=normalize_with, ax=ax)
 
     def plot_wake_map(self, levels=100, cmap=None, plot_colorbar=True, plot_windturbines=True,
                       normalize_with=1, ax=None):
@@ -238,7 +245,11 @@ class FlowMap(FlowBox):
             if True (default), lines/circles showing the wind turbine rotors are plotted
         ax : pyplot or matplotlib axes object, default None
         """
-        return self.plot((self.WS_eff * self.P / self.P.sum(['wd', 'ws'])).sum(['wd', 'ws']), clabel='wind speed [m/s]',
+        if 'time' in self:
+            WS_eff = (self.WS_eff * self.P / self.P.sum(['time'])).sum(['time'])
+        else:
+            WS_eff = (self.WS_eff * self.P / self.P.sum(['wd', 'ws'])).sum(['wd', 'ws'])
+        return self.plot(WS_eff, clabel='wind speed [m/s]',
                          levels=levels, cmap=cmap, plot_colorbar=plot_colorbar,
                          plot_windturbines=plot_windturbines, normalize_with=normalize_with, ax=ax)
 
