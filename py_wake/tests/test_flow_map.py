@@ -369,9 +369,10 @@ def test_wd_dependent_flow_map():
     sim_res = wfm(x=[0], y=[0], wd=[0, 90, 180])
     for wd in [[0], [0, 90], None]:
         fm = sim_res.flow_map(wd=wd)
+        fm.plot_wake_map()
         if 0:
-            fm.plot_wake_map()
             plt.show()
+        plt.close('all')
 
 
 def test_ws_dependent_flow_map():
@@ -379,9 +380,10 @@ def test_ws_dependent_flow_map():
     sim_res = wfm(x=[0], y=[0], ws=[8, 9, 10], wd=270)
     for ws in [[8], [8, 9], None]:
         fm = sim_res.flow_map(ws=ws)
+        fm.plot_wake_map()
         if 0:
-            fm.plot_wake_map()
             plt.show()
+        plt.close('all')
 
 
 def test_time_dependent_flow_map():
@@ -389,6 +391,16 @@ def test_time_dependent_flow_map():
     sim_res = wfm(x=[0], y=[0], wd=[0, 90, 180], ws=[8, 9, 10], time=True)
     for t in [[0], [0, 1], None]:
         fm = sim_res.flow_map(time=t)
+        fm.plot_wake_map()
         if 0:
-            fm.plot_wake_map()
             plt.show()
+        plt.close('all')
+
+
+def test_i_dependent_flow_map():
+    wfm = IEA37CaseStudy1(16)
+    sim_res = wfm(x=[0], y=[0], wd=[0, 90, 180])
+    X, Y = np.meshgrid(np.linspace(-2000, 2000, 50), np.linspace(-2000, 2000, 50))
+    fm = sim_res.flow_map(Points(x=X.flatten(), y=Y.flatten(), h=X.flatten() * 0 + 110))
+    with pytest.raises(NotImplementedError, match="Plot not supported for FlowMaps based on Points. Use XYGrid, YZGrid or XZGrid instead"):
+        fm.plot_wake_map()

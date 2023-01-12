@@ -20,12 +20,12 @@ class FlowBox(xr.Dataset):
             coords = localWind_j.coords
             X = localWind_j.i
         else:
-            coords = {'x': X[0, :, 0], 'y': Y[:, 0, 0], 'h': H[0, 0, :],
-                      **{k: (dep, v, {'Description': d}) for k, dep, v, d in [
-                          ('wd', ('wd', 'time')[time], wd, 'Ambient reference wind direction [deg]'),
-                          ('ws', ('ws', 'time')[time], ws, 'Ambient reference wind speed [m/s]')]}}
+            coords = {'x': X[0, :, 0], 'y': Y[:, 0, 0], 'h': H[0, 0, :]}
             if time:
                 coords['time'] = lw_j.coords['time']
+        coords.update({k: (dep, v, {'Description': d}) for k, dep, v, d in [
+                          ('wd', ('wd', 'time')[time], wd, 'Ambient reference wind direction [deg]'),
+                          ('ws', ('ws', 'time')[time], ws, 'Ambient reference wind speed [m/s]')]})
 
         def get_da(arr_jlk):
             if len(X.shape) == 1:
@@ -161,7 +161,6 @@ class FlowMap(FlowBox):
             if True (default), lines/circles showing the wind turbine rotors are plotted
         ax : pyplot or matplotlib axes object, default None
         """
-        import matplotlib.pyplot as plt
         if cmap is None:
             cmap = 'Blues_r'
         if ax is None:
@@ -186,12 +185,16 @@ class FlowMap(FlowBox):
             x = np.zeros_like(y) + self.plane[1]
             z = self.simulationResult.windFarmModel.site.elevation(x, y)
             ax.plot(y / n, z / n, 'k')
-        else:
+        elif self.plane[0] == 'XY':
+
             # xarray gives strange levels
             # c = data.isel(h=0).plot(levels=levels, cmap=cmap, ax=ax, add_colorbar=plot_colorbar)
             c = ax.contourf(self.X / n, self.Y / n, data.isel(h=0).data, levels=levels, cmap=cmap)
             if plot_colorbar:
                 plt.colorbar(c, label=clabel, ax=ax)
+        else:
+            raise NotImplementedError(
+                f"Plot not supported for FlowMaps based on Points. Use XYGrid, YZGrid or XZGrid instead")
 
         if plot_windturbines:
             self.plot_windturbines(normalize_with=normalize_with, ax=ax)
@@ -245,10 +248,9 @@ class FlowMap(FlowBox):
             if True (default), lines/circles showing the wind turbine rotors are plotted
         ax : pyplot or matplotlib axes object, default None
         """
-        if 'time' in self:
-            WS_eff = (self.WS_eff * self.P / self.P.sum(['time'])).sum(['time'])
-        else:
-            WS_eff = (self.WS_eff * self.P / self.P.sum(['wd', 'ws'])).sum(['wd', 'ws'])
+        sum_dims = [d for d in ['wd', 'time', 'ws'] if d in self.P.dims]
+        WS_eff = (self.WS_eff * self.P / self.P.sum(sum_dims)).sum(sum_dims)
+
         return self.plot(WS_eff, clabel='wind speed [m/s]',
                          levels=levels, cmap=cmap, plot_colorbar=plot_colorbar,
                          plot_windturbines=plot_windturbines, normalize_with=normalize_with, ax=ax)

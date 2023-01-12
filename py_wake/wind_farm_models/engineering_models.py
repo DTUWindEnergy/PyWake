@@ -325,7 +325,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                 'D_dst_ijl': lambda l: np.zeros((I, J, 1)),
                 'h_il': lambda l: wt_h_ilk[:, :, 0],
                 'ct_ilk': get_ilk('CT'),
-                'IJLK': lambda l=wd: (I, J, len(np.atleast_1d(l)), K)}, lw_j, wd, WD_il
+                'IJLK': lambda l=slice(None), I=I, J=J, L=L, K=K: (I, J, len(np.arange(L)[l]), K)}, lw_j, wd, WD_il
 
     def _get_flow_l(self, model_kwargs, l, wt_x_ilk, wt_y_ilk, wt_h_ilk, lw_j, wd, WD_ilk):
 
@@ -399,7 +399,10 @@ class EngineeringWindFarmModel(WindFarmModel):
             return (lw_j, np.broadcast_to(lw_j.WS_ilk, (len(x_j), L, K)).astype(float),
                     np.broadcast_to(lw_j.TI_ilk, (len(x_j), L, K)).astype(float))
 
-        l_iter = tqdm([slice(l, l + 1) for l in range(L)], disable=L <= 1 or not self.verbose,
+        size_gb = I * J * L * K * 8 / 1024**3
+        wd_chunks = np.minimum(np.maximum(int(size_gb // 1), 1), L)
+        wd_i = np.round(np.linspace(0, L, wd_chunks + 1)).astype(int)
+        l_iter = tqdm([slice(i0, i1) for i0, i1 in zip(wd_i[:-1], wd_i[1:])], disable=L <= 1 or not self.verbose,
                       desc='Calculate flow map', unit='wd')
         wt_x_ilk, wt_y_ilk, wt_h_ilk = [sim_res_data[k].ilk() for k in ['x', 'y', 'h']]
         WS_eff_jlk, TI_eff_jlk = zip(*[self._get_flow_l(
