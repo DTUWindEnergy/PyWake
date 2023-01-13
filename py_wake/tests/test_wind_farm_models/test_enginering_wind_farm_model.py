@@ -306,11 +306,10 @@ def test_All2AllIterative_initialize_with_PropagateDownwind():
     windTurbines = V80()
 
     wfm = All2AllIterative(site, windTurbines, wake_deficitModel=NOJDeficit(),
-                           blockage_deficitModel=SelfSimilarityDeficit(), initialize_with_PropagateDownwind=True)
+                           blockage_deficitModel=SelfSimilarityDeficit())
     res1 = wfm.calc_wt_interaction(x, y)[0]
     i1 = wfm.iterations
-    wfm.initialize_with_PropagateDownwind = False
-    res2 = wfm.calc_wt_interaction(x, y)[0]
+    res2 = wfm.calc_wt_interaction(x, y, WS_eff_ilk=0)[0]
     i2 = wfm.iterations
     npt.assert_array_almost_equal(res1, res2)
     assert i1 <= i2

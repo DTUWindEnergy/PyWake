@@ -343,8 +343,7 @@ def test_FugaMultiLUTDeficit(LUT_path_lst):
                     powerCtFunction=CubePowerSimpleCt(power_rated=4500))])
     deficitModel = FugaMultiLUTDeficit(LUT_path_lst=LUT_path_lst)
     wfm = All2AllIterative(site, wt, deficitModel,
-                           blockage_deficitModel=deficitModel,
-                           initialize_with_PropagateDownwind=False)
+                           blockage_deficitModel=deficitModel)
     x = np.arange(2) * 500
     y = x * 0
     sim_res = wfm(x, y, type=[0, 1], wd=[90, 240, 270])
@@ -376,8 +375,7 @@ def test_FugaMultiLUTDeficit_multiprocessing():
                     powerCtFunction=CubePowerSimpleCt(power_rated=4500))])
     deficitModel = FugaMultiLUTDeficit()
     wfm = All2AllIterative(site, wt, deficitModel,
-                           blockage_deficitModel=deficitModel,
-                           initialize_with_PropagateDownwind=False)
+                           blockage_deficitModel=deficitModel)
     x = np.arange(2) * 500
     y = x * 0
     sim_res = wfm(x, y, type=[0, 1], wd=[90, 240, 270], n_cpu=2)
