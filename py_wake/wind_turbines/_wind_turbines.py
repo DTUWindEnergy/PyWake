@@ -279,7 +279,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
                     'powerCtFunction': 'powerCtFunctions'}.get(k, k)
 
         attrs = set.intersection(*[set(dir(wt)) - set(dir(WindTurbines)) for wt in wt_lst])
-        return cls(**{key(k): np.array([getattr(wt, k) for wt in wt_lst]).flatten() for k in attrs})
+        return cls(**{key(k): [v for wt in wt_lst for v in np.atleast_1d(getattr(wt, k))] for k in attrs})
 
     @staticmethod
     def from_WindTurbines(wt_lst):
