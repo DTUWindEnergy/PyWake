@@ -54,6 +54,7 @@ class VortexDipole(BlockageDeficitModel):
         # deficit
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
+            warnings.filterwarnings('ignore', r'invalid value encountered in divide')
             warnings.filterwarnings('ignore', r'invalid value encountered in power')
             deficit_ijlk = gammat_ilk[:, na] / 4. * R_il[:, na, :, na]**2 * (-dw_ijlk / r_ijlk**3)
 

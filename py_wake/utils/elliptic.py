@@ -65,7 +65,7 @@ def ellipticPiCarlson(n, m):
         yo = yt[b1]
         zo = zt[b1]
         rhoo = rhot[b1]
-        RJ = np.full(y.shape, np.inf)
+        RJ = np.zeros_like(np.atleast_1d(y)) + np.inf
         if np.any(b1):
             nIt = 0
             res = 1

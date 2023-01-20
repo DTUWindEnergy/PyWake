@@ -273,7 +273,7 @@ def main():
 
         # plot shear
         z = np.arange(35, 200, 1)
-        u_z = site.local_wind([x[i]] * len(z), y_i=[y[i]] * len(z), h_i=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
+        u_z = site.local_wind(x=[x[i]] * len(z), y=[y[i]] * len(z), h=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
         plt.figure()
         plt.plot(u_z, z)
         plt.xlabel('Wind speed [m/s]')

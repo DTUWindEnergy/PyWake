@@ -14,6 +14,8 @@ from py_wake.wind_turbines import OneTypeWindTurbines
 import matplotlib.pyplot as plt
 from py_wake.site.xrsite import XRSite
 import shutil
+from py_wake.wind_turbines._wind_turbines import WindTurbine
+from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 
 
 @pytest.fixture(autouse=True)
@@ -45,22 +47,22 @@ def test_local_wind(site):
     h_i = x_i * 0 + 70
     wdir_lst = np.arange(0, 360, 90)
     wsp_lst = np.arange(3, 6)
-    WS_ilk = site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=wdir_lst, ws=wsp_lst).WS_ilk
+    WS_ilk = site.local_wind(x=x_i, y=y_i, h=h_i, wd=wdir_lst, ws=wsp_lst).WS_ilk
     npt.assert_array_equal(WS_ilk.shape, (8, 4, 3))
 
-    WS_ilk = site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i).WS_ilk
+    WS_ilk = site.local_wind(x=x_i, y=y_i, h=h_i).WS_ilk
     npt.assert_array_equal(WS_ilk.shape, (8, 360, 23))
 
     # check probability local_wind()[-1]
-    npt.assert_almost_equal(site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=[0], ws=[10], wd_bin_size=1).P_ilk,
-                            site.local_wind(x_i=x_i, y_i=y_i, h_i=h_i, wd=[0], ws=[10], wd_bin_size=2).P_ilk / 2, 6)
+    npt.assert_almost_equal(site.local_wind(x=x_i, y=y_i, h=h_i, wd=[0], ws=[10], wd_bin_size=1).P_ilk,
+                            site.local_wind(x=x_i, y=y_i, h=h_i, wd=[0], ws=[10], wd_bin_size=2).P_ilk / 2, 6)
 
 
 def test_local_wind_time(site):
     x_i, y_i = site.initial_position.T
     wdir_lst = [0, 1, 2, 1, 0]
     wsp_lst = [9, 10, 9, 10, 11]
-    lw = site.local_wind(x_i, y_i, h_i=100, wd=wdir_lst, ws=wsp_lst, time=True)
+    lw = site.local_wind(x_i, y_i, h=100, wd=wdir_lst, ws=wsp_lst, time=True)
     assert lw.WS_ilk.shape == (8, 5, 1)
     assert lw.WD_ilk.shape == (8, 5, 1)
     assert lw.TI_ilk.shape == (8, 5, 1)
@@ -71,7 +73,7 @@ def test_shear(site):
     x = [262878.0001] * 3
     y = [6504714.0001] * 3
     z = [30, 115, 200]
-    ws = site.local_wind(x_i=x, y_i=y, h_i=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
+    ws = site.local_wind(x=x, y=y, h=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
 
     if 0:
         plt.plot(ws, z, '.-')
@@ -135,8 +137,8 @@ def test_wasp_resources_grid_point(site):
                      2744., 2747., 2748., 2748., 2750., 2750., 2750., 2750., 2750., 2750.])
     wt_ct = np.array([0, 0.871, 0.853, 0.841, 0.841, 0.833, 0.797, 0.743, 0.635, 0.543, 0.424,
                       0.324, 0.258, 0.21, 0.175, 0.147, 0.126, 0.109, 0.095, 0.083, 0.074, 0.065, 0.059])
-    wt = OneTypeWindTurbines.from_tabular(name="NEG-Micon 2750/92 (2750 kW)", diameter=92, hub_height=70,
-                                          ws=wt_u, ct=wt_ct, power=wt_p, power_unit='kw')
+    wt = WindTurbine(name="NEG-Micon 2750/92 (2750 kW)", diameter=92, hub_height=70,
+                     powerCtFunction=PowerCtTabular(ws=wt_u, power=wt_p, power_unit='kw', ct=wt_ct))
 
     lw = site.local_wind(x, y, 30, wd=range(0, 360, 30))
     A_lst, k_lst, f_lst, spd_lst, orog_trn_lst, flow_inc_lst, ti15ms_lst = [

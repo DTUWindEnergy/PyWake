@@ -33,6 +33,7 @@ class RankineHalfBody(BlockageDeficitModel):
         """
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', r'invalid value encountered in true_divide')
+            warnings.filterwarnings('ignore', r'invalid value encountered in divide')
             cos_ijlk = dw_ijlk / r_ijlk
         # avoid division by zero
         f_ilk = a0_ilk * R_il[:, :, na]

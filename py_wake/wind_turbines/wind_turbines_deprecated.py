@@ -1,5 +1,4 @@
 from py_wake import np
-from scipy.interpolate import UnivariateSpline
 from autograd.core import defvjp, primitive
 from inspect import signature
 from py_wake.wind_turbines._wind_turbines import WindTurbines
@@ -48,19 +47,19 @@ class DeprecatedWindTurbines(WindTurbines):
         self._power_funcs = power_funcs
         self.powerCtFunction = WindTurbineFunction(['ws', 'type', 'yaw'], [], [])  # dummy for forward compatibility
 
-    def _ct_power(self, ws_i, type=0, **kwargs):
-        ws_i = np.asarray(ws_i)
+    def _ct_power(self, ws, type=0, **kwargs):  # @ReservedAssignment
+        ws = np.asarray(ws)
         t = np.unique(type)  # .astype(int)
         if len(t) > 1:
-            if type.shape != ws_i.shape:
-                type = (np.zeros(ws_i.shape[0]) + type)
-            type = type.astype(int)
-            CT = np.array([self._ct_funcs[t](ws) for t, ws in zip(type, ws_i)])
-            P = np.array([self._power_funcs[t](ws) for t, ws in zip(type, ws_i)])
+            if type.shape != ws.shape:
+                type = (np.zeros(ws.shape[0]) + type)  # @ReservedAssignment
+            type = type.astype(int)  # @ReservedAssignment
+            CT = np.array([self._ct_funcs[t](ws) for t, ws in zip(type, ws)])
+            P = np.array([self._power_funcs[t](ws) for t, ws in zip(type, ws)])
             return CT, P
         else:
-            return (self._ct_funcs[int(t[0])](ws_i, **kwargs),
-                    self._power_funcs[int(t[0])](ws_i, **kwargs))
+            return (self._ct_funcs[int(t[0])](ws, **kwargs),
+                    self._power_funcs[int(t[0])](ws, **kwargs))
 
     def power(self, *args, **kwargs):
         return self._ct_power(*args, **kwargs)[1]
@@ -156,8 +155,6 @@ class YawModel():
         self.func = func
 
     def __call__(self, ws, yaw=0):
-        if yaw is None:
-            return self.func(ws)
         return self.func(np.cos(yaw) * np.asarray(ws))
 
 
@@ -166,7 +163,5 @@ class CTYawModel(YawModel):
         # ct_n = ct_curve(cos(yaw)*ws)*cos^2(yaw)
         # mapping to downwind deficit, i.e. ct_x = ct_n*cos(yaw) = ct_curve(cos(yaw)*ws)*cos^3(yaw),
         # handled in deficit model
-        if yaw is None:
-            return self.func(ws)
         co = np.cos(yaw)
         return self.func(co * np.asarray(ws)) * co**2

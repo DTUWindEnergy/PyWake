@@ -138,16 +138,16 @@ class Site(ABC):
             ws = np.atleast_1d(ws)
         return wd, ws
 
-    def local_wind(self, x_i, y_i, h_i=None, wd=None, ws=None, time=False, wd_bin_size=None, ws_bins=None, **_):
+    def local_wind(self, x, y, h=None, wd=None, ws=None, time=False, wd_bin_size=None, ws_bins=None, **_):
         """Local free flow wind conditions
 
         Parameters
         ----------
-        x_i  :  array_like
+        x  :  array_like
             Local x coordinate
-        y_i : array_like
+        y : array_like
             Local y coordinate
-        h_i : array_like, optional
+        h : array_like, optional
             Local h coordinate, i.e., heights above ground
         wd : float, int or array_like, optional
             Global wind direction(s). Override self.default_wd
@@ -176,8 +176,7 @@ class Site(ABC):
         """
         wd, ws = self.get_defaults(wd, ws)
         wd_bin_size = self.wd_bin_size(wd, wd_bin_size)
-
-        lw = LocalWind(x_i, y_i, h_i, wd, ws, time, wd_bin_size)
+        lw = LocalWind(x, y, h, wd, ws, time, wd_bin_size)
         return self._local_wind(lw, ws_bins)
 
     @abstractmethod
@@ -299,13 +298,13 @@ class Site(ABC):
         lbl = "Wind direction: %d deg"
         if include_wd_distribution:
 
-            P = self.local_wind(x_i=x, y_i=y, h_i=h, wd=np.arange(360), ws=ws, wd_bin_size=1).P
+            P = self.local_wind(x=x, y=y, h=h, wd=np.arange(360), ws=ws, wd_bin_size=1).P
             P.coords['sector'] = ('wd', self._sector(wd))
             P = P.groupby('sector').sum()
             v = 360 / len(wd) / 2
             lbl += r"$\pm$%s deg" % ((int(v), v)[(v % 2) != 0])
         else:
-            lw = self.local_wind(x_i=x, y_i=y, h_i=h, wd=wd, ws=ws, wd_bin_size=1)
+            lw = self.local_wind(x=x, y=y, h=h, wd=wd, ws=ws, wd_bin_size=1)
             P = lw.P
             if 'ws' not in P.dims:
                 P = P.broadcast_like(lw.WS).T
@@ -359,10 +358,10 @@ class Site(ABC):
 
         if ws_bins is None:
             if any(['ws' in v.dims for v in self.ds.data_vars.values()]):
-                lw = self.local_wind(x_i=x, y_i=y, h_i=h, wd=np.arange(360), wd_bin_size=1)
+                lw = self.local_wind(x=x, y=y, h=h, wd=np.arange(360), wd_bin_size=1)
                 P = lw.P.sum('ws')
             else:
-                lw = self.local_wind(x_i=x, y_i=y, h_i=h, wd=np.arange(360),
+                lw = self.local_wind(x=x, y=y, h=h, wd=np.arange(360),
                                      ws=[100], ws_bins=[0, 200], wd_bin_size=1)
                 P = lw.P
         else:
@@ -371,7 +370,7 @@ class Site(ABC):
             else:
                 ws_bins = np.asarray(ws_bins)
             ws = ((ws_bins[1:] + ws_bins[:-1]) / 2)
-            lw = self.local_wind(x_i=x, y_i=y, h_i=h, wd=np.arange(360), ws=ws, wd_bin_size=1)
+            lw = self.local_wind(x=x, y=y, h=h, wd=np.arange(360), ws=ws, wd_bin_size=1)
             P = lw.P
 
         P.coords['sector'] = ('wd', self._sector(wd))
@@ -420,14 +419,14 @@ def main():
         x_i = y_i = np.arange(5)
         wdir_lst = np.arange(0, 360, 90)
         wsp_lst = np.arange(1, 20)
-        local_wind = site.local_wind(x_i=x_i, y_i=y_i, h_i=h_ref, wd=wdir_lst, ws=wsp_lst)
+        local_wind = site.local_wind(x=x_i, y=y_i, h=h_ref, wd=wdir_lst, ws=wsp_lst)
         print(local_wind.WS_ilk.shape)
 
         site.plot_ws_distribution(0, 0, wdir_lst)
 
         plt.figure()
         z = np.arange(1, 100)
-        u = [site.local_wind(x_i=[0], y_i=[0], h_i=[z_], wd=0, ws=10).WS_ilk[0][0] for z_ in z]
+        u = [site.local_wind(x=[0], y=[0], h=[z_], wd=0, ws=10).WS_ilk[0][0] for z_ in z]
         plt.plot(u, z)
         plt.xlabel('Wind speed [m/s]')
         plt.ylabel('Height [m]')

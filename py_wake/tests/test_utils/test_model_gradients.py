@@ -30,6 +30,7 @@ from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.site.jit_streamline_distance import JITStreamlineDistance
 from py_wake.site.xrsite import XRSite
 from py_wake.rotor_avg_models.area_overlap_model import AreaOverlapAvgModel
+import warnings
 
 
 def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110, 110, 110], fd_step=1e-6, fd_decimal=6,
@@ -44,7 +45,9 @@ def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110,
         x_lst = np.array([0, 0., 1.]) * np.arange(1, 600, 10)[:, na] + wt_x
         y_lst = np.array([0, 0, 1.]) * np.arange(-101, 100, 5)[:, na] + wt_y
         h_lst = np.array([0, 0, 1.]) * np.arange(-50, 50, 5)[:, na] + wt.hub_height()
-        kwargs = {'ws': [9], 'wd': [270], **kwargs}
+        kwargs = {'ws': [9], 'wd': [270]}
+        if 'yaw_ilk' in wfm.args4all:
+            kwargs.update({'yaw': 0, 'tilt': 0, **kwargs})
 
         xp, yp, hp = x_lst[20], y_lst[25], h_lst[2]
 
@@ -99,7 +102,7 @@ def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110,
             plt.show()
             plt.close('all')
         # print(f'[x] {name}')
-    except AssertionError as e:
+    except AssertionError:
         # print(f'[ ] {name}')
         raise
     except Exception:
@@ -115,8 +118,11 @@ def test_wind_farm_models(model):
 
 @pytest.mark.parametrize('model', get_models(WakeDeficitModel))
 def test_wake_deficit_models(model):
-    check_gradients(lambda site, wt: PropagateDownwind(site, wt, model(), turbulenceModel=STF2005TurbulenceModel()),
-                    model.__name__)
+    with warnings.catch_warnings():
+        if model.__name__ == 'NoWakeDeficit':
+            warnings.filterwarnings('ignore', r'Output seems independent of input.')
+        check_gradients(lambda site, wt: PropagateDownwind(site, wt, model(), turbulenceModel=STF2005TurbulenceModel()),
+                        model.__name__)
 
 
 @pytest.mark.parametrize('model', get_models(BlockageDeficitModel))
@@ -260,11 +266,11 @@ output_lst = ['WS_eff', 'TI_eff', 'power', 'ct']
 
 @pytest.mark.parametrize('output', output_lst)
 def test_output(output):
-    argnum = output_lst.index(output)
+    argnum = output_lst.index(output)  # @UnusedVariable
     # WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, localWind, wt_inputs = calc_wt_interaction
 
     def output_func(wfm):
-        return lambda *args, argnum=argnum, **kwargs: wfm.calc_wt_interaction(*args, **kwargs)[argnum].mean()
+        return lambda *args, argnum=argnum, **kwargs: wfm(*args, return_simulationResult=False, **kwargs)[argnum].mean()
     wake_deficitModel = BastankhahGaussianDeficit
     check_gradients(lambda site, wt: PropagateDownwind(site, V80(), wake_deficitModel(), turbulenceModel=STF2005TurbulenceModel()),
                     name=output, output=(output_func, output), fd_decimal=[6, 2][output == 'power'])

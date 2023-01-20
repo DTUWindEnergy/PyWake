@@ -36,25 +36,25 @@ def test_local_wind(site):
     x_i = y_i = np.arange(5)
     wdir_lst = np.arange(0, 360, 90)
     wsp_lst = np.arange(3, 6)
-    lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=[50], wd=wdir_lst, ws=wsp_lst)
+    lw = site.local_wind(x=x_i, y=y_i, h=[50], wd=wdir_lst, ws=wsp_lst)
     npt.assert_array_equal(lw.WS_ilk.shape, (1, 4, 3))
 
-    lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=x_i * 0 + 50)
+    lw = site.local_wind(x=x_i, y=y_i, h=x_i * 0 + 50)
     npt.assert_array_equal(lw.WS_ilk.shape, (1, 360, 23))
     assert lw.WS.attrs['description'] == 'Local free-stream wind speed [m/s]'
 
     # check probability local_wind()[-1]
-    npt.assert_equal(site.local_wind(x_i=x_i, y_i=y_i, h_i=50, wd=[0], ws=[10], wd_bin_size=1).P_ilk,
-                     site.local_wind(x_i=x_i, y_i=y_i, h_i=50, wd=[0], ws=[10], wd_bin_size=2).P_ilk / 2)
-    npt.assert_almost_equal(site.local_wind(x_i=x_i, y_i=y_i, h_i=50, wd=[0], ws=[9, 10, 11]).P_ilk.sum((1, 2)),
-                            site.local_wind(x_i=x_i, y_i=y_i, h_i=50, wd=[0], ws=[10], ws_bins=3).P_ilk[:, 0, 0], 5)
+    npt.assert_equal(site.local_wind(x=x_i, y=y_i, h=50, wd=[0], ws=[10], wd_bin_size=1).P_ilk,
+                     site.local_wind(x=x_i, y=y_i, h=50, wd=[0], ws=[10], wd_bin_size=2).P_ilk / 2)
+    npt.assert_almost_equal(site.local_wind(x=x_i, y=y_i, h=50, wd=[0], ws=[9, 10, 11]).P_ilk.sum((1, 2)),
+                            site.local_wind(x=x_i, y=y_i, h=50, wd=[0], ws=[10], ws_bins=3).P_ilk[:, 0, 0], 5)
 
     z = np.arange(1, 100)
     zero = [0] * len(z)
 
-    ws = site.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
+    ws = site.local_wind(x=zero, y=zero, h=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
     site2 = UniformWeibullSite(f, A, k, ti, shear=PowerShear(70, alpha=np.zeros_like(f) + .3))
-    ws70 = site2.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
+    ws70 = site2.local_wind(x=zero, y=zero, h=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
     if 0:
         plt.plot(ws, z)
         plt.plot(ws70, z)
@@ -216,7 +216,7 @@ def test_iea37_distances():
     n_wt = 16  # must be 9, 16, 36, 64
     site = IEA37Site(n_wt)
     x, y = site.initial_position.T
-    lw = site.local_wind(x_i=x, y_i=y,
+    lw = site.local_wind(x=x, y=y,
                          wd=site.default_wd,
                          ws=site.default_ws)
     site.distance.setup(x, y, np.zeros_like(x))

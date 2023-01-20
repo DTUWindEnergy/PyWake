@@ -9,7 +9,7 @@ from numpy import newaxis as na
 def test_power_shear():
     h_lst = np.arange(10, 100, 10)
     site = UniformSite([1], .1, shear=PowerShear(70, alpha=[.1, .2]))
-    WS = site.local_wind(x_i=h_lst * 0, y_i=h_lst * 0, h_i=h_lst, wd=[0, 180], ws=[10, 12, 13]).WS
+    WS = site.local_wind(x=h_lst * 0, y=h_lst * 0, h=h_lst, wd=[0, 180], ws=[10, 12, 13]).WS
 
     if 0:
         plt.plot(WS.sel(wd=0, ws=10), WS.h, label='alpha=0.1')
@@ -26,7 +26,7 @@ def test_log_shear():
 
     h_lst = np.arange(10, 100, 10)
     site = UniformSite([1], .1, shear=LogShear(70, z0=[.02, 2]))
-    WS = site.local_wind(x_i=h_lst * 0, y_i=h_lst * 0, h_i=h_lst, wd=[0, 180], ws=[10, 12]).WS
+    WS = site.local_wind(x=h_lst * 0, y=h_lst * 0, h=h_lst, wd=[0, 180], ws=[10, 12]).WS
 
     if 0:
         plt.plot(WS.sel(wd=0, ws=10), WS.h, label='z0=0.02')
@@ -42,7 +42,7 @@ def test_log_shear():
 def test_log_shear_constant_z0():
     h_lst = np.arange(10, 100, 10)
     site = UniformSite([1], .1, shear=LogShear(70, z0=.02))
-    WS = site.local_wind(x_i=h_lst * 0, y_i=h_lst * 0, h_i=h_lst, wd=[0, 180], ws=[10, 12, 13]).WS
+    WS = site.local_wind(x=h_lst * 0, y=h_lst * 0, h=h_lst, wd=[0, 180], ws=[10, 12, 13]).WS
 
     if 0:
         plt.plot(WS.sel(ws=10), WS.h, label='z0=0.02')
@@ -58,7 +58,7 @@ def test_custom_shear():
     h_lst = np.arange(10, 100, 10)
 
     site = UniformSite([1], .1, shear=my_shear)
-    WS = site.local_wind(x_i=h_lst * 0, y_i=h_lst * 0, h_i=h_lst, wd=[0, 180], ws=[10, 12]).WS
+    WS = site.local_wind(x=h_lst * 0, y=h_lst * 0, h=h_lst, wd=[0, 180], ws=[10, 12]).WS
 
     if 0:
         plt.plot(WS.sel(wd=0, ws=10), WS.h, label='2z-2')

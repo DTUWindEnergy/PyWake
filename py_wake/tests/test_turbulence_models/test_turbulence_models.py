@@ -93,11 +93,11 @@ def test_max_sum():
 
 def test_superposition_model_indices():
     class WTSite(UniformSite):
-        def local_wind(self, x_i=None, y_i=None, h_i=None, wd=None,
+        def local_wind(self, x=None, y=None, h=None, wd=None,
                        ws=None, time=False, wd_bin_size=None, ws_bins=None, **_):
-            lw = UniformSite.local_wind(self, x_i=x_i, y_i=y_i, h_i=h_i, wd=wd, ws=ws,
+            lw = UniformSite.local_wind(self, x=x, y=y, h=h, wd=wd, ws=ws,
                                         wd_bin_size=wd_bin_size, ws_bins=ws_bins)
-            lw['TI_ilk'] = lw.TI_ilk + np.arange(len(x_i))[:, na, na] * .1
+            lw['TI_ilk'] = lw.TI_ilk + np.arange(len(x))[:, na, na] * .1
             return lw
 
     site = WTSite([1], 0.1)
@@ -114,20 +114,20 @@ def test_superposition_model_indices():
         return cls(site, NibeA0(), wake_deficitModel=NoWakeDeficit(),
                    superpositionModel=LinearSum(),
                    turbulenceModel=STF2017TurbulenceModel())
-    for wake_model in [get_wf_model(PropagateDownwind),
-                       get_wf_model(All2AllIterative)]:
+    for wfm in [get_wf_model(PropagateDownwind),
+                get_wf_model(All2AllIterative)]:
 
         # No wake (ct = 0), i.e. WS_eff == WS
-        TI_eff_ilk = wake_model.calc_wt_interaction(x_i, y_i, h_i, [1, 1, 1], 0.0, 8.1)[1]
-        npt.assert_array_equal(TI_eff_ilk, TI_ilk)
+        TI_eff = wfm(x_i, y_i, h_i, type=[1, 1, 1], wd=0.0, ws=8.1).TI_eff
+        npt.assert_array_equal(TI_eff, TI_ilk)
 
         # full wake (CT=8/9)
         ref_TI_eff_ilk = TI_ilk + np.reshape([0, 0.33738364, np.sum([0.19369135, 0.21239116])], (3, 1, 1))
 
-        TI_eff_ilk = wake_model.calc_wt_interaction(x_i, y_i, h_i, [0, 0, 0], 0.0, 8.1)[1]
-        npt.assert_array_almost_equal(TI_eff_ilk, ref_TI_eff_ilk)
+        TI_eff = wfm(x_i, y_i, h_i, wd=0.0, ws=8.1).TI_eff
+        npt.assert_array_almost_equal(TI_eff, ref_TI_eff_ilk)
 
-        sim_res = wake_model(x_i, y_i, h_i, [0, 0, 0], 0.0, 8.1)
+        sim_res = wfm(x_i, y_i, h_i, [0, 0, 0], 0.0, 8.1)
         TI_eff_ilk = sim_res.flow_map(HorizontalGrid(x=[0], y=y_i, h=50)).TI_eff_xylk[:, 0]
 
         npt.assert_array_almost_equal(TI_eff_ilk, ref_TI_eff_ilk)

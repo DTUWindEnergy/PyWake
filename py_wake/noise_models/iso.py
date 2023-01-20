@@ -107,11 +107,12 @@ class ISONoiseModel:
                              zeros - 1.5 * (1.0 - Gr)  # 8000 Hz
                              ])
 
-        # Interpolation to other frequencies are actually not following the standard completely.
-        ip = GridInterpolator([freqs_init], np.moveaxis([As_fijlk, Ar_fijlk, Am_fijlk], 0, -1))
+        # sum up As+Ar+Am
+        Agr_fijlk = np.sum([As_fijlk, Ar_fijlk, Am_fijlk], 0)
 
-        # interpolate to freq and sum up As+Ar+Am
-        Agr_ijlkf = np.moveaxis(ip(np.array([self.freqs]).T).sum(-1), 0, -1)
+        # Interpolation to other frequencies are actually not following the standard completely.
+        ip = GridInterpolator([freqs_init], Agr_fijlk)
+        Agr_ijlkf = np.moveaxis(ip(np.array([self.freqs]).T), 0, -1)
 
         # Area of sphere: 4pi R^2
         # 10*log_10(4pi) ~ 11

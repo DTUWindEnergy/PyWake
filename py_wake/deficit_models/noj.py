@@ -23,13 +23,16 @@ class NOJDeficit(NiayifarGaussianDeficit, WakeRadiusTopHat):
         R_src_il = D_src_il / 2
         with catch_warnings():
             filterwarnings('ignore', r'invalid value encountered in true_divide')
+            filterwarnings('ignore', r'invalid value encountered in divide')
+            filterwarnings('ignore', r'divide by zero encountered in divide')
+
             term_denominator_ijlk = np.where(dw_ijlk > 0, ((wake_radius_ijl / R_src_il[:, na, :])**2)[..., na], 1)
 
         in_wake_ijlk = wake_radius_ijl[..., na] > cw_ijlk
 
         with catch_warnings():
-            filterwarnings(
-                'ignore', r'invalid value encountered in true_divide')
+            filterwarnings('ignore', r'invalid value encountered in true_divide')
+            filterwarnings('ignore', r'invalid value encountered in divide')
             self.layout_factor_ijlk = WS_ref_ilk[:, na] * (dw_ijlk > 0) * (in_wake_ijlk / term_denominator_ijlk)
 
     def calc_deficit(self, ct_ilk, **kwargs):

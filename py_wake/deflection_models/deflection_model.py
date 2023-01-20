@@ -5,6 +5,10 @@ from py_wake.utils.model_utils import method_args
 class DeflectionModel(ABC):
 
     @property
+    def args4model(self):
+        return self.args4deflection
+
+    @property
     def args4deflection(self):
         return method_args(self.calc_deflection)
 

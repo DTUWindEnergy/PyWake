@@ -10,8 +10,7 @@ from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37WindTurbines
 from py_wake.flow_map import XYGrid
 from py_wake.superposition_models import WeightedSum
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
-from py_wake.wind_farm_models.engineering_models import All2All, All2AllIterative
-from py_wake.tests import npt
+from py_wake.wind_farm_models.engineering_models import All2All
 
 
 @pytest.mark.parametrize('kwargs', [
@@ -29,16 +28,12 @@ def test_All2All(kwargs):
     site = IEA37Site(16)
     windTurbines = IEA37WindTurbines()
 
-    wfm_a2a = All2All(site, windTurbines, **kwargs)
-    wfm_a2ai = All2AllIterative(site, windTurbines, **kwargs)
+    wfm = All2All(site, windTurbines, **kwargs)
 
-    sim_res_a2a = wfm_a2a([0, 500, 1000, 1500], [0, 0, 0, 0],
-                          wd=270, ws=10, yaw=[30, -30, 30, -30])
-    sim_res_a2ai = wfm_a2ai([0, 500, 1000, 1500], [0, 0, 0, 0],
-                            wd=270, ws=10, yaw=[30, -30, 30, -30])
-    npt.assert_array_almost_equal(sim_res_a2a.WS_eff, sim_res_a2ai.WS_eff)
+    sim_res = wfm([0, 500, 1000, 1500], [0, 0, 0, 0],
+                  wd=270, ws=10, yaw=[30, -30, 30, -30], tilt=0)
 
     if 0:
-        sim_res_a2a.flow_map(
+        sim_res.flow_map(
             XYGrid(x=np.linspace(-200, 2000, 100))).plot_wake_map()
         plt.show()

@@ -41,7 +41,7 @@ def test_deflection_model_dy10d(deflectionModel, dy10d):
 
     yaw_ilk = np.reshape([-30], (1, 1, 1))
 
-    sim_res = wfm(x, y, yaw=yaw_ilk, wd=270, ws=10)
+    sim_res = wfm(x, y, yaw=yaw_ilk, tilt=0, wd=270, ws=10)
     fm = sim_res.flow_map(XYGrid(x=np.arange(-D, 10 * D + 10, 10)))
     min_WS_line = fm.min_WS_eff()
     if 0:
@@ -70,7 +70,7 @@ def test_deflection_model(deflectionModel, dy):
     D = wfm.windTurbines.diameter()
     yaw = [-30, 30, -30]
 
-    sim_res = wfm(x, y, yaw=yaw, wd=270, ws=10)
+    sim_res = wfm(x, y, yaw=yaw, tilt=0, wd=270, ws=10)
     fm = sim_res.flow_map(XYGrid(x=np.arange(-D, 15 * D + 10, 10)))
     min_WS_line = fm.min_WS_eff()
     if 0:
@@ -103,7 +103,7 @@ def test_deflection_model_All2AllIterative(deflectionModel, dy):
 
     yaw = [-30, 30, -30]
 
-    sim_res = wfm(x, y, yaw=yaw, wd=270, ws=10)
+    sim_res = wfm(x, y, yaw=yaw, tilt=0, wd=270, ws=10)
     fm = sim_res.flow_map(XYGrid(x=np.arange(-D, 15 * D + 10, 10)))
     min_WS_line = fm.min_WS_eff()
     if 0:
@@ -123,7 +123,7 @@ def test_plot_deflection_grid(deflectionModel):
     yaw_ilk = np.reshape([-30], (1, 1, 1))
     wfm = simple_wfm(deflectionModel)
     D = wfm.windTurbines.diameter()
-    sim_res = wfm(x, y, yaw=yaw_ilk, wd=270, ws=10)
+    sim_res = wfm(x, y, yaw=yaw_ilk, tilt=0, wd=270, ws=10)
     fm = sim_res.flow_map(XYGrid(x=np.arange(-D, 10 * D + 10, 10)))
 
     plt.figure(figsize=(14, 3))

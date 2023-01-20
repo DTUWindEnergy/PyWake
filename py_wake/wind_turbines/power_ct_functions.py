@@ -1,13 +1,12 @@
 from py_wake import np
-from scipy.interpolate import RegularGridInterpolator
+
 from abc import abstractmethod, ABC
-from autograd.core import defvjp, primitive
 from py_wake.wind_turbines.wind_turbine_functions import WindTurbineFunction, FunctionSurrogates,\
     WindTurbineFunctionList
 from py_wake.utils.check_input import check_input
 from py_wake.utils.model_utils import check_model, fix_shape
 from py_wake.utils import gradients
-from py_wake.utils.gradients import PchipInterpolator, UnivariateSpline, set_gradient_function
+from py_wake.utils.gradients import PchipInterpolator, UnivariateSpline
 from py_wake.utils.grid_interpolator import GridInterpolator
 
 
@@ -103,19 +102,16 @@ class SimpleYawModel(AdditionalModel):
             output_keys=['power', 'ct'])
 
     def __call__(self, f, ws, yaw=None, tilt=None, **kwargs):
-        if yaw is not None or tilt is not None:
-            co = 1
-            if yaw is not None:
-                co *= np.cos(gradients.deg2rad(fix_shape(yaw, ws, True)))
-            if tilt is not None:
-                co *= np.cos(gradients.deg2rad(fix_shape(tilt, ws, True)))
-            power_ct_arr = f(ws * co, **kwargs)  # calculate for reduced ws (ws projection on rotor)
-            if kwargs['run_only'] == 1:  # ct
-                # multiply ct by cos(yaw)**2 to compensate for reduced thrust
-                return power_ct_arr * co**2
-            return power_ct_arr
-        else:
-            return f(ws, **kwargs)
+        co = 1
+        if yaw is not None:
+            co *= np.cos(gradients.deg2rad(fix_shape(yaw, ws, True)))
+        if tilt is not None:
+            co *= np.cos(gradients.deg2rad(fix_shape(tilt, ws, True)))
+        power_ct_arr = f(ws * co, **kwargs)  # calculate for reduced ws (ws projection on rotor)
+        if kwargs['run_only'] == 1:  # ct
+            # multiply ct by cos(yaw)**2 to compensate for reduced thrust
+            return power_ct_arr * co**2
+        return power_ct_arr
 
 
 class DensityScale(AdditionalModel):
@@ -396,7 +392,19 @@ class PowerCtXr(PowerCtNDTabular):
                                   ct_arr.values, additional_models=additional_models)
 
 
-class CubePowerSimpleCt(PowerCtFunction):
+class PowerCtFunctions(PowerCtFunction):
+    def __init__(self, power_function, power_unit, ct_function, input_keys=['ws'],
+                 additional_models=default_additional_models):
+        PowerCtFunction.__init__(self, input_keys=input_keys, power_ct_func=self._power_ct, power_unit=power_unit,
+                                 additional_models=additional_models)
+        self.power_function = power_function
+        self.ct_function = ct_function
+
+    def _power_ct(self, ws, run_only):
+        return (self.power_function, self.ct_function)[run_only](ws)
+
+
+class CubePowerSimpleCt(PowerCtFunctions):
     """Simple analytical power function and constant ct (until ws_rated
     whereafter it follows a second order polynomal to ws_cutout,ct_idle)"""
 
@@ -422,7 +430,7 @@ class CubePowerSimpleCt(PowerCtFunction):
         additional_models : list, optional
             list of additional models.
         """
-        PowerCtFunction.__init__(self, ['ws'], self._power_ct, power_unit, [], additional_models)
+        PowerCtFunctions.__init__(self, self._power, power_unit, self._ct, additional_models=additional_models)
         self.ws_cutin = ws_cutin
         self.ws_rated = ws_rated
         self.ws_cutout = ws_cutout
@@ -449,9 +457,6 @@ class CubePowerSimpleCt(PowerCtFunction):
                         np.minimum(self.power_rated * cube((ws - self.ws_cutin) / (self.ws_rated - self.ws_cutin)),
                                    self.power_rated),
                         0)
-
-    def _power_ct(self, ws, run_only):
-        return (self._power, self._ct)[run_only](ws)
 
     def _ct(self, ws):
         ws = np.asarray(ws)

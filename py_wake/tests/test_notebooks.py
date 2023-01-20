@@ -7,7 +7,6 @@ import py_wake
 from py_wake.flow_map import Grid
 from pathlib import Path
 import xarray
-import warnings
 
 
 def get_notebooks():

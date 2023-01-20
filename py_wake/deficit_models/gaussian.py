@@ -8,7 +8,6 @@ from py_wake.superposition_models import SquaredSum
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.utils.gradients import cabs
 from py_wake.utils import gradients
-from py_wake.rotor_avg_models.gaussian_overlap_model import GaussianOverlapAvgModel
 from py_wake.utils.model_utils import DeprecatedModel
 from py_wake.rotor_avg_models.rotor_avg_model import RotorCenter
 
@@ -456,21 +455,20 @@ class TurboGaussianDeficit(NiayifarGaussianDeficit):
 
 def main():
     if __name__ == '__main__':
-        from py_wake.examples.data.iea37._iea37 import IEA37Site
-        from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
         import matplotlib.pyplot as plt
         from py_wake.deficit_models.noj import NOJDeficit, TurboNOJDeficit
         from py_wake.turbulence_models.stf import STF2017TurbulenceModel
         from py_wake.superposition_models import LinearSum
         from py_wake.examples.data.hornsrev1 import Hornsrev1Site
         from py_wake.examples.data import hornsrev1
+        from py_wake.literature.iea37_case_study1 import IEA37CaseStudy1
 
         # setup site, turbines and wind farm model
-        site = IEA37Site(16)
+        wf_model = IEA37CaseStudy1(16)
+        site, windTurbines = wf_model.site, wf_model.windTurbines
+        site.default_wd = np.arange(360)
         x, y = site.initial_position.T
-        windTurbines = IEA37_WindTurbines()
 
-        wf_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
         wfm_nojturbo = PropagateDownwind(site, windTurbines, rotorAvgModel=None,
                                          wake_deficitModel=TurboNOJDeficit(use_effective_ws=True,
                                                                            use_effective_ti=False),
@@ -489,7 +487,7 @@ def main():
         aep = sim_res.aep().sum()
 
         # plot wake map
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(11, 4.5), tight_layout=True)
+        (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(11, 4.5), tight_layout=True)[1]
         levels = np.arange(0, 10.5, 0.5)
         print(wf_model)
         flow_map = sim_res.flow_map(wd=30, ws=9.8)

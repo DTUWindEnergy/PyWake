@@ -132,7 +132,7 @@ def test_huge_distance(deficitModel):
 
     windTurbines = IEA37_WindTurbines()
     wfm = All2AllIterative(site, windTurbines, wake_deficitModel=deficitModel(), turbulenceModel=GCLTurbulence())
-    sim_res = wfm([0, 100000], [0, 0], wd=[0, 90, 180, 270])
+    sim_res = wfm([0, 100000], [0, 0], wd=[0, 90, 180, 270], yaw=0)
     # print(f'"{deficitModel.__name__}": {np.round(sim_res.WS_eff.sel(wt=1, ws=9.8, wd=270).item(),6)},')
 
     npt.assert_array_almost_equal([9.8, 9.8, 9.8, ref[deficitModel.__name__]], sim_res.WS_eff.sel(wt=1).squeeze())
@@ -159,7 +159,7 @@ def test_huge_distance_blockage(deficitModel):
     wfm = All2AllIterative(site, windTurbines, wake_deficitModel=NoWakeDeficit(),
                            blockage_deficitModel=deficitModel(),
                            turbulenceModel=GCLTurbulence())
-    sim_res = wfm([0, 100000], [0, 0], wd=[0, 90, 180, 270])
+    sim_res = wfm([0, 100000], [0, 0], wd=[0, 90, 180, 270], yaw=0)
     # print(f'"{deficitModel.__name__}": {np.round(sim_res.WS_eff.sel(wt=0, ws=9.8, wd=270).item(),6)},')
 
     npt.assert_array_almost_equal([9.8, 9.8, 9.8, ref[deficitModel.__name__]], sim_res.WS_eff.sel(wt=1).squeeze())
@@ -508,7 +508,7 @@ def test_own_deficit_is_zero():
     for deficitModel in get_models(WakeDeficitModel):
         wf_model = All2AllIterative(site, windTurbines, wake_deficitModel=deficitModel(),
                                     turbulenceModel=STF2017TurbulenceModel())
-        sim_res = wf_model([0], [0])
+        sim_res = wf_model([0], [0], yaw=0)
         npt.assert_array_equal(sim_res.WS_eff, sim_res.WS.broadcast_like(sim_res.WS_eff))
 
 

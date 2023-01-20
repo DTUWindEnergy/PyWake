@@ -56,6 +56,8 @@ class GridInterpolator(object):
         bounds : {'check', 'limit', 'ignore'} or None
             Overrides self.bounds if not None
         """
+        if len(np.atleast_1d(xp)) == 0:
+            return np.array([])
         method = np.atleast_1d(method or self.method)
         assert np.all([m in ['linear', 'nearest'] for m in method]), 'method must be "linear" or "nearest"'
         assert len(method) in [1, len(self.x)]

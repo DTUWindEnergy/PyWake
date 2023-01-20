@@ -111,22 +111,27 @@ except ModuleNotFoundError:
 
         if len(lines) == 1 and lines[0] == '':
             return
+        folder = Path(tfp) / 'tmp'
+        initpy = folder / '__init__.py'
+
         try:
             import contextlib
-            name = f'tmp_{os.path.basename(self.filename).replace(".","_")}'
+            name = f'{os.path.basename(self.filename).replace(".","_")}'
             with contextlib.redirect_stdout(StringIO()):
                 with contextlib.redirect_stderr(StringIO()):
+
                     matplotlib_backend = matplotlib.get_backend()
                     matplotlib.use('Agg')
 
                     code_str = "\n".join(lines)
-                    p = Path(tfp + name + '.py')
+                    p = folder / (name + '.py')
+                    os.makedirs(folder, exist_ok=True)
                     p.write_text(code_str)
-
-                    if f"py_wake.tests.test_files.{name}" in sys.modules:
-                        importlib.reload(sys.modules[f"py_wake.tests.test_files.{name}"])
+                    initpy.write_text("")
+                    if f"py_wake.tests.test_files.tmp.{name}" in sys.modules:
+                        importlib.reload(sys.modules[f"tmp.py_wake.tests.test_files.tmp.{name}"])
                     else:
-                        importlib.import_module(f"py_wake.tests.test_files.{name}")
+                        importlib.import_module(f"py_wake.tests.test_files.tmp.{name}")
                     p.unlink()
 
         except Exception as e:
@@ -136,11 +141,12 @@ except ModuleNotFoundError:
         finally:
             plt.close('all')
             matplotlib.use(matplotlib_backend)
+            initpy.unlink()
 
     def check_links(self):
         txt = "\n".join(self.get_text())
         for link in re.finditer(r"\[([^]]*)]\(([^)]*)\)", txt):
-            label, url = link.groups()
+            url = link.groups()[1]
             # print(label)
             # print(url)
             if url.startswith('attachment') or '.ipynb' in url or url[0] == '#':

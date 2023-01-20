@@ -113,23 +113,23 @@ def test_uniform_local_wind(uniform_site):
 
     wdir_lst = np.arange(0, 360, 90)
     wsp_lst = np.arange(3, 6)
-    lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=100, wd=wdir_lst, ws=wsp_lst)
+    lw = site.local_wind(x=x_i, y=y_i, h=100, wd=wdir_lst, ws=wsp_lst)
     npt.assert_array_equal(lw.WS, 10)
     npt.assert_array_equal(lw.WD, wdir_lst)
     npt.assert_array_equal(lw.TI, 0.1)
     npt.assert_array_equal(lw.P, np.array([0.035972, 0.070002, 0.086432, 0.147379]) * 3)
     npt.assert_array_equal(site.elevation(x_i, y_i), 0)
 
-    lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=100)
+    lw = site.local_wind(x=x_i, y=y_i, h=100)
     npt.assert_array_equal(lw.WD_ilk.shape, (1, 360, 1))
 
     z = np.arange(1, 200)
     zero = [0] * len(z)
 
-    ws100_2 = site.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
+    ws100_2 = site.local_wind(x=zero, y=zero, h=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
 
     site.shear = PowerShear(70, alpha=.3)
-    ws70_3 = site.local_wind(x_i=zero, y_i=zero, h_i=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
+    ws70_3 = site.local_wind(x=zero, y=zero, h=z, wd=[0], ws=[10]).WS_ilk[:, 0, 0]
     if 0:
         plt.plot(ws100_2, z)
         plt.plot(ws70_3, z)
@@ -144,7 +144,7 @@ def test_uniform_weibull_local_wind(uniform_weibull_site):
 
     wdir_lst = np.arange(0, 360, 90)
     wsp_lst = np.arange(3, 6)
-    lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=100, wd=wdir_lst, ws=wsp_lst)
+    lw = site.local_wind(x=x_i, y=y_i, h=100, wd=wdir_lst, ws=wsp_lst)
 
     npt.assert_array_equal(lw.WS, [3, 4, 5])
     npt.assert_array_equal(lw.WD, wdir_lst)
@@ -167,7 +167,7 @@ def test_complex_fixed_pos_local_wind(complex_fixed_pos_site):
 
     wdir_lst = np.arange(0, 360, 90)
     wsp_lst = np.arange(3, 6)
-    lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=100, wd=wdir_lst, ws=wsp_lst)
+    lw = site.local_wind(x=x_i, y=y_i, h=100, wd=wdir_lst, ws=wsp_lst)
 
     npt.assert_array_equal(lw.WS, [3, 4, 5] * np.arange(.8, 1.3, .1)[:, na])
     npt.assert_array_equal(lw.WD, (wdir_lst + np.arange(-2, 3)[:, na]) % 360)
@@ -197,7 +197,7 @@ def test_complex_grid_local_wind(complex_grid_site):
 
     wdir_lst = np.arange(0, 360, 90)
     wsp_lst = np.arange(3, 6)
-    lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=100, wd=wdir_lst, ws=wsp_lst)
+    lw = site.local_wind(x=x, y=y, h=100, wd=wdir_lst, ws=wsp_lst)
     if 0:
         c = plt.contourf(X, Y, lw.WS.sel(ws=5).data.reshape(X.shape))
         plt.colorbar(c)
@@ -206,7 +206,7 @@ def test_complex_grid_local_wind(complex_grid_site):
         plt.colorbar(c)
         plt.show()
 
-    lw = site.local_wind(x_i=[2.5, 7.5], y_i=[2.5, 2.5], h_i=100, wd=wdir_lst, ws=wsp_lst)
+    lw = site.local_wind(x=[2.5, 7.5], y=[2.5, 2.5], h=100, wd=wdir_lst, ws=wsp_lst)
     npt.assert_array_almost_equal(lw.WS, [3, 4, 5] * np.array([0.95, 1.15])[:, na])
     npt.assert_array_equal(lw.WD, (wdir_lst + np.array([-.5, 1.5])[:, na]) % 360)
     npt.assert_array_equal(lw.TI, 0.1)
@@ -222,7 +222,7 @@ def test_complex_grid_local_wind_time(complex_grid_site):
     site.ds['TI'] = (['x', 'y', 'wd'], np.arange(3 * 2 * 13).reshape(3, 2, 13))
     wdir_lst = [0, 1, 2, 1, 0]
     wsp_lst = [9, 10, 9, 10, 11]
-    lw = site.local_wind(x_i=[2.5, 7.5], y_i=[2.5, 2.5], h_i=100, wd=wdir_lst, ws=wsp_lst, time=True)
+    lw = site.local_wind(x=[2.5, 7.5], y=[2.5, 2.5], h=100, wd=wdir_lst, ws=wsp_lst, time=True)
     assert lw.WS_ilk.shape == (2, 5, 1)
     assert lw.WD_ilk.shape == (2, 5, 1)
     assert lw.TI_ilk.shape == (2, 5, 1)
@@ -301,7 +301,7 @@ def test_wrong_height():
 
     wdir_lst = np.arange(0, 360, 90)
     wsp_lst = np.arange(3, 6)
-    lw = site.local_wind(x_i=x_i, y_i=y_i, h_i=100, wd=wdir_lst, ws=wsp_lst)
+    lw = site.local_wind(x=x_i, y=y_i, h=100, wd=wdir_lst, ws=wsp_lst)
 
 
 def test_wd_independent_site():
@@ -663,7 +663,7 @@ def test_gradients():
                  'Weibull_A_ilk', 'Weibull_k_ilk', 'Sector_frequency_ilk', 'P_ilk', 'TI_ilk']
     for data_var in data_vars[1:]:
         def t(x):
-            return site.local_wind(x, y, h_i=[100], wd=270, ws=10)[data_var]
+            return site.local_wind(x, y, h=[100], wd=270, ws=10)[data_var]
         ddx_lst = [grad(t, vector_interdependence=False)(x) for grad in [fd, cs, autograd]]
         npt.assert_allclose(ddx_lst[0], ddx_lst[1], rtol=1e-4)
         npt.assert_allclose(ddx_lst[1], ddx_lst[2])

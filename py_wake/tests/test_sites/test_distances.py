@@ -120,7 +120,7 @@ def test_iea37_distances():
     n_wt = 16  # must be 9, 16, 36, 64
     site = IEA37Site(n_wt)
     x, y = site.initial_position.T
-    lw = site.local_wind(x_i=x, y_i=y,
+    lw = site.local_wind(x=x, y=y,
                          wd=site.default_wd,
                          ws=site.default_ws)
     site.distance.setup(x, y, np.zeros_like(x))

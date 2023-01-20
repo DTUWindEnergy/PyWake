@@ -3,6 +3,7 @@ from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windfarm
 from py_wake import np
+import warnings
 
 
 def main():
@@ -19,7 +20,9 @@ def main():
                 plt.show()
             site = IEA37Site(n_wt)
             windTurbines = IEA37_WindTurbines(iea37_path + 'iea37-335mw.yaml')
-            wake_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', DeprecationWarning)
+                wake_model = IEA37SimpleBastankhahGaussian(site, windTurbines)
 
             aep = wake_model(x, y, wd=np.arange(0, 360, 22.5), ws=[9.8]).aep(normalize_probabilities=True)
 
