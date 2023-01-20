@@ -663,8 +663,9 @@ class All2AllIterative(EngineeringWindFarmModel):
                              WS_eff_ilk, TI_eff_ilk,
                              D_i, time,
                              I, L, K, **kwargs):
-        if any([np.iscomplexobj(v) for v in [kwargs.get(k, 0)
-                                             for k in ['x_ilk', 'y_ilk', 'h_ilk', 'D_i', 'yaw_ilk', 'tilt_ilk']]]):
+        if any([np.iscomplexobj(v) for v in ([kwargs.get(k, 0)
+                                              for k in ['x_ilk', 'y_ilk', 'h_ilk', 'D_i', 'yaw_ilk', 'tilt_ilk']] +
+                                             [ws, wd])]):
             dtype = np.complex128
         else:
             dtype = float

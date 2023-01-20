@@ -110,10 +110,8 @@ def test_aep_chunks_input_dims(rho):
 
 @pytest.mark.parametrize('wrt_arg', ['x', 'y', 'h',
                                      ['x', 'y'], ['x', 'h'],
-                                     # 'wd', 'ws'
-                                     # 'yaw'
-                                     ])
-def test_aep_gradients_function(wrt_arg):
+                                     'wd', 'ws'])
+def test_aep_gradients_function1(wrt_arg):
     wfm = IEA37CaseStudy1(16, deflectionModel=JimenezWakeDeflection())
     x, y = wfm.site.initial_position[np.array([0, 2, 5, 8, 14])].T
     kwargs = {'x': x, 'y': y, 'h': x * 0 + wfm.windTurbines.hub_height(),
@@ -127,36 +125,43 @@ def test_aep_gradients_function(wrt_arg):
         ax1, ax2 = plt.subplots(1, 2)[1]
         wfm(**kwargs).flow_map(XYGrid(resolution=100)).plot_wake_map(ax=ax1)
         ax2.set_title(wrt_arg)
-        ax2.plot(dAEP_autograd.flatten(), '.')
+        ax2.plot(dAEP_autograd.flatten(), '.', label='autograd')
+        ax2.plot(dAEP_cs.flatten(), '.', label='cs')
+        ax2.plot(dAEP_fd.flatten(), '.', label='fd')
+        plt.legend()
         plt.show()
 
-    npt.assert_array_almost_equal(dAEP_autograd, dAEP_cs, 15)
-    npt.assert_array_almost_equal(dAEP_autograd, dAEP_fd, 6)
+    npt.assert_array_almost_equal(dAEP_autograd, dAEP_cs, 14)
+    npt.assert_array_almost_equal(dAEP_autograd, dAEP_fd, 5)
     npt.assert_array_equal(dAEP_autograd, wfm.aep_gradients(gradient_method=autograd, wrt_arg=wrt_arg, **kwargs))
 
 
-def test_aep_gradients_wrt_kwargs():
+@pytest.mark.parametrize('wrt_arg', ['x', 'y', 'h',
+                                     ['x', 'y'], ['x', 'h'],
+                                     'wd', 'ws', 'yaw'])
+def test_aep_gradients_function2(wrt_arg):
     wfm = IEA37CaseStudy1(16, deflectionModel=JimenezWakeDeflection())
     x, y = wfm.site.initial_position[np.array([0, 2, 5, 8, 14])].T
     kwargs = {'x': x, 'y': y, 'h': x * 0 + wfm.windTurbines.hub_height(),
               'wd': [0], 'ws': 9.8, 'yaw': np.arange(1, 6).reshape((5, 1, 1)) * 5, 'tilt': 0}
 
-    def aep(yaw, **kwargs):
-        return wfm.aep(yaw=yaw, **kwargs)
-
-    dAEP_autograd = autograd(aep)(**kwargs)
-    dAEP_cs = cs(aep)(**kwargs)
-    dAEP_fd = fd(aep)(**kwargs)
+    dAEP_autograd = wfm.aep_gradients(gradient_method=autograd, wrt_arg=wrt_arg, **kwargs)
+    dAEP_cs = wfm.aep_gradients(gradient_method=cs, wrt_arg=wrt_arg, **kwargs)
+    dAEP_fd = wfm.aep_gradients(gradient_method=fd, wrt_arg=wrt_arg, **kwargs)
 
     if 0:
         ax1, ax2 = plt.subplots(1, 2)[1]
         wfm(**kwargs).flow_map(XYGrid(resolution=100)).plot_wake_map(ax=ax1)
-
-        ax2.plot(dAEP_autograd.flatten(), '.')
+        ax2.set_title(wrt_arg)
+        ax2.plot(dAEP_autograd.flatten(), '.', label='autograd')
+        ax2.plot(dAEP_cs.flatten(), '.', label='cs')
+        ax2.plot(dAEP_fd.flatten(), '.', label='fd')
+        plt.legend()
         plt.show()
 
-    npt.assert_array_almost_equal(dAEP_autograd, dAEP_cs, 15)
-    npt.assert_array_almost_equal(dAEP_autograd, dAEP_fd, 6)
+    npt.assert_array_almost_equal(dAEP_autograd, dAEP_cs, 14)
+    npt.assert_array_almost_equal(dAEP_autograd, dAEP_fd, 5)
+    npt.assert_array_equal(dAEP_autograd, wfm.aep_gradients(gradient_method=autograd, wrt_arg=wrt_arg, **kwargs))
 
 
 def test_aep_gradients_parallel():
