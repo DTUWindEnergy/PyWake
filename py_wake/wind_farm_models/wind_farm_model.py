@@ -347,8 +347,11 @@ class WindFarmModel(ABC):
         compute the gradients of the aep:
         gradient_function = wfm.aep_gradietns(autograd, ['x','y'])
         gradients = gradient_function(x,y)
+        This behaiour only works when wrt_arg is one or more of ['x','y','h','wd', 'ws']
+
         2) With additional key-word arguments, kwargs, the method returns the gradients of the aep:
         gradients = wfm.aep_gradients(autograd,['x','y'],x=x,y=y)
+        This behaviour also works when wrt_arg is a keyword argument, e.g. yaw
 
         Parameters
         ----------
@@ -375,12 +378,18 @@ class WindFarmModel(ABC):
                 gradient_method_kwargs=gradient_method_kwargs,
                 n_cpu=n_cpu, wd_chunks=wd_chunks, ws_chunks=ws_chunks, **kwargs)
 
-        argnum = [['x', 'y', 'h', 'type', 'wd', 'ws', 'yaw', 'tilt'].index(a) for a in np.atleast_1d(wrt_arg)]
-        f = gradient_method(self.aep, True, argnum, **gradient_method_kwargs)
-
         if kwargs:
-            return f(**kwargs)
+            wrt_arg = np.atleast_1d(wrt_arg)
+
+            def wrap_aep(*args, **kwargs):
+                kwargs.update({n: v for n, v in zip(wrt_arg, args)})
+                return self.aep(**kwargs)
+
+            f = gradient_method(wrap_aep, True, tuple(range(len(wrt_arg))), **gradient_method_kwargs)
+            return np.array(f(*[kwargs.pop(n) for n in wrt_arg], **kwargs))
         else:
+            argnum = [['x', 'y', 'h', 'type', 'wd', 'ws'].index(a) for a in np.atleast_1d(wrt_arg)]
+            f = gradient_method(self.aep, True, argnum, **gradient_method_kwargs)
             return f
 
     def _aep_gradients_kwargs(self, kwargs):
