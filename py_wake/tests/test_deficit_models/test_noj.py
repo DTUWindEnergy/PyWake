@@ -29,8 +29,8 @@ def test_NOJ_Nibe_result():
     y_i = [0, -40, -100]
     h_i = [50, 50, 50]
     wfm = All2AllIterative(site, NibeA0(), wake_deficitModel=NOJDeficit(), superpositionModel=LinearSum())
-    WS_eff_ilk = wfm.calc_wt_interaction(x_i, y_i, h_i, [0, 1, 1], 0.0, 8.1)[0]
-    npt.assert_array_almost_equal(WS_eff_ilk[:, 0, 0], [8.1, 4.35, 5.7])
+    WS_eff = wfm(x_i, y_i, h_i, type=[0, 1, 1], wd=0.0, ws=8.1).WS_eff
+    npt.assert_array_almost_equal(WS_eff.squeeze(), [8.1, 4.35, 5.7])
 
 
 def test_NOJ_Nibe_result_wake_map():
@@ -61,9 +61,9 @@ def test_NOJ_two_turbines_in_row(wdir, x, y):
     wfm = NOJ(site, windTurbines)
     wfm.verbose = False
     h_i = [50, 50, 50]
-    WS_eff_ilk = wfm.calc_wt_interaction(x, y, h_i, [0, 0, 0], wdir, 8.1)[0]
+    WS_eff = wfm(x, y, h_i, wd=wdir, ws=8.1).WS_eff
     ws_wt3 = 8.1 - np.hypot(8.1 * 2 / 3 * (20 / 26)**2, 8.1 * 2 / 3 * (20 / 30)**2)
-    npt.assert_array_almost_equal(WS_eff_ilk[:, 0, 0], [8.1, 4.35, ws_wt3])
+    npt.assert_array_almost_equal(WS_eff.squeeze(), [8.1, 4.35, ws_wt3])
 
 
 def test_NOJ_6_turbines_in_row():
@@ -74,9 +74,9 @@ def test_NOJ_6_turbines_in_row():
     site = UniformSite([1], 0.1)
     wfm = NOJ(site, NibeA0())
     wfm.verbose = False
-    WS_eff_ilk = wfm.calc_wt_interaction(x, y, [50] * n_wt, [0] * n_wt, 0.0, 11.0)[0]
+    WS_eff = wfm(x, y, 50, wd=0.0, ws=11.0).WS_eff.squeeze()
     npt.assert_array_almost_equal(
-        WS_eff_ilk[1:, 0, 0], 11 - np.sqrt(np.cumsum(((11 * 2 / 3 * 20**2)**2) / (20 + 8 * np.arange(1, 6))**4)))
+        WS_eff[1:], 11 - np.sqrt(np.cumsum(((11 * 2 / 3 * 20**2)**2) / (20 + 8 * np.arange(1, 6))**4)))
 
 
 def test_NOJLocal_6_turbines_in_row():
@@ -87,10 +87,8 @@ def test_NOJLocal_6_turbines_in_row():
     site = UniformSite([1], 0.1)
     wfm = NOJLocal(site, NibeA0(), turbulenceModel=STF2017TurbulenceModel())
     wfm.verbose = False
-    WS_eff_ilk = wfm.calc_wt_interaction(x, y, [50] * n_wt, [0] * n_wt, 0.0, 11.0)[0]
-    npt.assert_array_almost_equal(
-        WS_eff_ilk[1:, 0, 0], [5.62453869, 5.25806829, 5.64808912, 6.07792364,
-                               6.44549094])
+    WS_eff = wfm(x, y, 50, wd=0.0, ws=11.0).WS_eff
+    npt.assert_array_almost_equal(WS_eff.squeeze()[1:], [5.62453869, 5.25806829, 5.64808912, 6.07792364, 6.44549094])
 
 
 def test_NOJConvection():
@@ -103,6 +101,8 @@ def test_NOJConvection():
 def test_NOJLocal_ti_eff_dependence():
     site = UniformSite([1], 0.1)
     wfm = NOJLocal(site, NibeA0())
-
-    npt.assert_array_almost_equal(wfm([0, 40], [0, 0], wd=270, ws=[10, 10], TI=[[[.1, .2]]]).WS_eff.isel(wt=1),
-                                  [[4.32651153, 5.045581]])
+    sim_res = wfm([0, 40], [0, 0], wd=270, ws=[10, 10], TI=[[[.1, .2]]])
+    npt.assert_array_almost_equal(sim_res.TI.squeeze(), [.1, .2])
+    npt.assert_array_almost_equal(sim_res.TI_eff.squeeze(), [[.1, .2],
+                                                             [0.43738364, 0.47043007]])
+    npt.assert_array_almost_equal(sim_res.WS_eff.isel(wt=1), [[4.32651153, 5.045581]])

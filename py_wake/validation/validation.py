@@ -12,7 +12,7 @@ import xarray as xr
 from py_wake.validation.lillgrund import SWT2p3_93_65
 from py_wake.validation.ecn_wieringermeer import N80
 from py_wake.examples.data.hornsrev1 import HornsrevV80
-from py_wake.wind_turbines.power_ct_functions import PowerCtFunction, PowerCtTabular
+from py_wake.wind_turbines.power_ct_functions import PowerCtFunction
 from py_wake.wind_turbines._wind_turbines import WindTurbine
 
 
@@ -150,7 +150,7 @@ class WindRosePlot():
             elif key == 'LES':
                 ax.plot(dat[:, 0], dat[:, 1], color=cLES, linewidth=lw, label='LES')
 
-            for co, (wfm_name, (sim_res, ls)) in zip(colors, result_dict.items()):
+            for co, (wfm_name, (sim_res, _)) in zip(colors, result_dict.items()):
                 norm = len(sim_res.wt) * sim_res.windFarmModel.windTurbines.power(sim_res.ws)
                 ax.plot(sim_res.wd, sim_res.Power.squeeze().sum('wt') / norm, color=co, lw=lw, label=wfm_name)
                 # ax.plot(sim_res.wd, sim_res.PowerGA.squeeze().sum('wt') / norm, color=co, dashes=[5, 2], label=wfm_name)
@@ -188,17 +188,17 @@ class RowPlot():
                         label='RANS', marker='.')
                 ax.plot(dat[:, 0], dat[:, 2], color=cRANS, dashes=[5, 2], linewidth=lw,
                         label='RANS (gaus avg)', marker='.')
-        for co, (wfm_name, (sim_res, ls)) in zip(colors, result_dict.items()):
+        for co, (wfm_name, (sim_res, _)) in zip(colors, result_dict.items()):
             wt_i = np.arange(len(self.wts)) + 1
             sim_res = sim_res[['Power', 'PowerGA']].sel(wd=(np.arange(-3, 4) + self.wd) % 360).mean('wd').squeeze()
 
             if case.case_name == 'Hornsrev1':
-                Power, PowerGa = sim_res.to_array().values.reshape(2, 10, 8)[:, :, 1:6].sum(2)
+                Power = sim_res.to_array().values.reshape(2, 10, 8)[:, :, 1:6].sum(2)[0]
                 # Power, PowerGa = [P.reshape((10, 6)).mean(1) for P in [Power, PowerGa]]
                 wt_i = np.arange(1, 11)
             else:
                 sim_res = sim_res.sel(wt=[(v, 0)[int(np.isnan(v))] for v in self.wts])
-                Power, PowerGa = [np.where(~np.isnan(np.array(self.wts)), arr, np.nan) for arr in sim_res.to_array()]
+                Power = [np.where(~np.isnan(np.array(self.wts)), arr, np.nan) for arr in sim_res.to_array()[0]]
 
             ax.plot(wt_i, Power / Power[0], color=co, lw=lw, label=wfm_name, marker='.')
 
@@ -226,7 +226,7 @@ class MultiWakeValidationCase(ValidationCase):
         windFarmModel.site = self.site
         windFarmModel.windTurbines = self.windTurbines
         x, y = self.site.initial_position.T
-        sim_res = windFarmModel(x, y)
+        sim_res = windFarmModel(x, y, yaw=0)
 
         powerGA = np.zeros(sim_res.Power.shape)
         for iAD in range(len(x)):
@@ -367,7 +367,7 @@ class Validation():
                     if len(data) > 20:
                         int_vel_def = integrate_velocity_deficit_arc(data[:, 0], data[:, 1] * case.U0, xD, case.U0)
                         ax.bar(ibar, int_vel_def, width=0.5, color=co, edgecolor=co, label=label)
-            for ibar, (co, (wfm_name, (wfm, ls))) in enumerate(zip(colors, self.windFarmModel_dict.items()), 3):
+            for ibar, (co, (wfm_name, (wfm, _))) in enumerate(zip(colors, self.windFarmModel_dict.items()), 3):
                 wd, ws_lst = case.get_result(wfm)
                 for ax, ws, xD in zip(axes, ws_lst, case.xD):
                     int_vel_def = integrate_velocity_deficit_arc(wd, ws * case.U0, xD, case.U0)

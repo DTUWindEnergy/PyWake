@@ -7,7 +7,6 @@ import os
 import psutil
 import memory_profiler
 import ctypes
-from pathlib import Path
 import linecache
 import warnings
 
@@ -82,7 +81,7 @@ def compare_lineprofile(lp1, lp2, include_gt_pct=None):  # pragma: no cover
         print('=' * len(header))
 
         print(template % (lineno1, "", "", "", "", "", "", lines[lineno1 - 1]))
-        for (lineno1, hits1, time1), (lineno2, hits2, time2) in zip(timings1, timings2):
+        for (lineno1, hits1, time1), (lineno2, _, time2) in zip(timings1, timings2):
             pct_time = (time1 / total1 * 100)
             if include_gt_pct is None or pct_time > include_gt_pct:
                 print(template % (lineno1, hits1, time1 / 1000, time2 / 1000,

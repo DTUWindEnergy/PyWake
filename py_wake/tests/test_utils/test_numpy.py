@@ -105,7 +105,7 @@ def check_numpy32(wfm, name):
     else:
         x, y = IEA37Site(16).initial_position.T
     h = wfm.windTurbines.hub_height() + np.arange(len(x))
-    kwargs = {'x': x, 'y': y, 'h': h, 'wd': [0, 90, 180, 270], 'ws': [8, 9, 10]}
+    kwargs = {'x': x, 'y': y, 'h': h, 'wd': [0, 90, 180, 270], 'ws': [8, 9, 10], 'yaw': 0, 'tilt': 0}
     with Numpy32():
         aep_32 = wfm(**kwargs).aep()
     assert aep_32.dtype.name == 'float32'

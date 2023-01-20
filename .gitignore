@@ -120,3 +120,9 @@ archieve
 /docs/validation_report/report/figures/*.pdf
 /py_wake/tests/test_files/speed_check
 /use_cases
+/.vs
+/.project
+/.project_old
+/.pydevproject
+/.pydevproject_old
+/.settings/org.eclipse.core.resources.prefs

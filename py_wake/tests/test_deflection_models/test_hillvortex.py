@@ -47,7 +47,7 @@ def test_torque_result():
         plt.figure(figsize=(12, 3))
 
         grid = XYGrid(x=np.linspace(-2 * D, D * 10, 100), y=np.linspace(-1.5 * D, 1.5 * D, 100))
-        fm = wfm(x, y, yaw=yaw, wd=270, ws=ws).flow_map(grid)
+        fm = wfm(x, y, yaw=yaw, tilt=0, wd=270, ws=ws).flow_map(grid)
         fm.plot_wake_map(normalize_with=D)
         center_line = fm.min_WS_eff()
         plt.title(f'Yaw {yaw}deg')
@@ -74,7 +74,7 @@ def test_N():
     def deflection_20d(N):
         wfm = ZongGaussian(site, wt, deflectionModel=GCLHillDeflection(N=N),
                            turbulenceModel=CrespoHernandez())
-        fm = wfm(x, y, yaw=30, wd=270, ws=10).flow_map(grid)
+        fm = wfm(x, y, yaw=30, tilt=0, wd=270, ws=10).flow_map(grid)
         return fm.min_WS_eff().values[-1]
 
     N_lst = [10, 20, 100]
@@ -104,5 +104,5 @@ def test_wake_deficitModel_input():
                               turbulenceModel=CrespoHernandez())
 
     grid = XYGrid(x=np.linspace(10, D * 10, 100), y=np.linspace(-1.5 * D, 1.5 * D, 100))
-    cl1, cl2 = [wfm(x, y, yaw=30, wd=270, ws=10).flow_map(grid).min_WS_eff() for wfm in [wfm1, wfm2]]
+    cl1, cl2 = [wfm(x, y, yaw=30, tilt=0, wd=270, ws=10).flow_map(grid).min_WS_eff() for wfm in [wfm1, wfm2]]
     npt.assert_array_almost_equal(cl1, cl2, 3)

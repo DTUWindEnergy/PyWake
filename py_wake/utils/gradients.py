@@ -25,7 +25,8 @@ from autograd.numpy.numpy_vjps import unbroadcast_f
 def asarray(x, dtype=None, order=None):
     if isinstance(x, (ArrayBox)):
         return x
-    elif isinstance(x, DataArray) and isinstance(x.values, ArrayBox):
+    elif isinstance(x, DataArray) and isinstance(x.values, ArrayBox):  # pragma: no cover
+        # only needed or called with some versions of xarray
         return x.values
     return np_asarray(x, dtype, order)
 
@@ -349,6 +350,10 @@ def modf(i):
 
 def arctan2(y, x):
     if np.iscomplexobj(y) or np.iscomplexobj(x):
+        if np.shape(y) != np.shape(x):
+            shape = np.maximum(np.shape(x), np.shape(y))
+            x = np.broadcast_to(x, shape)
+            y = np.broadcast_to(y, shape)
         r = np.atleast_1d(np.sign(y.real) * np.pi / 2).astype(np.complex128)
         m = x.real != 0
         r[m] = np.arctan(np.atleast_1d(y)[m] / np.atleast_1d(x)[m])

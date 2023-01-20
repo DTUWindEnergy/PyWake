@@ -84,7 +84,7 @@ def main():
         from py_wake import NOJ
         import matplotlib.pyplot as plt
         plt.close('all')
-        u = np.arange(3, 28, 1)
+        u = np.arange(6, 25, 1)
         # u = np.array([10, 13])
         # ===============================================================================================================
         # DTU10MW_1WT_Surrogate
@@ -93,7 +93,7 @@ def main():
         # plot power/ct curves
         ax1 = plt.gca()
         ax2 = plt.twinx()
-        for ti in [0.01, .05, .1, .3]:
+        for ti in [.05, .1, .3]:
             power, ct = wt.power_ct(u, TI_eff=ti)
             ax1.plot(u, power / 1000, label=f'TI={ti}')
             ax2.plot(u, ct, '--')
@@ -104,7 +104,7 @@ def main():
         plt.figure()
         ax1 = plt.gca()
         ax2 = plt.twinx()
-        for alpha in [-0.09, .1, .3, .49]:
+        for alpha in [-0.09, .1, .3, .44]:
             power, ct = wt.power_ct(u, TI_eff=.1, Alpha=alpha)
             ax1.plot(u, power / 1000, label=f'Alpha={alpha}')
             ax2.plot(u, ct, '--')
@@ -115,11 +115,11 @@ def main():
         # plot load curves
         sensors = wt.loadFunction.output_keys
         axes = [plt.figure().gca() for _ in sensors]
-        for ti in [0.01, .05, .1, .3]:
+        for ti in [.05, .1, .3]:
             loads = wt.loads(u, TI_eff=ti)
             for ax, l in zip(axes, loads):
                 ax.plot(u, l, label=f'TI={ti}')
-        for alpha in [-0.09, .1, .3, .49]:
+        for alpha in [-0.09, .1, .3, .44]:
             loads = wt.loads(u, TI_eff=.1, Alpha=alpha, yaw=0)
             for ax, l in zip(axes, loads):
                 ax.plot(u, l, '--', label=f'Alpha={alpha}')
@@ -131,7 +131,7 @@ def main():
         plt.figure()
         site = Hornsrev1Site()
         x, y = [0, 1000], [0, 0]
-        sim_res = NOJ(site, wt, turbulenceModel=STF2017TurbulenceModel())(x, y, ws=np.arange(3, 28), Alpha=.12, yaw=0)
+        sim_res = NOJ(site, wt, turbulenceModel=STF2017TurbulenceModel())(x, y, ws=np.arange(7, 25), Alpha=.12, yaw=0)
         load_wd_averaged = sim_res.loads(normalize_probabilities=True, method='OneWT_WDAvg')
         loads = sim_res.loads(normalize_probabilities=True, method='OneWT')
         loads.DEL.isel(sensor=0, wt=0).plot()

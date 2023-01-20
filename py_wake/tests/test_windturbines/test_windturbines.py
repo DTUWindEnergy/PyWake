@@ -14,6 +14,7 @@ from py_wake.utils.gradients import autograd, plot_gradients
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.wind_turbines import WindTurbines, WindTurbine, OneTypeWindTurbines
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
+import warnings
 
 
 def get_wfms(wt, site=Hornsrev1Site(), wake_model=NOJDeficit(), superpositionModel=SquaredSum()):
@@ -39,15 +40,17 @@ class V80Deprecated(OneTypeWindTurbines):
 
 def test_DeprecatedWindTurbines():
     v80 = V80Deprecated()
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', category=DeprecationWarning)
+        v80d = WindTurbines(names=['V80'], diameters=[80], hub_heights=[70],
+                            ct_funcs=v80._ct_funcs, power_funcs=v80._power_funcs, power_unit='w')
 
-    for wts in [v80,
-                WindTurbines(names=['V80'], diameters=[80], hub_heights=[70],
-                             ct_funcs=v80._ct_funcs, power_funcs=v80._power_funcs, power_unit='w')]:
+    for wts in [v80, v80d]:
 
         types0 = [0] * 9
         for wfm in get_wfms(wts):
             npt.assert_array_equal(wts.types(), [0])
-            npt.assert_almost_equal(wfm.aep(wt9_x, wt9_y, type=types0), 81.2066072392765)
+            npt.assert_almost_equal(wfm.aep(wt9_x, wt9_y, type=types0, yaw=0), 81.2066072392765)
 
 
 def test_WindTurbines():
@@ -90,7 +93,9 @@ def test_twotype_windturbines():
                           hornsrev1.power_curve[:, 0], hornsrev1.power_curve[:, 1] * 1.1, 'w',
                           hornsrev1.ct_curve[:, 1]))
 
-    wts = WindTurbines.from_WindTurbines([v80, v88])
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', category=DeprecationWarning)
+        wts = WindTurbines.from_WindTurbines([v80, v88])
 
     types0 = [0] * 9
     types1 = [0, 0, 0, 1, 1, 1, 0, 0, 0]

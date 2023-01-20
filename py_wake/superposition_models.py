@@ -123,6 +123,8 @@ class WeightedSum(SuperpositionModel):
             # Initialize
             count = 0
             Uc_star = 10 * Uc
+            if np.iscomplexobj(Ws) or np.iscomplexobj(uc):
+                Uc_star = Uc_star.astype(np.complex128)
             tmp1, tmp2 = np.zeros_like(us), np.zeros_like(us)
             tmpUS, tmpUSint = np.zeros_like(us), np.zeros_like(us)
             sum1, sum2, ucn = np.zeros_like(Us), np.zeros_like(Us), np.ones_like(uc)
@@ -170,7 +172,7 @@ class WeightedSum(SuperpositionModel):
                         if Ilxx.any():
                             # To keep the shape, arrays are repeated and a dummy initilized
                             # Instead of a dummy one could use a loop, but this seemed faster
-                            tmp2 = np.zeros(((len(k),) + sigma_sqr.shape[1:]))
+                            tmp2 = np.zeros(((len(k),) + sigma_sqr.shape[1:]), dtype=sigma_sqr.dtype)
                             s1, s2 = np.repeat(sigma_sqr[j][na], len(k), axis=0)[Ilxx], sigma_sqr[k][Ilxx]
                             w2w_hcw = cabs(hcw[j][na] - hcw[k])[Ilxx]
                             w2w_dh = cabs(dh[j][na] - dh[k])[Ilxx]

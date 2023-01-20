@@ -40,20 +40,12 @@ class ilk():
 def ilk2da(v_ilk, coords, desc=None):
     dim_i = ('i', 'wt')['wt' in coords]
     dims = [d for i, d in enumerate([dim_i, ('wd', 'time')['time' in coords], 'ws'])
-            if v_ilk.shape[i] > 1]
+            if (v_ilk.shape[i] > 1) or (v_ilk.shape[i] == 0)]
     coords = {k: v for k, v in coords.items() if k in dims}
     attrs = {}
     if desc:
         attrs = {'description': desc}
     return xr.DataArray(v_ilk.squeeze(), dims=dims, coords=coords, attrs=attrs)
-
-
-def ijlk2da(v_ijlk, coords):
-    dim_i = ('i', 'wt')['wt' in coords]
-    dims = [d for s, d in zip(v_ijlk.shape, [dim_i, dim_i, ('wd', 'time')['time' in coords], 'ws'])
-            if s > 1]
-    coords = {k: v for k, v in coords.items() if k in dims}
-    return xr.DataArray(v_ijlk.squeeze(), dims=dims, coords=coords)
 
 
 class interp_ilk():

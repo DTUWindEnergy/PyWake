@@ -1,4 +1,4 @@
-from py_wake.flow_map import HorizontalGrid, YZGrid, Points, XYGrid
+from py_wake.flow_map import HorizontalGrid, YZGrid, Points, XYGrid, XZGrid
 from py_wake.tests import npt
 import matplotlib.pyplot as plt
 from py_wake import np
@@ -250,7 +250,7 @@ def test_min_ws_eff_line():
     yaw_ilk = np.reshape([-30, 30, 0], (3, 1, 1))
 
     plt.figure(figsize=(14, 3))
-    fm = wfm(x, y, yaw=yaw_ilk, wd=270, ws=10).flow_map(
+    fm = wfm(x, y, yaw=yaw_ilk, tilt=0, wd=270, ws=10).flow_map(
         XYGrid(x=np.arange(-100, 2000, 10), y=np.arange(-500, 500, 10)))
     min_ws_line = fm.min_WS_eff()
 
@@ -273,7 +273,7 @@ def test_plot_windturbines_with_wd_ws_dependent_yaw():
     yaw_ilk = np.broadcast_to(np.reshape([-30, 30, 0], (3, 1, 1)), (3, 4, 2))
 
     plt.figure(figsize=(14, 3))
-    fm = wfm(x, y, yaw=yaw_ilk, wd=[0, 90, 180, 270], ws=[9, 10]).flow_map(
+    fm = wfm(x, y, yaw=yaw_ilk, tilt=0, wd=[0, 90, 180, 270], ws=[9, 10]).flow_map(
         XYGrid(x=np.arange(-100, 2000, 10), y=np.arange(-500, 500, 10)))
 
     fm.plot_windturbines()
@@ -404,3 +404,12 @@ def test_i_dependent_flow_map():
     fm = sim_res.flow_map(Points(x=X.flatten(), y=Y.flatten(), h=X.flatten() * 0 + 110))
     with pytest.raises(NotImplementedError, match="Plot not supported for FlowMaps based on Points. Use XYGrid, YZGrid or XZGrid instead"):
         fm.plot_wake_map()
+
+
+def test_plot_windturbines_with_tilt_and_yaw():
+    wfm = IEA37CaseStudy1(16, deflectionModel=JimenezWakeDeflection())
+    sim_res = wfm(x=[0], y=[0], wd=[270], yaw=[20], tilt=10)
+    sim_res.flow_map(XZGrid(y=0)).plot_wake_map()
+    if 0:
+        plt.show()
+    plt.close('all')

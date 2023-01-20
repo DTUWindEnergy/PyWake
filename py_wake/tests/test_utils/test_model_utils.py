@@ -46,7 +46,6 @@ def test_get_model_input():
     npt.assert_array_almost_equal(args['dw_ijlk'], [[[[1000]]]])
     npt.assert_array_almost_equal(args['hcw_ijlk'], [[[[0]]]])
     npt.assert_array_almost_equal(args['dh_ijlk'], [[[[0]]]])
-    npt.assert_array_almost_equal(args['yaw_ilk'], [[[0]]])
     npt.assert_array_almost_equal(args['WS_ilk'], [[[10]]])
     npt.assert_array_almost_equal(args['ct_ilk'], [[[8 / 9]]])
 

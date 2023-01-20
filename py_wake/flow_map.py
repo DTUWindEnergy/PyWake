@@ -204,28 +204,43 @@ class FlowMap(FlowBox):
     def plot_windturbines(self, normalize_with=1, ax=None):
         fm = self.windFarmModel
 
-        def get(k):
-            v = self.simulationResult[k]
-            if 'wd' in v.dims:
-                v = v.sel(wd=self.wd[0])
-            if 'ws' in v.dims:
-                v = v.mean(['ws'])
-            return v.data
-
-        yaw, tilt = get('yaw'), get('tilt')
-
         x_i, y_i = self.simulationResult.x.values, self.simulationResult.y.values
         type_i = self.simulationResult.type.data
         if self.plane[0] in ['XZ', "YZ"]:
             h_i = self.simulationResult.h.values
-            z_i = self.simulationResult.windFarmModel.site.elevation(x_i, y_i)
-            if self.plane[0] == 'XZ':
-                fm.windTurbines.plot_yz(x_i, z_i, h_i, types=type_i, wd=self.wd - 90, yaw=yaw, tilt=tilt,
-                                        normalize_with=normalize_with, ax=ax)
-            else:
-                fm.windTurbines.plot_yz(y_i, z_i, h_i, types=type_i, wd=self.wd, yaw=yaw, tilt=tilt,
-                                        normalize_with=normalize_with, ax=ax)
+            x_ilk, y_ilk = self.simulationResult.x.ilk(), self.simulationResult.y.ilk()
+
+            z_ilk = self.simulationResult.windFarmModel.site.elevation(x_ilk, y_ilk)
+            for l in range(x_ilk.shape[1]):
+                for k in range(x_ilk.shape[2]):
+
+                    wd = self.wd.isel(wd=l) - 90
+
+                    def get(n):
+                        shape = len(x_ilk), len(self.simulationResult.wd), len(self.simulationResult.ws)
+                        if n not in self.simulationResult:
+                            return 0
+                        v = self.simulationResult[n].ilk(shape)
+                        return v[:, l, k]
+                    yaw, tilt = get('yaw'), get('tilt')
+                    if self.plane[0] == 'XZ':
+                        fm.windTurbines.plot_yz(x_ilk[:, l, k], z_ilk[:, l, k], h_i, types=type_i, wd=wd, yaw=yaw, tilt=tilt,
+                                                normalize_with=normalize_with, ax=ax)
+                    else:
+                        fm.windTurbines.plot_yz(y_i, z_ilk[:, l, k], h_i, types=type_i, wd=self.wd, yaw=yaw, tilt=tilt,
+                                                normalize_with=normalize_with, ax=ax)
         else:  # self.plane[0] == "XY":
+            def get(k):
+                if k not in self.simulationResult:
+                    return 0
+                v = self.simulationResult[k]
+                if 'wd' in v.dims:
+                    v = v.sel(wd=self.wd[0])
+                if 'ws' in v.dims:
+                    v = v.mean(['ws'])
+                return v.data
+
+            yaw, tilt = get('yaw'), get('tilt')
             fm.windTurbines.plot_xy(x_i, y_i, type_i,
                                     wd=self.wd.values, yaw=yaw, tilt=tilt, normalize_with=normalize_with, ax=ax)
 
@@ -319,8 +334,8 @@ class FlowMap(FlowBox):
 
         from py_wake.utils.model_utils import get_model_input
         kwargs = get_model_input(self.windFarmModel, X.flatten(), Y.flatten(), ws=self.ws, wd=self.wd,
-                                 yaw=self.simulationResult.yaw.ilk())
-        dw, hcw, dh = self.windFarmModel.deflectionModel.calc_deflection(**kwargs)
+                                 yaw=self.simulationResult.yaw.ilk(), tilt=self.simulationResult.tilt.ilk())
+        hcw = self.windFarmModel.deflectionModel.calc_deflection(**kwargs)[1]
         Yp = -hcw[0, :, 0, 0].reshape(X.shape)
         ax = ax or plt.gca()
         X, Y, Yp = [v / normalize_with for v in [X, Y, Yp]]
@@ -421,8 +436,8 @@ class YZGrid(Grid):
     def __call__(self, x_i, y_i, h_i, d_i):
         # setup horizontal X,Y grid
         def f(x, N=self.resolution, ext=self.extend):
-            ext *= max(1000, (max(x) - min(x)))
-            return np.linspace(min(x) - ext, max(x) + ext, N)
+            ext *= max(1000, (np.max(x) - np.min(x)))
+            return np.linspace(np.min(x) - ext, np.max(x) + ext, N)
         x, y, z = self.x, self.y, self.z
         if y is None:
             y = f(y_i)
@@ -464,8 +479,8 @@ class XZGrid(YZGrid):
     def __call__(self, x_i, y_i, h_i, d_i):
         # setup horizontal X,Y grid
         def f(x, N=self.resolution, ext=self.extend):
-            ext *= max(1000, (max(x) - min(x)))
-            return np.linspace(min(x) - ext, max(x) + ext, N)
+            ext *= max(1000, (np.max(x) - np.min(x)))
+            return np.linspace(np.min(x) - ext, np.max(x) + ext, N)
         x, y, z = self.x, self.y, self.z
         if x is None:
             x = f(x_i)

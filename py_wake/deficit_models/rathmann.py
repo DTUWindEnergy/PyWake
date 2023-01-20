@@ -1,9 +1,10 @@
 from py_wake import np
 from numpy import newaxis as na
-from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
 from py_wake.utils.gradients import hypot
 from py_wake.deficit_models.utils import a0
+from py_wake.wind_turbines._wind_turbines import WindTurbine
+from py_wake.wind_turbines.power_ct_functions import PowerCtFunctions
 
 
 class Rathmann(BlockageDeficitModel):
@@ -148,7 +149,6 @@ def main():
         from py_wake.examples.data.iea37._iea37 import IEA37Site
         from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
         from py_wake.site._site import UniformSite
-        from py_wake.wind_turbines import OneTypeWindTurbines
         from py_wake.superposition_models import LinearSum
         from py_wake.wind_farm_models import All2AllIterative
         from py_wake.deficit_models.no_wake import NoWakeDeficit
@@ -231,10 +231,11 @@ def main():
         plt.title('Rathmann model, AEP: %.3f GWh' % aep)
         plt.show()
 
-        class epfl_model_wt(OneTypeWindTurbines):
+        class epfl_model_wt(WindTurbine):
             def __init__(self):
-                OneTypeWindTurbines.__init__(self, 'NREL 5MW', diameter=2, hub_height=1,
-                                             ct_func=self._ct, power_func=self._power, power_unit='W')
+                WindTurbine.__init__(self, 'NREL 5MW', diameter=2, hub_height=1,
+                                     powerCtFunction=PowerCtFunctions(power_function=self._power, power_unit='w',
+                                                                      ct_function=self._ct))
 
             def _ct(self, u):
                 ct = 0.798

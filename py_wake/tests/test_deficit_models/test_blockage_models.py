@@ -178,8 +178,7 @@ def test_All2AllIterative_all_blockage_DeficitModels_with_RotorAvg(deficitModel)
                                 wake_deficitModel=NoWakeDeficit(),
                                 blockage_deficitModel=deficitModel(rotorAvgModel=CGIRotorAvg(4)),
                                 turbulenceModel=STF2017TurbulenceModel())
-    sim_res = wf_model([0, 500, 1000, 1500], [0, 0, 0, 0],
-                       wd=270, ws=10)
+    sim_res = wf_model([0, 500, 1000, 1500], [0, 0, 0, 0], yaw=0, wd=270, ws=10)
 
     if 0:
         sim_res.flow_map(
@@ -201,11 +200,12 @@ def test_All2AllIterative_Blockage_Deficit_RotorAvg():
                                     blockage_deficitModel=SelfSimilarityDeficit(rotorAvgModel=rotorAvgModel))
         sim_res = wf_model(x, y, operating=operation, wd=270, ws=10)
 
-        plt.plot(y[1:], sim_res.WS_eff.values[1:, 0, 0], label=rotorAvgModel.__class__.__name__)
-
-        # print(sim_res.WS_eff[2, 0, 0].item())
+        if 0:
+            # print(sim_res.WS_eff[2, 0, 0].item())
+            plt.plot(y[1:], sim_res.WS_eff.values[1:, 0, 0], label=rotorAvgModel.__class__.__name__)
+            plt.legend()
+            plt.figure()
+            sim_res.flow_map().plot_wake_map()
+            plt.show()
         npt.assert_almost_equal(sim_res.WS_eff[2, 0, 0].item(), ref)
-    if 0:
-        plt.legend()
-        plt.show()
     plt.close('all')

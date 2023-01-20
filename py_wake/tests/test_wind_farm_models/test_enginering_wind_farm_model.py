@@ -1,4 +1,5 @@
 import os
+import warnings
 
 from numpy import newaxis as na
 import pytest
@@ -8,8 +9,7 @@ import pandas as pd
 from py_wake import NOJ, examples
 from py_wake import np
 from py_wake.deficit_models.fuga import FugaDeficit
-from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit, BastankhahGaussian,\
-    IEA37SimpleBastankhahGaussian
+from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit, BastankhahGaussian
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
@@ -17,23 +17,23 @@ from py_wake.deflection_models.jimenez import JimenezWakeDeflection
 from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y, V80
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.flow_map import HorizontalGrid
+from py_wake.literature.iea37_case_study1 import IEA37CaseStudy1
+from py_wake.rotor_avg_models.rotor_avg_model import CGIRotorAvg
 from py_wake.site._site import UniformSite
-from py_wake.superposition_models import LinearSum, SuperpositionModel
+from py_wake.superposition_models import LinearSum
 from py_wake.superposition_models import SquaredSum, WeightedSum
 from py_wake.tests import npt
 from py_wake.turbulence_models.stf import STF2005TurbulenceModel
 from py_wake.utils.gradients import autograd, cs, fd, plot_gradients
+from py_wake.utils.model_utils import get_models
 from py_wake.utils.profiling import profileit
-from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind, EngineeringWindFarmModel
+from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.wind_turbines import WindTurbines
-from py_wake.wind_turbines.power_ct_functions import PowerCtFunctionList, PowerCtTabular
-from py_wake.wind_turbines.wind_turbines_deprecated import DeprecatedOneTypeWindTurbines
+from py_wake.wind_turbines._wind_turbines import WindTurbine
+from py_wake.wind_turbines.power_ct_functions import PowerCtFunctionList, PowerCtTabular, PowerCtFunctions
+
 import xarray as xr
-from py_wake.rotor_avg_models.rotor_avg_model import CGIRotorAvg
-import warnings
-from py_wake.literature.iea37_case_study1 import IEA37CaseStudy1
-from py_wake.utils.model_utils import get_models
 
 
 WindFarmModel.verbose = False
@@ -109,15 +109,15 @@ def test_wec():
 def test_str():
     site = IEA37Site(16)
     windTurbines = IEA37_WindTurbines()
-    wf_model = All2AllIterative(site, windTurbines,
-                                wake_deficitModel=NOJDeficit(),
-                                superpositionModel=SquaredSum(),
-                                blockage_deficitModel=SelfSimilarityDeficit(),
-                                rotorAvgModel=CGIRotorAvg(4),
-                                deflectionModel=JimenezWakeDeflection(),
-                                turbulenceModel=STF2005TurbulenceModel())
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', DeprecationWarning)
+        wf_model = All2AllIterative(site, windTurbines,
+                                    wake_deficitModel=NOJDeficit(),
+                                    superpositionModel=SquaredSum(),
+                                    blockage_deficitModel=SelfSimilarityDeficit(),
+                                    rotorAvgModel=CGIRotorAvg(4),
+                                    deflectionModel=JimenezWakeDeflection(),
+                                    turbulenceModel=STF2005TurbulenceModel())
         assert str(wf_model) == "All2AllIterative(EngineeringWindFarmModel, NOJDeficit-wake, SelfSimilarityDeficit-blockage, SquaredSum-superposition, JimenezWakeDeflection-deflection, STF2005TurbulenceModel-turbulence)"
 
 
@@ -131,7 +131,8 @@ def test_huge_flow_map(wake_deficitModel, deflectionModel, superpositionModel):
                                    superpositionModel=superpositionModel, deflectionModel=deflectionModel,
                                    turbulenceModel=STF2005TurbulenceModel())
     n_wt = 2
-    flow_map = wake_model(*site.initial_position[:n_wt].T, wd=[0]).flow_map(HorizontalGrid(resolution=810))
+    flow_map = wake_model(*site.initial_position[:n_wt].T, wd=[0], tilt=0,
+                          yaw=0).flow_map(HorizontalGrid(resolution=810))
     # check that deficit matrix > 10MB (i.e. it enters the memory saving loop)
     assert (np.prod(flow_map.WS_eff_xylk.shape) * n_wt * 8 / 1024**2) > 10
     assert flow_map.WS_eff_xylk.shape == (810, 810, 1, 1)
@@ -207,17 +208,9 @@ def test_dAEP_2wt():
 
         return power
 
-    def dpower(wsp):
-        return np.where((wsp > wsp_cut_in) & (wsp <= wsp_rated),
-                        3 * power_rated * (wsp - wsp_cut_in)**2 /
-                        (wsp_rated - wsp_cut_in)**3, 0)
+    wt = WindTurbine(name='test', diameter=130, hub_height=110,
+                     powerCtFunction=PowerCtFunctions(power_function=power, power_unit='w', ct_function=ct))
 
-    def dct(wsp):
-        return wsp * 0  # constant ct
-
-    wt = DeprecatedOneTypeWindTurbines(name='test', diameter=130, hub_height=110,
-                                       ct_func=ct, power_func=power, power_unit='w')
-    wt.set_gradient_funcs(dpower, dct)
     wfm = PropagateDownwind(site, wt, IEA37SimpleBastankhahGaussianDeficit())
 
     # plot 2 wt case
@@ -290,7 +283,6 @@ def test_double_wind_farm_model():
 def test_double_wind_farm_model_All2AllIterative():
     """Check that a new wind farm model does not change results of previous"""
     site = IEA37Site(64)
-    x, y = site.initial_position.T
     x, y = wt_x, wt_y
     windTurbines = IEA37_WindTurbines()
     wfm = All2AllIterative(site, windTurbines, wake_deficitModel=IEA37SimpleBastankhahGaussianDeficit())
@@ -307,9 +299,9 @@ def test_All2AllIterative_initialize_with_PropagateDownwind():
 
     wfm = All2AllIterative(site, windTurbines, wake_deficitModel=NOJDeficit(),
                            blockage_deficitModel=SelfSimilarityDeficit())
-    res1 = wfm.calc_wt_interaction(x, y)[0]
+    res1 = wfm(x, y).WS_eff
     i1 = wfm.iterations
-    res2 = wfm.calc_wt_interaction(x, y, WS_eff_ilk=0)[0]
+    res2 = wfm(x, y, WS_eff=0).WS_eff
     i2 = wfm.iterations
     npt.assert_array_almost_equal(res1, res2)
     assert i1 <= i2
@@ -431,14 +423,13 @@ def test_time_series_aep_chunks():
     site = Hornsrev1Site()
     x, y = site.initial_position.T
     wfm = NOJ(site, wt)
-    sim_res_ref, t_ref, mem_ref = profileit(wfm.__call__)(x, y, ws=ws, wd=wd, time=True, verbose=False)
-    sim_res, t, mem = profileit(wfm.__call__)(x, y, ws=ws, wd=wd, time=True, wd_chunks=4, verbose=False)
+    sim_res_ref, *_ = profileit(wfm.__call__)(x, y, ws=ws, wd=wd, time=True, verbose=False)
+    sim_res, *_ = profileit(wfm.__call__)(x, y, ws=ws, wd=wd, time=True, wd_chunks=4, verbose=False)
     npt.assert_almost_equal(sim_res.aep().sum(), sim_res_ref.aep().sum())
     # npt.assert_allclose(mem, mem_ref / 4, rtol=.3) # fails sometimes when all tests are run
 
 
 def test_time_series_operating():
-    from py_wake.wind_turbines.power_ct_functions import PowerCtFunctionList, PowerCtTabular
     d = np.load(os.path.dirname(examples.__file__) + "/data/time_series.npz")
     wd, ws = [d[k][:6 * 24] for k in ['wd', 'ws']]
     ws += 3
@@ -469,9 +460,8 @@ def test_time_series_operating():
 
 
 def test_time_series_operating_wrong_shape():
-    from py_wake.wind_turbines.power_ct_functions import PowerCtFunctionList, PowerCtTabular
     d = np.load(os.path.dirname(examples.__file__) + "/data/time_series.npz")
-    wd, ws, ws_std = [d[k][:6 * 24] for k in ['wd', 'ws', 'ws_std']]
+    wd, ws = [d[k][:6 * 24] for k in ['wd', 'ws']]
     ws += 3
     t = np.arange(6 * 24)
     wt = OperatableV80()
@@ -516,3 +506,9 @@ def test_compare_wfm():
         wfm = cls(w.site, w.windTurbines, w.wake_deficitModel, w.superpositionModel)
         res.append(wfm(x, y).aep().sum().item())
     npt.assert_allclose(res, res[0])
+
+
+def test_check_input():
+    wfm = IEA37CaseStudy1(16, deflectionModel=JimenezWakeDeflection())
+    with pytest.raises(ValueError, match="'tilt' needed by JimenezWakeDeflection is missing"):
+        wfm([0], [0], yaw=0)

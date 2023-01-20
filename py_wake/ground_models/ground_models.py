@@ -30,15 +30,15 @@ class Mirror(GroundModel):
 
         new_kwargs = {k: add_mirror_wt(k, v) for k, v in kwargs.items()}
         new_kwargs['dh_ijlk'] = np.concatenate([kwargs['dh_ijlk'],
-                                                kwargs['dh_ijlk'] + (2 * kwargs['h_il'][:, na, :, na])],
+                                                kwargs['dh_ijlk'] + (2 * kwargs['h_ilk'][:, na, :])],
                                                0)
         if 'cw_ijlk' in kwargs:
             new_kwargs['cw_ijlk'] = np.sqrt(new_kwargs['dh_ijlk']**2 + new_kwargs['hcw_ijlk']**2)
         return new_kwargs
 
-    def __call__(self, func, h_il, dh_ijlk, IJLK, **kwargs):
-        new_kwargs = self._update_kwargs(h_il=h_il, dh_ijlk=dh_ijlk, IJLK=IJLK, **kwargs)
-        above_ground = ((new_kwargs['h_il'][:, na, :, na] + new_kwargs['dh_ijlk']) > 0)
+    def __call__(self, func, h_ilk, dh_ijlk, IJLK, **kwargs):
+        new_kwargs = self._update_kwargs(h_ilk=h_ilk, dh_ijlk=dh_ijlk, IJLK=IJLK, **kwargs)
+        above_ground = ((new_kwargs['h_ilk'][:, na, :] + new_kwargs['dh_ijlk']) > 0)
         values_pijlk = func(**new_kwargs)
         deficit_mijlk = np.reshape(values_pijlk * above_ground, (2,) + IJLK)
         return self.windFarmModel.superpositionModel(deficit_mijlk)

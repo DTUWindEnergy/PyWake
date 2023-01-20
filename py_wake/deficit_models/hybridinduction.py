@@ -81,9 +81,9 @@ def main():
         hi = HybridInduction()
 
         plt.figure()
-        noj_hi = All2AllIterative(site, windTurbines, wake_deficitModel=NoWakeDeficit(),
-                                  superpositionModel=LinearSum(), blockage_deficitModel=hi)
-        flow_map = noj_hi(x=[0], y=[0], wd=[270], ws=[10]).flow_map()
+        wfm = All2AllIterative(site, windTurbines, wake_deficitModel=NoWakeDeficit(),
+                               superpositionModel=LinearSum(), blockage_deficitModel=hi)
+        flow_map = wfm(x=[0], y=[0], wd=[270], ws=[10]).flow_map()
         clevels = np.array([.6, .7, .8, .9, .95, .98, .99, .995, .998, .999, 1., 1.01, 1.02]) * 10.
         flow_map.plot_wake_map(levels=clevels)
         plt.title('Vortex Dipole (far-field) + Self-Similar (near-rotor)')
@@ -92,14 +92,14 @@ def main():
         plt.show()
 
         # run wind farm simulation
-        sim_res = noj_hi(x, y, wd=[0, 30, 45, 60, 90], ws=[5, 10, 15])
+        sim_res = wfm(x, y, wd=[0, 30, 45, 60, 90], ws=[5, 10, 15])
 
         # calculate AEP
         aep = sim_res.aep().sum()
 
         # plot wake map
         plt.figure()
-        print(noj_hi)
+        print(wfm)
         flow_map = sim_res.flow_map(wd=0, ws=10)
         flow_map.plot_wake_map(levels=clevels, plot_colorbar=False)
         plt.title('Vortex Dipole (far-field) + Self-Similar (near-rotor), AEP: %.3f GWh' % aep)

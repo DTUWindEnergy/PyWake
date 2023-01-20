@@ -51,6 +51,7 @@ class FugaDeflection(FugaUtils, DeflectionModel):
         cos_ilk, sin_ilk = np.cos(theta_ilk), np.sin(theta_ilk)
 
         F_ilk = ct_ilk * (WS_eff_ilk)**2 / (WS_ilk * WS_hub_ilk)
+        theta_ilk = np.broadcast_to(theta_ilk, F_ilk.shape)
 
         """
         For at given cross wind position in the lookup tables, yp, the deflection is lambda2p(yp), i.e.
@@ -153,8 +154,8 @@ class FugaDeflection(FugaUtils, DeflectionModel):
         hcw_j = hcw_ijlk[i, :, hcw_l, hcw_k].copy()
         hcw_ijlk = hcw_ijlk[i, :, hcw_l, hcw_k]
         m = (hcw_ijlk > y_[0]) & (hcw_ijlk < y_[-1])
-        hcw_j[m] -= lambda2((dw_ijlk[i, :, min(k, dw_ijlk.shape[2] - 1), min(k, dw_ijlk.shape[3] - 1)][m],
-                             hcw_ijlk[m]))
+        hcw_j[m] -= lambda2((dw_ijlk[i, :, min(k, dw_ijlk.shape[2] - 1), min(k, dw_ijlk.shape[3] - 1)][m].real,
+                             hcw_ijlk[m].real))
         return hcw_j
 
 

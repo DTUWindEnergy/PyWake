@@ -341,7 +341,7 @@ def test_with_all_deficit_models(WFM):
         wfm2 = WFM(site, windTurbines, wake_deficitModel=deficitModel(rotorAvgModel=EqGridRotorAvg(1)),
                    superpositionModel=LinearSum(),
                    deflectionModel=None, turbulenceModel=STF2017TurbulenceModel())
-        kwargs = {'x': [0, 0, 500, 500], 'y': [0, 500, 0, 500], 'wd': [0], 'ws': [8]}
+        kwargs = {'x': [0, 0, 500, 500], 'y': [0, 500, 0, 500], 'wd': [0], 'ws': [8], 'yaw': 0}
         npt.assert_equal(wfm.aep(**kwargs), wfm2.aep(**kwargs))
 
         wfm3 = WFM(site, windTurbines, wake_deficitModel=deficitModel(rotorAvgModel=CGIRotorAvg(7)),
@@ -365,7 +365,7 @@ def test_with_all_blockage_models(blockage_deficitModel):
         wfm_w = All2AllIterative(site, windTurbines, wake_deficitModel=NoWakeDeficit(),
                                  blockage_deficitModel=blockage_deficitModel(rotorAvgModel=CGIRotorAvg(7)),
                                  turbulenceModel=STF2017TurbulenceModel())
-        kwargs = {'x': [0, 500], 'y': [0, 0], 'wd': [270], 'ws': [10]}
+        kwargs = {'x': [0, 500], 'y': [0, 0], 'wd': [270], 'ws': [10], 'yaw': 0}
         assert wfm_w(**kwargs).WS_eff.sel(wt=0).item() > wfm_wo(**kwargs).WS_eff.sel(wt=0).item()
 
 

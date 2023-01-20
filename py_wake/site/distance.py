@@ -112,6 +112,8 @@ class TerrainFollowingDistance(StraightDistance):
 
     def setup(self, src_x_ilk, src_y_ilk, src_h_ilk, dst_xyh_j=None):
         StraightDistance.setup(self, src_x_ilk, src_y_ilk, src_h_ilk, dst_xyh_j=dst_xyh_j)
+        if len(src_x_ilk) == 0:
+            return
         # Calculate distance between src and dst and project to the down wind direction
         assert self.src_x_ilk.shape[1:] == (
             1, 1), 'TerrainFollowingDistance does not support flowcase dependent positions'

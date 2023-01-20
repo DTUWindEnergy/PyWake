@@ -22,12 +22,12 @@ from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80
 class FugaDeficitCount(FugaDeficit):
     counter = 0
 
-    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_il, dh_ijlk, D_src_il, **_):
+    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_ilk, dh_ijlk, D_src_il, **_):
         I, J = dw_ijlk.shape[:2]
         if I > 1 and I == J:
             # only count All2All
             self.counter += 1
-        return FugaDeficit._calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_il, dh_ijlk, D_src_il, **_)
+        return FugaDeficit._calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_ilk, dh_ijlk, D_src_il, **_)
 
 
 @pytest.mark.parametrize('deflection_model,count',
@@ -44,7 +44,7 @@ def test_All2AllIterativeDeflection(deflection_model, count):
                                 blockage_deficitModel=SelfSimilarityDeficit(),
                                 deflectionModel=deflection_model, convergence_tolerance=0)
     sim_res = wf_model([0, 500, 1000, 1500], [0, 0, 0, 0],
-                       wd=270, ws=10, yaw=[30, -30, 30, -30])
+                       wd=270, ws=10, yaw=[30, -30, 30, -30], tilt=0)
     assert wf_model.wake_deficitModel.counter == count
     if 0:
         sim_res.flow_map(

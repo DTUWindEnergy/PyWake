@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 from py_wake import np
-from py_wake.deficit_models.gcl import GCLDeficit, get_dU, get_Rw
+from py_wake.deficit_models.gcl import GCLDeficit, get_dU
 from py_wake.superposition_models import LinearSum
 from py_wake.tests import npt
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind

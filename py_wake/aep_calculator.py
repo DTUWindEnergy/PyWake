@@ -266,7 +266,9 @@ def main():
         wake_model = NOJ(site, windTurbines)
 
         # calculate AEP
-        aep_calculator = AEPCalculator(wake_model)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', category=DeprecationWarning)
+            aep_calculator = AEPCalculator(wake_model)
         aep = aep_calculator.calculate_AEP(x, y)[0].sum()
 
         print(aep_calculator.WS_eff_ilk.shape)

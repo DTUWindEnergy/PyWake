@@ -145,7 +145,6 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
 
         """
         import matplotlib.pyplot as plt
-
         if types is None:
             types = np.zeros_like(x).astype(int)
         else:
@@ -286,7 +285,6 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         from py_wake.wind_turbines.wind_turbines_deprecated import DeprecatedWindTurbines
         assert not any([isinstance(wt, DeprecatedWindTurbines) for wt in wt_lst]
                        ), "from_WindTurbines no longer supports DeprecatedWindTurbines"
-        warnings.simplefilter('default', DeprecationWarning)
         warnings.warn("""WindTurbines.from_WindTurbines is deprecated. Use WindTurbines.from_WindTurbine_lst instead""",
                       DeprecationWarning, stacklevel=2)
 

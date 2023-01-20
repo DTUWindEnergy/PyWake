@@ -98,8 +98,6 @@ class WindTurbineFunctionList(WindTurbineFunction):
         self.key = key
 
     def _subset(self, arr, mask):
-        if arr is None or isinstance(arr, types.FunctionType):
-            return arr
         return np.broadcast_to(arr.reshape(arr.shape + (1,) * (len(mask.shape) - len(arr.shape))), mask.shape)[mask]
 
     def __call__(self, ws, run_only=slice(None), **kwargs):

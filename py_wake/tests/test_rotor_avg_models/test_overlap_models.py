@@ -92,7 +92,7 @@ def test_GaussianOverlapAvgModel_blockage(blockageDeficitModel):
     wfm = All2AllIterative(UniformSite(), V80(), BastankhahGaussianDeficit(),
                            blockage_deficitModel=blockageDeficitModel(rotorAvgModel=GaussianOverlapAvgModel()))
     with pytest.raises(AttributeError, match=f"'{blockageDeficitModel.__name__}' has no attribute 'sigma_ijlk'"):
-        wfm([0, 1000], [0, 0])
+        wfm([0, 1000], [0, 0], yaw=0)
 
 
 def test_GaussianOverlapAvgModel_WeightedSum():

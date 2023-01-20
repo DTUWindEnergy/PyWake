@@ -87,13 +87,13 @@ def main():
         yaw = 30
         plt.figure(figsize=(12, 3))
         grid = XYGrid(x=np.linspace(-2 * D, D * 10, 100), y=np.linspace(-1.5 * D, 1.5 * D, 100))
-        fm = wfm(x, y, yaw=yaw, wd=270, ws=ws).flow_map(grid)
+        fm = wfm(x, y, yaw=yaw, tilt=0, wd=270, ws=ws).flow_map(grid)
         fm.plot_wake_map(normalize_with=D)
         center_line = fm.min_WS_eff()
         plt.title(f'{wfm}, {yaw}')
         plt.plot(center_line.x / D, center_line / D, label='Deflection centerline with ZongGaussianDeficit')
 
-        fm = wfm2(x, y, yaw=yaw, wd=270, ws=ws).flow_map(grid)
+        fm = wfm2(x, y, yaw=yaw, tilt=0, wd=270, ws=ws).flow_map(grid)
         center_line = fm.min_WS_eff()
         plt.plot(center_line.x / D, center_line / D, label='Deflection centerline with BastankhahGaussianDeficit')
 

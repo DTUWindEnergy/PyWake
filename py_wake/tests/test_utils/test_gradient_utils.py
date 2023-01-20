@@ -13,8 +13,6 @@ from py_wake.wind_turbines import WindTurbines
 from py_wake.wind_turbines import _wind_turbines
 from xarray.core.dataset import Dataset
 from py_wake.utils.numpy_utils import AutogradNumpy
-from py_wake.examples.data.ParqueFicticio._parque_ficticio import ParqueFicticioSite
-from py_wake.site.distance import StraightDistance
 
 
 @pytest.mark.parametrize('obj', [_wind_turbines, WindTurbines, V80().power, _wind_turbines.__dict__])

@@ -294,7 +294,7 @@ def test_unused_input():
     ri, oi = wfm.windTurbines.function_inputs
     npt.assert_array_equal(ri, [])
     npt.assert_array_equal(oi, ['Air_density', 'boost', 'tilt', 'yaw'])
-    with pytest.raises(TypeError, match=r"got unexpected keyword argument\(s\): 'mode'"):
+    with pytest.raises(ValueError, match=r"WindFarmModel an got unexpected keyword argument: 'mode'"):
         wfm([0], [0], boost=1, mode=1)
 
 

@@ -164,13 +164,13 @@ def get_signature(cls, kwargs={}, indent_level=0):
         return "%s(%s)" % (cls.__name__, arg_str)
 
 
-def get_model_input(wfm, x, y, ws=10, wd=270, yaw=[[[0]]], tilt=[[[0]]]):
+def get_model_input(wfm, x, y, ws=10, wd=270, **kwargs):
     ws, wd = [np.atleast_1d(v) for v in [ws, wd]]
     x, y = map(np.asarray, [x, y])
     wfm.site.distance.setup(src_x_ilk=[[[0]]], src_y_ilk=[[[0]]], src_h_ilk=[[[0]]],
                             dst_xyh_j=(x, y, x * 0))
     dw_ijlk, hcw_ijlk, dh_ijlk = wfm.site.distance(WD_ilk=wd[na, :, na])
-    sim_res = wfm([0], [0], ws=ws, wd=wd, yaw=yaw)
+    sim_res = wfm([0], [0], ws=ws, wd=wd, **kwargs)
 
     args = {'dw_ijlk': dw_ijlk, 'hcw_ijlk': hcw_ijlk, 'dh_ijlk': dh_ijlk,
             'D_src_il': np.atleast_1d(wfm.windTurbines.diameter())[na]}
@@ -178,7 +178,8 @@ def get_model_input(wfm, x, y, ws=10, wd=270, yaw=[[[0]]], tilt=[[[0]]]):
                                                   ('tilt_ilk', 'tilt'),
                                                   ('WS_ilk', 'WS'),
                                                   ('WS_eff_ilk', 'WS_eff'),
-                                                  ('ct_ilk', 'CT')]})
+                                                  ('ct_ilk', 'CT')]
+                 if n in sim_res})
     args['IJLK'] = (1, len(x), len(wd), len(ws))
     return args
 
@@ -199,9 +200,8 @@ def check_model(model, cls, arg_name=None, accept_None=True):
         raise ValueError(s + f', but is a {model.__class__.__name__} instance')
 
 
-def fix_shape(arr, shape_or_arr_to_match, allow_number=False, allow_None=False):
-    if allow_None and arr is None:
-        return arr
+def fix_shape(arr, shape_or_arr_to_match, allow_number=False):
+
     if allow_number and isinstance(arr, (int, float)):
         return arr
 

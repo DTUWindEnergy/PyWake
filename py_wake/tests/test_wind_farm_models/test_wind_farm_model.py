@@ -1,9 +1,9 @@
 import pytest
 from py_wake import np
-from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit
+from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit
 from py_wake.deficit_models.noj import NOJ
 
-from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80, HornsrevV80, wt9_y, wt9_x, wt16_x, wt16_y
+from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80, wt9_y, wt9_x, wt16_x, wt16_y
 from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37_WindTurbines
 from py_wake.wind_turbines import WindTurbines
 from py_wake.tests import npt
@@ -50,8 +50,9 @@ def test_yaw_dimensions():
 def test_calc_wt_interaction_parallel_results():
     x, y = wt16_x, wt16_y
     wfm = NOJ(Hornsrev1Site(), V80())
-    WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, *_ = wfm.calc_wt_interaction(x, y, wd_chunks=3, ws_chunks=2, n_cpu=None)
-    WS_ref, TI_ref, power_ref, ct_ref, *_ = wfm.calc_wt_interaction(x, y)
+    WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, *_ = wfm(x, y, wd_chunks=3, ws_chunks=2, n_cpu=None,
+                                                        return_simulationResult=False)
+    WS_ref, TI_ref, power_ref, ct_ref, *_ = wfm(x, y, return_simulationResult=False)
     npt.assert_array_equal(WS_eff_ilk, WS_ref)
     npt.assert_array_equal(TI_eff_ilk, np.broadcast_to(TI_ref, (16, 360, 23)))
     npt.assert_array_equal(power_ilk, power_ref)
@@ -62,8 +63,8 @@ def test_chunks_results():
     x, y = wt16_x, wt16_y
     wfm = NOJ(Hornsrev1Site(), V80())
 
-    sim_res_ref, t_ref, mem_ref = profileit(wfm)(x, y)
-    sim_res, t, mem = profileit(wfm)(x, y, wd_chunks=3, ws_chunks=2)
+    sim_res_ref = profileit(wfm)(x, y)[0]
+    sim_res = profileit(wfm)(x, y, wd_chunks=3, ws_chunks=2)[0]
 
     npt.assert_array_equal(sim_res_ref.aep(), sim_res.aep())
     # assert mem < mem_ref
@@ -110,13 +111,14 @@ def test_aep_chunks_input_dims(rho):
 @pytest.mark.parametrize('wrt_arg', ['x', 'y', 'h',
                                      ['x', 'y'], ['x', 'h'],
                                      # 'wd', 'ws'
-                                     'yaw'
+                                     # 'yaw'
                                      ])
 def test_aep_gradients_function(wrt_arg):
     wfm = IEA37CaseStudy1(16, deflectionModel=JimenezWakeDeflection())
     x, y = wfm.site.initial_position[np.array([0, 2, 5, 8, 14])].T
     kwargs = {'x': x, 'y': y, 'h': x * 0 + wfm.windTurbines.hub_height(),
-              'wd': [0], 'ws': 9.8, 'yaw': np.arange(1, 6).reshape((5, 1, 1)) * 5}
+              'wd': [0], 'ws': 9.8, 'yaw': np.arange(1, 6).reshape((5, 1, 1)) * 5, 'tilt': 0}
+
     dAEP_autograd = wfm.aep_gradients(gradient_method=autograd, wrt_arg=wrt_arg)(**kwargs)
     dAEP_cs = wfm.aep_gradients(gradient_method=cs, wrt_arg=wrt_arg)(**kwargs)
     dAEP_fd = wfm.aep_gradients(gradient_method=fd, wrt_arg=wrt_arg)(**kwargs)
@@ -133,14 +135,38 @@ def test_aep_gradients_function(wrt_arg):
     npt.assert_array_equal(dAEP_autograd, wfm.aep_gradients(gradient_method=autograd, wrt_arg=wrt_arg, **kwargs))
 
 
+def test_aep_gradients_wrt_kwargs():
+    wfm = IEA37CaseStudy1(16, deflectionModel=JimenezWakeDeflection())
+    x, y = wfm.site.initial_position[np.array([0, 2, 5, 8, 14])].T
+    kwargs = {'x': x, 'y': y, 'h': x * 0 + wfm.windTurbines.hub_height(),
+              'wd': [0], 'ws': 9.8, 'yaw': np.arange(1, 6).reshape((5, 1, 1)) * 5, 'tilt': 0}
+
+    def aep(yaw, **kwargs):
+        return wfm.aep(yaw=yaw, **kwargs)
+
+    dAEP_autograd = autograd(aep)(**kwargs)
+    dAEP_cs = cs(aep)(**kwargs)
+    dAEP_fd = fd(aep)(**kwargs)
+
+    if 0:
+        ax1, ax2 = plt.subplots(1, 2)[1]
+        wfm(**kwargs).flow_map(XYGrid(resolution=100)).plot_wake_map(ax=ax1)
+
+        ax2.plot(dAEP_autograd.flatten(), '.')
+        plt.show()
+
+    npt.assert_array_almost_equal(dAEP_autograd, dAEP_cs, 15)
+    npt.assert_array_almost_equal(dAEP_autograd, dAEP_fd, 6)
+
+
 def test_aep_gradients_parallel():
     wfm = IEA37CaseStudy1(16, deflectionModel=JimenezWakeDeflection())
     x, y = wfm.site.initial_position[np.array([0, 2, 5, 8, 14])].T
-    kwargs = {'x': x, 'y': y, 'h': x * 0 + wfm.windTurbines.hub_height(), 'wd': None, 'ws': [10]}
-    dAEP_ref, t_seq = timeit(lambda: wfm.aep_gradients(gradient_method=autograd, wrt_arg=['x', 'y'], **kwargs))()
+    kwargs = {'x': x, 'y': y, 'h': x * 0 + wfm.windTurbines.hub_height(), 'yaw': 0, 'tilt': 0, 'wd': None, 'ws': [10]}
+    dAEP_ref = timeit(lambda: wfm.aep_gradients(gradient_method=autograd, wrt_arg=['x', 'y'], **kwargs))()[0]
 
-    dAEP_autograd, t_par = timeit(lambda: wfm.aep_gradients(gradient_method=autograd, wrt_arg=['x', 'y'], n_cpu=2, **kwargs),
-                                  min_runs=2)()
+    dAEP_autograd = timeit(lambda: wfm.aep_gradients(gradient_method=autograd, wrt_arg=['x', 'y'], n_cpu=2, **kwargs),
+                           min_runs=2)()[0]
 
     npt.assert_array_almost_equal(dAEP_ref, dAEP_autograd, 8)
 
@@ -151,7 +177,7 @@ def test_aep_gradients_parallel():
 def test_aep_gradients_chunks():
     wfm = IEA37CaseStudy1(16, deflectionModel=JimenezWakeDeflection())
     x, y = wfm.site.initial_position[np.array([0, 2, 5, 8, 14])].T
-    kwargs = {'x': x, 'y': y, 'h': x * 0 + wfm.windTurbines.hub_height(), 'wd': None, 'ws': [10]}
+    kwargs = {'x': x, 'y': y, 'h': x * 0 + wfm.windTurbines.hub_height(), 'wd': None, 'ws': [10], 'yaw': 0, 'tilt': 0}
     dAEP_ref = wfm.aep_gradients(gradient_method=autograd, wrt_arg=['x', 'y'], **kwargs)
 
     dAEP_autograd = wfm.aep_gradients(gradient_method=autograd, wrt_arg=['x', 'y'], wd_chunks=2, **kwargs)
@@ -230,7 +256,7 @@ def test_time_dependent_wt_positions():
     ws_eff = sim_res.flow_map(time=[0, 1, 2]).WS_eff.interp(
         x=('time', [-100, -300, 100]), y=('time', [-300, 100, 300])).squeeze()
     npt.assert_array_equal(ws_eff[0], ws_eff)
-    if 1:
+    if 0:
         for t, ax in zip(sim_res.time.values, plt.subplots(3, 1, figsize=(4, 10))[1]):
             sim_res.flow_map(time=t).plot_wake_map(ax=ax)
         plt.show()
