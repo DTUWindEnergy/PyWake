@@ -27,6 +27,8 @@ from py_wake.validation.lillgrund import wt_y as wt_y_l
 from py_wake.validation.validation_lib import integrate_velocity_deficit_arc, sigma_hornsrev, GaussianFilter
 from py_wake.wind_turbines import OneTypeWindTurbines
 from py_wake.validation import validation_lib
+from py_wake.wind_turbines._wind_turbines import WindTurbine
+from py_wake.wind_turbines.power_ct_functions import PowerCtFunctions
 matplotlib.use('agg')
 
 data_path = os.path.dirname(validation_lib.__file__) + '/data/'   # path to reference data
@@ -74,12 +76,10 @@ def deficitPlotSingleWakeCases(SingleWakecases, site, linewidth, cLES, cRANS, co
             ct = case['CT']
             return ct
 
-        wt = OneTypeWindTurbines(name=case['name'],
-                                 diameter=case['D'],
-                                 hub_height=case['zH'],
-                                 ct_func=ct,
-                                 power_func=p,
-                                 power_unit='W')
+        wt = WindTurbine(name=case['name'],
+                         diameter=case['D'],
+                         hub_height=case['zH'],
+                         powerCtFunction=PowerCtFunctions(p, 'w', ct))
 
         if case['name'] == 'Nordtank-500':
             xDown = case['xDown'] * 40.0
