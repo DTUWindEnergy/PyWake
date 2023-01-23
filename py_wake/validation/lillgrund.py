@@ -1,6 +1,8 @@
 from py_wake import np
 from py_wake.site._site import UniformWeibullSite
 from py_wake.wind_turbines import OneTypeWindTurbines
+from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
+from py_wake.wind_turbines._wind_turbines import WindTurbine
 
 wt_x = [361469.3, 361202.9, 360936.4, 360670, 360403.6, 360137.1, 359870.7,
         361202.8, 360936.4, 360670, 360403.6, 360137.1, 359870.7, 359604.3,
@@ -67,16 +69,13 @@ ct_curve = np.array([[3.0, 0.0],
                      [25.0, 0.05]])
 
 
-class SWT2p3_93_65(OneTypeWindTurbines):
+class SWT2p3_93_65(WindTurbine):
     def __init__(self):
-        OneTypeWindTurbines.__init__(self, 'SWT2p3_93_65', diameter=92.6, hub_height=65,
-                                     ct_func=self._ct, power_func=self._power, power_unit='kW')
-
-    def _ct(self, u):
-        return np.interp(u, ct_curve[:, 0], ct_curve[:, 1])
-
-    def _power(self, u):
-        return np.interp(u, power_curve[:, 0], power_curve[:, 1])
+        WindTurbine.__init__(self, 'SWT2p3_93_65', diameter=92.6, hub_height=65,
+                             powerCtFunction=PowerCtTabular(ws=power_curve[:, 0],
+                                                            power=power_curve[:, 1],
+                                                            power_unit='kW',
+                                                            ct=ct_curve[:, 1]))
 
 
 class LillgrundSite(UniformWeibullSite):

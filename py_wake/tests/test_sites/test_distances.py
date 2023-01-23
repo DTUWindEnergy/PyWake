@@ -11,6 +11,7 @@ from py_wake.flow_map import HorizontalGrid, XYGrid
 import matplotlib.pyplot as plt
 from py_wake.utils.streamline import VectorField3D
 from py_wake.site.jit_streamline_distance import JITStreamlineDistance
+from py_wake.examples.data.hornsrev1 import V80
 
 from py_wake.tests.test_wind_farm_models.test_enginering_wind_farm_model import OperatableV80
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
