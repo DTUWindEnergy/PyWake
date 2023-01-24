@@ -10,7 +10,6 @@ from py_wake.tests.test_files.wasp_grid_site import one_layer
 from py_wake.site.distance import TerrainFollowingDistance, StraightDistance
 import math
 from py_wake import NOJ
-from py_wake.wind_turbines import OneTypeWindTurbines
 import matplotlib.pyplot as plt
 from py_wake.site.xrsite import XRSite
 import shutil
@@ -201,7 +200,7 @@ def test_distances(site, dw_ref):
     x, y = site.initial_position.T
     site.distance.setup(src_x_ilk=x, src_y_ilk=y, src_h_ilk=np.array([70]),
                         dst_xyh_j=(x, y, np.array([70])))
-    dw_ijlk, cw_ijlk, dh_ijlk = site.distance(WD_ilk=np.array([[[0]]]))
+    dw_ijlk, cw_ijlk, dh_ijlk = site.distance(wd_l=[0])
     npt.assert_almost_equal(dw_ijlk[0, :, 0, 0], dw_ref)
 
     cw_ref = [236.1, 0., -131.1, -167.8, -204.5, -131.1, -131.1, -45.4]

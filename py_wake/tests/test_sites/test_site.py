@@ -211,8 +211,6 @@ def test_plot_ws_distribution_iea37():
 
 
 def test_iea37_distances():
-    from py_wake.examples.data.iea37 import IEA37Site
-
     n_wt = 16  # must be 9, 16, 36, 64
     site = IEA37Site(n_wt)
     x, y = site.initial_position.T
@@ -220,7 +218,7 @@ def test_iea37_distances():
                          wd=site.default_wd,
                          ws=site.default_ws)
     site.distance.setup(x, y, np.zeros_like(x))
-    dw_iil, hcw_iil, _ = site.wt2wt_distances(WD_ilk=lw.WD_ilk)
+    dw_iil, hcw_iil, _ = site.wt2wt_distances(wd_l=lw.wd)
     # Wind direction.
     wdir = np.rad2deg(np.arctan2(hcw_iil, dw_iil))
     npt.assert_allclose(

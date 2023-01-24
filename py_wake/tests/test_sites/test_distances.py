@@ -12,6 +12,10 @@ import matplotlib.pyplot as plt
 from py_wake.utils.streamline import VectorField3D
 from py_wake.site.jit_streamline_distance import JITStreamlineDistance
 
+from py_wake.tests.test_wind_farm_models.test_enginering_wind_farm_model import OperatableV80
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
+from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit
+
 
 class FlatSite(UniformSite):
     def __init__(self, distance):
@@ -51,7 +55,7 @@ def test_flat_distances(distance):
 
     site = FlatSite(distance=distance)
     site.distance.setup(src_x_ilk=x, src_y_ilk=y, src_h_ilk=h)
-    dw_ijlk, hcw_ijlk, dh_ijlk = site.distance(WD_ilk=np.array(wdirs)[na, :, na], src_idx=[0, 1, 2, 3], dst_idx=[4])
+    dw_ijlk, hcw_ijlk, dh_ijlk = site.distance(wd_l=np.array(wdirs), WD_ilk=None, src_idx=[0, 1, 2, 3], dst_idx=[4])
     dw_indices_lkd = site.distance.dw_order_indices(np.array(wdirs))
 
     if 0:
@@ -85,7 +89,7 @@ def test_flat_distances_src_neq_dst(distance):
 
     site = FlatSite(distance=distance)
     site.distance.setup(src_x_ilk=x, src_y_ilk=y, src_h_ilk=h, dst_xyh_j=(x, y, [1, 2, 3]))
-    dw_ijlk, hcw_ijlk, dh_ijlk = site.distance(WD_ilk=np.array(wdirs)[na, :, na])
+    dw_ijlk, hcw_ijlk, dh_ijlk = site.distance(wd_l=np.array(wdirs), WD_ilk=None)
     dw_indices_lkd = distance.dw_order_indices(wdirs)
     if 0:
         distance.plot(wd_ilk=np.array(wdirs)[na, :, na])
@@ -120,11 +124,12 @@ def test_iea37_distances():
     n_wt = 16  # must be 9, 16, 36, 64
     site = IEA37Site(n_wt)
     x, y = site.initial_position.T
+    site.distance.wind_direction = 'WD_i'
     lw = site.local_wind(x=x, y=y,
                          wd=site.default_wd,
                          ws=site.default_ws)
     site.distance.setup(x, y, np.zeros_like(x))
-    dw_iilk, hcw_iilk, _ = site.wt2wt_distances(WD_ilk=lw.WD_ilk)
+    dw_iilk, hcw_iilk, _ = site.wt2wt_distances(WD_ilk=lw.WD_ilk, wd_l=None)
     # Wind direction.
     wdir = np.rad2deg(np.arctan2(hcw_iilk, dw_iilk))
     npt.assert_allclose(
@@ -140,6 +145,50 @@ def test_iea37_distances():
         plt.show()
 
 
+@pytest.mark.parametrize('wfm_cls', [PropagateDownwind,
+                                     All2AllIterative])
+@pytest.mark.parametrize('turning', [(0, 0),
+                                     (10, 0),
+                                     (10, 20)
+                                     ])
+@pytest.mark.parametrize('method,angle_func', [('wd', lambda a:0),
+                                               ('WD_i', lambda a:-a)
+                                               ])
+def test_straightDistance_turning(wfm_cls, turning, method, angle_func):
+
+    wfm = wfm_cls(UniformSite(), OperatableV80(), wake_deficitModel=BastankhahGaussianDeficit(k=0.00001))
+    wfm.site.distance = StraightDistance(wind_direction=method)
+
+    ghost_y = np.linspace(-100, 100, 31)
+    ghost_x = np.full(ghost_y.shape, 450)
+    operation = [1, 1] + ([0] * len(ghost_x))
+    WD = np.array(np.r_[turning, [0] * len(ghost_y)]) + 270
+    sim_res = wfm(np.r_[[0, 500], ghost_x], np.r_[[0, 0], ghost_y], operating=operation, wd=[0, 270], WD=WD)
+    fm_wide = sim_res.flow_map(XYGrid(x=450, y=np.linspace(-200, 200, 1001)), wd=270)
+
+    y = fm_wide.y[np.argmin(fm_wide.WS_eff.squeeze().values)]
+    fm = sim_res.flow_map(XYGrid(x=450, y=np.linspace(y - 2, y + 2, 1001)), wd=270)
+
+    if 0:
+        ax1, ax2 = plt.subplots(1, 2)[1]
+        plt.suptitle(f'{wfm_cls.__name__}, turning{turning}')
+        sim_res.flow_map(wd=270).plot_wake_map(ax=ax1)
+        ax1.plot(fm_wide.y.squeeze() * 0 + fm_wide.x.squeeze(), fm_wide.y.squeeze(), '.-')
+
+        fm_wide.WS_eff.plot(ax=ax2)
+        fm.WS_eff.plot(ax=ax2)
+        ax2.plot(sim_res.y[2:], sim_res.WS_eff.sel(wd=270).squeeze()[2:], 'x')
+        plt.show()
+
+    # compare flowmap to ghost turbines
+    npt.assert_array_almost_equal(sim_res.WS_eff.sel(wd=270).squeeze()[2:],
+                                  np.interp(ghost_y, fm_wide.y, fm_wide.WS_eff.squeeze()), 3)
+
+    # check angle of deficit peak
+    i = np.argmin(fm.WS_eff.squeeze().values)
+    npt.assert_almost_equal(np.rad2deg(np.arctan2(fm.y[i], 450)), angle_func(turning[0]), 3)
+
+
 def test_terrain_following_half_cylinder():
 
     hc = HalfCylinder(height=100, distance_resolution=100000)
@@ -150,7 +199,7 @@ def test_terrain_following_half_cylinder():
 
     hc.distance.setup(src_x_ilk=src_x, src_y_ilk=src_y, src_h_ilk=src_x * 0,
                       dst_xyh_j=(dst_x, dst_y, dst_x * 0))
-    dw_ijlk, hcw_ijlk, _ = hc.distance(WD_ilk=np.array([0, 90])[na, :, na])
+    dw_ijlk, hcw_ijlk, _ = hc.distance(wd_l=np.array([0, 90]), WD_ilk=None)
 
     if 0:
         plt.plot(x, hc.elevation(x_i=x, y_i=x * 0))
@@ -206,7 +255,7 @@ def test_distance_over_rectangle2():
     x_j = np.arange(-200, 500, 10)
     y_j = x_j * 0
     site.distance.setup([-200], [0], [130], (x_j, y_j, y_j + 130))
-    d = site.distance([[[270]]])[0][0, :, 0, 0]
+    d = site.distance(wd_l=[270])[0][0, :, 0, 0]
 
     ref = x_j - x_j[0]
     ref[x_j > -50] += 200
@@ -231,7 +280,7 @@ def test_distance_plot():
     wdirs = [0, 30, 90]
     distance = StraightDistance()
     distance.setup(src_x_ilk=x, src_y_ilk=y, src_h_ilk=h)
-    distance.plot(WD_ilk=np.array(wdirs)[na, :, na], src_idx=[0], dst_idx=[3])
+    distance.plot(wd_l=np.array(wdirs), src_idx=[0], dst_idx=[3])
     if 0:
         plt.show()
     plt.close('all')

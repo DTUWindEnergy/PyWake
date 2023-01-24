@@ -169,7 +169,7 @@ def get_model_input(wfm, x, y, ws=10, wd=270, **kwargs):
     x, y = map(np.asarray, [x, y])
     wfm.site.distance.setup(src_x_ilk=[[[0]]], src_y_ilk=[[[0]]], src_h_ilk=[[[0]]],
                             dst_xyh_j=(x, y, x * 0))
-    dw_ijlk, hcw_ijlk, dh_ijlk = wfm.site.distance(WD_ilk=wd[na, :, na])
+    dw_ijlk, hcw_ijlk, dh_ijlk = wfm.site.distance(wd_l=wd)
     sim_res = wfm([0], [0], ws=ws, wd=wd, **kwargs)
 
     args = {'dw_ijlk': dw_ijlk, 'hcw_ijlk': hcw_ijlk, 'dh_ijlk': dh_ijlk,

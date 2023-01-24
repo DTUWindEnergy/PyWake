@@ -8,16 +8,31 @@ from py_wake.utils.gradients import rad2deg, deg2rad
 
 class StraightDistance():
 
+    def __init__(self, wind_direction='wd'):
+        """
+        Parameters
+        ----------
+        wind_direction : {'wd','WD_i'}
+            'wd': The reference wind direction, wd, is used to calculate downwind and horizontal crooswind distances
+            'WD_i': The wind direction at the current (upstream) wind turbine is used to calculate downwind and
+            horizontal crossswind distances.
+
+        """
+        self.wind_direction = wind_direction
+
     def _cos_sin(self, wd):
         theta = gradients.deg2rad(90 - wd)
         cos = np.cos(theta)
         sin = np.sin(theta)
         return cos, sin
 
-    def plot(self, WD_ilk, src_idx=slice(None), dst_idx=slice(None)):
+    def plot(self, WD_ilk=None, wd_l=None, src_idx=slice(None), dst_idx=slice(None)):
         import matplotlib.pyplot as plt
 
-        dw_ijlk, hcw_ijlk, _ = self(WD_ilk)
+        dw_ijlk, hcw_ijlk, _ = self(WD_ilk=WD_ilk, wd_l=wd_l)
+        if self.wind_direction == 'wd':
+            WD_ilk = np.asarray(wd_l)[na, :, na]
+
         wdirs = mean_deg(WD_ilk, (0, 2))
         for l, wd in enumerate(wdirs):
             plt.figure()
@@ -68,13 +83,19 @@ class StraightDistance():
                 if k not in {'src_x_ilk', 'src_y_ilk', 'src_h_ilk', 'dst_x_j', 'dst_y_j', 'dst_h_j',
                              'dx_iilk', 'dy_iilk', 'dh_iilk', 'dx_ijlk', 'dy_ijlk', 'dh_ij', 'src_eq_dst'}}
 
-    def __call__(self, WD_ilk, wd_l=None, src_idx=slice(None), dst_idx=slice(None)):
-        assert hasattr(self, 'dx_ijlk'), "method setup must be called first"
+    def __call__(self, WD_ilk=None, wd_l=None, src_idx=slice(None), dst_idx=slice(None)):
+        assert hasattr(self, 'dx_ijlk'), "wind_direction setup must be called first"
+        assert self.wind_direction in ['wd', 'WD_i'], "'StraightDistance.wind_direction must be 'wd' or 'WD_i'"
 
-        WD_lk = mean_deg(WD_ilk, (0))  # mean over wind turbines
+        if self.wind_direction == 'wd':
+            assert wd_l is not None, "wd_l must be specified when Distance.wind_direction='wd'"
+            WD_ilk = np.asarray(wd_l)[na, :, na]
+        else:
+            assert WD_ilk is not None, "WD_ilk must be specified when Distance.wind_direction='WD_i'"
+
         if len(np.shape(dst_idx)) == 2:
             # dst_idx depends on wind direction
-            cos_jlk, sin_jlk = self._cos_sin(WD_lk[na])
+            cos_jlk, sin_jlk = self._cos_sin(WD_ilk[0, na])
             i_wd_l = np.arange(np.shape(dst_idx)[1])
             dx_jlk = self.dx_iilk[src_idx, dst_idx, np.minimum(i_wd_l, self.dx_iilk.shape[2] - 1).astype(int)]
             dy_jlk = self.dy_iilk[src_idx, dst_idx, np.minimum(i_wd_l, self.dy_iilk.shape[2] - 1).astype(int)]
@@ -84,7 +105,7 @@ class StraightDistance():
             return dw_jlk[na], hcw_jlk[na], dh_jlk[na]
         else:
             # dst_idx independent of wind direction
-            cos_ijlk, sin_ijlk = self._cos_sin(WD_lk[na, na])
+            cos_ijlk, sin_ijlk = self._cos_sin(WD_ilk[:, na])
             dx_ijlk = self.dx_ijlk[src_idx][:, dst_idx]
             dy_ijlk = self.dy_ijlk[src_idx][:, dst_idx]
 
@@ -106,8 +127,8 @@ class StraightDistance():
 
 
 class TerrainFollowingDistance(StraightDistance):
-    def __init__(self, distance_resolution=1000, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, distance_resolution=1000, wind_direction='wd', **kwargs):
+        super().__init__(wind_direction=wind_direction, **kwargs)
         self.distance_resolution = distance_resolution
 
     def setup(self, src_x_ilk, src_y_ilk, src_h_ilk, dst_xyh_j=None):
@@ -166,15 +187,21 @@ class TerrainFollowingDistance(StraightDistance):
             d_ij = s.reshape(self.dx_ijlk.shape[:2])
         self.d_ij = d_ij
 
-    def __call__(self, WD_ilk, wd_l=None, src_idx=slice(None), dst_idx=slice(None)):
+    def __call__(self, WD_ilk=None, wd_l=None, src_idx=slice(None), dst_idx=slice(None)):
         # project terrain following distance between wts onto downwind direction
         # instead of projecting the distances onto first x,y and then onto down wind direction
         # we offset the wind direction by the direction between source and destination
+
+        _, hcw_ijlk, dh_ijlk = StraightDistance.__call__(self, WD_ilk=WD_ilk, wd_l=wd_l,
+                                                         src_idx=src_idx, dst_idx=dst_idx)
+        if self.wind_direction == 'wd':
+            WD_ilk = np.asarray(wd_l)[na, :, na]
+
         WD_il = mean_deg(WD_ilk, 2)
-        _, hcw_ijlk, dh_ijlk = StraightDistance.__call__(self, WD_ilk, src_idx=src_idx, dst_idx=dst_idx)
+
         if len(np.shape(dst_idx)) == 2:
             # dst_idx depends on wind direction
-            WD_l = mean_deg(WD_il, 0)
+            WD_l = WD_il[0]
             dir_jl = 90 - rad2deg(self.theta_ij[src_idx, dst_idx])
             wdir_offset_jl = WD_l[na, :] - dir_jl
             theta_jl = deg2rad(90 - wdir_offset_jl)

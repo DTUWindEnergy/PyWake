@@ -151,8 +151,13 @@ def test_YZGrid_plot_wake_map_parallel():
     plt.close('all')
 
 
-def test_YZGrid_terrain_perpendicular():
-    site = ParqueFicticioSite(distance=StraightDistance())
+@pytest.mark.parametrize('wind_direction, ref', [
+    ('wd', [5.35, 8.76, 8.42, 6.18, 5.78, 10.87, 5.03, 11.59, 5.31, 10.25, 13.38, 8.63, 8.67,
+            12.25, 5.49, 10.92, 9.71, 6.75, 10.69, 7.03]),
+    ('WD_i', [5.41, 9.02, 8.42, 6.32, 5.65, 10.8, 5.05, 11.64, 5.31, 10.24, 13.38, 8.57, 8.73,
+              12.5, 5.47, 10.66, 10.92, 6.55, 10.33, 8.7])])
+def test_YZGrid_terrain_perpendicular(wind_direction, ref):
+    site = ParqueFicticioSite(distance=StraightDistance(wind_direction))
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
 
@@ -167,24 +172,22 @@ def test_YZGrid_terrain_perpendicular():
     x = np.zeros_like(y) + x
     z = site.elevation(x, y)
     simulation_result.flow_map(XYGrid(extend=.005)).plot_wake_map()
-    plt.plot(x, y, '.')
-    plt.figure()
-    simulation_result.flow_map(grid=YZGrid(fm.x.item(), y=fm.y,
-                                           z=np.arange(30, 210, 10))).plot_wake_map()
-    plt.plot(y, z + 110, '.')
-    plt.plot(y, fm.WS_eff_xylk[:, 0, 0, 0] * 100, label="ws*100")
-    plt.legend()
     if 0:
+        plt.plot(x, y, '.')
+        plt.figure()
+        simulation_result.flow_map(grid=YZGrid(fm.x.item(), y=fm.y,
+                                               z=np.arange(30, 210, 10))).plot_wake_map()
+        plt.plot(y, z + 110, '.')
+        plt.plot(y, fm.WS_eff_xylk[:, 0, 0, 0] * 100, label="ws*100")
+        plt.legend()
         print(np.round(fm.WS_eff_xylk[:, 0, 0, 0], 2).values.tolist())
         plt.show()
     plt.close('all')
-    npt.assert_array_almost_equal(fm.WS_eff_xylk[:, 0, 0, 0],
-                                  [5.39, 8.48, 8.42, 6.42, 5.55, 11.02, 4.99, 11.47, 5.32, 10.22, 13.39, 8.79,
-                                   8.51, 12.4, 5.47, 10.78, 10.12, 6.54, 10.91, 7.18], 2)
+    npt.assert_array_almost_equal(fm.WS_eff_xylk[:, 0, 0, 0], ref, 2)
 
 
 def test_YZGrid_terrain_parallel():
-    site = ParqueFicticioSite(distance=StraightDistance())
+    site = ParqueFicticioSite(distance=StraightDistance('WD_i'))
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
 
@@ -210,8 +213,8 @@ def test_YZGrid_terrain_parallel():
         plt.show()
     plt.close('all')
     npt.assert_array_almost_equal(fm.WS_eff_xylk[:, 0, 0, 0],
-                                  [4.55, 3.89, 3.15, 2.31, 4.41, 4.3, 7.41, 7.2, 7.03, 7.23, 7.32, 6.77, 6.83,
-                                   5.58, 11.01, 11.51, 11.93, 12.17, 11.03, 9.89], 2)
+                                  [4.79, 4.8, 3.98, 2.99, 5.12, 4.84, 7.91, 7.62, 7.35, 7.46, 7.42, 6.73, 6.65, 5.42,
+                                   11.29, 11.72, 12.05, 12.17, 11.03, 9.89], 2)
 
 
 def test_Points():
