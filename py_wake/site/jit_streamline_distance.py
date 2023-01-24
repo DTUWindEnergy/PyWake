@@ -22,6 +22,7 @@ class JITStreamlineDistance(StraightDistance):
         step_size : int for float
             Size of linear streamline steps
         """
+        StraightDistance.__init__(self, wind_direction='wd')
         self.vectorField = vectorField
         self.step_size = step_size
 
@@ -32,13 +33,13 @@ class JITStreamlineDistance(StraightDistance):
 
         if len(np.shape(dst_idx)) == 2:
             # dst_idx depends on wind direction
-            dw_jl, hcw_jl, dh_jl = [v[0, :, :, 0] for v in StraightDistance.__call__(self, WD_ilk=wd_l[na, :, na],
+            dw_jl, hcw_jl, dh_jl = [v[0, :, :, 0] for v in StraightDistance.__call__(self, wd_l=wd_l,
                                                                                      src_idx=src_idx, dst_idx=dst_idx)]
             dw_mj, hcw_mj, dh_mj = [np.moveaxis(v, 0, 1) for v in [dw_jl, hcw_jl, dh_jl]]
             wd_m = wd_l
         else:
             # dst_idx independent of wind direction
-            dw_ijlk, hcw_ijlk, dh_ijlk = StraightDistance.__call__(self, WD_ilk=wd_l[na, :, na],
+            dw_ijlk, hcw_ijlk, dh_ijlk = StraightDistance.__call__(self, wd_l=wd_l,
                                                                    src_idx=src_idx, dst_idx=dst_idx)
             I, J, L, K = dw_ijlk.shape
             dw_mj, hcw_mj, dh_mj = [np.moveaxis(v, 1, 2).reshape(I * L, J) for v in [dw_ijlk, hcw_ijlk, dh_ijlk]]

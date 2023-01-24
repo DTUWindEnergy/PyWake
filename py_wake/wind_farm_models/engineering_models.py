@@ -457,20 +457,20 @@ class PropagateDownwind(EngineeringWindFarmModel):
             return np.broadcast_to(np.asarray(v_ilk).astype(dtype), (I, L, _K)).reshape((I * L, _K))
 
         WS_ilk, WD_ilk = [kwargs[k + '_ilk'] for k in ['WS', 'WD']]
-        WS_mk, TI_mk, h_mk = [ilk2mk(kwargs[k + '_ilk']) for k in ['WS', 'TI', 'h']]
 
-        WS_eff_mk = []
-        TI_eff_mk = []
+        WS_mk, WD_mk, TI_mk, h_mk = [ilk2mk(kwargs[k + '_ilk']) for k in ['WS', 'WD', 'TI', 'h']]
+        WS_eff_mk, TI_eff_mk = [], []
         yaw_mk = ilk2mk(kwargs.get('yaw_ilk', [[[0]]]))
         tilt_mk = ilk2mk(kwargs.get('tilt_ilk', [[[0]]]))
         modified_input_dict_mk = []
+
         ct_jlk = []
 
         if self.turbulenceModel:
             add_turb_nk = []
 
         i_wd_l = np.arange(L).astype(int)
-        wd = mean_deg(WD_ilk, (0, 2))
+
         dw_order_indices_ld = self.site.distance.dw_order_indices(wd)[:, 0]
 
         wt_kwargs = self.get_wt_kwargs(TI_eff_ilk, kwargs)
@@ -556,7 +556,8 @@ class PropagateDownwind(EngineeringWindFarmModel):
                              }
                 model_kwargs = {k: arg_funcs[k]() for k in self.args4all if k in arg_funcs}
 
-                dw_ijlk, hcw_ijlk, dh_ijlk = self.site.distance(wd_l=wd, WD_ilk=WD_ilk, src_idx=i_wt_l, dst_idx=i_dw.T)
+                dw_ijlk, hcw_ijlk, dh_ijlk = self.site.distance(
+                    wd_l=wd, WD_ilk=WD_mk[m][na], src_idx=i_wt_l, dst_idx=i_dw.T)
 
                 for inputModidifierModel in self.inputModifierModels:
                     modified_input_dict = inputModidifierModel(**model_kwargs)
