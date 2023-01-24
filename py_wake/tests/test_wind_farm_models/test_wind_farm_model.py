@@ -16,6 +16,7 @@ import os
 from py_wake import examples
 from py_wake.literature.iea37_case_study1 import IEA37CaseStudy1
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
+from py_wake.site._site import UniformSite
 
 
 def test_yaw_wrong_name():
@@ -188,6 +189,22 @@ def test_aep_gradients_chunks():
     dAEP_autograd = wfm.aep_gradients(gradient_method=autograd, wrt_arg=['x', 'y'], wd_chunks=2, **kwargs)
 
     npt.assert_array_almost_equal(dAEP_ref, dAEP_autograd, 8)
+
+
+def test_aep_gradients_with_types():
+    # Generating the powerCtCurves (the problem does not occur when using V80())
+    wts = WindTurbines.from_WindTurbine_lst([V80(), V80()])
+    wfm = NOJ(UniformSite(), wts)
+
+    x = [0, 500]
+    y = [0, 0]
+    t = [0, 0]
+
+    daep_autograd = wfm.aep_gradients(autograd, x=x, y=y, type=t)
+    daep_fd = wfm.aep_gradients(fd, x=x, y=y, type=t)
+    daep_cs = wfm.aep_gradients(cs, x=x, y=y, type=t)
+    npt.assert_array_almost_equal(daep_autograd, daep_cs, 10)
+    npt.assert_array_almost_equal(daep_autograd, daep_fd)
 
 
 @pytest.mark.parametrize('n_wt, shape,dims', [(16, (16,), ('wt',)),

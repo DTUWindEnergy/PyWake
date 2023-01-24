@@ -117,6 +117,5 @@ def test_floating_pitch_modifier(wfm_cls, pitch, displacement, ref):
         i = np.searchsorted(fm_wt2.x, sim_res.x.sel(ws=10, wd=270)[2]) - 1
     else:
         i = np.searchsorted(fm_wt2.x, sim_res.x[2]) - 1
-    print(fm_wt2.x.isel(x=i).item())
     npt.assert_array_almost_equal(sim_res.WS_eff.sel(ws=10, wd=270, wt=2),
                                   fm_wt2.WS_eff.isel(x=i), 3)

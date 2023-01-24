@@ -120,18 +120,28 @@ class WindTurbineFunctionList(WindTurbineFunction):
         else:
             if isinstance(run_only, int):
                 o = 0
-                res = np.empty((1,) + np.asarray(ws).shape)
+                res = np.empty(np.asarray(ws).shape)
             else:
                 res = np.empty((len(self.output_keys),) + np.asarray(ws).shape)
                 o = run_only
 
             unique_idx = np.unique(idx)
             idx = np.zeros(ws.shape, dtype=int) + idx.reshape(idx.shape + (1,) * (len(ws.shape) - len(idx.shape)))
-            for i in unique_idx:
-                m = (idx == i)
-                res[o, m] = self.windTurbineFunction_lst[i](
-                    ws[m], run_only=run_only, **{k: self._subset(v, m) for k, v in get_kwargs(i).items()})
-            res = res[o]
+
+            if isinstance(o, int):
+                for i in unique_idx:
+                    m = (idx == i)
+                    r = self.windTurbineFunction_lst[i](ws, run_only=run_only,
+                                                        **{k: v for k, v in get_kwargs(i).items()})
+                    res = np.where(m, r, res)
+                return res
+            else:
+                for i in unique_idx:
+                    m = (idx == i)
+                    res[o, m] = self.windTurbineFunction_lst[i](
+                        ws[m], run_only=run_only, **{k: self._subset(v, m) for k, v in get_kwargs(i).items()})
+                return res[o]
+
         return res
 
 
