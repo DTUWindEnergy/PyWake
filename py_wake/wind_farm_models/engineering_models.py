@@ -718,6 +718,8 @@ class All2AllIterative(EngineeringWindFarmModel):
 
         cw_iilk = np.sqrt(hcw_iilk**2 + dh_iilk**2)
 
+        i2i_zero = ~np.eye(I).astype(bool)[:, :, na, na]
+
         # Iterate until convergence
         for j in tqdm(range(I), disable=I <= 1 or not self.verbose,
                       desc="Calculate flow interaction", unit="Iteration"):
@@ -768,7 +770,6 @@ class All2AllIterative(EngineeringWindFarmModel):
                 deficit_iilk, blockage_iilk = self._calc_deficit(**model_kwargs)
 
             # set own deficit to 0
-            i2i_zero = ~np.eye(I).astype(bool)[:, :, na, na]
             deficit_iilk *= i2i_zero
             if blockage_iilk is not None:
                 blockage_iilk *= i2i_zero
@@ -795,6 +796,7 @@ class All2AllIterative(EngineeringWindFarmModel):
 
             if self.turbulenceModel:
                 add_turb_ijlk = self.turbulenceModel(**model_kwargs)
+                add_turb_ijlk *= i2i_zero
                 TI_eff_ilk = self.turbulenceModel.calc_effective_TI(TI_ilk, add_turb_ijlk)
 
             # Check if converged
