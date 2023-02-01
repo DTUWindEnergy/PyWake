@@ -54,12 +54,12 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
         # self.grid_interplator(np.array([zyx.flatten() for zyx in [z, y, x]]).T, check_bounds=False).reshape(x.shape)
         return self.lut_interpolator((x, y, z))
 
-    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_ilk, dh_ijlk, D_src_il, **_):
-        self.mdu_ijlk = self.interpolate(dw_ijlk, cabs(hcw_ijlk), (h_ilk[:, na, :] + dh_ijlk))
+    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, z_ijlk, D_src_il, **_):
+        self.mdu_ijlk = self.interpolate(dw_ijlk, cabs(hcw_ijlk), z_ijlk)
 
-    def calc_deficit(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk, dh_ijlk, h_ilk, ct_ilk, D_src_il, **kwargs):
+    def calc_deficit(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk, z_ijlk, ct_ilk, D_src_il, **kwargs):
         if not self.deficit_initalized:
-            self._calc_layout_terms(dw_ijlk, hcw_ijlk, h_ilk, dh_ijlk, D_src_il, **kwargs)
+            self._calc_layout_terms(dw_ijlk, hcw_ijlk, z_ijlk, D_src_il, **kwargs)
         return self.mdu_ijlk * (ct_ilk * WS_eff_ilk**2 / WS_ilk)[:, na]
 
     def wake_radius(self, D_src_il, dw_ijlk, **_):
@@ -105,16 +105,14 @@ class FugaYawDeficit(FugaDeficit):
                 return np.moveaxis([UL_interpolator.ev(x, y), UT_interpolator.ev(x, y)], 0, -1)
             self.lut_interpolator = interp
 
-    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_ilk, dh_ijlk, D_src_il, **_):
-        self.mdu_ijlk = (self.interpolate(dw_ijlk, cabs(hcw_ijlk), (h_ilk[:, na, :] + dh_ijlk)) *
-                         ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na]))[..., na]  # avoid wake on itself
-                         )
+    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, z_ijlk, D_src_il, **_):
+        self.mdu_ijlk = (self.interpolate(dw_ijlk, cabs(hcw_ijlk), z_ijlk))
 
     def calc_deficit_downwind(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk,
-                              dh_ijlk, h_ilk, ct_ilk, D_src_il, yaw_ilk, **_):
+                              z_ijlk, ct_ilk, D_src_il, yaw_ilk, **_):
 
         mdUL_ijlk, mdUT_ijlk = np.moveaxis(self.interpolate(
-            dw_ijlk, cabs(hcw_ijlk), (h_ilk[:, na, :] + dh_ijlk)), -1, 0)
+            dw_ijlk, cabs(hcw_ijlk), z_ijlk), -1, 0)
         mdUT_ijlk = np.negative(mdUT_ijlk, out=mdUT_ijlk, where=hcw_ijlk < 0)  # UT is antisymmetric
         theta_ilk = np.deg2rad(yaw_ilk)
 
@@ -241,10 +239,10 @@ class FugaMultiLUTDeficit(FugaDeficit):
         self.index_arr = index_arr
         self.d_index, self.h_index = d_index, h_index
 
-    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_ilk, dh_ijlk, D_src_il, **kwargs):
+    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, z_ijlk, D_src_il, h_ilk, **kwargs):
         i_ilk = self.index_arr[self.d_index(D_src_il)[:, :, na], self.h_index(h_ilk)]
         i_ijlk = np.broadcast_to(i_ilk[:, na, :], dw_ijlk.shape)
-        xp = np.array([i_ijlk, h_ilk[:, na, :] + dh_ijlk, cabs(hcw_ijlk), dw_ijlk])
+        xp = np.array([i_ijlk, z_ijlk, cabs(hcw_ijlk), dw_ijlk])
         self.mdu_ijlk = self.interpolator(xp.reshape((4, -1)).T, bounds='limit').reshape(dw_ijlk.shape)
 
         self.mdu_ijlk *= ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na]))  # avoid wake on itself
