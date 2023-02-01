@@ -24,11 +24,10 @@ def test_get_models():
 
 
 def test_get_signature():
-    assert get_signature(
-        NOJDeficit) == "NOJDeficit(k=0.1, use_effective_ws=False, rotorAvgModel=AreaOverlapAvgModel(), groundModel=None)"
+    assert (get_signature(NOJDeficit) ==
+            "NOJDeficit(k=0.1, rotorAvgModel=AreaOverlapAvgModel(), groundModel=None)")
     assert get_signature(NOJDeficit, indent_level=1) == """NOJDeficit(
     k=0.1,
-    use_effective_ws=False,
     rotorAvgModel=AreaOverlapAvgModel(),
     groundModel=None)"""
     assert (get_signature(STF2017TurbulenceModel) ==
