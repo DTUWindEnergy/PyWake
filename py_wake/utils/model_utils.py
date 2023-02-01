@@ -65,6 +65,7 @@ class RotorAvgAndGroundModelContainer():
 def get_exclude_dict():
     from py_wake.deficit_models.deficit_model import ConvectionDeficitModel, WakeDeficitModel,\
         BlockageDeficitModel
+    from py_wake.deficit_models.deficit_model import XRDeficitModel
     from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel, NodeRotorAvgModel
     from py_wake.wind_farm_models.engineering_models import EngineeringWindFarmModel, PropagateDownwind
 
@@ -74,11 +75,11 @@ def get_exclude_dict():
     from py_wake.site.jit_streamline_distance import JITStreamlineDistance
     return {
         "WindFarmModel": ([EngineeringWindFarmModel], [], PropagateDownwind),
-        "DeficitModel": ([ConvectionDeficitModel, BlockageDeficitModel, WakeDeficitModel], [RotorAvgModel], NOJDeficit),
-        "WakeDeficitModel": ([ConvectionDeficitModel], [RotorAvgModel], NOJDeficit),
+        "DeficitModel": ([ConvectionDeficitModel, BlockageDeficitModel, WakeDeficitModel, XRDeficitModel], [RotorAvgModel], NOJDeficit),
+        "WakeDeficitModel": ([ConvectionDeficitModel, XRDeficitModel], [RotorAvgModel], NOJDeficit),
         "RotorAvgModel": ([NodeRotorAvgModel], [], None),
         "SuperpositionModel": ([], [], LinearSum),
-        "BlockageDeficitModel": ([], [], None),
+        "BlockageDeficitModel": ([XRDeficitModel], [], None),
         "DeflectionModel": ([], [], None),
         "TurbulenceModel": ([], [], None),
         "AddedTurbulenceSuperpositionModel": ([], [], None),

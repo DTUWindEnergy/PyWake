@@ -767,6 +767,12 @@ class All2AllIterative(EngineeringWindFarmModel):
             else:
                 deficit_iilk, blockage_iilk = self._calc_deficit(**model_kwargs)
 
+            # set own deficit to 0
+            i2i_zero = ~np.eye(I).astype(bool)[:, :, na, na]
+            deficit_iilk *= i2i_zero
+            if blockage_iilk is not None:
+                blockage_iilk *= i2i_zero
+
             # Calculate effective wind speed
             if isinstance(self.superpositionModel, WeightedSum):
                 WS_eff_ilk = WS_ilk - self.superpositionModel(WS_ilk, deficit_iilk,

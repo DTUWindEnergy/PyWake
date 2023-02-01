@@ -13,9 +13,9 @@ from py_wake.deficit_models.deficit_model import WakeRadiusTopHat
 
 class NOJDeficit(NiayifarGaussianDeficit, WakeRadiusTopHat):
 
-    def __init__(self, k=.1, use_effective_ws=False, rotorAvgModel=AreaOverlapAvgModel(), groundModel=None):
+    def __init__(self, k=.1, rotorAvgModel=AreaOverlapAvgModel(), groundModel=None):
         DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
-                              use_effective_ws=use_effective_ws, use_effective_ti=False)
+                              use_effective_ws=False, use_effective_ti=False)
         self.a = [0, k]
 
     def _calc_layout_terms(self, D_src_il, wake_radius_ijl, dw_ijlk, cw_ijlk, **kwargs):

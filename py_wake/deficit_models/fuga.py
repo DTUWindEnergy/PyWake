@@ -55,9 +55,7 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
         return self.lut_interpolator((x, y, z))
 
     def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_ilk, dh_ijlk, D_src_il, **_):
-        self.mdu_ijlk = self.interpolate(dw_ijlk, cabs(hcw_ijlk), (h_ilk[:, na, :] + dh_ijlk)) * \
-            ~((dw_ijlk == 0) & (hcw_ijlk <= D_src_il[:, na, :, na])  # avoid wake on itself
-              )
+        self.mdu_ijlk = self.interpolate(dw_ijlk, cabs(hcw_ijlk), (h_ilk[:, na, :] + dh_ijlk))
 
     def calc_deficit(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk, dh_ijlk, h_ilk, ct_ilk, D_src_il, **kwargs):
         if not self.deficit_initalized:
