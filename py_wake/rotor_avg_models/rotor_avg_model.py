@@ -63,7 +63,9 @@ class GridRotorAvg(NodeRotorAvgModel):
         hcw_ijlkp = hcw_ijlk[..., na] + R_dst_ijl[:, :, :, na, na] * self.nodes_x[na, na, na, na, :]
         dh_ijlkp = dh_ijlk[..., na] + R_dst_ijl[:, :, :, na, na] * self.nodes_y[na, na, na, na, :]
         new_kwargs = {'dh_ijlk': dh_ijlkp, 'hcw_ijlk': hcw_ijlkp, 'D_dst_ijl': D_dst_ijl[..., na]}
-
+        if 'z_ijlk' in kwargs:
+            new_kwargs['z_ijlk'] = kwargs.pop('z_ijlk')[..., na] + R_dst_ijl[:, :, :,
+                                                                             na, na] * self.nodes_y[na, na, na, na, :]
         new_kwargs['cw_ijlk'] = np.sqrt(hcw_ijlkp**2 + dh_ijlkp**2)
         new_kwargs['D_dst_ijl'] = D_dst_ijl
         new_kwargs['dw_ijlk'] = kwargs['dw_ijlk'][..., na] * np.ones_like(new_kwargs['cw_ijlk'])

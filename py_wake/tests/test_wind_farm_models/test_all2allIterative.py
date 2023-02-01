@@ -22,12 +22,12 @@ from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80
 class FugaDeficitCount(FugaDeficit):
     counter = 0
 
-    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_ilk, dh_ijlk, D_src_il, **_):
+    def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, z_ijlk, D_src_il, **_):
         I, J = dw_ijlk.shape[:2]
         if I > 1 and I == J:
             # only count All2All
             self.counter += 1
-        return FugaDeficit._calc_layout_terms(self, dw_ijlk, hcw_ijlk, h_ilk, dh_ijlk, D_src_il, **_)
+        return FugaDeficit._calc_layout_terms(self, dw_ijlk, hcw_ijlk, z_ijlk, D_src_il, **_)
 
 
 @pytest.mark.parametrize('deflection_model,count',

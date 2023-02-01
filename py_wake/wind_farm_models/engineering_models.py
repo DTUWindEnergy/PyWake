@@ -303,6 +303,8 @@ class EngineeringWindFarmModel(WindFarmModel):
 
         if 'wake_radius_ijl' in self.args4all:
             model_kwargs['wake_radius_ijl'] = self.wake_deficitModel.wake_radius(**model_kwargs)[..., 0]
+        if 'z_ijlk' in self.args4all:
+            model_kwargs['z_ijlk'] = wt_h_ilk[:, na] + dh_ijlk
 
         if isinstance(self.superpositionModel, WeightedSum):
             deficit_ijlk, uc_ijlk, sigma_sqr_ijlk, blockage_ijlk = self._calc_deficit_convection(**model_kwargs)
@@ -572,6 +574,8 @@ class PropagateDownwind(EngineeringWindFarmModel):
                         dw_ijlk=dw_ijlk, hcw_ijlk=hcw_ijlk, dh_ijlk=dh_ijlk, **model_kwargs)
 
                 model_kwargs.update({'dw_ijlk': dw_ijlk, 'hcw_ijlk': hcw_ijlk, 'dh_ijlk': dh_ijlk})
+                if 'z_ijlk' in self.args4all:
+                    model_kwargs['z_ijlk'] = h_mk[m][na, na] + dh_ijlk
 
                 hcw_nk.append(hcw_ijlk[0])
                 dh_nk.append(dh_ijlk[0])
@@ -706,6 +710,7 @@ class All2AllIterative(EngineeringWindFarmModel):
                         'hcw_ijlk': hcw_iilk,
                         'cw_ijlk': np.sqrt(hcw_iilk**2 + dh_iilk**2),
                         'dh_ijlk': dh_iilk,
+                        'z_ijlk': kwargs['h_ilk'][:, na] + dh_iilk,
                         'IJLK': (I, I, L, K),
                         'type_il': kwargs['type_i'][:, na],
                         ** kwargs,
@@ -726,22 +731,23 @@ class All2AllIterative(EngineeringWindFarmModel):
 
             ct_ilk = self.windTurbines.ct(np.maximum(WS_eff_ilk, 0), **wt_kwargs)
             ioff |= (unstable_lk)[na] & (ct_ilk <= ct_ilk_idle)
-            model_kwargs.update(dict(
-                ct_ilk=ct_ilk,
-                WS_eff_ilk=WS_eff_ilk,
+
+            model_kwargs.update(dict(ct_ilk=ct_ilk, WS_eff_ilk=WS_eff_ilk))
+            if self.inputModifierModels:
                 # x_ilk, y_ilk and h_ilk is may be updated by an inputModifierModel and
                 # must be reset in every iterations
-                x_ilk=kwargs['x_ilk'],
-                y_ilk=kwargs['y_ilk'],
-                h_ilk=kwargs['h_ilk'],
-                # dw_ijlk, hcw_ijlk and dh_ijlk is updated by deflection model and must be reset in every iterations
-                dw_ijlk=dw_iilk,
-                hcw_ijlk=hcw_iilk,
-                cw_ijlk=cw_iilk,
-                dh_ijlk=dh_iilk))
+                model_kwargs.update(dict(x_ilk=kwargs['x_ilk'], y_ilk=kwargs['y_ilk'], h_ilk=kwargs['h_ilk']))
+
+            if self.deflectionModel:
+                model_kwargs.update(dict(
+                    # dw_ijlk, hcw_ijlk and dh_ijlk is updated by deflection model and must be reset in every iterations
+                    dw_ijlk=dw_iilk,
+                    hcw_ijlk=hcw_iilk,
+                    cw_ijlk=cw_iilk,
+                    dh_ijlk=dh_iilk,
+                    z_ijlk=kwargs['h_ilk'][:, na] + dh_iilk))
 
             for inputModidifierModel in self.inputModifierModels:
-
                 modified_input_dict = inputModidifierModel(**model_kwargs)
                 model_kwargs.update(modified_input_dict)
                 if any([k in modified_input_dict for k in ['x_ilk', 'y_ilk']]):
