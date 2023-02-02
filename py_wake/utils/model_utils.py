@@ -5,12 +5,77 @@ from py_wake import np
 from numpy import newaxis as na
 from py_wake.site._site import Site
 import warnings
+from py_wake.utils.grid_interpolator import GridInterpolator
 
 
 class Model():
     @property
     def args4model(self):
         return method_args(self.__call__)
+
+
+class XRLUTModel(Model):
+    """Model based on xarray.dataarray look-up table with linear interpolation"""
+
+    def __init__(self, da, get_input=None, get_output=None, bounds='limit'):
+        """
+        Parameters
+        ----------
+        da : xarray.dataarray
+            dataarray containing lookup table.
+        get_input : function or None, optional
+            if None (default): The get_input method of XRDeficitModel is used. This option requires that the
+            names of the input dimensions matches names of the default PyWake keyword arguments, e.g. dw_ijlk, WS_ilk,
+            D_src_il, etc, or user-specified custom inputs
+            if function: The names of the input for the function should match the names of the default PyWake
+            keyword arguments, e.g. dw_ijlk, WS_ilk, D_src_il, etc, or user-specified custom inputs.
+            The function should output interpolation coordinates [x_ijlk, y_ijlk, ...], where (x,y,...) match
+            the order of the dimensions of the dataarray
+        get_output : function or None, optional
+            if None (default): The interpolated output is scaled with the local wind speed, WS_ilk,
+            or local effective wind speed, WS_eff_ilk, depending on the value of <use_effective_ws>.
+            if function: The function should take the argument output_ijlk and an optional set of PyWake inputs. The
+            names of the PyWake inputs should match the names of the default PyWake keyword arguments,
+            e.g. dw_ijlk, WS_ilk, D_src_il, etc, or user-specified custom inputs.
+            The function should return deficit_ijlk
+        bounds : {'limit', 'check', 'ignore'}
+            how to handle out-of-bounds coordinate interpolation, see GridInterpolator
+        """
+        self.da = da
+        if get_input:
+            self.get_input = get_input
+            self._args4model = set(inspect.getfullargspec(get_input).args) - {'self'}
+        else:
+            self._args4model = set(self.da.dims)
+        if get_output:
+            self.get_output = get_output
+            self._args4model = self._args4model | set(inspect.getfullargspec(get_output).args) - {'self'}
+
+        self.interp = GridInterpolator([da[k].values for k in da.dims], da.values, bounds=bounds)
+
+    @property
+    def args4model(self):
+        args4model = Model.args4model.fget(self)  # @UndefinedVariable
+        return args4model | self._args4model
+
+    def get_input(self, **kwargs):
+        """Default get_input function. This function makes a list of interpolation coordinates based on the input
+        dimensions of the dataarray, which must have names that matches the names of the default PyWake
+        keyword arguments, e.g. dw_ijlk, WS_ilk, D_src_il, etc, or user-specified custom inputs"""
+        return [np.expand_dims(kwargs[k], [i for i, d in enumerate('ijlk') if d not in k.split('_')[-1]])
+                for k in self.da.dims]
+
+    def get_output(self, output_ijlk, **kwargs):
+        """Default get_output function.
+        This function just returns the interpolated values"""
+        return output_ijlk
+
+    def __call__(self, **kwargs):
+        input_ijlk = self.get_input(**kwargs)
+        IJLK = np.max([inp.shape for inp in input_ijlk], 0)
+        output_ijlk = self.interp(np.array([np.broadcast_to(inp, IJLK).flatten()
+                                            for inp in input_ijlk]).T).reshape(IJLK)
+        return self.get_output(output_ijlk, **kwargs)
 
 
 class DeprecatedModel():
@@ -65,23 +130,25 @@ class RotorAvgAndGroundModelContainer():
 def get_exclude_dict():
     from py_wake.deficit_models.deficit_model import ConvectionDeficitModel, WakeDeficitModel,\
         BlockageDeficitModel
-    from py_wake.deficit_models.deficit_model import XRDeficitModel
+    from py_wake.deficit_models.deficit_model import XRLUTDeficitModel
     from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel, NodeRotorAvgModel
     from py_wake.wind_farm_models.engineering_models import EngineeringWindFarmModel, PropagateDownwind
 
     from py_wake.superposition_models import LinearSum
     from py_wake.deficit_models.noj import NOJDeficit
+    from py_wake.turbulence_models.turbulence_model import XRLUTTurbulenceModel
     from py_wake.ground_models.ground_models import NoGround
     from py_wake.site.jit_streamline_distance import JITStreamlineDistance
     return {
         "WindFarmModel": ([EngineeringWindFarmModel], [], PropagateDownwind),
-        "DeficitModel": ([ConvectionDeficitModel, BlockageDeficitModel, WakeDeficitModel, XRDeficitModel], [RotorAvgModel], NOJDeficit),
-        "WakeDeficitModel": ([ConvectionDeficitModel, XRDeficitModel], [RotorAvgModel], NOJDeficit),
+        "DeficitModel": ([ConvectionDeficitModel, BlockageDeficitModel, WakeDeficitModel, XRLUTDeficitModel],
+                         [RotorAvgModel], NOJDeficit),
+        "WakeDeficitModel": ([ConvectionDeficitModel, XRLUTDeficitModel], [RotorAvgModel], NOJDeficit),
         "RotorAvgModel": ([NodeRotorAvgModel], [], None),
         "SuperpositionModel": ([], [], LinearSum),
-        "BlockageDeficitModel": ([XRDeficitModel], [], None),
+        "BlockageDeficitModel": ([XRLUTDeficitModel], [], None),
         "DeflectionModel": ([], [], None),
-        "TurbulenceModel": ([], [], None),
+        "TurbulenceModel": ([XRLUTTurbulenceModel], [], None),
         "AddedTurbulenceSuperpositionModel": ([], [], None),
         "GroundModel": ([], [], NoGround),
         "Shear": ([], [], None),

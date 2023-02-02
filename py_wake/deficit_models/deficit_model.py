@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from py_wake import np
 from numpy import newaxis as na
 from py_wake.utils.gradients import cabs
-from py_wake.utils.model_utils import method_args, RotorAvgAndGroundModelContainer
+from py_wake.utils.model_utils import method_args, RotorAvgAndGroundModelContainer, XRLUTModel
 from py_wake.superposition_models import WeightedSum
 from py_wake.utils.grid_interpolator import GridInterpolator
 import inspect
@@ -153,7 +153,7 @@ class ConvectionDeficitModel(WakeDeficitModel):
         """
 
 
-class XRDeficitModel(WakeDeficitModel, BlockageDeficitModel):
+class XRLUTDeficitModel(WakeDeficitModel, BlockageDeficitModel, XRLUTModel):
     """Deficit model based on xarray.dataarray look-up table with linear interpolation"""
 
     def __init__(self, da, get_input=None, get_output=None,
@@ -179,34 +179,16 @@ class XRDeficitModel(WakeDeficitModel, BlockageDeficitModel):
             names of the PyWake inputs should match the names of the default PyWake keyword arguments,
             e.g. dw_ijlk, WS_ilk, D_src_il, etc, or user-specified custom inputs.
             The function should return deficit_ijlk
+        bounds : {'limit', 'check', 'ignore'}
+            how to handle out-of-bounds coordinate interpolation, see GridInterpolator
         """
-        self.da = da
-        if get_input:
-            self.get_input = get_input
-            self._args4deficit = set(inspect.getfullargspec(get_input).args) - {'self'}
-        else:
-            self._args4deficit = set(self.da.dims)
-        if get_output:
-            self.get_output = get_output
-            self._args4deficit = self._args4deficit | set(inspect.getfullargspec(get_output).args) - {'self'}
-
+        XRLUTModel.__init__(self, da, get_input, get_output, bounds)
         BlockageDeficitModel.__init__(self, upstream_only=True, rotorAvgModel=rotorAvgModel, groundModel=groundModel)
         WakeDeficitModel.__init__(self, rotorAvgModel, groundModel, use_effective_ws, use_effective_ti)
-        self.interp = GridInterpolator([da[k].values for k in da.dims], da.values, bounds=bounds)
 
     @property
     def args4deficit(self):
-        args4deficit = WakeDeficitModel.args4deficit.fget(self)  # @UndefinedVariable
-        return args4deficit | self._args4deficit
-
-    def get_input(self, **kwargs):
-        """Default get_input function. This function makes a list of interpolation coordinates based on the input
-        dimensions of the dataarray, which must have names that matches the names of the default PyWake
-        keyword arguments, e.g. dw_ijlk, WS_ilk, D_src_il, etc, or user-specified custom inputs"""
-        kwargs_ijlk = {k: np.expand_dims(kwargs[k], [i for i, d in enumerate('ijlk') if d not in k.split('_')[-1]])
-                       for k in self.da.dims}
-        IJLK = np.max([arg.shape for arg in kwargs_ijlk.values()], 0)
-        return [np.broadcast_to(kwargs_ijlk[k], IJLK) for k in self.da.dims]
+        return XRLUTModel.args4model.fget(self) | WakeDeficitModel.args4deficit.fget(self)
 
     def get_output(self, output_ijlk, **kwargs):
         """Default get_output function.
@@ -215,6 +197,4 @@ class XRDeficitModel(WakeDeficitModel, BlockageDeficitModel):
         return output_ijlk * kwargs[self.WS_key][:, na]
 
     def calc_deficit(self, **kwargs):
-        input_ijlk = self.get_input(**kwargs)
-        output_ijlk = self.interp(np.array([i.flatten() for i in input_ijlk]).T).reshape(input_ijlk[0].shape)
-        return self.get_output(output_ijlk, **kwargs)
+        return XRLUTModel.__call__(self, **kwargs)

@@ -191,12 +191,12 @@ def test_wasp_resources_grid_point(site):
     npt.assert_almost_equal(AEP_ilk.sum(), wasp_aep_no_density_correction_total, 3)
 
 
-@pytest.mark.parametrize('site,dw_ref', [
-    (ParqueFicticioSite(distance=TerrainFollowingDistance()),
+@pytest.mark.parametrize('distance,dw_ref', [
+    (TerrainFollowingDistance(),
      [0, 209.803579, 480.8335365, 715.6003233, 1026.9476322, 1249.5510034, 1475.1467251, 1824.1317343]),
-    (ParqueFicticioSite(distance=StraightDistance()),
-     [-0, 207, 477, 710, 1016, 1236, 1456, 1799])])
-def test_distances(site, dw_ref):
+    (StraightDistance(), [-0, 207, 477, 710, 1016, 1236, 1456, 1799])])
+def test_distances(distance, dw_ref):
+    site = ParqueFicticioSite(distance)
     x, y = site.initial_position.T
     site.distance.setup(src_x_ilk=x, src_y_ilk=y, src_h_ilk=np.array([70]),
                         dst_xyh_j=(x, y, np.array([70])))
@@ -342,7 +342,3 @@ def test_additional_input():
                                             5.10998066, 5.16969047, 5.22940029, 5.28911011, 5.34881993,
                                             5.40852975, 5.46823957, 5.52794939, 5.5876592, 5.64736902,
                                             5.70707884, 5.76678866, 5.82649848, 5.8862083, 5.94591812]))
-
-
-if __name__ == '__main__':
-    test_wasp_resources_grid_point(ParqueFicticioSite())

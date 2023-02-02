@@ -224,18 +224,15 @@ class EngineeringWindFarmModel(WindFarmModel):
                      {'type_i': kwargs[0]['type_i'],
                       **{k: concatenate([wt_i[k] for wt_i in kwargs]) for k in kwargs[0] if k.endswith('_ilk')}}])
 
-        kwargs.update({
-            'WD_ilk': lw.WD_ilk,
-            'WS_ilk': lw.WS_ilk,
-                      'TI_ilk': lw.TI_ilk,
-                      'WS_eff_ilk': WS_eff_ilk,
-                      'TI_eff_ilk': lw.TI_ilk + 0.,  # autograd-friendly copy
-                      'D_i': D_i,
-                      'I': I, 'L': L, 'K': K,
-
-
-                      **{k + '_ilk': self.site.interp(self.site.ds[k], lw) for k in ri + oi if k in self.site.ds},
-                      })
+        kwargs.update({'WD_ilk': lw.WD_ilk,
+                       'WS_ilk': lw.WS_ilk,
+                       'TI_ilk': lw.TI_ilk,
+                       'WS_eff_ilk': WS_eff_ilk,
+                       'TI_eff_ilk': lw.TI_ilk + 0.,  # autograd-friendly copy
+                       'D_i': D_i,
+                       'I': I, 'L': L, 'K': K,
+                       **{k + '_ilk': self.site.interp(self.site.ds[k], lw) for k in ri + oi if k in self.site.ds},
+                       })
 
         self._check_input(kwargs)
 
