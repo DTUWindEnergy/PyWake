@@ -7,8 +7,8 @@ from py_wake.site._site import UniformSite
 from py_wake.tests import npt
 from py_wake.tests.test_files import tfp
 import xarray as xr
-from py_wake.deficit_models.deficit_model import XRDeficitModel
-from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2All, All2AllIterative
+from py_wake.deficit_models.deficit_model import XRLUTDeficitModel
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.deficit_models.noj import NOJDeficit, NOJ
 from numpy import newaxis as na
 from py_wake.superposition_models import SquaredSum
@@ -32,7 +32,7 @@ def test_noj():
                               dw_ijlk=dw_ijlk, cw_ijlk=np.abs(cw_ijlk), WS_ilk=np.array([[[1]]]))
     da = xr.DataArray(output.reshape(DW.shape + ct.shape),
                       coords={'cw_ijlk': y, 'dw_ijlk': x, 'ct_ilk': ct})
-    xrdeficit = XRDeficitModel(da, use_effective_ws=False)
+    xrdeficit = XRLUTDeficitModel(da, use_effective_ws=False)
 
     # compare LUT based deficit model with original NOJDeficit
     wt_x = [-250, 600, -500, 0, 500, -250, 250]
@@ -96,7 +96,7 @@ def test_fuga():
         # scale interpolated output with ct and WS
         return output_ijlk * (ct_ilk * WS_eff_ilk**2 / WS_ilk)[:, na]
 
-    xrdeficit = XRDeficitModel(da, get_input=get_input, get_output=get_output)
+    xrdeficit = XRLUTDeficitModel(da, get_input=get_input, get_output=get_output)
     wfm = All2AllIterative(site, wts, wake_deficitModel=xrdeficit, blockage_deficitModel=xrdeficit)
 
     wfm_ref = FugaBlockage(path, site, wts)

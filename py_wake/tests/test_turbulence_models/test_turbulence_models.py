@@ -13,7 +13,7 @@ from py_wake.superposition_models import SquaredSum
 from py_wake.tests import npt
 from py_wake.tests.test_deficit_models.test_noj import NibeA0
 from py_wake.turbulence_models.stf import STF2005TurbulenceModel, STF2017TurbulenceModel, IECWeight
-from py_wake.turbulence_models.turbulence_model import TurbulenceModel
+from py_wake.turbulence_models.turbulence_model import TurbulenceModel, XRLUTTurbulenceModel
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.turbulence_models.gcl_turb import GCLTurbulence
 import matplotlib.pyplot as plt
@@ -24,6 +24,7 @@ from py_wake.rotor_avg_models.rotor_avg_model import EqGridRotorAvg, GQGridRotor
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.utils.model_utils import get_models
 from numpy import newaxis as na
+import xarray as xr
 
 WindFarmModel.verbose = False
 
@@ -204,3 +205,44 @@ def test_turbulence_models_upstream(turbulenceModel):
     if 0:
         fm.plot_ti_map()
         plt.show()
+
+
+def test_XRLUTTurbulenceModel():
+    # setup site, turbines and wind farm model
+    site = IEA37Site(16)
+    windTurbines = IEA37_WindTurbines()
+
+    stf = STF2017TurbulenceModel()
+    x = np.linspace(-3000, 3000, 500)
+    y = np.linspace(-3000, 3000, 1000)
+    ct = np.linspace(0.1, 8 / 9, 50)
+    DW, CW = np.meshgrid(x, y)
+    kwargs = dict(D_src_il=np.array([[80]]),
+                  dw_ijlk=DW.flatten()[na, :, na, na],
+                  cw_ijlk=CW.flatten()[na, :, na, na],
+                  ct_ilk=ct[na, na],
+                  TI_ilk=site.ds.TI.values[na, na, na],
+                  WS_ilk=site.ds.ws.values[na, na])
+
+    output = stf.calc_added_turbulence(**kwargs
+                                       )
+    da = xr.DataArray(output.reshape(DW.shape + ct.shape),
+                      coords={'cw_ijlk': y, 'dw_ijlk': x, 'ct_ilk': ct})
+    xrLUTTurbulence = XRLUTTurbulenceModel(da)
+
+    x, y = site.initial_position.T
+    wfm_ref, wfm = [All2AllIterative(site, windTurbines,
+                                     wake_deficitModel=NOJDeficit(),
+                                     superpositionModel=SquaredSum(),
+                                     turbulenceModel=tm) for tm in [STF2017TurbulenceModel(), xrLUTTurbulence]]
+
+    res_ref, res = [w(x, y) for w in [wfm_ref, wfm]]
+    fm_ref, fm = [r.flow_map(wd=0) for r in [res_ref, res]]
+    if 0:
+        plt.title("%s, %s" % (wfm.__class__.__name__, wfm.turbulenceModel.__class__.__name__))
+        fm.plot_ti_map()
+        plt.show()
+
+    npt.assert_array_almost_equal(res_ref.TI_eff, res_ref.TI_eff, 3, err_msg=str(wfm))
+    # 0.32 is a high tolerance but due to the tophat-like turbulence profile
+    npt.assert_allclose(fm_ref.TI_eff, fm.TI_eff, atol=0.32)
