@@ -44,12 +44,13 @@ class XRLUTModel(Model):
         self.da = da
         if get_input:
             self.get_input = get_input
-            self._args4model = set(inspect.getfullargspec(get_input).args) - {'self'}
+            self._args4model = set()
         else:
             self._args4model = set(self.da.dims)
         if get_output:
             self.get_output = get_output
-            self._args4model = self._args4model | set(inspect.getfullargspec(get_output).args) - {'self'}
+        self._args4model |= (set(inspect.getfullargspec(self.get_input).args) |
+                             set(inspect.getfullargspec(self.get_output).args) - {'self'})
 
         self.interp = GridInterpolator([da[k].values for k in da.dims], da.values, bounds=bounds)
 
