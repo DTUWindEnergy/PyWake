@@ -104,20 +104,21 @@ class GridInterpolator(object):
         if deg:
             v = (v + 180) % 360 - 180  # -180..180 > 0-360
 
-        xpif1 = 1 - xpif
-        # w = np.product([xpif10_.T[ui] for xpif10_, ui in zip(np.array([xpif1, xpif]).T, self.ui.T)], 0).T # slower
-        # w = np.product(np.take_along_axis(xpif10[:, :, na], self.ui[na, na], 0).squeeze(), 2)  # even slower
-
-        def mul_weight(weights, i):
-            if i == xpif.shape[1]:
-                return weights
-            else:
-                if linear[i]:
-                    return np.array([mul_weight(weights * xpif1[:, i], i + 1), mul_weight(weights * xpif[:, i], i + 1)])
+        for i, x in enumerate(zip((1 - xpif).T, xpif.T)):
+            if linear[i]:
+                if i == 0:
+                    w = np.array(x)
                 else:
-                    return np.array([mul_weight(weights * xpif1[:, i], i + 1)])
+                    w = w[..., na, :] * np.expand_dims(np.array(x), tuple(range(i)))
+            else:
+                if i == 0:
+                    w = x[0]
+                else:
+                    w = w * x[0]  # np.expand_dims(x[0], tuple(range(i)))
+        w = np.reshape(w, (-1, xpif.shape[0]))
 
-        w = np.reshape(mul_weight(1, 0), (-1, xpif.shape[0]))
+        # w = np.prod(np.array([xpif1, xpif])[ui, :, range(len(self.x))], 1) # slower
+        # w = np.product(np.take_along_axis(xpif10[:, :, na], self.ui[na, na], 0).squeeze(), 2)  # even slower
 
         res = np.moveaxis((w * v).sum(-2), -1, 0)
         if deg:
