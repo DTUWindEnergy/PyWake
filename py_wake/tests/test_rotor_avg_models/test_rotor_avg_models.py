@@ -13,7 +13,7 @@ from py_wake.flow_map import HorizontalGrid, XYGrid
 from py_wake.rotor_avg_models import gauss_quadrature, PolarGridRotorAvg, \
     polar_gauss_quadrature, EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg, GridRotorAvg, WSPowerRotorAvg
 from py_wake.rotor_avg_models.gaussian_overlap_model import GaussianOverlapAvgModel
-from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel, RotorCenter
+from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel, RotorCenter, PolarRotorAvg
 from py_wake.site._site import UniformSite
 from py_wake.superposition_models import SquaredSum, LinearSum, WeightedSum
 from py_wake.tests import npt
@@ -21,6 +21,8 @@ from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.utils.model_utils import get_models
 from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind, EngineeringWindFarmModel
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel
+from py_wake.rotor_avg_models.area_overlap_model import AreaOverlapAvgModel
+from py_wake.deficit_models.noj import NOJ
 
 
 EngineeringWindFarmModel.verbose = False
@@ -277,7 +279,7 @@ def test_RotorGaussQuadratureGridAvgModel():
 
 
 def test_polar_gauss_quadrature():
-    m = PolarGridRotorAvg(*polar_gauss_quadrature(4, 3))
+    m = PolarRotorAvg(*polar_gauss_quadrature(4, 3))
 
     if 0:
         for v in [m.nodes_x, m.nodes_y, m.nodes_weight]:
@@ -294,6 +296,26 @@ def test_polar_gauss_quadrature():
                                               0.67, 0.93, -0.05, -0.25, -0.51, -0.71], 2)
     npt.assert_array_almost_equal(m.nodes_weight, [0.05, 0.09, 0.09, 0.05, 0.08, 0.14, 0.14,
                                                    0.08, 0.05, 0.09, 0.09, 0.05], 2)
+
+
+def test_polar_grid():
+    m = PolarGridRotorAvg(r_weight=[.5**2, 1 - .5**2], theta_weight=1 / 6)
+
+    if 0:
+        for v in [m.nodes_x, m.nodes_y, m.nodes_weight]:
+            print(np.round(v, 2).tolist())
+        plt.scatter(m.nodes_x, m.nodes_y, c=m.nodes_weight)
+        plt.axis('equal')
+        plt.gca().add_artist(plt.Circle((0, 0), 1, fill=False))
+        plt.ylim([-1, 1])
+        plt.show()
+
+    npt.assert_array_almost_equal(m.nodes_x,
+                                  [0.0, 0.0, 0.29, 0.58, 0.29, 0.58, 0.0, 0.0, -0.29, -0.58, -0.29, -0.58], 2)
+    npt.assert_array_almost_equal(m.nodes_y,
+                                  [0.33, 0.67, 0.17, 0.33, -0.17, -0.33, -0.33, -0.67, -0.17, -0.33, 0.17, 0.33], 2)
+    npt.assert_array_almost_equal(m.nodes_weight,
+                                  [0.04, 0.12, 0.04, 0.12, 0.04, 0.12, 0.04, 0.12, 0.04, 0.12, 0.04, 0.12], 2)
 
 
 @pytest.mark.parametrize('n,x,y,w', [
@@ -411,3 +433,21 @@ def test_WSPowerRotorAvgModel():
     rotorAvgModel = WSPowerRotorAvg(GridRotorAvg(nodes_x=[-1, 0, 1], nodes_y=[0, 0, 0]), alpha=2)
     wfm = BastankhahGaussian(UniformSite(), V80(), rotorAvgModel=rotorAvgModel)
     npt.assert_almost_equal(wfm(x, y, wd=270).WS_eff.sel(wt=1).squeeze(), ws_eff_ref)
+
+
+def test_flow_map():
+    wfm = NOJ(UniformSite(), V80(), rotorAvgModel=CGIRotorAvg(7))
+    y = np.linspace(-110, -50, 10)
+    fm = wfm([0], [0], wd=270, ws=12).flow_map(XYGrid(x=400, y=y))
+    fm_avg = wfm([0], [0], wd=270, ws=12).flow_map(XYGrid(x=400, y=y), D_dst=40)
+    if 0:
+        print(list(np.round(fm.WS_eff.squeeze().values, 2)))
+        print(list(np.round(fm_avg.WS_eff.squeeze().values, 2)))
+        plt.plot(y, fm.WS_eff.squeeze())
+        plt.plot(y, fm_avg.WS_eff.squeeze())
+        plt.show()
+
+    npt.assert_array_almost_equal(fm.WS_eff.squeeze(),
+                                  [12.0, 12.0, 12.0, 12.0, 12.0, 10.62, 10.62, 10.62, 10.62, 10.62], 2)
+    npt.assert_array_almost_equal(fm_avg.WS_eff.squeeze(),
+                                  [12.0, 12.0, 12.0, 11.83, 11.48, 11.14, 10.79, 10.62, 10.62, 10.62], 2)

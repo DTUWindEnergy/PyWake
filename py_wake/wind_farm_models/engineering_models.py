@@ -249,7 +249,7 @@ class EngineeringWindFarmModel(WindFarmModel):
     def _calc_wt_interaction(self, **kwargs):
         """calculate WT interaction"""
 
-    def get_map_args(self, x_j, y_j, h_j, sim_res_data):
+    def get_map_args(self, x_j, y_j, h_j, sim_res_data, D_dst=0):
         wt_d_i = self.windTurbines.diameter(sim_res_data.type)
         wd, ws = [np.atleast_1d(sim_res_data[k].values) for k in ['wd', 'ws']]
         time = sim_res_data.get('time', False)
@@ -270,7 +270,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                          for k in sim_res_data if k not in ['wd_bin_size', 'ws_l', 'ws_u']}
         map_arg_funcs.update({
             'D_src_il': lambda l: wt_d_i[:, na],
-            'D_dst_ijl': lambda l: np.zeros((I, J, 1)),
+            'D_dst_ijl': lambda l: np.zeros((1, 1, 1)) + D_dst,
             'IJLK': lambda l=slice(None), I=I, J=J, L=L, K=K: (I, J, len(np.arange(L)[l]), K)})
         return map_arg_funcs, lw_j, wd, WD_il
 
@@ -341,9 +341,9 @@ class EngineeringWindFarmModel(WindFarmModel):
         aep_j = (power_jlk * lw_j.P_ilk).sum((1, 2))
         return aep_j * 365 * 24 * 1e-9
 
-    def _flow_map(self, x_j, y_j, h_j, sim_res_data):
+    def _flow_map(self, x_j, y_j, h_j, sim_res_data, D_dst=0):
         """call this function via SimulationResult.flow_map"""
-        arg_funcs, lw_j, wd, WD_il = self.get_map_args(x_j, y_j, h_j, sim_res_data)
+        arg_funcs, lw_j, wd, WD_il = self.get_map_args(x_j, y_j, h_j, sim_res_data, D_dst=D_dst)
         I, J, L, K = arg_funcs['IJLK']()
         if I == 0:
             return (lw_j, np.broadcast_to(lw_j.WS_ilk, (len(x_j), L, K)).astype(float),
