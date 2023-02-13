@@ -727,7 +727,7 @@ class SimulationResult(xr.Dataset):
         else:  # pragma: no cover
             raise NotImplementedError()
 
-    def flow_map(self, grid=None, wd=None, ws=None, time=None):
+    def flow_map(self, grid=None, wd=None, ws=None, time=None, D_dst=0):
         """Return a FlowMap object with WS_eff and TI_eff of all grid points
 
         Parameters
@@ -736,6 +736,18 @@ class SimulationResult(xr.Dataset):
             Grid, e.g. HorizontalGrid or\n
             tuple(X, Y, x, y, h) where X, Y is the meshgrid for visualizing data\n
             and x, y, h are the flattened grid points
+        wd : int, float, array_like or None
+            Wind directions to include in the flow map (if more than one, an weighted average will be computed)
+            The simulation result must include the requested wind directions.
+            If None, an weighted average of all wind directions from the simulation results will be computed.
+            Note, computing a flow map with multiple wind directions may be slow
+        ws : int, float, array_like or None
+            Same as "wd", but for wind speed
+        ws : int, array_like or None
+            Same as "wd", but for time
+        D_dst : int, float or None
+            In combination with a rotor average model, D_dst defines the downstream rotor diameter
+            at which the deficits will be averaged
 
         See Also
         --------
@@ -750,7 +762,7 @@ class SimulationResult(xr.Dataset):
         for k in self.__slots__:
             setattr(sim_res, k, getattr(self, k))
 
-        lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(x_j, y_j, h_j, sim_res)
+        lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(x_j, y_j, h_j, sim_res, D_dst=D_dst)
         return FlowMap(sim_res, X, Y, lw_j, WS_eff_jlk, TI_eff_jlk, plane=plane)
 
     def _wd_ws(self, wd, ws):

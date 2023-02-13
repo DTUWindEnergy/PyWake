@@ -36,6 +36,8 @@ class NodeRotorAvgModel(RotorAvgModel):
     """
 
     def __call__(self, func, D_dst_ijl, **kwargs):
+        if D_dst_ijl.shape == (1, 1, 1) and D_dst_ijl[0, 0, 0] == 0:
+            return func(**kwargs)
         # add extra dimension, p, with 40 points distributed over the destination rotors
         kwargs = self._update_kwargs(D_dst_ijl=D_dst_ijl, **kwargs)
 
@@ -97,11 +99,25 @@ class GQGridRotorAvg(GridRotorAvg):
         GridRotorAvg.__init__(self, nodes_x=x[m], nodes_y=y[m], nodes_weight=w)
 
 
-class PolarGridRotorAvg(GridRotorAvg):
+class PolarRotorAvg(GridRotorAvg):
     def __init__(self, nodes_r=2 / 3, nodes_theta=np.linspace(-np.pi, np.pi, 6, endpoint=False), nodes_weight=None):
         self.nodes_x = nodes_r * np.cos(-nodes_theta - np.pi / 2)
         self.nodes_y = nodes_r * np.sin(-nodes_theta - np.pi / 2)
         self.nodes_weight = nodes_weight
+
+
+class PolarGridRotorAvg(PolarRotorAvg):
+    def __init__(self, r=[1 / 3, 2 / 3], theta=np.linspace(-np.pi, np.pi, 6, endpoint=False),
+                 r_weight=[.5**2, 1 - .5**2], theta_weight=1 / 6):
+        assert (r_weight is None) == (theta_weight is None)
+        nodes_r, nodes_theta = np.meshgrid(r, theta)
+        nodes_weight = None
+        if r_weight is not None:
+            r_weight, theta_weight = np.zeros(len(r)) + r_weight, np.zeros(len(theta)) + theta_weight
+            nodes_weight = np.prod(np.meshgrid(r_weight, theta_weight), 0).flatten()
+
+        PolarRotorAvg.__init__(self, nodes_r=nodes_r.flatten(), nodes_theta=nodes_theta.flatten(),
+                               nodes_weight=nodes_weight)
 
 
 class CGIRotorAvg(GridRotorAvg):
