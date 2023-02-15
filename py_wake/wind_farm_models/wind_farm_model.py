@@ -213,7 +213,7 @@ class WindFarmModel(ABC):
         return (power_ilk * P_ilk / norm * 24 * 365 * 1e-9).sum()
 
     @abstractmethod
-    def calc_wt_interaction(self, x_i, y_i, h_i=None, type_i=0, yaw_ilk=None,
+    def calc_wt_interaction(self, x_ilk, y_ilk, h_i=None, type_i=0,
                             wd=None, ws=None, time=False,
                             n_cpu=1, wd_chunks=None, ws_chunks=None, **kwargs):
         """Calculate effective wind speed, turbulence intensity,
@@ -225,9 +225,9 @@ class WindFarmModel(ABC):
 
         Parameters
         ----------
-        x_i : array_like
+        x_ilk : array_like
             X position of wind turbines
-        y_i : array_like
+        y_ilk : array_like
             Y position of wind turbines
         h_i : array_like or None, optional
             Hub height of wind turbines\n
@@ -235,9 +235,6 @@ class WindFarmModel(ABC):
         type_i : array_like or None, optional
             Wind turbine types\n
             If None, default, the first type is used (type=0)
-        yaw_ilk : array_like or None, optional
-            Yaw misalignement [deg] of turbine(i) for wind direction(l) and wind speed (k)\n
-            Positive is counter-clockwise when seen from above
         wd : int, float, array_like or None
             Wind directions(s)\n
             If None, default, the wake is calculated for site.default_wd

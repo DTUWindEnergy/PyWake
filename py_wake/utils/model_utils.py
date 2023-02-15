@@ -57,7 +57,7 @@ class XRLUTModel(Model):
     @property
     def args4model(self):
         args4model = Model.args4model.fget(self)  # @UndefinedVariable
-        return args4model | self._args4model
+        return args4model | set(self._args4model)
 
     def get_input(self, **kwargs):
         """Default get_input function. This function makes a list of interpolation coordinates based on the input
