@@ -286,7 +286,7 @@ class EngineeringWindFarmModel(WindFarmModel):
 
         if self.deflectionModel:
             dw_ijlk, hcw_ijlk, dh_ijlk = self.deflectionModel.calc_deflection(
-                dw_ijlk=dw_ijlk, hcw_ijlk=hcw_ijlk, dh_ijlk=dh_ijlk,
+                dw_ijlk=dw_ijlk, hcw_ijlk=hcw_ijlk, dh_ijlk=dh_ijlk, z_ijlk=wt_h_ilk[:, na] + dh_ijlk,
                 **model_kwargs)
 
         model_kwargs.update({'dw_ijlk': dw_ijlk, 'hcw_ijlk': hcw_ijlk, 'dh_ijlk': dh_ijlk,

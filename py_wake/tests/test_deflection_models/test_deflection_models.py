@@ -13,6 +13,8 @@ from py_wake.tests.test_files import tfp
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit
 from py_wake.superposition_models import SquaredSum
+from py_wake.deficit_models.fuga import FugaBlockage
+from py_wake.site._site import UniformSite
 
 
 def simple_wfm(deflectionModel):
@@ -136,3 +138,44 @@ def test_plot_deflection_grid(deflectionModel):
     if 0:
         plt.show()
     plt.close('all')
+
+
+def test_upstream_deflection():
+    plot = 0
+    if plot:
+        ax = plt.gca()
+    for m in get_models(DeflectionModel):
+        wfm = FugaBlockage(tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc',
+                           UniformSite(), V80(), deflectionModel=m if m is None else m())
+
+        fm = wfm([0], [0], wd=270, ws=10, yaw=30, tilt=0).flow_map(XYGrid(x=-160, y=np.linspace(-100, 100, 501)))
+        l = "None" if m is None else m.__name__
+        blockage_center = fm.y[np.argmin(fm.WS_eff.squeeze().values)].item()
+        ref = {'None': 0.0,
+               'FugaDeflection': 1.6,
+               'GCLHillDeflection': -1.6,
+               'JimenezWakeDeflection': -18}[l]
+
+        npt.assert_almost_equal(ref, blockage_center, err_msg=l)
+        if plot:
+            fm.WS_eff.squeeze().plot(ax=ax, label=l)
+            plt.figure()
+            yaw = 30
+            fm = wfm([0], [0], ws=10, wd=270, yaw=[[[yaw]]], tilt=0).flow_map(
+                XYGrid(x=np.arange(-100, 800, 10), y=np.arange(-250, 250, 10)))
+            X, Y = np.meshgrid(fm.x, fm.y)
+            c1 = plt.contourf(X, Y, fm.WS_eff.squeeze(), np.arange(6.5, 10.1, 0.1), cmap='Blues_r')
+            c2 = plt.contourf(X, Y, fm.WS_eff.squeeze(), np.arange(10, 10.2, .005), cmap='Reds')
+            plt.colorbar(c2, label='Wind speed (deficit regions) [m/s]')
+            plt.colorbar(c1, label='Wind speed (speed-up regions) [m/s]')
+            V80().plot([0], [0], wd=270, yaw=yaw)
+            max_deficit_line = fm.min_WS_eff(x=np.arange(-100, 800, 10))
+            max_deficit_line.plot(color='k', label='Max deficit line')
+            plt.axhline(0, label='Center line')
+            plt.title(l)
+            plt.xlim([-100, 300])
+            plt.legend()
+
+    if plot:
+        ax.legend()
+        plt.show()

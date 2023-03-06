@@ -28,8 +28,8 @@ class JimenezWakeDeflection(DeflectionModel):
         nominator_ijxlk = (1 + (self.beta / D_src_il)[:, na, na, :, na] * np.maximum(dw_ijxlk, 0))**2
         alpha = denominator_ilk[:, na, na] / nominator_ijxlk
         deflection_ijlk = gradients.trapz(np.sin(alpha), dw_ijxlk, axis=2)
-        self.hcw_ijlk = hcw_ijlk + deflection_ijlk * np.cos(theta_deflection_ilk[:, na])
-        self.dh_ijlk = dh_ijlk + deflection_ijlk * np.sin(theta_deflection_ilk[:, na])
+        self.hcw_ijlk = hcw_ijlk + np.sign(dw_ijlk) * deflection_ijlk * np.cos(theta_deflection_ilk[:, na])
+        self.dh_ijlk = dh_ijlk + np.sign(dw_ijlk) * deflection_ijlk * np.sin(theta_deflection_ilk[:, na])
         return dw_ijlk, self.hcw_ijlk, self.dh_ijlk
 
 
