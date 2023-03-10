@@ -9,14 +9,14 @@ from py_wake.deficit_models.deficit_model import WakeRadiusTopHat
 class AreaOverlapAvgModel(RotorAvgModel):
 
     def _calc_layout_terms(self, func, cw_ijlk, **kwargs):
-        func(cw_ijlk=cw_ijlk * 0, **kwargs)
+        func(cw_ijlk=cw_ijlk * 0., **kwargs)
 
     def __call__(self, func, wake_radius_ijlk, cw_ijlk, D_dst_ijl, **kwargs):
         assert isinstance(func.__self__, WakeRadiusTopHat), \
             """AreaOverlapAvgModel uses the wake_radius from the wake_deficitModel.
             I.e. using it makes only sense on wake and turbulence models with a tophat shape
             that is limited by the wake width"""
-        res_ijlk = func(cw_ijlk=cw_ijlk * 0, D_dst_ijl=D_dst_ijl, wake_radius_ijlk=wake_radius_ijlk, **kwargs)
+        res_ijlk = func(cw_ijlk=cw_ijlk * 0., D_dst_ijl=D_dst_ijl, wake_radius_ijlk=wake_radius_ijlk, **kwargs)
         return res_ijlk * self.overlapping_area_factor(wake_radius_ijlk, cw_ijlk, D_dst_ijl)
 
     def overlapping_area_factor(self, wake_radius_ijlk, cw_ijlk, D_dst_ijl):

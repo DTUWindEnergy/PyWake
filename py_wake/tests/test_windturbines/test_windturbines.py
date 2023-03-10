@@ -15,9 +15,10 @@ from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2A
 from py_wake.wind_turbines import WindTurbines, WindTurbine, OneTypeWindTurbines
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 import warnings
+from py_wake.deficit_models.utils import ct2a_mom1d
 
 
-def get_wfms(wt, site=Hornsrev1Site(), wake_model=NOJDeficit(), superpositionModel=SquaredSum()):
+def get_wfms(wt, site=Hornsrev1Site(), wake_model=NOJDeficit(ct2a=ct2a_mom1d), superpositionModel=SquaredSum()):
     wfm1 = PropagateDownwind(site, wt, wake_model, superpositionModel=superpositionModel)
     wfm2 = All2AllIterative(site, wt, wake_model, superpositionModel=superpositionModel)
     wfm2.verbose = False

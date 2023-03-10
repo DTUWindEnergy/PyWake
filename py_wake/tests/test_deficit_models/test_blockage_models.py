@@ -22,6 +22,7 @@ from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.utils.model_utils import get_models
 from py_wake.wind_farm_models.engineering_models import All2AllIterative
 from py_wake.tests.test_wind_farm_models.test_enginering_wind_farm_model import OperatableV80
+from py_wake.deficit_models.utils import ct2a_mom1d
 
 
 debug = False
@@ -112,10 +113,10 @@ def test_blockage_map(setup, blockage_model, center_ref, side_ref):
     (RathmannScaled,
      [9.929791, 9.897708, 9.838744, 9.719092, 9.456743, 10.056169, 10.535845, 6.501432, 6.942573, 7.327852],
      [9.924278, 9.88539, 9.805788, 9.60523, 8.908535, 4.560631, 5.505472, 6.223921, 6.782925, 7.226399]),
-][::-1])
+])
 def test_wake_and_blockage(setup, blockage_model, center_ref, side_ref):
     site, windTurbines = setup
-    noj_ss = All2AllIterative(site, windTurbines, wake_deficitModel=NOJDeficit(),
+    noj_ss = All2AllIterative(site, windTurbines, wake_deficitModel=NOJDeficit(ct2a=ct2a_mom1d),
                               blockage_deficitModel=blockage_model(), superpositionModel=LinearSum())
 
     xy = np.linspace(-200, 200, 500)
@@ -123,7 +124,7 @@ def test_wake_and_blockage(setup, blockage_model, center_ref, side_ref):
     X_j, Y_j = flow_map.XY
     WS_eff = flow_map.WS_eff_xylk[:, :, 0, 0]
 
-    if debug:
+    if 0:
         flow_map_full = noj_ss(x=[0], y=[0], wd=[270], ws=[10]).flow_map()
         X_j_full, Y_j_full = flow_map_full.XY
         WS_eff_full = flow_map_full.WS_eff_xylk[:, :, 0, 0]

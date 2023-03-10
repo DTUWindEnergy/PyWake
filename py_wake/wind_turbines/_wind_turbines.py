@@ -250,16 +250,21 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
     def plot(self, x, y, type=None, wd=None, yaw=0, tilt=0, normalize_with=1, ax=None):
         return self.plot_xy(x, y, type, wd, yaw, tilt, normalize_with, ax)
 
-    def plot_power_ct(self, ax=None, **wt_kwargs):
+    def plot_power_ct(self, ax=None, ws=np.linspace(0, 25, 1000), **wt_kwargs):
         import matplotlib.pyplot as plt
-        ws = np.linspace(0, 25, 1000)
         if ax is None:
             ax = plt.gca()
         power, ct = self.power_ct(ws, **wt_kwargs)
-        ax.plot(ws, power)
+        ax.plot(ws, power, label='Power')
         ax.grid()
+        ax.set_title(self.name())
+        ax.set_xlabel('Wind speed [m/s]')
+        ax.set_ylabel('Power [W]')
         ax2 = ax.twinx()
-        ax2.plot(ws, ct, '--')
+        ax2.plot(ws, ct, '--', label='$$C_T$$')
+        ax2.set_ylabel('Thrust coefficient')
+        axs = [ax, ax2]
+        return axs
 
     @classmethod
     def from_WindTurbine_lst(cls, wt_lst):

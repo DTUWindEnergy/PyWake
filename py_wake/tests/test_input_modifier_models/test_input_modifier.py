@@ -12,6 +12,7 @@ from py_wake.tests import npt
 import pytest
 from xarray.core.dataarray import DataArray
 from matplotlib.patches import Ellipse
+from py_wake.deficit_models.utils import ct2a_mom1d
 
 
 class DummyFloatingModifier(InputModifierModel):
@@ -81,7 +82,8 @@ class FloatingV80(V80):
 
 
 def run_floating(wfm_cls, pitch, displacement):
-    wfm = wfm_cls(UniformSite(), FloatingV80(), ZongGaussianDeficit(), turbulenceModel=CrespoHernandez(),
+    wfm = wfm_cls(UniformSite(), FloatingV80(), ZongGaussianDeficit(ct2a=ct2a_mom1d),
+                  turbulenceModel=CrespoHernandez(ct2a=ct2a_mom1d),
                   deflectionModel=JimenezWakeDeflection(),
                   inputModifierModels=DummyFloatingModifier(pitch=pitch, displacement=displacement))
     sim_res = wfm([0, 300, 600], [0, 0, 0], wd=[270, 280], ws=[5, 10, 15, 20], yaw=0, tilt=0)

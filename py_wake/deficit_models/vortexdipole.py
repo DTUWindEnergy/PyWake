@@ -6,7 +6,7 @@ from numpy import newaxis as na
 from py_wake import np
 from py_wake.deficit_models import BlockageDeficitModel
 from py_wake.deficit_models import DeficitModel
-from py_wake.deficit_models.utils import a0
+from py_wake.deficit_models.utils import ct2a_madsen
 from py_wake.utils.gradients import hypot, cabs
 
 
@@ -25,7 +25,7 @@ class VortexDipole(BlockageDeficitModel):
             https://doi.org/10.1002/we.2546
     """
 
-    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None,
+    def __init__(self, ct2a=ct2a_madsen, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None,
                  rotorAvgModel=None, groundModel=None, upstream_only=False):
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
                                       rotorAvgModel=rotorAvgModel, groundModel=groundModel)
@@ -36,6 +36,7 @@ class VortexDipole(BlockageDeficitModel):
         # if used in a wind farm simulation, set deficit in wake region to
         # zero, as here the wake model is active
         self.exclude_wake = exclude_wake
+        self.ct2a = ct2a
 
     def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):
         """
@@ -45,7 +46,7 @@ class VortexDipole(BlockageDeficitModel):
         # radial distance
         r_ijlk = hypot(dw_ijlk, cw_ijlk)
         # circulation/strength of vortex dipole Eq. (1) in [1]
-        gammat_ilk = WS_ilk * 2. * a0(ct_ilk * self.sct)
+        gammat_ilk = WS_ilk * 2. * self.ct2a(ct_ilk * self.sct)
         # Eq. (2) in [1], induced velocities away from centreline, however
         # here it is simplified. Effectively the equations are the same as for
         # a Rankine Half Body.

@@ -212,6 +212,8 @@ def get_signature(cls, kwargs={}, indent_level=0):
             arg_value = sig.parameters[n].default
             if 'object at' in str(arg_value):
                 arg_value = get_signature(arg_value.__class__, indent_level=(indent_level + 1, 0)[indent_level == 0])
+            elif '<function' in str(arg_value) and 'at 0x' in str(arg_value):
+                arg_value = get_signature(arg_value, indent_level=(indent_level + 1, 0)[indent_level == 0])
             elif isinstance(arg_value, str):
                 arg_value = "'%s'" % arg_value
         else:

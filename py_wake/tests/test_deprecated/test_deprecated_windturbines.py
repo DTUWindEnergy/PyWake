@@ -16,6 +16,7 @@ from py_wake.wind_turbines import WindTurbines, WindTurbine, OneTypeWindTurbines
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 from py_wake.wind_turbines.wind_turbines_deprecated import DeprecatedWindTurbines, DeprecatedOneTypeWindTurbines
 from numpy import newaxis as na
+from py_wake.deficit_models.utils import ct2a_mom1d
 
 
 WindFarmModel.verbose = False
@@ -48,7 +49,7 @@ def test_DeprecatedWindTurbines():
                     power_unit='w')]:
 
         types0 = [0] * 9
-        wfm = NOJ(Hornsrev1Site(), wts)
+        wfm = NOJ(Hornsrev1Site(), wts, ct2a=ct2a_mom1d)
         npt.assert_array_equal(wts.types(), [0])
         npt.assert_almost_equal(wfm.aep(wt9_x, wt9_y, type=types0, yaw=0), 81.2066072392765)
 
