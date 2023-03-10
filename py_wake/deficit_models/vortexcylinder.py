@@ -5,7 +5,7 @@ from py_wake.utils.elliptic import ellipticPiCarlson
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
 from py_wake.utils.gradients import cabs
-from py_wake.deficit_models.utils import a0
+from py_wake.deficit_models.utils import ct2a_madsen
 
 
 class VortexCylinder(BlockageDeficitModel):
@@ -21,7 +21,7 @@ class VortexCylinder(BlockageDeficitModel):
             zone in front of aligned and yawed rotors, in Proceedings of EWEA Offshore Conference, 2015
     """
 
-    def __init__(self, limiter=1e-3, exclude_wake=True, superpositionModel=None, rotorAvgModel=None, groundModel=None,
+    def __init__(self, ct2a=ct2a_madsen, limiter=1e-3, exclude_wake=True, superpositionModel=None, rotorAvgModel=None, groundModel=None,
                  upstream_only=False):
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
                                       rotorAvgModel=rotorAvgModel, groundModel=groundModel)
@@ -30,6 +30,7 @@ class VortexCylinder(BlockageDeficitModel):
         # if used in a wind farm simulation, set deficit in wake region to
         # zero, as here the wake model is active
         self.exclude_wake = exclude_wake
+        self.ct2a = ct2a
 
     def _k2(self, xi, rho, eps=1e-1):
         """
@@ -77,7 +78,7 @@ class VortexCylinder(BlockageDeficitModel):
             self._calc_layout_terms(D_src_il, dw_ijlk, cw_ijlk)
 
         # circulation/strength of vortex cylinder
-        gammat_ilk = WS_ilk * 2. * a0(ct_ilk)
+        gammat_ilk = WS_ilk * 2. * self.ct2a(ct_ilk)
 
         deficit_ijlk = gammat_ilk[:, na] / 2. * self.dmu_ijlk
 

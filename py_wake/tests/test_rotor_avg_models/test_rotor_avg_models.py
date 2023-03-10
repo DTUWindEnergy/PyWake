@@ -21,8 +21,8 @@ from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.utils.model_utils import get_models
 from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind, EngineeringWindFarmModel
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel
-from py_wake.rotor_avg_models.area_overlap_model import AreaOverlapAvgModel
 from py_wake.deficit_models.noj import NOJ
+from py_wake.deficit_models.utils import ct2a_mom1d
 
 
 EngineeringWindFarmModel.verbose = False
@@ -436,7 +436,7 @@ def test_WSPowerRotorAvgModel():
 
 
 def test_flow_map():
-    wfm = NOJ(UniformSite(), V80(), rotorAvgModel=CGIRotorAvg(7))
+    wfm = NOJ(UniformSite(), V80(), rotorAvgModel=CGIRotorAvg(7), ct2a=ct2a_mom1d)
     y = np.linspace(-110, -50, 10)
     fm = wfm([0], [0], wd=270, ws=12).flow_map(XYGrid(x=400, y=y))
     fm_avg = wfm([0], [0], wd=270, ws=12).flow_map(XYGrid(x=400, y=y), D_dst=40)

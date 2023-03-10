@@ -8,6 +8,7 @@ from py_wake.aep_calculator import AEPCalculator
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 import pytest
 import warnings
+from py_wake.deficit_models.utils import ct2a_mom1d
 
 
 @pytest.fixture(autouse=True)
@@ -28,7 +29,7 @@ def test_wake_map():
     site = IEA37Site(16)
     x, y = site.initial_position.T
     windTurbines = IEA37_WindTurbines()
-    wake_model = NOJ(site, windTurbines)
+    wake_model = NOJ(site, windTurbines, ct2a=ct2a_mom1d)
     aep = AEPCalculator(wake_model)
     x_j = np.linspace(-1500, 1500, 200)
     y_j = np.linspace(-1500, 1500, 100)
@@ -114,7 +115,7 @@ def test_aep_no_wake_loss_hornsrev():
     site = UniformWeibullSite([1], [10], [2], .75)
     site.default_ws = np.arange(3, 25)
 
-    aep = AEPCalculator(NOJ(site, wt))
+    aep = AEPCalculator(NOJ(site, wt, ct2a=ct2a_mom1d))
     aep_nowake = aep.calculate_AEP_no_wake_loss(x, y).sum()
     npt.assert_almost_equal(aep_nowake / 80, 8.260757098)
     cap_factor = aep.calculate_AEP(x, y).sum() / aep_nowake

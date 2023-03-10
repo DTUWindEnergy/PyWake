@@ -17,6 +17,7 @@ from py_wake import examples
 from py_wake.literature.iea37_case_study1 import IEA37CaseStudy1
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.site._site import UniformSite
+from py_wake.deficit_models.utils import ct2a_mom1d
 
 
 def test_yaw_wrong_name():
@@ -27,7 +28,7 @@ def test_yaw_wrong_name():
 
 
 def test_yaw_dimensions():
-    wf_model = NOJ(Hornsrev1Site(), V80())
+    wf_model = NOJ(Hornsrev1Site(), V80(), ct2a=ct2a_mom1d)
 
     x, y = wt9_x, wt9_y
 

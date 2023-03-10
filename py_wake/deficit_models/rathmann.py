@@ -2,7 +2,7 @@ from py_wake import np
 from numpy import newaxis as na
 from py_wake.deficit_models import BlockageDeficitModel
 from py_wake.utils.gradients import hypot
-from py_wake.deficit_models.utils import a0
+from py_wake.deficit_models.utils import ct2a_madsen
 from py_wake.wind_turbines._wind_turbines import WindTurbine
 from py_wake.wind_turbines.power_ct_functions import PowerCtFunctions
 
@@ -24,7 +24,7 @@ class Rathmann(BlockageDeficitModel):
         Journal of Physics: Conference Series 1934 (2021) 012023
     """
 
-    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None,
+    def __init__(self, ct2a=ct2a_madsen, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None,
                  rotorAvgModel=None, groundModel=None, upstream_only=False):
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
                                       rotorAvgModel=rotorAvgModel, groundModel=groundModel)
@@ -35,6 +35,7 @@ class Rathmann(BlockageDeficitModel):
         # if used in a wind farm simulation, set deficit in wake region to
         # zero, as here the wake model is active
         self.exclude_wake = exclude_wake
+        self.ct2a = ct2a
 
     def _calc_layout_terms(self, D_src_il, dw_ijlk, cw_ijlk, **_):
         R_ijlk = (D_src_il / 2)[:, na, :, na]
@@ -84,7 +85,7 @@ class Rathmann(BlockageDeficitModel):
             self._calc_layout_terms(D_src_il, dw_ijlk, cw_ijlk)
 
         # circulation/strength of vortex dipole Eq. (1) in [1]
-        gammat_ilk = WS_ilk * 2. * a0(ct_ilk * self.sct)
+        gammat_ilk = WS_ilk * 2. * self.ct2a(ct_ilk * self.sct)
 
         deficit_ijlk = gammat_ilk[:, na] / 2. * self.dmu_G_ijlk
         # turn deficit into speed-up downstream
@@ -109,12 +110,10 @@ class RathmannScaled(Rathmann):
         Journal of Physics: Conference Series 1934 (2021) 012023
     """
 
-    def __init__(self, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None,
+    def __init__(self, ct2a=ct2a_madsen, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None,
                  rotorAvgModel=None, groundModel=None, upstream_only=False):
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
                                       rotorAvgModel=rotorAvgModel, groundModel=groundModel)
-        # coefficients for BEM approximation by Madsen (1997)
-        self.a0p = np.array([0.2460, 0.0586, 0.0883])
         # limiter to avoid singularities
         self.limiter = limiter
         # coefficient for scaling the effective forcing
@@ -124,6 +123,7 @@ class RathmannScaled(Rathmann):
         self.exclude_wake = exclude_wake
         # scaling coefficients for Eq.11-13 in [1]
         self.sd = np.array([1.02, 0.1554, 0.0005012, 8.45, 0.025])
+        self.ct2a = ct2a
 
     def deficit_scaling(self, D_src_il, dw_ijlk, cw_ijlk, ct_ilk):
         """

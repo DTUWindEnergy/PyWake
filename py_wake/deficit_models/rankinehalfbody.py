@@ -3,7 +3,7 @@ from numpy import newaxis as na
 from py_wake.deficit_models import DeficitModel
 from py_wake.deficit_models import BlockageDeficitModel
 from py_wake.utils.gradients import hypot
-from py_wake.deficit_models.utils import a0
+from py_wake.deficit_models.utils import ct2a_madsen
 import warnings
 
 
@@ -17,7 +17,7 @@ class RankineHalfBody(BlockageDeficitModel):
             induction and wind farm blockage - Technical Paper, Frazer-Nash Consultancy, 2019
     """
 
-    def __init__(self, limiter=1e-10, exclude_wake=True, superpositionModel=None,
+    def __init__(self, ct2a=ct2a_madsen, limiter=1e-10, exclude_wake=True, superpositionModel=None,
                  rotorAvgModel=None, groundModel=None, upstream_only=False):
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
                                       rotorAvgModel=rotorAvgModel, groundModel=groundModel)
@@ -26,8 +26,9 @@ class RankineHalfBody(BlockageDeficitModel):
         # if used in a wind farm simulation, set deficit in wake region to
         # zero, as here the wake model is active
         self.exclude_wake = exclude_wake
+        self.ct2a = ct2a
 
-    def outside_body(self, WS_ilk, a0_ilk, R_il, dw_ijlk, cw_ijlk, r_ijlk):
+    def outside_body(self, WS_ilk, ct2a_ilk, R_il, dw_ijlk, cw_ijlk, r_ijlk):
         """
         Find all points lying outside Rankine Half Body, stagnation line given on p.3
         """
@@ -36,7 +37,7 @@ class RankineHalfBody(BlockageDeficitModel):
             warnings.filterwarnings('ignore', r'invalid value encountered in divide')
             cos_ijlk = dw_ijlk / r_ijlk
         # avoid division by zero
-        f_ilk = a0_ilk * R_il[:, :, na]
+        f_ilk = ct2a_ilk * R_il[:, :, na]
         f_ilk = np.where(f_ilk == 0., np.inf, f_ilk)
         # replaced sin**2 and m of expression given in [1]
         val = cos_ijlk - 1 / f_ilk[:, na] * cw_ijlk**2
@@ -45,14 +46,14 @@ class RankineHalfBody(BlockageDeficitModel):
 
     def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):
         # source strength as given on p.7
-        a0_ilk = a0(ct_ilk)
+        ct2a_ilk = self.ct2a(ct_ilk)
         R_il = D_src_il / 2.
-        m_ilk = 2. * WS_ilk * a0_ilk * np.pi * R_il[:, :, na]**2
+        m_ilk = 2. * WS_ilk * ct2a_ilk * np.pi * R_il[:, :, na]**2
         # radial distance
         r_ijlk = hypot(dw_ijlk, cw_ijlk)
         # find points lying outside RHB, the only ones to be computed
         # remove singularities
-        iout = self.outside_body(*(np.real(v) for v in [WS_ilk, a0_ilk, R_il, dw_ijlk, cw_ijlk, r_ijlk]))
+        iout = self.outside_body(*(np.real(v) for v in [WS_ilk, ct2a_ilk, R_il, dw_ijlk, cw_ijlk, r_ijlk]))
         # deficit, p.3 equation for u, negative to get deficit
 
         deficit_ijlk = np.where(((2 * r_ijlk / D_src_il[:, na, :, na]) < self.limiter) | ~iout, 0,
@@ -62,7 +63,7 @@ class RankineHalfBody(BlockageDeficitModel):
             deficit_ijlk = self.remove_wake(deficit_ijlk, dw_ijlk, cw_ijlk, D_src_il)
             # Close to the rotor the induced velocities become unphysical and are
             # limited to the induction in the rotor plane estimated by BEM.
-            induc = (WS_ilk * a0(ct_ilk))[:, na]
+            induc = (WS_ilk * self.ct2a(ct_ilk))[:, na]
             deficit_ijlk = np.where(deficit_ijlk > induc, induc * np.sign(deficit_ijlk), deficit_ijlk)
 
         return deficit_ijlk

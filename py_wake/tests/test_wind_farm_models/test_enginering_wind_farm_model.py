@@ -34,6 +34,7 @@ from py_wake.wind_turbines._wind_turbines import WindTurbine
 from py_wake.wind_turbines.power_ct_functions import PowerCtFunctionList, PowerCtTabular, PowerCtFunctions
 
 import xarray as xr
+from py_wake.deficit_models.utils import ct2a_mom1d
 
 
 WindFarmModel.verbose = False
@@ -66,7 +67,7 @@ def test_wec():
 
     site = UniformSite([1, 0, 0, 0], ti=0.075)
 
-    wfm = BastankhahGaussian(site, wts)
+    wfm = BastankhahGaussian(site, wts, ct2a=ct2a_mom1d)
     x_j = np.linspace(-1500, 1500, 500)
     y_j = np.linspace(-1500, 1500, 300)
 
