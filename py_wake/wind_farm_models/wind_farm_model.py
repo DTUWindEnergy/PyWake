@@ -794,6 +794,9 @@ class SimulationResult(xr.Dataset):
                                    WS_eff_ilk=ds.WS_eff.ilk(), TI_eff_ilk=ds.TI_eff.ilk(), power_ilk=ds.Power.ilk(), ct_ilk=ds.CT.ilk(),
                                    **{k: v.ilk() for k, v in ds.items()
                                       if k not in {'wd_bin_size', 'ws_l', 'ws_u', 'WS_eff', 'TI_eff', 'Power', 'CT'}})
+        for k, v in ds.items():
+            if k not in sim_res:
+                sim_res[k] = v
 
         return sim_res
 
