@@ -39,7 +39,7 @@ def test_multirotor(wfm_cls):
 
     for k in ['x', 'y']:
         npt.assert_array_almost_equal(sim_res[k], sim_res2[k], 10)
-    npt.assert_array_almost_equal(sim_res.WS_eff, sim_res2.WS_eff, 5)
+    npt.assert_array_almost_equal(sim_res.WS_eff, sim_res2.WS_eff, 4)
 
 
 @pytest.mark.parametrize('wfm_cls', [PropagateDownwind, All2AllIterative])

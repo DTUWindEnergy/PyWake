@@ -56,8 +56,9 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
         sigma_sqr_ijlk = (self.sigma_ijlk(D_src_il=D_src_il, dw_ijlk=dw_ijlk, ct_ilk=ct_ilk, **kwargs))**2
 
         ctx_ijlk = self.ct_func(ct_ilk=ct_ilk, dw_ijlk=dw_ijlk, D_src_il=D_src_il)
-        deficit_centre_ijlk = WS_ref_ijlk * 2. * \
-            self.ct2a(ctx_ijlk * D_src_il[:, na, :, na]**2 / (8. * sigma_sqr_ijlk)) * (dw_ijlk > 0)
+        deficit_centre_ijlk = WS_ref_ijlk * np.minimum(1,
+                                                       2. * self.ct2a(ctx_ijlk * D_src_il[:, na, :, na]**2 /
+                                                                      (8. * sigma_sqr_ijlk)))
 
         return WS_ref_ijlk, sigma_sqr_ijlk, deficit_centre_ijlk, ctx_ijlk
 
@@ -200,7 +201,7 @@ class IEA37SimpleBastankhahGaussianDeficit(BastankhahGaussianDeficit):
     def _calc_layout_terms(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, **_):
         eps = 1e-10
         sigma_ijlk = self.sigma_ijlk(WS_ilk, dw_ijlk, D_src_il)
-        self.layout_factor_ijlk = WS_ilk[:, na] * ((dw_ijlk > eps) * np.exp(-0.5 * (cw_ijlk / sigma_ijlk)**2))
+        self.layout_factor_ijlk = WS_ilk[:, na] * (np.exp(-0.5 * (cw_ijlk / sigma_ijlk)**2))
         self.denominator_ijlk = 8. * (sigma_ijlk / D_src_il[:, na, :, na])**2
 
     def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):

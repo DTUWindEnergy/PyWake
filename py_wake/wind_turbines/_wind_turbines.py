@@ -154,7 +154,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         if ax is None:
             ax = plt.gca()
         markers = np.array(list("213v^<>o48spP*hH+xXDd|_"))
-        colors = ['gray', 'r', 'g', 'k'] * 5
+        colors = ['k', 'gray', 'r', 'g'] * 5
 
         from matplotlib.patches import Circle
         assert len(x) == len(y)
@@ -182,8 +182,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
 
         for i, (x_, y_, r) in enumerate(zip(x, y, R)):
             ax.annotate(i, (x_ + r, y_ + r), fontsize=7)
-        ax.legend(loc=1)
-        ax.axis('equal')
+        # ax.legend(loc=1)
 
     def plot_yz(self, y, z=None, h=None, types=None, wd=270, yaw=0, tilt=0, normalize_with=1, ax=None):
         """Plot wind farm layout in yz-plane including type name and diameter
@@ -216,7 +215,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         if ax is None:
             ax = plt.gca()
         markers = np.array(list("213v^<>o48spP*hH+xXDd|_"))
-        colors = ['gray', 'k', 'r', 'g', 'k'] * 5
+        colors = ['k', 'gray', 'r', 'g', 'k'] * 5
 
         yaw = np.zeros_like(y) + yaw
         tilt = np.zeros_like(y) + tilt
@@ -244,8 +243,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
 
         for i, (y_, z_, h_, d) in enumerate(zip(y, z, h, D)):
             ax.annotate(i, (y_ + d / 2, z_ + h_ + d / 2), fontsize=7)
-        ax.legend(loc=1)
-        ax.axis('equal')
+        # ax.legend(loc=1)
 
     def plot(self, x, y, type=None, wd=None, yaw=0, tilt=0, normalize_with=1, ax=None):
         return self.plot_xy(x, y, type, wd, yaw, tilt, normalize_with, ax)

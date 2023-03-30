@@ -92,10 +92,10 @@ def test_superposition_model_indices(superpositionModel, sum_func):
         WS_eff = wake_model(x_i, y_i, h_i, wd=0.0, ws=8.1).WS_eff
         npt.assert_array_almost_equal(WS_eff, ref)
 
-        sim_res = wake_model(x_i, y_i, h_i, [0, 0, 0], 0.0, 8.1)
-        WS_eff_ilk = sim_res.flow_map(HorizontalGrid(x=[0], y=y_i, h=50)).WS_eff_xylk[:, 0]
+        sim_res = wake_model(x_i, y_i, h_i, type=[0, 0, 0], wd=0.0, ws=8.1)
+        WS_eff_ilk = sim_res.flow_map(HorizontalGrid(x=[0], y=np.array(y_i) + 1e-10, h=50)).WS_eff.squeeze()
 
-        npt.assert_array_almost_equal(WS_eff_ilk, ref)
+        npt.assert_array_almost_equal(WS_eff_ilk, ref.squeeze())
 
 
 def test_diff_wake_blockage_superposition():
