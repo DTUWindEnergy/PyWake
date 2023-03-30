@@ -46,7 +46,7 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
             self.lut_interpolator = interp
 
     def load(self):
-        du = self.init_lut(self.load_luts(['UL'])[0], self.zHub, smooth2zero_x=250, smooth2zero_y=50,
+        du = self.init_lut(self.load_luts(['UL'])[0], self.zHub, smooth2zero_x=None, smooth2zero_y=None,
                            remove_wriggles=self.remove_wriggles)
         return self.x, self.y, self.z, du
 
