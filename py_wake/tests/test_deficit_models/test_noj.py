@@ -15,7 +15,7 @@ from py_wake.deficit_models.utils import ct2a_mom1d
 
 def NibeA0():
     # Two turbines, 0: Nibe-A, 1:Ct=0
-    return WindTurbines(names=['Nibe-A'] * 2, diameters=[40] * 2,
+    return WindTurbines(names=['Nibe-A', 'None'], diameters=[40] * 2,
                         hub_heights=[50] * 2,
                         # only define for ct
                         powerCtFunctions=[PowerCtFunction(['ws'], lambda ws, run_only: ws * 0 + 8 / 9, 'w'),
@@ -46,8 +46,8 @@ def test_NOJ_Nibe_result_wake_map():
     site = UniformSite([1], 0.1)
     wake_model = NOJ(site, windTurbines, ct2a=ct2a_mom1d)
     sim_res = wake_model(x=[0], y=[0], wd=[0], ws=[8.1])
-    WS_eff_xy = sim_res.flow_map(HorizontalGrid(x=[0], y=[0, -40, -100], h=50)).WS_eff_xylk.mean(['wd', 'ws'])
-    npt.assert_array_almost_equal(WS_eff_xy[:, 0], [8.1, 4.35, 5.7])
+    WS_eff_xy = sim_res.flow_map(HorizontalGrid(x=[0], y=[-40, -100], h=50)).WS_eff_xylk.mean(['wd', 'ws'])
+    npt.assert_array_almost_equal(WS_eff_xy[:, 0], [4.35, 5.7])
 
 
 @pytest.mark.parametrize('wdir,x,y', [(0, [0, 0, 0], [0, -40, -100]),

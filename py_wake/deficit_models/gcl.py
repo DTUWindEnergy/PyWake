@@ -182,7 +182,7 @@ class GCLDeficit(WakeDeficitModel):
         dw_ijlk_gt0 = np.maximum(dw_ijlk, eps)
         R_src_il = D_src_il / 2.
         dU = -get_dU(x=dw_ijlk_gt0, r=cw_ijlk, R=R_src_il[:, na, :, na], CT=ct_ilk[:, na], TI=TI_ilk[:, na])
-        return WS_ilk[:, na] * dU * (dw_ijlk > eps)
+        return WS_ilk[:, na] * dU
 
 
 class GCL(PropagateDownwind):

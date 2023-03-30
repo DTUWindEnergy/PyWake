@@ -35,7 +35,7 @@ class NOJDeficit(NiayifarGaussianDeficit, WakeRadiusTopHat):
         with catch_warnings():
             filterwarnings('ignore', r'invalid value encountered in true_divide')
             filterwarnings('ignore', r'invalid value encountered in divide')
-            self.layout_factor_ijlk = WS_ref_ilk[:, na] * (dw_ijlk > 0) * (in_wake_ijlk / term_denominator_ijlk)
+            self.layout_factor_ijlk = WS_ref_ilk[:, na] * (in_wake_ijlk / term_denominator_ijlk)
 
     def calc_deficit(self, ct_ilk, **kwargs):
         if not self.deficit_initalized:
@@ -119,7 +119,7 @@ class NOJLocalDeficit(NOJDeficit):
         with catch_warnings():
             filterwarnings(
                 'ignore', r'invalid value encountered in true_divide')
-            layout_factor_ijlk = WS_ref_ilk[:, na] * (dw_ijlk > 0) * (in_wake_ijlk / term_denominator_ijlk)
+            layout_factor_ijlk = WS_ref_ilk[:, na] * (in_wake_ijlk / term_denominator_ijlk)
 
         term_numerator_ilk = 2. * self.ct2a(ct_ilk)
         return term_numerator_ilk[:, na] * layout_factor_ijlk
@@ -200,8 +200,7 @@ class TurboNOJDeficit(NOJDeficit):
         term_numerator_ilk = 2. * self.ct2a(ct_ilk)
         with catch_warnings():
             filterwarnings('ignore', r'invalid value encountered in true_divide')
-            return term_numerator_ilk[:, na] * WS_ref_ilk[:, na] * \
-                (dw_ijlk > 0) * (in_wake_ijlk / term_denominator_ijlk)
+            return term_numerator_ilk[:, na] * WS_ref_ilk[:, na] * (in_wake_ijlk / term_denominator_ijlk)
 
     def wake_radius(self, D_src_il, dw_ijlk, ct_ilk, **kwargs):
         TI_ref_ilk = kwargs[self.TI_key]

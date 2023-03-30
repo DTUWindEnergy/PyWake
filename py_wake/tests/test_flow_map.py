@@ -53,21 +53,21 @@ def test_power_xylk_wt_args():
     fm = simulation_result.flow_map(XYGrid(resolution=3))
     npt.assert_array_almost_equal(fm.power_xylk(mode=1).sum(['wd', 'ws']).isel(h=0),
                                   [[7030000., 6378864., 7029974.],
-                                   [7030000., 6144918., 4902029.],
+                                   [7030000., 559767., 4902029.],
                                    [7030000., 7030000., 7029974.]], 0)
     npt.assert_array_almost_equal(fm.power_xylk(mode=8).sum(['wd', 'ws']).isel(h=0),
                                   [[8330000., 7577910., 8329970.],
-                                   [8330000., 7304188., 5837139.],
+                                   [8330000., 699980., 5837139.],
                                    [8330000., 8330000., 8329970.]], 0)
     # print(np.round(fm.power_xylk(mode=8).sum(['wd', 'ws']).squeeze()))
 
     npt.assert_array_almost_equal(fm.aep_xylk(mode=1).sum(['x', 'y']).isel(h=0),
-                                  [[10., 24., 47.],
-                                   [75., 191., 375.]], 0)
+                                  [[9., 22., 43.],
+                                   [69., 175., 343.]], 0)
 
     npt.assert_array_almost_equal(fm.aep_xy(mode=1).isel(h=0),
                                   [[88., 86., 88.],
-                                   [88., 68., 40.],
+                                   [88., 6., 40.],
                                    [88., 88., 88.]], 0)
 
 
@@ -264,8 +264,8 @@ def test_min_ws_eff_line():
         plt.show()
     plt.close('all')
     npt.assert_array_almost_equal(min_ws_line[::10],
-                                  [np.nan, np.nan, 11.6, 21.64, 30.42, 38.17, 45.09, 51.27,
-                                   -8.65, -18.66, -27.51, -35.37, -42.38, -48.58, -1.09, -1.34,
+                                  [np.nan, 0, 11.6, 21.64, 30.42, 38.17, 45.09, 2.6,
+                                   -8.65, -18.66, -27.51, -35.37, -42.38, -0.8, -1.09, -1.34,
                                    -1.59, -1.83, -2.07, -2.31, -2.56], 2)
 
 

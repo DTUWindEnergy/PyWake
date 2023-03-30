@@ -14,7 +14,7 @@ from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 from py_wake.examples.data.iea37 import iea37_path
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
 from py_wake.examples.data.iea37.iea37_reader import read_iea37_windfarm
-from py_wake.flow_map import HorizontalGrid, XYGrid
+from py_wake.flow_map import HorizontalGrid, XYGrid, YZGrid
 from py_wake.superposition_models import SquaredSum, WeightedSum
 from py_wake.tests import npt
 from py_wake.tests.test_files import tfp
@@ -27,6 +27,8 @@ from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.rotor_avg_models.rotor_avg_model import CGIRotorAvg
 import warnings
 from py_wake.deficit_models.utils import ct2a_mom1d
+from py_wake.wind_turbines._wind_turbines import WindTurbine
+from py_wake.site._site import UniformSite
 
 
 class GCLLocalDeficit(GCLDeficit):
@@ -557,3 +559,27 @@ def test_All2AllIterative_WakeDeficit_RotorAvg(deficitModel):
         if 0:
             sim_res.flow_map(XYGrid(x=np.linspace(-200, 2000, 100))).plot_wake_map()
             plt.show()
+
+
+@pytest.mark.parametrize('deficitModel', get_models(WakeDeficitModel))
+def test_flow_map_symmetry(deficitModel):
+
+    windTurbines = IEA37_WindTurbines()
+    wf_model = All2AllIterative(UniformSite(), windTurbines,
+                                wake_deficitModel=deficitModel(),
+                                turbulenceModel=STF2017TurbulenceModel())
+    sim_res = wf_model([0], [0], wd=270, ws=10, yaw=0)
+    ws = sim_res.flow_map(YZGrid(x=0, y=np.linspace(-150, 150, 20), z=windTurbines.hub_height())).WS_eff.squeeze()
+    ws_center = sim_res.flow_map(XYGrid(x=np.linspace(-150, 150, 20), y=0)).WS_eff.squeeze()
+
+    if 1:
+        ax1, ax2 = plt.subplots(2)[1]
+        ws.plot(ax=ax1, label=deficitModel.__name__)
+        ax1.legend()
+        ws_center.plot(ax=ax2)
+        plt.show()
+    npt.assert_array_almost_equal(ws[:10], ws[10:][::-1])
+    if deficitModel is not NoWakeDeficit:
+        assert min(ws) < 9
+        npt.assert_array_less(ws_center[10:], 9)
+    npt.assert_array_almost_equal(ws_center[:10], 10)
