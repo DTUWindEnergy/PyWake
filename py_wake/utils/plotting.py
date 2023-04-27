@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
 
-def setup_plot(ax=None, title=None, ylabel=None, xlabel=None, xlim=None, ylim=None, grid=True):
+def setup_plot(ax=None, title=None, ylabel=None, xlabel=None, xlim=None, ylim=None, grid=True, axis=None):
     ax = ax or plt.gca()
     ax.set_title(title)
     ax.set_ylabel(ylabel)
@@ -13,3 +13,5 @@ def setup_plot(ax=None, title=None, ylabel=None, xlabel=None, xlim=None, ylim=No
         ax.grid()
     if ax.get_legend_handles_labels()[1]:
         ax.legend()
+    if axis:
+        ax.axis(axis)

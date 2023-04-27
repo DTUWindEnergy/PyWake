@@ -162,7 +162,7 @@ def cls_in(A, cls_lst):
     return str(A) in map(str, cls_lst)
 
 
-def get_models(base_class):
+def get_models(base_class, exclude_None=False):
     if base_class is Site:
         from py_wake.examples.data.iea37._iea37 import IEA37Site
         from py_wake.examples.data.hornsrev1 import Hornsrev1Site
@@ -193,6 +193,8 @@ def get_models(base_class):
     if default is not None:
         model_lst.remove(model_lst[[m.__name__ for m in model_lst].index(default.__name__)])
     model_lst.insert(0, default)
+    if exclude_None and None in model_lst:
+        model_lst.remove(None)
     return model_lst
 
 
@@ -213,7 +215,8 @@ def get_signature(cls, kwargs={}, indent_level=0):
             if 'object at' in str(arg_value):
                 arg_value = get_signature(arg_value.__class__, indent_level=(indent_level + 1, 0)[indent_level == 0])
             elif '<function' in str(arg_value) and 'at 0x' in str(arg_value):
-                arg_value = get_signature(arg_value, indent_level=(indent_level + 1, 0)[indent_level == 0])
+                # arg_value = get_signature(arg_value, indent_level=(indent_level + 1, 0)[indent_level == 0])
+                arg_value = arg_value.__name__
             elif isinstance(arg_value, str):
                 arg_value = "'%s'" % arg_value
         else:

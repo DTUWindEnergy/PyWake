@@ -4,7 +4,7 @@ from py_wake.superposition_models import SquaredSum, LinearSum
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.deficit_models.gaussian import NiayifarGaussianDeficit
-from py_wake.deficit_models import DeficitModel
+from py_wake.deficit_models.deficit_model import DeficitModel
 from py_wake.utils.gradients import cabs
 from py_wake.rotor_avg_models.area_overlap_model import AreaOverlapAvgModel
 from warnings import catch_warnings, filterwarnings
