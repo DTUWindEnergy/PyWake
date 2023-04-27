@@ -25,9 +25,9 @@ def test_get_models():
 
 def test_get_signature():
     assert (get_signature(NOJDeficit) ==
-            "NOJDeficit(ct2a=ct2a_madsen(), k=0.1, rotorAvgModel=AreaOverlapAvgModel(), groundModel=None)")
+            "NOJDeficit(ct2a=ct2a_madsen, k=0.1, rotorAvgModel=AreaOverlapAvgModel(), groundModel=None)")
     assert get_signature(NOJDeficit, indent_level=1) == """NOJDeficit(
-    ct2a=ct2a_madsen(),
+    ct2a=ct2a_madsen,
     k=0.1,
     rotorAvgModel=AreaOverlapAvgModel(),
     groundModel=None)"""

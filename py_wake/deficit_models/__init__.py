@@ -1,4 +1,3 @@
-from .deficit_model import DeficitModel, WakeDeficitModel, BlockageDeficitModel
 from .selfsimilarity import SelfSimilarityDeficit, SelfSimilarityDeficit2020
 from .hybridinduction import HybridInduction
 from .rankinehalfbody import RankineHalfBody

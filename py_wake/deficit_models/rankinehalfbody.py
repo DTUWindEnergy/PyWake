@@ -1,7 +1,6 @@
 from py_wake import np
 from numpy import newaxis as na
-from py_wake.deficit_models import DeficitModel
-from py_wake.deficit_models import BlockageDeficitModel
+from py_wake.deficit_models.deficit_model import BlockageDeficitModel
 from py_wake.utils.gradients import hypot
 from py_wake.deficit_models.utils import ct2a_madsen
 import warnings
