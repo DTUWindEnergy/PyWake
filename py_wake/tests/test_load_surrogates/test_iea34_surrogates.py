@@ -8,10 +8,10 @@ from py_wake.site.xrsite import UniformSite
 from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from pathlib import Path
 from py_wake.wind_turbines.wind_turbine_functions import FunctionSurrogates
-from py_wake.utils.tensorflow_surrogate_utils import TensorflowSurrogate
 from py_wake.examples.data import example_data_path
 from py_wake.utils.gradients import plot_gradients, fd, autograd, cs
 import pytest
+from surrogates_interface.surrogates import TensorFlowModel
 
 
 @pytest.fixture(scope='module')
@@ -161,7 +161,7 @@ def test_functionSurrogate():
     load_sensors = ['del_blade_flap', 'del_blade_edge']
 
     loadFunction = FunctionSurrogates(
-        [TensorflowSurrogate.from_dtu_json(surrogate_path / s, 'operating') for s in load_sensors],
+        [TensorFlowModel.load_h5(surrogate_path / f'{s}_operating.h5') for s in load_sensors],
         input_parser=lambda ws, TI_eff=.1, Alpha=0: [ws, TI_eff, Alpha])
 
     assert loadFunction.output_keys == [
@@ -189,7 +189,8 @@ def test_ws_gradients(iea34_130_1WT_Surrogate):
 
 def test_ti_gradients(iea34_130_1WT_Surrogate):
     wt = iea34_130_1WT_Surrogate
-    ti_low, ti_high = wt.powerCtFunction.function_surrogate_lst[0].input_space['ti']
+    # ti_low, ti_high = wt.powerCtFunction.function_surrogate_lst[0].input_space['ti']
+    ti_low, ti_high = 6.94521e-05, 0.5157860142
     ws_lst = np.linspace(3, 20, 1000)
     ti_lst = np.linspace(ti_low, ti_high, 100)
 

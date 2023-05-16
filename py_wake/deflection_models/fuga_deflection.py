@@ -148,7 +148,7 @@ class FugaDeflection(FugaUtils, DeflectionModel):
         lambda2p = F_ilk[i, l, k] * \
             np.sum(VLT * [np.cos(theta_ilk[i, l, k]), np.sin(theta_ilk[i, l, k])], -1)
         lambda2 = RegularGridInterpolator(
-            (x_, y_), [np.interp(y_, y_ + l2p_x, l2p_x) for l2p_x in lambda2p])
+            (x_, y_), np.array([np.interp(y_, y_ + l2p_x, l2p_x) for l2p_x in lambda2p], dtype=float))
         hcw_l = min(l, hcw_ijlk.shape[2] - 1)
         hcw_k = min(k, hcw_ijlk.shape[3] - 1)
         hcw_j = hcw_ijlk[i, :, hcw_l, hcw_k].copy()

@@ -1,28 +1,26 @@
 from py_wake.wind_turbines import WindTurbine
 import numpy as np
 from pathlib import Path
-from py_wake.utils.tensorflow_surrogate_utils import TensorflowSurrogate
+from py_wake.utils.tensorflow_surrogate_utils import TensorFlowModel
 import inspect
 from py_wake.wind_turbines.power_ct_functions import PowerCtSurrogate
 from py_wake.wind_turbines.wind_turbine_functions import FunctionSurrogates
 from py_wake.examples.data import example_data_path
 from py_wake.utils.model_utils import fix_shape
 from autograd.numpy.numpy_boxes import ArrayBox
-from py_wake.examples.data.dtu10mw import DTU10MW
 
 
 class DTU10MW_PowerCtSurrogate(PowerCtSurrogate):
     def __init__(self, surrogate_path, input_parser):
         PowerCtSurrogate.__init__(
             self,
-            power_surrogate=TensorflowSurrogate.from_dtu_json(surrogate_path / "Power", 'operating'),
+            power_surrogate=TensorFlowModel.load_h5(surrogate_path / 'Power_operating.h5'),
             power_unit='kW',
-            ct_surrogate=TensorflowSurrogate.from_dtu_json(surrogate_path / 'Ct', 'operating'),
+            ct_surrogate=TensorFlowModel.load_h5(surrogate_path / 'Ct_operating.h5'),
             input_parser=input_parser)
 
-        ws_idx = self.function_surrogate_lst[0].input_channel_names.index('U')
-        self.ws_cutin = self.function_surrogate_lst[0].input_scaler.data_min_[ws_idx]  # .wind_speed_cut_in
-        self.ws_cutout = self.function_surrogate_lst[0].input_scaler.data_max_[ws_idx]  # .wind_speed_cut_out
+        self.ws_cutin = self.function_surrogate_lst[0].metadata['wind_speed_cut_in']
+        self.ws_cutout = self.function_surrogate_lst[0].metadata['wind_speed_cut_out']
         ti_key = [k for k in list(inspect.signature(input_parser).parameters) if k[:2] == 'TI'][0]
         self.ct_idle = PowerCtSurrogate._power_ct(self, np.array([self.ws_cutout]), run_only=1, **{ti_key: .1})
 
@@ -65,7 +63,7 @@ class DTU10MW_Base(WindTurbine):
 class DTU10MW_1WT_Surrogate(DTU10MW_Base):
     def __init__(self):
         surrogate_path = Path(example_data_path) / 'dtu10mw_surrogate' / 'one_turbine'
-        function_surrogate_lst = [TensorflowSurrogate.from_dtu_json(surrogate_path / n, 'operating')
+        function_surrogate_lst = [TensorFlowModel.load_h5(surrogate_path / f'{n}_operating.h5')
                                   for n in self.load_sensors]
         loadFunction = FunctionSurrogates(function_surrogate_lst=function_surrogate_lst,
                                           input_parser=lambda ws, TI_eff=.1, Alpha=0.2, yaw=0: [

@@ -156,7 +156,7 @@ class FunctionSurrogates(WindTurbineFunction, ABC):
         optional_inputs = input_keys[1:] if defaults is None else input_keys[::-1][:len(defaults)]
 
         if output_keys is None:
-            output_keys = [fs.output_channel_name for fs in self.function_surrogate_lst]
+            output_keys = [fs.output_names[0] for fs in self.function_surrogate_lst]
         WindTurbineFunction.__init__(self, input_keys, optional_inputs, output_keys=output_keys)
 
     def __call__(self, ws, run_only=slice(None), **kwargs):
@@ -170,8 +170,8 @@ class FunctionSurrogates(WindTurbineFunction, ABC):
 #     Commented out as no tests or examples currently uses this class directly
     # @property
     # def output_keys(self):
-    #     return [fs.output_channel_name for fs in self.function_surrogate_lst]
+    #     return [fs.output_names[0] for fs in self.function_surrogate_lst]
 
     @property
     def wohler_exponents(self):
-        return [fs.wohler_exponent for fs in self.function_surrogate_lst]
+        return [fs.metadata['wohler_exponent'] for fs in self.function_surrogate_lst]

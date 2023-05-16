@@ -1,7 +1,6 @@
 from py_wake.wind_turbines import WindTurbine
 from py_wake import np
 from pathlib import Path
-from py_wake.utils.tensorflow_surrogate_utils import TensorflowSurrogate
 import inspect
 from py_wake.wind_turbines.power_ct_functions import PowerCtSurrogate
 from py_wake.wind_turbines.wind_turbine_functions import FunctionSurrogates
@@ -9,20 +8,20 @@ from py_wake.examples.data import example_data_path
 from py_wake.utils.model_utils import fix_shape
 from py_wake.utils.gradients import hypot
 from autograd.numpy.numpy_boxes import ArrayBox
+from py_wake.utils.tensorflow_surrogate_utils import TensorFlowModel
 
 
 class IEA34_130_PowerCtSurrogate(PowerCtSurrogate):
     def __init__(self, surrogate_path, input_parser):
         PowerCtSurrogate.__init__(
             self,
-            power_surrogate=TensorflowSurrogate.from_dtu_json(surrogate_path / "electrical_power", 'operating'),
+            power_surrogate=TensorFlowModel.load_h5(surrogate_path / "electrical_power_operating.h5"),
             power_unit='W',
-            ct_surrogate=TensorflowSurrogate.from_dtu_json(surrogate_path / 'thrust', 'operating'),
+            ct_surrogate=TensorFlowModel.load_h5(surrogate_path / 'thrust_operating.h5'),
             input_parser=input_parser)
 
-        ws_idx = self.function_surrogate_lst[0].input_channel_names.index('ws')
-        self.ws_cutin = self.function_surrogate_lst[0].input_scaler.data_min_[ws_idx]  # .wind_speed_cut_in
-        self.ws_cutout = self.function_surrogate_lst[0].input_scaler.data_max_[ws_idx]  # .wind_speed_cut_out
+        self.ws_cutin = self.function_surrogate_lst[0].metadata['wind_speed_cut_in']
+        self.ws_cutout = self.function_surrogate_lst[0].metadata['wind_speed_cut_out']
         ti_key = [k for k in list(inspect.signature(input_parser).parameters) if k[:2] == 'TI'][0]
         thrust_idle = PowerCtSurrogate._power_ct(self, np.array([self.ws_cutout]), run_only=1, **{ti_key: .1}) * 1000
         self.ct_idle = thrust_idle / (1 / 2 * 1.225 * (65**2 * np.pi) * self.ws_cutout**2)
@@ -54,10 +53,10 @@ class IEA34_130_PowerCtSurrogate(PowerCtSurrogate):
 
 class ThreeRegionLoadSurrogates(FunctionSurrogates):
     def __init__(self, function_surrogate_lst, input_parser):
-        output_keys = [fs[0].output_channel_name for fs in function_surrogate_lst]
+        output_keys = [fs[0].output_names for fs in function_surrogate_lst]
         FunctionSurrogates.__init__(self, function_surrogate_lst, input_parser, output_keys)
-        self.ws_cutin = function_surrogate_lst[0][0].wind_speed_cut_in
-        self.ws_cutout = function_surrogate_lst[0][0].wind_speed_cut_out
+        self.ws_cutin = function_surrogate_lst[0][0].metadata['wind_speed_cut_in']
+        self.ws_cutout = function_surrogate_lst[0][0].metadata['wind_speed_cut_out']
 
     def __call__(self, ws, run_only=slice(None), **kwargs):
         ws_flat = ws.ravel()
@@ -70,13 +69,13 @@ class ThreeRegionLoadSurrogates(FunctionSurrogates):
                                    (self.ws_cutin <= ws_flat) & (ws_flat <= self.ws_cutout),
                                    ws_flat > self.ws_cutout]):
                 if m.sum():
-                    output[m] = fs_.predict_output(x[m], bounds='ignore')[:, 0]
+                    output[m] = fs_.predict_output(x[m])[:, 0]
             return output
         return [predict(fs).reshape(ws.shape) for fs in np.asarray(self.function_surrogate_lst)[run_only]]
 
     @property
     def wohler_exponents(self):
-        return [fs[0].wohler_exponent for fs in self.function_surrogate_lst]
+        return [fs[0].metadata['wohler_exponent'] for fs in self.function_surrogate_lst]
 
 
 class IEA34_130_Base(WindTurbine):
@@ -96,7 +95,7 @@ class IEA34_130_1WT_Surrogate(IEA34_130_Base):
     def __init__(self):
         surrogate_path = Path(example_data_path) / 'iea34_130rwt' / 'one_turbine'
         loadFunction = ThreeRegionLoadSurrogates(
-            [[TensorflowSurrogate.from_dtu_json(surrogate_path / s, n)
+            [[TensorFlowModel.load_h5(surrogate_path / f'{s}_{n}.h5')
               for n in self.set_names] for s in self.load_sensors],
             input_parser=lambda ws, TI_eff=.1, Alpha=0: [ws, TI_eff, Alpha])
         powerCtFunction = IEA34_130_PowerCtSurrogate(
@@ -109,11 +108,13 @@ class IEA34_130_2WT_Surrogate(IEA34_130_Base):
     def __init__(self):
         surrogate_path = Path(example_data_path) / 'iea34_130rwt' / 'two_turbines'
         loadFunction = ThreeRegionLoadSurrogates(
-            [[TensorflowSurrogate.from_dtu_json(surrogate_path / s, n)
+            [[TensorFlowModel.load_h5(surrogate_path / f'{s}_{n}.h5')
               for n in self.set_names] for s in self.load_sensors],
             input_parser=self.get_input)
-        self.max_dist = loadFunction.function_surrogate_lst[0][0].input_scaler.data_max_[4]
-        self.max_angle = loadFunction.function_surrogate_lst[0][0].input_scaler.data_max_[3]
+        # self.max_dist = loadFunction.function_surrogate_lst[0][0].input_scaler.data_max_[4]
+        # self.max_angle = loadFunction.function_surrogate_lst[0][0].input_scaler.data_max_[3]
+        self.max_dist = 773.7387854696
+        self.max_angle = 44.8850848847
 
         powerCtFunction = IEA34_130_PowerCtSurrogate(
             surrogate_path,

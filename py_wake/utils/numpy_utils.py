@@ -42,7 +42,7 @@ class Numpy32(NumpyBackend):
 
     def __init__(self):
         wrapped_functions = {k: Cast32Wrapper(f) for k, f in self.backend.__dict__.items()
-                             if not(isinstance(f, (type, int, float, RClass)) or f is None or inspect.ismodule(f))}
+                             if not (isinstance(f, (type, int, float, RClass)) or f is None or inspect.ismodule(f))}
         self.__dict__ = {**self.backend.__dict__, **wrapped_functions}
         self.float = numpy.float32
         self.complex = numpy.complex64
