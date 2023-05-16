@@ -53,6 +53,7 @@ setup(name='py_wake',
                       'rotor_avg_models/gaussian_overlap_.02_.02_128_512.nc'
                       ],
       },
+
       # When adding extra requirements be sure to update recipe/meta.yaml
       install_requires=[
           'matplotlib',  # for plotting
@@ -73,11 +74,13 @@ setup(name='py_wake',
               'sphinx_rtd_theme',  # docs theme
               'line_profiler',  # to check speed
               'scikit-learn',  # MinMaxScaler
+              'surrogates-interface @ git+https://gitlab.windenergy.dtu.dk/surrogate-models/surrogate-models-interface.git',
               'tensorflow',  # load surrogates
               'ipywidgets',  # notebook widgets
           ],
           'loads': [
               'scikit-learn',  # MinMaxScaler
+              'surrogates-interface @ git+https://gitlab.windenergy.dtu.dk/surrogate-models/surrogate-models-interface.git',
               'tensorflow',  # load surrogates
           ]},
       zip_safe=True)

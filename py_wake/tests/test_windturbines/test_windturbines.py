@@ -116,17 +116,17 @@ def test_twotype_windturbines():
                                               WindTurbine.from_WAsP_wtg(os.path.join(wtg_path, 'NEG-Micon-2750.wtg'))])])
 def test_wasp_wtg(wts_wtg):
     wts_wtg = wts_wtg()
-    assert(wts_wtg.name(type=0) == 'Vestas V80 (2MW, Offshore)')
-    assert(wts_wtg.diameter(type=0) == 80)
-    assert(wts_wtg.hub_height(type=0) == 67)
+    assert (wts_wtg.name(type=0) == 'Vestas V80 (2MW, Offshore)')
+    assert (wts_wtg.diameter(type=0) == 80)
+    assert (wts_wtg.hub_height(type=0) == 67)
     npt.assert_array_equal(wts_wtg.power(np.array([0, 3, 3.99, 4, 5, 9, 18, 25, 25.01, 100]),
                                          type=0), np.array([0, 0, 0, 66600, 154000, 996000, 2e6, 2e6, 0, 0]))
     npt.assert_array_equal(wts_wtg.ct(np.array([1, 3.99, 4, 7, 9, 17, 25, 25.01, 100]), type=0),
                            np.array([0.052, 0.052, 0.818, 0.805, 0.807, 0.167, 0.052, 0.052, 0.052]))
 
-    assert(wts_wtg.name(type=1) == 'NEG-Micon 2750/92 (2750 kW)')
-    assert(wts_wtg.diameter(type=1) == 92)
-    assert(wts_wtg.hub_height(type=1) == 70)
+    assert (wts_wtg.name(type=1) == 'NEG-Micon 2750/92 (2750 kW)')
+    assert (wts_wtg.diameter(type=1) == 92)
+    assert (wts_wtg.hub_height(type=1) == 70)
     npt.assert_array_equal(wts_wtg.power(np.array([0, 3, 3.99, 4, 5, 9, 18, 25, 25.01, 100]), type=1),
                            np.array([0, 0, 0, 55000, 185000, 1326000, 2748000, 2750000, 0, 0]))
     npt.assert_array_equal(wts_wtg.ct(np.array([1, 3.99, 4, 7, 9, 17, 100]), type=1),

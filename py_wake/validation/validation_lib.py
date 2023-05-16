@@ -57,9 +57,9 @@ def uniqueLabels(all_handles, all_labels):
 def seq(start, stop, step=1):
     n = int(round((stop - start) / float(step)))
     if n > 1:
-        return([start + step * i for i in range(n + 1)])
+        return ([start + step * i for i in range(n + 1)])
     else:
-        return([start, stop])
+        return ([start, stop])
 
 
 def gauss(mu, sigma, x):
@@ -123,7 +123,7 @@ def GaussianFilter(y, wd, nwdGA, sigma):
     nwd = len(wd)
     assert ny == nwd, 'length of wd does not correspond with length of y'
     yGA = np.zeros((1, ny))
-    if(nwd * wdDelta == 360):
+    if (nwd * wdDelta == 360):
         # Full wind rose
         i1 = 0
         i2 = nwd

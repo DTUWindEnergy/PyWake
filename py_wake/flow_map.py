@@ -171,12 +171,12 @@ class FlowMap(FlowBox):
                 y = self.y.values
                 x = np.zeros_like(y) + self.plane[1]
                 z = self.simulationResult.windFarmModel.site.elevation(x, y)
-                c = ax.contourf(self.X, self.Y + z, data.isel(x=0), levels=levels, cmap=cmap)
+                c = ax.contourf(self.X / n, (self.Y + z) / n, data.isel(x=0), levels=levels, cmap=cmap)
             elif self.plane[0] == 'XZ':
                 x = self.x.values
                 y = np.zeros_like(x) + self.plane[1]
                 z = self.simulationResult.windFarmModel.site.elevation(x, y)
-                c = ax.contourf(self.X, self.Y + z, data.isel(y=0), levels=levels, cmap=cmap)
+                c = ax.contourf(self.X / n, (self.Y + z) / n, data.isel(y=0), levels=levels, cmap=cmap)
 
             if plot_colorbar:
                 plt.colorbar(c, label=clabel, ax=ax)
@@ -198,7 +198,7 @@ class FlowMap(FlowBox):
 
         if plot_windturbines:
             self.plot_windturbines(normalize_with=normalize_with, ax=ax)
-
+        plt.axis('equal')
         return c
 
     def plot_windturbines(self, normalize_with=1, ax=None):
