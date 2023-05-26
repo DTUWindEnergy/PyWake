@@ -15,3 +15,4 @@ def setup_plot(ax=None, title=None, ylabel=None, xlabel=None, xlim=None, ylim=No
         ax.legend()
     if axis:
         ax.axis(axis)
+    plt.tight_layout()

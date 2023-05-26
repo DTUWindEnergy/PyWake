@@ -214,10 +214,12 @@ class FlowMap(FlowBox):
             for l in range(x_ilk.shape[1]):
                 for k in range(x_ilk.shape[2]):
 
-                    wd = self.wd.isel(wd=l) - 90
+                    wd = self.wd.values[l] - 90
 
                     def get(n):
-                        shape = len(x_ilk), len(self.simulationResult.wd), len(self.simulationResult.ws)
+                        shape = (len(x_ilk),
+                                 len(np.atleast_1d(self.simulationResult.wd)),
+                                 len(np.atleast_1d(self.simulationResult.ws)))
                         if n not in self.simulationResult:
                             return 0
                         v = self.simulationResult[n].ilk(shape)
