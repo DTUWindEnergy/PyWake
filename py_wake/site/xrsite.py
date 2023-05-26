@@ -326,14 +326,15 @@ class UniformSite(XRSite):
     constant wind speed probability of 1. Only for one fixed wind speed
     """
 
-    def __init__(self, p_wd=[1], ti=0.1, ws=12, interp_method='nearest', shear=None, initial_position=None):
+    def __init__(self, p_wd=[1], ti=0.1, ws=12, interp_method='nearest', shear=None, initial_position=None,
+                 distance=None):
         ds = xr.Dataset(
             data_vars={'P': ('wd', p_wd)},
             coords={'wd': np.linspace(0, 360, len(p_wd), endpoint=False)})
         if ti is not None:
             ds['TI'] = ti
         XRSite.__init__(self, ds, interp_method=interp_method, shear=shear, initial_position=initial_position,
-                        default_ws=np.atleast_1d(ws))
+                        default_ws=np.atleast_1d(ws), distance=distance)
 
 
 class UniformWeibullSite(XRSite):
@@ -341,7 +342,7 @@ class UniformWeibullSite(XRSite):
     weibull distributed wind speed
     """
 
-    def __init__(self, p_wd, a, k, ti=None, interp_method='nearest', shear=None):
+    def __init__(self, p_wd, a, k, ti=None, interp_method='nearest', shear=None, distance=None):
         """Initialize UniformWeibullSite
 
         Parameters
@@ -359,6 +360,9 @@ class UniformWeibullSite(XRSite):
             method
         shear : Shear object
             Shear object, e.g. NoShear(), PowerShear(h_ref, alpha)
+        distance: Distance object or None
+            Distance object to calculate the distance between wind turbines.
+            Defaults to StaightDistance based on reference wind direction
 
         Notes
         ------
@@ -371,7 +375,7 @@ class UniformWeibullSite(XRSite):
             coords={'wd': np.linspace(0, 360, len(p_wd), endpoint=False)})
         if ti is not None:
             ds['TI'] = ti
-        XRSite.__init__(self, ds, interp_method=interp_method, shear=shear)
+        XRSite.__init__(self, ds, interp_method=interp_method, shear=shear, distance=distance)
 
 
 class GlobalWindAtlasSite(XRSite):

@@ -163,7 +163,7 @@ class FunctionSurrogates(WindTurbineFunction, ABC):
         x = self.get_input(ws=ws, **kwargs)
         x = np.array([fix_shape(v, ws).ravel() for v in x]).T
         if isinstance(run_only, int):
-            return self.function_surrogate_lst[run_only].predict_output(x).reshape(ws.shape)
+            return self.function_surrogate_lst[run_only].predict_output(x).reshape(np.atleast_1d(ws).shape)
         else:
             return [fs.predict_output(x).reshape(ws.shape) for fs in np.asarray(self.function_surrogate_lst)[run_only]]
 
