@@ -39,15 +39,20 @@ check_code_style:  # name the job what we like
 test_PyWake_windows:  # name the job what we like
   stage:  # build, test, deploy defined by default [2]
     test
-  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   script:  # runs on windows machine due to tag below
   - conda init powershell
   - "if (test-path $PROFILE.CurrentUserAllHosts) { & $PROFILE.CurrentUserAllHosts}"
   - conda activate py38
   - pip install -e .[test] --no-deps
-  - pytest --cov-report term-missing:skip-covered --cov=py_wake --cov-config .coveragerc
+  - pytest --cov-report term-missing:skip-covered --cov-report xml:coverage.xml --cov=py_wake --cov-config .coveragerc
   tags:  # tag for shared runner on windows machine
   - ANMH_old
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
