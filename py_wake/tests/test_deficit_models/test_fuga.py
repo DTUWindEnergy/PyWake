@@ -1,5 +1,5 @@
 from py_wake import np
-from py_wake.examples.data.hornsrev1 import HornsrevV80
+from py_wake.examples.data.hornsrev1 import HornsrevV80, V80
 from py_wake.site._site import UniformSite
 from py_wake.tests import npt
 from py_wake.tests.test_files import tfp
@@ -17,6 +17,7 @@ from py_wake.wind_turbines.power_ct_functions import PowerCtTabular, CubePowerSi
 from py_wake.wind_turbines._wind_turbines import WindTurbine, WindTurbines
 from py_wake.utils.profiling import timeit
 import warnings
+from py_wake.utils import fuga_utils
 
 
 def test_fuga():
@@ -116,10 +117,9 @@ def test_fuga_new_casedata_bin_format():
         npt.assert_array_almost_equal(res.ct_ilk.flatten(), [0.79265014, 0.793, 0.80621714, 0.791359, 0.80183541,
                                                              0.80623084, 0.80580662], 8)
 
-        x_j = np.linspace(-1500, 1500, 500)
-        y_j = np.linspace(-1500, 1500, 300)
+    x_j = np.linspace(-1500, 1500, 500)
+    y_j = np.linspace(-1500, 1500, 300)
 
-        wake_model = Fuga(path, site, wts)
     sim_res = wake_model(wt_x, wt_y, wd=[30], ws=[10])
     flow_map70 = sim_res.flow_map(HorizontalGrid(x_j, y_j, h=70))
     flow_map73 = sim_res.flow_map(HorizontalGrid(x_j, y_j, h=73))
@@ -331,10 +331,11 @@ def test_ti(case, ti):
     npt.assert_almost_equal(fuga_utils.TI, ti, 2)
 
 
-@pytest.mark.parametrize('LUT_path_lst', [tfp + 'fuga/*.nc',
-                                          [tfp + 'fuga/LUTs_Zeta0=0.00_16_32_D120_zhub90_zi400_z0=0.00001000_z29.6-207.9_UL_nx512_ny128_dx30.0_dy7.5.nc',
-                                           tfp + 'fuga/LUTs_Zeta0=0.00_16_32_D80_zhub70_zi400_z0=0.00001000_z29.6-207.9_UL_nx512_ny128_dx20.0_dy5.0.nc']])
-def test_FugaMultiLUTDeficit(LUT_path_lst):
+@pytest.mark.parametrize('LUT_path_lst', [tfp + 'fuga/2MW/multilut/LUTs_Zeta0=0.00e+00_16_32_*_zi400_z0=0.00001000_z9.8-207.9_UL_nx128_ny128_dx20.0_dy5.0.nc',
+                                          [tfp + 'fuga/2MW/multilut/LUTs_Zeta0=0.00e+00_16_32_D120_zhub90_zi400_z0=0.00001000_z9.8-207.9_UL_nx128_ny128_dx20.0_dy5.0.nc',
+                                              tfp + 'fuga/2MW/multilut/LUTs_Zeta0=0.00e+00_16_32_D80_zhub70_zi400_z0=0.00001000_z9.8-207.9_UL_nx128_ny128_dx20.0_dy5.0.nc']])
+@pytest.mark.parametrize('n_cpu', [1, 2])
+def test_FugaMultiLUTDeficit(LUT_path_lst, n_cpu):
     site = UniformSite()
     wt = WindTurbines.from_WindTurbine_lst([
         WindTurbine(name='WT80_70', diameter=80, hub_height=70,
@@ -346,55 +347,80 @@ def test_FugaMultiLUTDeficit(LUT_path_lst):
                            blockage_deficitModel=deficitModel)
     x = np.arange(2) * 500
     y = x * 0
-    sim_res = wfm(x, y, type=[0, 1], wd=[90, 240, 270])
-    # sim_res = wfm([0], [0], type=[0], wd=[90, 240, 270])
-    z = deficitModel.z
-
+    sim_res = wfm(x, y, type=[0, 1], wd=[90, 240, 270], n_cpu=n_cpu)
+    z = deficitModel.da.z[1:-1]
+    ref = [[12.41, 12.36, 12.29, 12.21, 12.1, 11.96, 11.78, 11.56, 11.29,
+            10.97, 10.6, 10.17, 9.71, 9.26, 8.8, 8.4, 8.06, 7.8,
+            7.62, 7.51, 7.48, 7.51, 7.64, 7.91, 8.38, 9.07, 9.95,
+            10.85, 11.54, 11.92],
+           [12.41, 12.39, 12.36, 12.31, 12.25, 12.16, 12.03, 11.86, 11.63,
+            11.33, 10.95, 10.49, 9.97, 9.47, 8.99, 8.6, 8.31, 8.13,
+            8.06, 8.12, 8.32, 8.72, 9.37, 10.21, 11.08, 11.69, 12.,
+            12.1, 12.11, 12.1]]
     if 0:
         print(np.round(sim_res.flow_map(grid=XZGrid(y=0, x=[200], z=z), wd=[90, 270]).WS_eff.squeeze()[::2], 2).T)
         ax = plt.gca()
-        for wd in [90, 270]:
+        for wd, x1, x2, r in [(90, -1000, 640, ref[0]), (270, -140, 1000, ref[1])]:
             plt.figure()
-            sim_res.flow_map(grid=XZGrid(y=0, x=np.linspace(-200, 1000), z=z), wd=wd).plot_wake_map()
+            sim_res.flow_map(grid=XZGrid(y=0, x=np.linspace(x1, x2), z=z), wd=wd).plot_wake_map()
             sim_res.flow_map(grid=XZGrid(y=0, x=[200], z=z), wd=wd).WS_eff[::2].plot(marker='.', ax=ax, y='h')
+            ax.plot(r, z[::2], '--')
         plt.show()
     uz = sim_res.flow_map(grid=XZGrid(y=0, x=[200], z=z), wd=[90, 270]).WS_eff.squeeze()[::2].T
-    npt.assert_array_almost_equal(uz, [
-        [10.05, 9.59, 9.09, 8.62, 8.2, 7.81, 7.51, 7.29, 7.15, 7.08, 7.09,
-         7.19, 7.42, 7.85, 8.46, 9.3, 10.25, 11.09, 11.65, 11.93],
-        [10.72, 10.14, 9.5, 8.94, 8.51, 8.16, 7.95, 7.84, 7.83, 7.93, 8.18,
-            8.66, 9.48, 10.59, 11.42, 11.84, 11.99, 12.02, 12.02, 12.01]], 2)
+    npt.assert_array_almost_equal(uz, ref, 2)
 
 
-def test_FugaMultiLUTDeficit_multiprocessing():
-    site = UniformSite()
-    wt = WindTurbines.from_WindTurbine_lst([
-        WindTurbine(name='WT80_70', diameter=80, hub_height=70,
-                    powerCtFunction=CubePowerSimpleCt(power_rated=2000)),
-        WindTurbine(name="WT120_90", diameter=120, hub_height=90,
-                    powerCtFunction=CubePowerSimpleCt(power_rated=4500))])
-    deficitModel = FugaMultiLUTDeficit()
-    wfm = All2AllIterative(site, wt, deficitModel,
-                           blockage_deficitModel=deficitModel)
-    x = np.arange(2) * 500
-    y = x * 0
-    sim_res = wfm(x, y, type=[0, 1], wd=[90, 240, 270], n_cpu=2)
-    # sim_res = wfm([0], [0], type=[0], wd=[90, 240, 270])
-    z = deficitModel.z
-    if 0:
-        print(np.round(sim_res.flow_map(grid=XZGrid(y=0, x=[200], z=z), wd=[90, 270]).WS_eff.squeeze()[::2], 2).T)
-        ax = plt.gca()
-        for wd in [90, 270]:
-            plt.figure()
-            sim_res.flow_map(grid=XZGrid(y=0, x=np.linspace(-200, 1000), z=z), wd=wd).plot_wake_map()
-            sim_res.flow_map(grid=XZGrid(y=0, x=[200], z=z), wd=wd).WS_eff[::2].plot(marker='.', ax=ax, y='h')
-        plt.show()
-    uz = sim_res.flow_map(grid=XZGrid(y=0, x=[200], z=z), wd=[90, 270]).WS_eff.squeeze()[::2].T
-    npt.assert_array_almost_equal(uz, [
-        [10.05, 9.59, 9.09, 8.62, 8.2, 7.81, 7.51, 7.29, 7.15, 7.08, 7.09,
-         7.19, 7.42, 7.85, 8.46, 9.3, 10.25, 11.09, 11.65, 11.93],
-        [10.72, 10.14, 9.5, 8.94, 8.51, 8.16, 7.95, 7.84, 7.83, 7.93, 8.18,
-            8.66, 9.48, 10.59, 11.42, 11.84, 11.99, 12.02, 12.02, 12.01]], 2)
+@pytest.mark.parametrize('file_pattern,kwargs', [
+    ('*.nc', dict(zeta0=[-6e-7, 0, 6e-7], zi=[300, 350, 400])),
+    ('*D80*.nc', dict(zeta0=[-6e-7, 0, 6e-7], zi=[300, 350, 400])),
+    ('*zi300*.nc', dict(zeta0=[-6e-7, 0, 6e-7])),
+    ('*Zeta0=0.00*.nc', dict(zi=[300, 350, 400]))])
+def test_FugaMultiLUT(file_pattern, kwargs):
+
+    deficit = FugaMultiLUTDeficit(tfp + "fuga/2MW/multilut/" + file_pattern, [70, 90])
+
+    wfm = All2AllIterative(UniformSite(), V80(), wake_deficitModel=deficit, blockage_deficitModel=deficit)
+    wfm([0, 500], [0, 0],
+        wd=[270, 270, 270],
+        ws=[10, 10, 10],
+        TI=[.08, .1, .12],
+        time=True,
+        **kwargs)
+
+
+def test_verify_FugaMultiLUT():
+    # compare MultiLUT with individual LUTs
+
+    deficit = FugaMultiLUTDeficit(tfp + "fuga/2MW/multilut/*.nc", [70, 90], TI_ref_height=70)
+    wfm = All2AllIterative(UniformSite(), V80(), wake_deficitModel=deficit, blockage_deficitModel=deficit)
+
+    sim_res = wfm([0], [0],
+                  wd=[270] * 6,
+                  ws=[10] * 6,
+                  TI=[.06, .06, .12, .120347, .120178, .12],
+                  zeta0=[-6e-7, 0, 6e-7, -6e-7, 0, 6e-7],
+                  zi=[300, 300, 300, 400, 400, 400],
+                  time=True,
+                  )
+
+    fm = sim_res.flow_map(XYGrid(x=400, y=np.linspace(-310, 310), h=70))
+    for t in sim_res.time:
+        da = sim_res.sel(time=t)
+        ti = ['z0=0.00001000_z69.2-93.4', 'z0=0.01703452_z68.5-92.5'][da.TI.item() >= .12]
+        print(fuga_utils.z0(da.TI.item(), 70, da.zeta0.item()))
+        deficit = FugaDeficit(
+            tfp +
+            f"fuga/2MW/multilut/LUTs_Zeta0={da.zeta0.item():4.2e}_16_32_D80_zhub70_zi{da.zi.item():d}_{ti}_UL_nx128_ny128_dx20.0_dy5.0.nc",
+            smooth2zero_x=None, smooth2zero_y=None)
+        wfm_ref = All2AllIterative(UniformSite(), V80(), wake_deficitModel=deficit, blockage_deficitModel=deficit)
+        fm_ref = wfm_ref([0], [0], wd=270, ws=10,).flow_map(XYGrid(x=400, y=np.linspace(-310, 310), h=70))
+
+        if 0:
+            fm.WS_eff.sel(time=t).plot()
+            fm_ref.WS_eff.plot(ls='--')
+            plt.show()
+        npt.assert_array_almost_equal(fm.WS_eff.sel(time=t).squeeze(), fm_ref.WS_eff.squeeze(), 5)
+
 
 # def cmp_fuga_with_colonel():
 #     from py_wake.aep_calculator import AEPCalculator

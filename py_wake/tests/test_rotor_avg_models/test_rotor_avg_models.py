@@ -9,7 +9,7 @@ from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
 from py_wake.examples.data.hornsrev1 import V80
 from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37_WindTurbines
-from py_wake.flow_map import HorizontalGrid, XYGrid
+from py_wake.flow_map import HorizontalGrid, XYGrid, YZGrid
 from py_wake.rotor_avg_models import gauss_quadrature, PolarGridRotorAvg, \
     polar_gauss_quadrature, EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg, GridRotorAvg, WSPowerRotorAvg
 from py_wake.rotor_avg_models.gaussian_overlap_model import GaussianOverlapAvgModel
@@ -21,6 +21,7 @@ from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 from py_wake.utils.model_utils import get_models
 from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind, EngineeringWindFarmModel
 from py_wake.turbulence_models.turbulence_model import TurbulenceModel
+from py_wake.deficit_models.fuga import FugaMultiLUTDeficit
 from py_wake.deficit_models.noj import NOJ
 from py_wake.deficit_models.utils import ct2a_mom1d
 
@@ -379,7 +380,7 @@ def test_with_all_deficit_models(WFM):
 def test_with_all_blockage_models(blockage_deficitModel):
     site = IEA37Site(16)
     windTurbines = IEA37_WindTurbines()
-    if blockage_deficitModel is not None:
+    if blockage_deficitModel not in [None, FugaMultiLUTDeficit]:
 
         wfm_wo = All2AllIterative(site, windTurbines, wake_deficitModel=NoWakeDeficit(),
                                   blockage_deficitModel=blockage_deficitModel(),
@@ -388,6 +389,13 @@ def test_with_all_blockage_models(blockage_deficitModel):
                                  blockage_deficitModel=blockage_deficitModel(rotorAvgModel=CGIRotorAvg(7)),
                                  turbulenceModel=STF2017TurbulenceModel())
         kwargs = {'x': [0, 500], 'y': [0, 0], 'wd': [270], 'ws': [10], 'yaw': 0}
+        if 0:
+            wfm_w([500], [0], wd=270, ws=10, yaw=0).flow_map(
+                YZGrid(y=0, x=0, z=np.linspace(10, 200))).WS_eff.plot(y='h')
+            plt.axhline(windTurbines.hub_height())
+            plt.title(blockage_deficitModel.__name__)
+            plt.show()
+
         assert wfm_w(**kwargs).WS_eff.sel(wt=0).item() > wfm_wo(**kwargs).WS_eff.sel(wt=0).item()
 
 

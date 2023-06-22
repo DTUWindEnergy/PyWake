@@ -6,6 +6,8 @@ from pathlib import Path
 import warnings
 from numpy import newaxis as na
 from py_wake.utils import gradients
+from scipy.special import lambertw
+from scipy.optimize import fsolve
 
 
 class FugaUtils():
@@ -127,19 +129,22 @@ After that pass the new netcdf file to Fuga instead of the old folder""",
                               for j in (zlevels or self.zlevels)] for uvlt in UVLT])
             return luts.reshape((len(UVLT), len(zlevels or self.zlevels), self.ny // 2, self.nx))
 
-    def zeta0_factor(self, zhub):
-        ams = 5
-        invL = 0
+    def zeta0_factor(self):
+        invL = self.zeta0 / self.z0
+        ams = -5
 
         def psim(zeta):
-            return ams * zeta
+            if self.zeta0 >= 0:
+                return ams * zeta
+            else:
+                # See Colonel.u2b.psim
+                amu = -19.3
+                aux2 = np.sqrt(1 + amu * zeta)
+                aux = np.sqrt(aux2)
+                return np.pi / 2 - 2 * np.arctan(aux) + np.log((1 + aux)**2 * (1 + aux2) / 8)
+        return 1 / (1 - (psim(self.zHub * invL) - psim(self.zeta0)) / np.log(self.zHub / self.z0))
 
-        if not self.zeta0 >= 0:  # pragma: no cover
-            # See Colonel.u2b.psim
-            raise NotImplementedError
-        return 1 / (1 - (psim(zhub * invL) - psim(self.zeta0)) / np.log(zhub / self.z0))
-
-    def init_lut(self, lut, zhub, smooth2zero_x=None, smooth2zero_y=None, remove_wriggles=False):
+    def init_lut(self, lut, smooth2zero_x=None, smooth2zero_y=None, remove_wriggles=False):
         """initialize lut (negate, remove wriggles and smooth edges to zero)
 
         Parameters
@@ -164,7 +169,8 @@ After that pass the new netcdf file to Fuga instead of the old folder""",
             resulting lut
 
         """
-        lut = -lut * self.zeta0_factor(zhub)  # minus to get deficit
+
+        lut = -lut * self.zeta0_factor()  # minus to get deficit
 
         if remove_wriggles:
             # remove all positive and negative deficits after first zero crossing in lateral direction
@@ -187,7 +193,38 @@ After that pass the new netcdf file to Fuga instead of the old folder""",
     @property
     def TI(self):
         """Streamwise Turbulence intensity"""
-        return ti(self.z0, self.zHub)
+        return ti(self.z0, self.zHub, self.zeta0)
+
+
+class FugaXRLUT(FugaUtils):
+    def __init__(self, path, smooth2zero_x=None, smooth2zero_y=None, remove_wriggles=False):
+        self.smooth2zero_x = smooth2zero_x
+        self.smooth2zero_y = smooth2zero_y
+        self.remove_wriggles = remove_wriggles
+        self.dataset = ds = xr.open_dataset(path)
+        self.dataset_path = path
+        self.x, self.y, self.z = ds.x.values, ds.y.values, ds.z.values
+        self.dx, self.dy = np.diff(self.x[:2]), np.diff(self.y[:2])
+        self.zeta0, self.zHub, self.z0 = ds.zeta0.item(), ds.hubheight.item(), ds.z0.item()
+        self.ds = ds.ds.item()
+
+    @property
+    def UL(self):
+        return self.get_table('UL')
+
+    def get_table(self, table):
+        da = self.dataset[table]
+
+        v = self.init_lut(da.transpose('z', 'y', 'x').values,
+                          smooth2zero_x=self.smooth2zero_x, smooth2zero_y=self.smooth2zero_y,
+                          remove_wriggles=self.remove_wriggles)
+        ds = self.dataset
+        attrs = {
+            'diameter': ds.diameter.item(),
+            'hubheight': ds.hubheight.item(),
+            'z0': ds.z0.item(),
+            **self.dataset.attrs}
+        return xr.DataArray(v, dims=['z', 'y', 'x'], coords=da.coords, attrs=attrs).transpose(*da.dims)
 
 
 def dat2netcdf(folder):
@@ -235,12 +272,77 @@ saved as '{filename}'""")
     return ds
 
 
-def ti(z0, zhub):
-    return 1 / np.log(np.asarray(zhub) / np.asarray(z0))
+Cm1 = 5
+Cm2 = -19.3
 
 
-def z0(ti, zhub):
-    return np.asarray(zhub) / np.exp(1 / np.asarray(ti))
+def phi(zeta):
+    zeta = np.atleast_1d(zeta)
+    return np.where(zeta <= 0, (1 + Cm2 * zeta)**-.25, 1 + Cm1 * zeta)
+
+
+def psi(zeta, unstable=''):
+    zeta = np.atleast_1d(zeta)
+    ind = zeta < 0
+    psi_n = np.zeros(zeta.shape)
+    aux = phi(zeta)**-1
+    if unstable == 'Wilson':
+        psi_n[ind] = 3 * np.log((1 + (1 + 3.6 * np.abs(zeta[ind])**(2 / 3))**.5))
+    else:
+        aux2 = (1.0 + aux[ind])**2 * (1 + aux[ind]**2)
+        psi_n[ind] = -np.log(8.0 / aux2) - 2.0 * np.arctan(Cm2 * zeta[ind] / aux2)
+    psi_n[~ind] = 1 - aux[~ind]**-1
+    psi_n[zeta == 0] = 0
+    return psi_n
+
+
+def z0(TI, zref, zeta0, z0_limit=1e-5):
+    zeros = np.atleast_1d((np.asarray(TI) + np.asarray(zref) + np.asarray(zeta0)) * 0)
+    TI, zref, zeta0 = zeros + TI, zeros + zref, zeros + zeta0
+
+    # Neutral
+    z0 = zref * np.exp(-1.0 / TI)
+
+    if np.any(zeta0 != 0):
+        def add_stability(TI, zref, zeta0, z0):
+            # TODO: support autograd and cs
+            if zeta0 < 0:
+                # Unstable: Solve nummerically
+                return zref / fsolve(lambda x: x / np.exp(psi(x * zeta0) - psi(zeta0)) -
+                                     np.exp(1 / TI), zref / 0.001)[0]
+            elif zeta0 > 0:
+                # Stable: analytical expression from residual for stable conditions:
+                # 1/ti = np.log(zref/z0)+Cm1*zeta0*(zref/z0-1)
+                a = Cm1 * zeta0
+                b = 1 / TI
+                x = np.real(lambertw(a * np.exp(a + b))) / a
+                return zref / x
+
+            else:
+                return z0
+        z0 = np.reshape([add_stability(*args)
+                        for args in zip(TI.flatten(), zref.flatten(), zeta0.flatten(), z0.flatten())], TI.shape)
+
+    # Limit
+    z0 = np.maximum(z0, z0_limit)
+    return z0
+
+
+def ti(z0, zref, zeta0):
+    zeros = np.atleast_1d((np.asarray(z0) + np.asarray(zref) + np.asarray(zeta0)) * 0)
+    z0, zref, zeta0 = zeros + z0, zeros + zref, zeros + zeta0
+
+    # Neutral
+    ti_inv = np.log(zref / z0)
+
+    # Stable
+    # 1/ti = np.log(zref/z0)+Cm1*zeta0(zref/z0-1)
+    ti_inv = np.where(zeta0 > 0, ti_inv + Cm1 * zeta0 * (zref / z0 - 1), ti_inv)
+
+    # Unstable
+    ti_inv = np.where(zeta0 < 0, ti_inv - psi(zeta0 * zref / z0) + psi(zeta0), ti_inv)
+
+    return 1 / ti_inv
 
 
 class LUTInterpolator(object):

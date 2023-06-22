@@ -5,7 +5,6 @@ from py_wake import np
 import gc
 import os
 import psutil
-import memory_profiler
 import ctypes
 import linecache
 import warnings
@@ -110,6 +109,8 @@ def get_memory_usage():
 
 
 def check_memory_usage(f, subtract_initial=True):
+    import memory_profiler
+
     def wrap(*args, **kwargs):
         initial_mem_usage = get_memory_usage()
         mem_usage, res = memory_profiler.memory_usage((f, args, kwargs), interval=.02, max_usage=True, retval=True)

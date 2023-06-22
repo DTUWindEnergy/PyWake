@@ -17,7 +17,7 @@ class Model():
 class XRLUTModel(Model):
     """Model based on xarray.dataarray look-up table with linear interpolation"""
 
-    def __init__(self, da, get_input=None, get_output=None, bounds='limit'):
+    def __init__(self, da, get_input=None, get_output=None, method='linear', bounds='limit'):
         """
         Parameters
         ----------
@@ -38,21 +38,23 @@ class XRLUTModel(Model):
             names of the PyWake inputs should match the names of the default PyWake keyword arguments,
             e.g. dw_ijlk, WS_ilk, D_src_il, etc, or user-specified custom inputs.
             The function should return deficit_ijlk
+        method : {'linear' or 'nearest} or [{'linear' or 'nearest}, ...]
+            interpolation method
         bounds : {'limit', 'check', 'ignore'}
             how to handle out-of-bounds coordinate interpolation, see GridInterpolator
         """
         self.da = da
+        self._args4model = getattr(self, '_args4model', set())
         if get_input:
             self.get_input = get_input
-            self._args4model = set()
         else:
-            self._args4model = set(self.da.dims)
+            self._args4model |= set(self.da.dims)
         if get_output:
             self.get_output = get_output
         self._args4model |= (set(inspect.getfullargspec(self.get_input).args) |
-                             set(inspect.getfullargspec(self.get_output).args) - {'self'})
+                             set(inspect.getfullargspec(self.get_output).args)) - {'self', 'output_ijlk'}
 
-        self.interp = GridInterpolator([da[k].values for k in da.dims], da.values, bounds=bounds)
+        self.interp = GridInterpolator([da[k].values for k in da.dims], da.values, method=method, bounds=bounds)
 
     @property
     def args4model(self):
@@ -73,7 +75,7 @@ class XRLUTModel(Model):
 
     def __call__(self, **kwargs):
         input_ijlk = self.get_input(**kwargs)
-        IJLK = np.max([inp.shape for inp in input_ijlk], 0)
+        IJLK = tuple(np.max([inp.shape for inp in input_ijlk], 0))
         output_ijlk = self.interp(np.array([np.broadcast_to(inp, IJLK).flatten()
                                             for inp in input_ijlk]).T).reshape(IJLK)
         return self.get_output(output_ijlk, **kwargs)
