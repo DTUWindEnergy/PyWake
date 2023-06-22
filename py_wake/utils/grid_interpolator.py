@@ -14,8 +14,8 @@ class GridInterpolator(object):
             Interpolation coordinates
         V : array_like
             Interpolation data (more dimensions than coordinates is possible)
-        method : {'linear' or 'nearest} or None
-            Overrides self.method
+        method : {'linear' or 'nearest} or [{'linear' or 'nearest}, ...]
+            default interpolation method
         bounds : {'check', 'limit', 'ignore'}
             Specifies how bounds is handled:\n
             - 'check': bounds check is performed. An error is raised if interpolation point outside area
@@ -51,7 +51,7 @@ class GridInterpolator(object):
         ----------
         xp : array_like
             Interpolation points, shape=(n_points, interpolation_dimensions)
-        method : {'linear' or 'nearest} or None
+        method : {'linear' or 'nearest} or [{'linear' or 'nearest}, ...] or None
             Overrides self.method if not None
         bounds : {'check', 'limit', 'ignore'} or None
             Overrides self.bounds if not None

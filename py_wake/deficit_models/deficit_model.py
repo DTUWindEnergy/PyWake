@@ -157,7 +157,7 @@ class XRLUTDeficitModel(WakeDeficitModel, BlockageDeficitModel, XRLUTModel):
     """Deficit model based on xarray.dataarray look-up table with linear interpolation"""
 
     def __init__(self, da, get_input=None, get_output=None,
-                 bounds='limit',
+                 method='linear', bounds='limit',
                  rotorAvgModel=None, groundModel=None, use_effective_ws=True, use_effective_ti=False):
         """
         Parameters
@@ -179,10 +179,12 @@ class XRLUTDeficitModel(WakeDeficitModel, BlockageDeficitModel, XRLUTModel):
             names of the PyWake inputs should match the names of the default PyWake keyword arguments,
             e.g. dw_ijlk, WS_ilk, D_src_il, etc, or user-specified custom inputs.
             The function should return deficit_ijlk
+        method : {'linear' or 'nearest} or [{'linear' or 'nearest}, ...]
+            interpolation method
         bounds : {'limit', 'check', 'ignore'}
             how to handle out-of-bounds coordinate interpolation, see GridInterpolator
         """
-        XRLUTModel.__init__(self, da, get_input, get_output, bounds)
+        XRLUTModel.__init__(self, da, get_input, get_output, method=method, bounds=bounds)
         BlockageDeficitModel.__init__(self, upstream_only=True, rotorAvgModel=rotorAvgModel, groundModel=groundModel)
         WakeDeficitModel.__init__(self, rotorAvgModel, groundModel, use_effective_ws, use_effective_ti)
 

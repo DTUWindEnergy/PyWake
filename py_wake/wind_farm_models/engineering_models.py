@@ -555,6 +555,10 @@ class PropagateDownwind(EngineeringWindFarmModel):
                              }
                 model_kwargs = {k: arg_funcs[k]() for k in self.args4all if k in arg_funcs}
 
+                # custom model arguments
+                custom_args = (set([k for k in self.args4all if k.endswith('_ilk')]) - set(model_kwargs)) & set(kwargs)
+                model_kwargs.update({k: ilk2mk(kwargs[k])[m][na] for k in custom_args})
+
                 dw_ijlk, hcw_ijlk, dh_ijlk = self.site.distance(
                     wd_l=wd, WD_ilk=WD_mk[m][na], src_idx=i_wt_l, dst_idx=i_dw.T)
 

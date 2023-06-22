@@ -16,8 +16,8 @@ from scipy.interpolate._cubic import PchipInterpolator as scipy_PchipInterpolato
 
 from itertools import count
 from scipy.interpolate import UnivariateSpline as scipy_UnivariateSpline
-from scipy.special import erf as scipy_erf
-from autograd.scipy.special import erf as autograd_erf
+
+
 from py_wake.utils.numpy_utils import AutogradNumpy
 from autograd.numpy.numpy_vjps import unbroadcast_f
 
@@ -303,8 +303,10 @@ class UnivariateSpline(scipy_UnivariateSpline):
 
 def erf(z):
     if isinstance(z, ArrayBox):
+        from autograd.scipy.special import erf as autograd_erf
         return autograd_erf(z)
     else:
+        from scipy.special import erf as scipy_erf
         return scipy_erf(z)
 
 
