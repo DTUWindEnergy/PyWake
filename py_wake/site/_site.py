@@ -80,7 +80,7 @@ class LocalWind(dict):
 
     def set_data_array(self, data_array, name, description):
         if data_array is not None:
-            self[name] = data_array
+            self[name] = np.atleast_3d(data_array)
             self.descriptions[name] = description
 
     def add_ilk(self, name, value):
@@ -91,7 +91,7 @@ class LocalWind(dict):
         for da, name, desc in [(ws, 'WS_ilk', 'Local free-stream wind speed [m/s]'),
                                (wd, 'WD_ilk', 'Local free-stream wind direction [deg]'),
                                (ti, 'TI_ilk', 'Local free-stream turbulence intensity')]:
-            self.set_data_array(np.atleast_3d(da), name, desc)
+            self.set_data_array(da, name, desc)
 
         # upper and lower bounds of wind speed bins
         WS_ilk = [self.ws[na, na], self.WS_ilk][use_WS]

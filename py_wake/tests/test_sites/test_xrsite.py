@@ -216,6 +216,9 @@ def test_complex_grid_local_wind(complex_grid_site):
                                          [0.0105829, 0.01576518, 0.02066746],
                                          [0.01079997, 0.01656828, 0.02257487]])
 
+    wfm = BastankhahGaussian(site, V80())
+    wfm([5], [3])
+
 
 def test_complex_grid_local_wind_time(complex_grid_site):
     site = complex_grid_site
