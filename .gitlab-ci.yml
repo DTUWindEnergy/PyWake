@@ -1,4 +1,5 @@
-image: continuumio/anaconda3
+# image: continuumio/anaconda3
+image: continuumio/anaconda3:2023.03-1 # until tensorflow is available for python 3.11 on windows
 
 stages:
   - test
@@ -8,7 +9,6 @@ stages:
 
 # ===== TEST PyWake debian=====
 test_PyWake:  # name the job what we like
-  image: continuumio/anaconda3
   stage:  # build, test, deploy defined by default [2]
     test
   script:
