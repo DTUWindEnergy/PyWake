@@ -12,7 +12,7 @@ test_PyWake:  # name the job what we like
   stage:  # build, test, deploy defined by default [2]
     test
   script:
-  - pip install -e .[test] --timeout 3600 --default-timeout=3600
+  - pip install -e .[test] #--timeout 3600 --default-timeout=3600, fails anyway if Tensorflow does not install in <10min
   - pytest
   tags:  # only runners with this tag can do the job [3]
   - ci-ubuntu
