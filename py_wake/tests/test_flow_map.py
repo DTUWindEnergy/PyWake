@@ -16,6 +16,7 @@ from py_wake.literature.iea37_case_study1 import IEA37CaseStudy1
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.superposition_models import SquaredSum
+import warnings
 
 
 @pytest.fixture(autouse=True)
@@ -416,3 +417,22 @@ def test_plot_windturbines_with_tilt_and_yaw():
     if 0:
         plt.show()
     plt.close('all')
+
+
+def test_WS_WD_TI():
+    wfm = IEA37CaseStudy1(16)
+    sim_res = wfm(x=[0], y=[0], wd=[270], WS=8, WD=260, TI=0.01)
+    fm = sim_res.flow_map()
+    npt.assert_array_equal(fm.WS, 8)
+    npt.assert_array_equal(fm.WD, 260)
+    npt.assert_array_equal(fm.TI, 0.01)
+
+
+def test_wt_dependent_WS():
+    wfm = IEA37CaseStudy1(16)
+    sim_res = wfm(x=[0, 500], y=[0, 0], wd=[270], WS=[8, 9])
+    s = 'The WT dependent WS that was provided for the simulation is not available at the flow map points and therefore ignored'
+    with pytest.raises(UserWarning, match=s):
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', UserWarning)
+            sim_res.flow_map()

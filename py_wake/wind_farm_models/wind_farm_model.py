@@ -694,6 +694,8 @@ class SimulationResult(xr.Dataset):
         X, Y, x_j, y_j, h_j, plane = self._get_grid(grid)
         wd, ws = self._wd_ws(wd, ws)
         sim_res = self.sel(wd=wd, ws=ws)
+        for k in self.__slots__:
+            setattr(sim_res, k, getattr(self, k))
         n_cpu = n_cpu or multiprocessing.cpu_count()
         wd_chunks = np.minimum(wd_chunks or n_cpu, len(wd))
         if n_cpu != 1:

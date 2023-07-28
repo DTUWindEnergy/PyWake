@@ -18,6 +18,7 @@ from py_wake.literature.iea37_case_study1 import IEA37CaseStudy1
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.site._site import UniformSite
 from py_wake.deficit_models.utils import ct2a_mom1d
+import warnings
 
 
 def test_yaw_wrong_name():
@@ -252,8 +253,10 @@ def test_wd_dependent_wt_positions():
     wfm = IEA37CaseStudy1(16)
     sim_res = wfm(x=[[-100, 0, 100], [100, 0, -100]], y=[[0, 100, 0],
                                                          [0, -100, 0]], wd=[0, 90, 180], WS=[[[5]], [[10]]])
-    ws_eff = sim_res.flow_map().WS_eff.interp(
-        x=('z', [-100, -300, 100]), y=('z', [-300, 100, 300]), wd=('z', [0, 90, 180])).squeeze().values
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', UserWarning)
+        ws_eff = sim_res.flow_map().WS_eff.interp(
+            x=('z', [-100, -300, 100]), y=('z', [-300, 100, 300]), wd=('z', [0, 90, 180])).squeeze().values
     npt.assert_array_equal(ws_eff[0], ws_eff)
     if 0:
         for wd, ax in zip(sim_res.wd, plt.subplots(3, 1, figsize=(4, 10))[1]):
