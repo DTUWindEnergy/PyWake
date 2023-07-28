@@ -17,6 +17,7 @@ from py_wake.tests.test_wind_farm_models.test_enginering_wind_farm_model import 
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit
 from py_wake.deficit_models.utils import ct2a_mom1d
+import warnings
 
 
 class FlatSite(UniformSite):
@@ -166,10 +167,14 @@ def test_straightDistance_turning(wfm_cls, turning, method, angle_func):
     operation = [1, 1] + ([0] * len(ghost_x))
     WD = np.array(np.r_[turning, [0] * len(ghost_y)]) + 270
     sim_res = wfm(np.r_[[0, 500], ghost_x], np.r_[[0, 0], ghost_y], operating=operation, wd=[0, 270], WD=WD)
-    fm_wide = sim_res.flow_map(XYGrid(x=450, y=np.linspace(-200, 200, 1001)), wd=270)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', UserWarning)
+        fm_wide = sim_res.flow_map(XYGrid(x=450, y=np.linspace(-200, 200, 1001)), wd=270)
 
     y = fm_wide.y[np.argmin(fm_wide.WS_eff.squeeze().values)]
-    fm = sim_res.flow_map(XYGrid(x=450, y=np.linspace(y - 2, y + 2, 1001)), wd=270)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', UserWarning)
+        fm = sim_res.flow_map(XYGrid(x=450, y=np.linspace(y - 2, y + 2, 1001)), wd=270)
 
     if 0:
         ax1, ax2 = plt.subplots(1, 2)[1]

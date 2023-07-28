@@ -32,6 +32,7 @@ class LocalWind(dict):
         P : array_like
             Probability/weight
         """
+        self.overwritten = set()
         ws = np.atleast_1d(ws)
         if time is not False:
             assert len(wd) == len(ws)
@@ -86,6 +87,7 @@ class LocalWind(dict):
     def add_ilk(self, name, value):
         coords = self.coords
         self[name] = arg2ilk(name, value, I=len(coords['i']), L=len(coords['wd']), K=len(coords['ws']))
+        self.overwritten |= {name}
 
     def set_W(self, ws, wd, ti, ws_bins, use_WS=False):
         for da, name, desc in [(ws, 'WS_ilk', 'Local free-stream wind speed [m/s]'),
