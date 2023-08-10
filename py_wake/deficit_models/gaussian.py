@@ -1,7 +1,8 @@
 from numpy import newaxis as na
 from py_wake.utils.gradients import erf
 from py_wake import np
-from py_wake.deficit_models.deficit_model import DeficitModel
+from py_wake.utils.gradients import gamma
+from py_wake.deficit_models.deficit_model import DeficitModel, WakeDeficitModel
 from py_wake.deficit_models.deficit_model import ConvectionDeficitModel
 from py_wake.ground_models.ground_models import Mirror
 from py_wake.superposition_models import SquaredSum
@@ -90,7 +91,7 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
         return deficit_centre_ijlk, uc_ijlk, sigma_sqr_ijlk
 
 
-class BastankhahGaussian(PropagateDownwind):
+class BastankhahGaussian(PropagateDownwind, DeprecatedModel):
     """Predefined wind farm model"""
 
     def __init__(self, site, windTurbines, k=0.0324555, ceps=.2, ct2a=ct2a_madsen, use_effective_ws=False,
@@ -123,6 +124,7 @@ class BastankhahGaussian(PropagateDownwind):
                                                                                groundModel=groundModel),
                                    superpositionModel=superpositionModel, deflectionModel=deflectionModel,
                                    turbulenceModel=turbulenceModel)
+        DeprecatedModel.__init__(self, 'py_wake.literature.gaussian_models.Bastankhah_PorteAgel_2014')
 
 
 class NiayifarGaussianDeficit(BastankhahGaussianDeficit):
@@ -158,7 +160,7 @@ class NiayifarGaussianDeficit(BastankhahGaussianDeficit):
         return k_ilk
 
 
-class NiayifarGaussian(PropagateDownwind):
+class NiayifarGaussian(PropagateDownwind, DeprecatedModel):
     def __init__(self, site, windTurbines, a=[0.38, 4e-3], ceps=.2, superpositionModel=SquaredSum(),
                  deflectionModel=None, turbulenceModel=None, rotorAvgModel=None, groundModel=None):
         """
@@ -181,6 +183,7 @@ class NiayifarGaussian(PropagateDownwind):
                                                                              groundModel=groundModel),
                                    superpositionModel=superpositionModel, deflectionModel=deflectionModel,
                                    turbulenceModel=turbulenceModel)
+        DeprecatedModel.__init__(self, 'py_wake.literature.gaussian_models.Niayifar_PorteAgel_2016')
 
 
 class IEA37SimpleBastankhahGaussianDeficit(BastankhahGaussianDeficit):
@@ -344,7 +347,7 @@ class ZongGaussianDeficit(NiayifarGaussianDeficit):
         return sigmaD_ijlk * D_src_il[:, na, :, na]
 
 
-class ZongGaussian(PropagateDownwind):
+class ZongGaussian(PropagateDownwind, DeprecatedModel):
     def __init__(self, site, windTurbines, a=[0.38, 4e-3], deltawD=1. / np.sqrt(2), lam=7.5, B=3,
                  rotorAvgModel=None,
                  superpositionModel=SquaredSum(), deflectionModel=None, turbulenceModel=None, groundModel=None):
@@ -368,6 +371,7 @@ class ZongGaussian(PropagateDownwind):
                                                                          groundModel=groundModel),
                                    superpositionModel=superpositionModel, deflectionModel=deflectionModel,
                                    turbulenceModel=turbulenceModel)
+        DeprecatedModel.__init__(self, 'py_wake.literature.gaussian_models.Zong_PorteAgel_2020')
 
 
 class CarbajofuertesGaussianDeficit(ZongGaussianDeficit):
@@ -408,7 +412,7 @@ class CarbajofuertesGaussianDeficit(ZongGaussianDeficit):
 
 
 class TurboGaussianDeficit(NiayifarGaussianDeficit):
-    """Implemented similar to Ørsted's TurbOPark model (https://github.com/OrstedRD/TurbOPark)"""
+    """Implemented similar to Ørsted's TurbOPark model (https://github.com/OrstedRD/TurbOPark/blob/main/TurbOPark%20description.pdf)"""
 
     def __init__(self, ct2a=ct2a_madsen, A=.04, cTI=[1.5, 0.8], ceps=.25, use_effective_ws=False,
                  use_effective_ti=False, rotorAvgModel=None, groundModel=Mirror()):
@@ -449,6 +453,155 @@ class TurboGaussianDeficit(NiayifarGaussianDeficit):
         expansion_ijlk = fac_ilk[:, na] * (term1_ijlk - term2_ilk[:, na] - np.log(term3_ijlk / term4_ijlk))
 
         return expansion_ijlk + self.epsilon_ilk(ct_ilk)[:, na] * D_src_il[:, na, :, na]
+
+
+class BlondelSuperGaussianDeficit2020(WakeDeficitModel):
+    """Implemented according to:
+        Blondel and Cathelain (2020)
+        An alternative form of the super-Gaussian wind turbine wake model
+        Wind Energ. Sci., 5, 1225–1236, 2020 https://doi.org/10.5194/wes-5-1225-2020 [1]
+
+    Features:
+        - Wake profile transitions from top-hat at near wake to Gaussian at far wake
+        - characteristic wake width (sigma) function of turbulence intensity and CT
+        - evolution of super gaussian "n" order function of downwind distance and turbulence intensity
+
+    Description:
+        Super gaussian wake order "n" is determined with the calibrated parameters: a_f, b_f, c_f;
+        with a_f kept constant at 3.11
+        Calibrated parameters taken from Table 2 and 3 in [1]
+    """
+
+    def __init__(self, a_s=0.17, b_s=0.005, c_s=0.2,
+                 b_f=-0.68, c_f=2.41, use_effective_ws=False,
+                 use_effective_ti=True, rotorAvgModel=None, groundModel=None):
+        DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
+                              use_effective_ws=use_effective_ws, use_effective_ti=use_effective_ti)
+        self.a_s = a_s
+        self.b_s = b_s
+        self.c_s = c_s
+        self.b_f = b_f
+        self.c_f = c_f
+
+    def a_f(self, ct_ilk, **kwargs):
+        return 3.11
+
+    def beta_ilk(self, ct_ilk, **_):
+        # not valid for CT >= 1.
+        sqrt1ct_ilk = np.sqrt(1 - np.minimum(0.999, ct_ilk))
+        beta_ilk = 1 / 2 * (1 + sqrt1ct_ilk) / sqrt1ct_ilk
+        return beta_ilk
+
+    def sigma_ijlk(self, dw_ijlk, ct_ilk, D_src_il, **kwargs):
+        # compute normalized characteristic wake width
+        TI_ref_ijlk = kwargs[self.TI_key][:, na, :, :]
+        beta_ilk = self.beta_ilk(ct_ilk)
+        sigma_ijlk = (self.a_s * TI_ref_ijlk + self.b_s) * (dw_ijlk / D_src_il[:, na, :, na]) + \
+            self.c_s * np.sqrt(beta_ilk)[:, na, :, :]
+        return sigma_ijlk
+
+    def ct_func(self, ct_ilk, **_):
+        return ct_ilk[:, na]
+
+    def supG_n(self, dw_ijlk, D_src_il, ct_ilk, **kwargs):
+        # term inside exponent
+        ctx_ijlk = self.ct_func(ct_ilk=ct_ilk, dw_ijlk=dw_ijlk, D_src_il=D_src_il)
+        exp_TI_ijlk = self.b_f * (dw_ijlk / D_src_il[:, na, :, na])
+
+        # compute super gaussian n order
+        n = self.a_f(ctx_ijlk, **kwargs) * np.exp(exp_TI_ijlk) + self.c_f
+        return n
+
+    def _calc_deficit(self, ct_ilk, dw_ijlk, D_src_il, **kwargs):
+        # compute max velocity deficit at center of wake
+        n = self.supG_n(dw_ijlk, D_src_il, ct_ilk, **kwargs)
+        sigma_ijlk = self.sigma_ijlk(dw_ijlk, ct_ilk, D_src_il, **kwargs)
+        ctx_ijlk = self.ct_func(ct_ilk=ct_ilk, dw_ijlk=dw_ijlk, D_src_il=D_src_il)
+        a1 = 2 ** (2 / n - 1)
+        a2 = 2 ** (4 / n - 2)
+
+        deficit_center_ijlk = a1 - np.sqrt(a2 - ((n * ctx_ijlk) / (16.0 * gamma(2 / n) * np.sign(sigma_ijlk) *
+                                                                   (cabs(sigma_ijlk) ** (4 / n)))))
+
+        return deficit_center_ijlk
+
+    def calc_deficit(self, ct_ilk, dw_ijlk, cw_ijlk, D_src_il, **kwargs):
+        # if self.WS_key == 'WS_jlk':
+        #     WS_ref_ijlk = kwargs[self.WS_key][na]
+        # else:
+        WS_ref_ijlk = kwargs[self.WS_key][:, na]
+
+        n = self.supG_n(dw_ijlk=dw_ijlk, D_src_il=D_src_il, ct_ilk=ct_ilk, **kwargs)
+        sigma_sqrt_ijlk = (self.sigma_ijlk(dw_ijlk=dw_ijlk, ct_ilk=ct_ilk, D_src_il=D_src_il, **kwargs))**2
+        deficit_center_ijlk = self._calc_deficit(ct_ilk, dw_ijlk, D_src_il, **kwargs)
+
+        exponent_factor_ijlk = -1 / (2 * sigma_sqrt_ijlk) * (cw_ijlk / D_src_il[:, na, :, na]) ** n
+        shape_factor_ijlk = np.exp(exponent_factor_ijlk)
+
+        # rescaling with effective wind speed
+        deficit_ijlk = WS_ref_ijlk * deficit_center_ijlk * shape_factor_ijlk
+        return deficit_ijlk
+
+    def wake_radius(self, D_src_il, dw_ijlk, ct_ilk, **kwargs):
+        # according to Niayifar, the wake radius is twice sigma
+        sigma_ijlk = self.sigma_ijlk(D_src_il=D_src_il, dw_ijlk=dw_ijlk, ct_ilk=ct_ilk, **kwargs)
+        return 2. * sigma_ijlk
+
+
+class BlondelSuperGaussianDeficit2023(BlondelSuperGaussianDeficit2020):
+    """Implemented according to:
+        Blondel and Cathelain (2020)
+        An alternative form of the super-Gaussian wind turbine wake model
+        Wind Energ. Sci., 5, 1225–1236, 2020 https://doi.org/10.5194/wes-5-1225-2020
+
+        With calibrated parameters taken from Table 1 in:
+        Blondel (2023)
+        Brief communication: A momentum-conserving superposition method applied to
+        the super-Gaussian wind turbine wake model
+        Wind Energ. Sci., 8, 141–147, 2023, 2023 https://doi.org/10.5194/wes-8-141-2023
+
+    Features:
+        - Wake profile transitions from top-hat at near wake to Gaussian at far wake
+        - Characteristic wake width (sigma) function of turbulence intensity and CT
+        - Evolution of super gaussian "n" order function of downwind distance and turbulence intensity
+
+    Description:
+        Linear relationship between turbulence intensity and the Gaussian wake width given by
+        the calibrated parameters: a_s, b_s, c_s
+        Super gaussian wake order "n" is determined with the calibrated parameters: a_f, b_f, c_f;
+    """
+
+    def __init__(self, a_s=0.28, b_s=0.01, c_s=[0.1, 0.1],
+                 b_f=[-25.98, -1.06], c_f=2, use_effective_ws=False,
+                 use_effective_ti=True, rotorAvgModel=None, groundModel=None):
+        DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
+                              use_effective_ws=use_effective_ws, use_effective_ti=use_effective_ti)
+        self.a_s = a_s
+        self.b_s = b_s
+        self.c_s = c_s
+        self.b_f = b_f
+        self.c_f = c_f
+
+    def a_f(self, ct_ilk, **kwargs):
+        a_f = -8.2635 * ct_ilk ** 3 + 8.5939 * ct_ilk ** 2 - 8.9691 * ct_ilk + 10.7286
+        return a_f
+
+    def sigma_ijlk(self, dw_ijlk, ct_ilk, D_src_il, **kwargs):
+        # compute normalized characteristic wake width
+        TI_ref_ijlk = kwargs[self.TI_key][:, na, :, :]
+        beta_ilk = self.beta_ilk(ct_ilk)
+        sigma_ijlk = (self.a_s * TI_ref_ijlk + self.b_s) * (dw_ijlk / D_src_il[:, na, :, na]) + \
+                     (self.c_s[0] * ct_ilk[:, na, :, :] + self.c_s[1]) * np.sqrt(beta_ilk)[:, na, :, :]
+        return sigma_ijlk
+
+    def supG_n(self, dw_ijlk, D_src_il, ct_ilk, **kwargs):
+        TI_ref_ijlk = kwargs[self.TI_key][:, na]
+        # term inside exponent
+        ctx_ijlk = self.ct_func(ct_ilk=ct_ilk, dw_ijlk=dw_ijlk, D_src_il=D_src_il)
+        exp_TI_ijlk = (1.68 * np.exp(self.b_f[0] * TI_ref_ijlk) + self.b_f[1]) * (dw_ijlk / D_src_il[:, na, :, na])
+        # compute super gaussian n order
+        n = self.a_f(ctx_ijlk, **kwargs) * np.exp(exp_TI_ijlk) + self.c_f
+        return n
 
 
 def main():

@@ -1,7 +1,7 @@
 import pytest
 
 import numpy as np
-from py_wake.literature import TurbOPark
+from py_wake.literature import Nygaard_2022
 from py_wake.site import XRSite
 from py_wake.site._site import UniformSite
 from py_wake.site.shear import PowerShear
@@ -55,7 +55,7 @@ def test_example1_single_row(windTurbines, kwargs):
 
     site = UniformSite(shear=PowerShear(h_ref=90, alpha=.1))
 
-    wfm = TurbOPark(site, windTurbines)
+    wfm = Nygaard_2022(site, windTurbines)
     kwargs['x'] = kwargs['x'][::4]
     kwargs['y'] = kwargs['y'][::4]
     sim_res = wfm(**kwargs)
@@ -81,7 +81,7 @@ def test_example1(windTurbines, kwargs):
 
     site = UniformSite(shear=PowerShear(h_ref=90, alpha=.1))
 
-    wfm = TurbOPark(site, windTurbines)
+    wfm = Nygaard_2022(site, windTurbines)
     sim_res = wfm(**kwargs)
 
     # pow_waked from https://github.com/OrstedRD/TurbOPark/blob/main/TurbOParkExamples.mlx
@@ -129,7 +129,7 @@ def test_example2_single_row(windTurbines, gradient_site, kwargs):
     type = np.array([1, 1, 1, 1])
     kwargs['x'] = kwargs['x'][::4]
     kwargs['y'] = kwargs['y'][::4]
-    wfm = TurbOPark(gradient_site, windTurbines)
+    wfm = Nygaard_2022(gradient_site, windTurbines)
     sim_res = wfm(**kwargs, type=type)
 
     # pow_waked from https://github.com/OrstedRD/TurbOPark/blob/main/TurbOParkExamples.mlx
@@ -152,7 +152,7 @@ def test_example2_single_row(windTurbines, gradient_site, kwargs):
 def test_example2(windTurbines, gradient_site, kwargs):
     type = np.array([1, 1, 0, 0] * 4)
 
-    wfm = TurbOPark(gradient_site, windTurbines)
+    wfm = Nygaard_2022(gradient_site, windTurbines)
     sim_res = wfm(**kwargs, type=type)
 
     # pow_waked from https://github.com/OrstedRD/TurbOPark/blob/main/TurbOParkExamples.mlx

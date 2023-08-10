@@ -6,7 +6,8 @@ from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDefic
 from py_wake.deficit_models.fuga import FugaDeficit, Fuga
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, IEA37SimpleBastankhahGaussianDeficit,\
     ZongGaussianDeficit, NiayifarGaussianDeficit, BastankhahGaussian, ZongGaussian,\
-    NiayifarGaussian, CarbajofuertesGaussianDeficit, TurboGaussianDeficit, IEA37SimpleBastankhahGaussian
+    NiayifarGaussian, CarbajofuertesGaussianDeficit, TurboGaussianDeficit, IEA37SimpleBastankhahGaussian,\
+    BlondelSuperGaussianDeficit2020, BlondelSuperGaussianDeficit2023
 from py_wake.deficit_models.gcl import GCLDeficit, GCL, GCLLocal
 from py_wake.deficit_models.noj import NOJDeficit, NOJ, NOJLocalDeficit, NOJLocal, TurboNOJDeficit
 from py_wake.deficit_models import VortexDipole
@@ -95,6 +96,16 @@ class GCLLocalDeficit(GCLDeficit):
                               24381.54484, 38283.7317, 40227.83645, 19394.18655, 12536.27008,
                               14613.38763, 31681.28939, 58287.76333, 17558.30497, 11990.4719,
                               7257.84057])),
+        (BlondelSuperGaussianDeficit2020(),
+         (338236.360935599, [8184.10433669, 7688.07418809, 11210.94605493, 13517.06684326,
+                             18220.2151193, 24405.81513366, 38658.43467216, 39081.04378946,
+                             20623.94292847, 12206.04086561, 14690.26714648, 31821.77172395,
+                             61172.26772292, 17636.16264219, 12053.55253044, 7066.65523799])),
+        (BlondelSuperGaussianDeficit2023(),
+         (355892.77826332045, [8979.31725425, 8180.44857196, 11292.09175721, 13964.6406542,
+                               20066.69629875, 25213.93451452, 38938.24743865, 41583.94690748,
+                               22627.8794807, 12933.21646472, 14824.4675625, 32363.56815599,
+                               67336.57050905, 17936.43536356, 12163.66569231, 7487.65163747]))
     ])
 def test_IEA37_ex16(deficitModel, aep_ref):
     site = IEA37Site(16)
@@ -131,7 +142,9 @@ def test_huge_distance(deficitModel):
            "GCLDeficit": 9.728704,
            "NoWakeDeficit": 9.8,
            "NOJLocalDeficit": 9.797536,
-           "TurboNOJDeficit": 9.795322, }
+           "TurboNOJDeficit": 9.795322,
+           "BlondelSuperGaussianDeficit2020": 9.79177032,
+           "BlondelSuperGaussianDeficit2023": 9.7990636, }
     site = IEA37Site(16)
 
     windTurbines = IEA37_WindTurbines()

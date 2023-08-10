@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from py_wake import np
 from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit,\
-    BastankhahGaussianDeficit, NiayifarGaussianDeficit
+    BastankhahGaussianDeficit, NiayifarGaussianDeficit, BlondelSuperGaussianDeficit2020, BlondelSuperGaussianDeficit2023
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deflection_models.deflection_model import DeflectionModel
 from py_wake.examples.data.ParqueFicticio._parque_ficticio import ParqueFicticioSite

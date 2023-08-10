@@ -83,8 +83,7 @@ class XRLUTModel(Model):
 
 class DeprecatedModel():
     def __init__(self, new_model):
-        warnings.warn(f"""{self.__module__}.{self.__class__.__name__} is deprecated. Use {new_model} instead""",
-                      DeprecationWarning, stacklevel=2)
+        warnings.warn(f"""The {self.__class__.__name__} model is not representative of the setup used in the literature. For this, use {new_model} instead""", stacklevel=2)
 
 
 class ModelMethodWrapper():
