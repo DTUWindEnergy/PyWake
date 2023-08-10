@@ -10,6 +10,7 @@ from scipy.interpolate import RectBivariateSpline
 from py_wake.utils import fuga_utils
 from py_wake.utils.gradients import cabs
 from py_wake.utils.grid_interpolator import GridInterpolator
+from py_wake.utils.model_utils import DeprecatedModel
 import glob
 from xarray.core.merge import merge_attrs
 
@@ -160,7 +161,7 @@ class FugaYawDeficit(FugaDeficit):
         return self.calc_deficit_downwind(**kwargs)
 
 
-class Fuga(PropagateDownwind):
+class Fuga(PropagateDownwind, DeprecatedModel):
     def __init__(self, LUT_path, site, windTurbines,
                  rotorAvgModel=None, deflectionModel=None, turbulenceModel=None,
                  smooth2zero_x=None, smooth2zero_y=None, remove_wriggles=False):
@@ -189,9 +190,10 @@ class Fuga(PropagateDownwind):
                                                                  remove_wriggles=remove_wriggles),
                                    rotorAvgModel=rotorAvgModel, superpositionModel=LinearSum(),
                                    deflectionModel=deflectionModel, turbulenceModel=turbulenceModel)
+        DeprecatedModel.__init__(self, 'py_wake.literature.fuga.Ott_2014')
 
 
-class FugaBlockage(All2AllIterative):
+class FugaBlockage(All2AllIterative, DeprecatedModel):
     def __init__(self, LUT_path, site, windTurbines, rotorAvgModel=None,
                  deflectionModel=None, turbulenceModel=None, convergence_tolerance=1e-6, remove_wriggles=False):
         """
@@ -217,6 +219,7 @@ class FugaBlockage(All2AllIterative):
                                   rotorAvgModel=rotorAvgModel, superpositionModel=LinearSum(),
                                   deflectionModel=deflectionModel, blockage_deficitModel=fuga_deficit,
                                   turbulenceModel=turbulenceModel, convergence_tolerance=convergence_tolerance)
+        DeprecatedModel.__init__(self, 'py_wake.literature.fuga.Ott_2014_Blockage')
 
 
 class FugaMultiLUTDeficit(XRLUTDeficitModel, FugaDeficit):
