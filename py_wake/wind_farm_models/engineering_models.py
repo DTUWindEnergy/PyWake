@@ -310,6 +310,8 @@ class EngineeringWindFarmModel(WindFarmModel):
             model_kwargs['wake_radius_ijl'] = self.wake_deficitModel.wake_radius(**model_kwargs)[..., 0]
         if 'z_ijlk' in self.args4all:
             model_kwargs['z_ijlk'] = wt_h_ilk[:, na] + dh_ijlk
+        if 'WS_jlk' in self.args4all:
+            model_kwargs['WS_jlk'] = WS_jlk
 
         if isinstance(self.superpositionModel, WeightedSum):
             deficit_ijlk, uc_ijlk, sigma_sqr_ijlk, blockage_ijlk = self._calc_deficit_convection(**model_kwargs)

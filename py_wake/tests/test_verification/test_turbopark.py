@@ -1,5 +1,5 @@
 import pytest
-
+import matplotlib.pyplot as plt
 import numpy as np
 from py_wake.literature import Nygaard_2022
 from py_wake.site import XRSite
@@ -9,6 +9,7 @@ from py_wake.tests import npt
 from py_wake.wind_turbines._wind_turbines import WindTurbine, WindTurbines
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 import xarray as xr
+from py_wake.flow_map import XYGrid
 
 
 @pytest.fixture(scope='module')
@@ -194,3 +195,13 @@ def test_example2(windTurbines, gradient_site, kwargs):
                   [3.80940471146609, 6.44644338137639, 13.0445573540727]]
 
     npt.assert_allclose(sim_res.WS_eff.squeeze(), ws_eff_ref, rtol=1e-6)
+
+
+def test_WS_jlk_flowmap(windTurbines, gradient_site, kwargs):
+
+    wfm = Nygaard_2022(gradient_site, windTurbines)
+    sim_res = wfm(**kwargs)
+    fm = sim_res.flow_map(XYGrid(x=np.linspace(-100, 3000), y=np.linspace(-100, 3000)), ws=10)
+    fm.plot_wake_map()
+    if 0:
+        plt.show()
