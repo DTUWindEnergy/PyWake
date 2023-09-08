@@ -22,8 +22,8 @@ class JimenezWakeDeflection(DeflectionModel):
         dw_lst = (np.logspace(0, 1.1, self.N) - 1) / (10**1.1 - 1)
         dw_ijxlk = dw_ijlk[:, :, na] * dw_lst[na, na, :, na, na]
         theta_yaw_ilk, theta_tilt_ilk = gradients.deg2rad(yaw_ilk), gradients.deg2rad(-tilt_ilk)
-        theta_ilk = hypot(theta_yaw_ilk, theta_tilt_ilk)
-        theta_deflection_ilk = gradients.arctan2(theta_tilt_ilk, theta_yaw_ilk)
+        theta_ilk = np.arctan(hypot(np.tan(theta_yaw_ilk), np.tan(theta_tilt_ilk)))
+        theta_deflection_ilk = gradients.arctan2(np.tan(theta_tilt_ilk), np.tan(theta_yaw_ilk))
         denominator_ilk = np.cos(theta_ilk)**2 * np.sin(theta_ilk) * (ct_ilk / 2)
         nominator_ijxlk = (1 + (self.beta / D_src_il)[:, na, na, :, na] * np.maximum(dw_ijxlk, 0))**2
         alpha = denominator_ilk[:, na, na] / nominator_ijxlk

@@ -50,8 +50,8 @@ class GCLHillDeflection(DeflectionModel):
         U_w_ijlx = self.wake_deficitModel.calc_deficit(**deficit_kwargs)
 
         theta_yaw_ilk, theta_tilt_ilk = np.deg2rad(yaw_ilk), np.deg2rad(-tilt_ilk)
-        theta_ilk = hypot(theta_yaw_ilk, theta_tilt_ilk)
-        theta_deflection_ilk = np.arctan2(theta_tilt_ilk, theta_yaw_ilk)
+        theta_ilk = np.arctan(hypot(np.tan(theta_yaw_ilk), np.tan(theta_tilt_ilk)))
+        theta_deflection_ilk = gradients.arctan2(np.tan(theta_tilt_ilk), np.tan(theta_yaw_ilk))
 
         U_d_ijlkx = -0.4 * U_w_ijlx * np.sin(theta_ilk)[:, na, :, :, na]
         U_a_ijlkx = WS_eff_ilk[:, na, :, :, na] - 0.4 * U_w_ijlx * np.cos(theta_ilk)[:, na, :, :, na]
