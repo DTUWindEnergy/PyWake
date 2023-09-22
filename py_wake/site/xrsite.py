@@ -259,22 +259,37 @@ class XRSite(Site):
         return xr_site
 
     @classmethod
-    def from_pywasp_pwc(cls, pwc, **kwargs):
-        """Instanciate XRSite from a pywasp predicted wind climate (PWC) xr.Dataset
+    def from_pwc(cls, pwc, method_speedup='park', drop_vars=None, **kwargs):
+        """Instantiate XRSite from a pywasp predicted wind climate (PWC) xr.Dataset or from
+        New European Wind Atlas predicted wind climate xr.Dataset.
 
         Parameters
         ----------
         pwc : xr.Dataset
             pywasp predicted wind climate dataset. At a minimum should contain
             "A", "k", and "wdfreq".
+        method_speedup : str
+            method of establishing speedups. should be either 'park', 'global_weibull' or 'existing'.
+            the 'park' method calculates speedups based on the maximum sector-wise mean wind speeds. this method is
+            used for calculation of aep with wasp/pywasp using the park model, and not for calculting aep with pywake.
+            the 'global_weibull' calculates speedups based on the mean of the most central weibull for each sector.
+            With the 'existing' method the data variable "Speedup" should already be present in the xarray.
+        drop_vars : list of str
+            list of not needed variable names to be removed
 
         """
         pwc = pwc.copy()
-
+        if drop_vars is None:
+            drop_vars = []
         # Drop coordinates that are not needed
         for coord in ["sector_floor", "sector_ceil", "crs"]:
             if coord in pwc.coords:
                 pwc = pwc.drop_vars(coord)
+
+        # Drop variables that are not needed
+        for var in drop_vars:
+            if var in pwc.data_vars:
+                pwc = pwc.drop_vars(var)
 
         # Get the spatial dims
         if "point" in pwc.dims:
@@ -293,7 +308,17 @@ class XRSite(Site):
             weibull.mean, pwc["A"], pwc["k"], dask="allowed"
         )
 
-        pwc["Speedup"] = ws_mean / ws_mean.max(dim=xy_dims)
+        if method_speedup == 'park':
+            pwc["Speedup"] = ws_mean / ws_mean.max(dim=xy_dims)
+        elif method_speedup == 'global_weibull':
+            median = pwc.median(dim=xy_dims)
+            pwc["Speedup"] = ws_mean / xr.apply_ufunc(weibull.mean, median["A"], median["k"], dask="allowed")
+            pwc = pwc.drop_vars(['A', 'k'])
+            pwc['A'] = (tuple(set(ws_mean.dims) - set(xy_dims)), median['A'].values)
+            pwc['k'] = (tuple(set(ws_mean.dims) - set(xy_dims)), median['k'].values)
+        elif method_speedup == 'existing':
+            if "Speedup" not in pwc.data_vars:
+                raise Exception('with the method_speedup = "existing" "Speedup" needs to be present as a data variable')
 
         # Add TI if not already present
         for var in ["turbulence_intensity"]:
