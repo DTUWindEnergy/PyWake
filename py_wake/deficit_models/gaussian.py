@@ -190,7 +190,7 @@ class IEA37SimpleBastankhahGaussianDeficit(BastankhahGaussianDeficit):
     """Implemented according to
     https://github.com/byuflowlab/iea37-wflo-casestudies/blob/master/iea37-wakemodel.pdf
 
-    Equivalent to BastankhahGaussian for beta=1/sqrt(8) ~ ct=0.9637188
+    Equivalent to BastankhahGaussian for beta=1/sqrt(8) ~ batankhah_beta(ct=0.9637188)
     """
 
     def __init__(self, rotorAvgModel=None, groundModel=None):
