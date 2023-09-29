@@ -13,7 +13,7 @@ class GCLTurbulence(TurbulenceModel, WakeRadiusTopHat):
     Larsen, G. C., Morfiadakis, E., Chaviaropoulos, P., Derrick, A., & Molly, J. P. (1999).
     European wind turbine standards II (EWTS-II). In E. L. Petersen, P. Hjuler Jensen, K. Rave,
     P. Helm, & H. Ehmann (Eds.), Wind energy for the next millennium. Proceedings (pp. 568-571).
-    James and James Science Publishers.
+    James and James Science Publishers. https://c2wind.com/f/content/ewts2new.pdf
     """
 
     def __init__(self, addedTurbulenceSuperpositionModel=SqrMaxSum(),
@@ -42,7 +42,7 @@ class GCLTurbulence(TurbulenceModel, WakeRadiusTopHat):
             Added turbulence intensity [-]
         """
         dw_ijlk_gt0 = np.maximum(dw_ijlk, 1e-10)
-        r = 0.29 * np.sqrt(1 - np.sqrt(1 - ct_ilk))[:, na] / (dw_ijlk_gt0 / D_src_il[:, na, :, na])**(1 / 3)
+        r = 0.29 * np.sqrt(1 - np.sqrt(1 - ct_ilk))[:, na] / (dw_ijlk_gt0 / D_src_il[:, na, :, na])**(1 / 3)  # eq 2.4.1.5
         return r * (dw_ijlk > 0) * (cw_ijlk < wake_radius_ijlk)
 
 
