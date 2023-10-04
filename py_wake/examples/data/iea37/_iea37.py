@@ -7,10 +7,12 @@ from py_wake.examples.data.iea37.iea37_aepcalc import getTurbLocYAML,\
 from py_wake.site._site import UniformSite
 from py_wake.wind_turbines import WindTurbine
 from py_wake.wind_turbines.wind_turbines_deprecated import DeprecatedOneTypeWindTurbines
+import warnings
 
 
 class IEA37_WindTurbines(WindTurbine):
     def __init__(self, yaml_filename=iea37_path + 'iea37-335mw.yaml'):
+        warnings.warn("Using IEA 37 turbine, which has a constant thrust curve")
         name, hub_height, diameter, power_ct_func = read_iea37_windturbine(yaml_filename)
         super().__init__(name, diameter, hub_height, power_ct_func)
 
