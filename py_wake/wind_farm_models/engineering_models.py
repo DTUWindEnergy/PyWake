@@ -360,7 +360,7 @@ class EngineeringWindFarmModel(WindFarmModel):
                     np.broadcast_to(lw_j.TI_ilk, (len(x_j), L, K)).astype(float))
 
         size_gb = I * J * L * K * 8 / 1024**3
-        wd_chunks = np.minimum(np.maximum(int(size_gb // 1), 1), L)
+        wd_chunks = int(np.minimum(np.maximum(int(size_gb // 1), 1), L))
         wd_i = np.round(np.linspace(0, L, wd_chunks + 1)).astype(int)
         l_iter = tqdm([slice(i0, i1) for i0, i1 in zip(wd_i[:-1], wd_i[1:])], disable=L <= 1 or not self.verbose,
                       desc='Calculate flow map', unit='wd')

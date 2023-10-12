@@ -28,7 +28,7 @@ class Cast32Wrapper():
     def __call__(self, *args, **kwargs):
         try:
             return self.f(*args, **{'dtype': self.float, **kwargs})
-        except TypeError:  # f does not take dtype argument
+        except (TypeError, ValueError):  # f does not take dtype argument or conversion fails, e.g. str->float
             res = self.f(*args, **kwargs)
 
             try:
