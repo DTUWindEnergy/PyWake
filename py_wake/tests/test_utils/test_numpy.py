@@ -189,9 +189,9 @@ def test_np32_flowmap():
 
     with Numpy32():
 
-        simulationResult = wf_model(x=np.array([0.0, 0.0]),
-                                    y=np.array([1000.0, 0.0]))
-
-        fm = simulationResult.flow_map(XYGrid(resolution=50))
-        fm.plot_wake_map()
-        plt.show()
+        for kwargs in [{}, dict(wd_chunks=12, ws_chunks=9), dict(n_cpu=2, wd_chunks=12, ws_chunks=9)]:
+            simulationResult = wf_model(x=np.array([0.0, 0.0]), y=np.array([1000.0, 0.0]), **kwargs)
+            fm = simulationResult.flow_map(XYGrid(resolution=50))
+            fm.plot_wake_map()
+            if 0:
+                plt.show()

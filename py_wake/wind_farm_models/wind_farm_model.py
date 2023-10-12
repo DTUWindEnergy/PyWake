@@ -270,11 +270,11 @@ class WindFarmModel(ABC):
     def _multiprocessing_chunks(self, wd, ws, time,
                                 n_cpu, wd_chunks, ws_chunks, **kwargs):
         n_cpu = n_cpu or multiprocessing.cpu_count()
-        wd_chunks = np.minimum(wd_chunks or n_cpu, len(wd))
-        ws_chunks = np.minimum(ws_chunks or 1, len(ws))
+        wd_chunks = int(np.minimum(wd_chunks or n_cpu, len(wd)))
+        ws_chunks = int(np.minimum(ws_chunks or 1, len(ws)))
 
         if time is not False:
-            wd_chunks = ws_chunks = np.maximum(ws_chunks, wd_chunks)
+            wd_chunks = ws_chunks = int(np.maximum(ws_chunks, wd_chunks))
 
         wd_i = np.linspace(0, len(wd) + 1, wd_chunks + 1).astype(int)
         ws_i = np.linspace(0, len(ws) + 1, ws_chunks + 1).astype(int)
@@ -293,8 +293,7 @@ class WindFarmModel(ABC):
             if time is True:
                 time = np.arange(len(wd))
             slice_lst = [(slice(wd_i0, wd_i1), slice(wd_i0, wd_i1))
-                         for wd_i0, wd_i1 in zip(wd_i[:-1], wd_i[1:])
-                         ]
+                         for wd_i0, wd_i1 in zip(wd_i[:-1], wd_i[1:])]
 
         I, L, K = len(kwargs.get('x_ilk', kwargs.get('x'))), len(wd), len(ws)
 
