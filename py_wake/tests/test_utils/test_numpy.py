@@ -25,12 +25,14 @@ from py_wake.utils.numpy_utils import Numpy32
 from py_wake.utils.profiling import profileit
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
-from py_wake.examples.data.hornsrev1 import Hornsrev1Site
+from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80
 
 from py_wake.rotor_avg_models.gaussian_overlap_model import GaussianOverlapAvgModel
 from py_wake.rotor_avg_models.area_overlap_model import AreaOverlapAvgModel
 from py_wake.deficit_models.noj import NOJDeficit
 import warnings
+from py_wake.flow_map import XYGrid
+import matplotlib.pyplot as plt
 
 
 @pytest.mark.parametrize('v,dtype,dtype32', [(5., float, np.float32),
@@ -177,3 +179,19 @@ def test_all_models(model_type, model):
         warnings.filterwarnings('ignore', category=DeprecationWarning)
         wfm = d['WindFarmModel'](site, wt, **kwargs)
     check_numpy32(wfm, model.__name__)
+
+
+def test_np32_flowmap():
+
+    wf_model = All2AllIterative(site=Hornsrev1Site(),
+                                windTurbines=V80(),
+                                wake_deficitModel=NOJDeficit(k=0.04))
+
+    with Numpy32():
+
+        simulationResult = wf_model(x=np.array([0.0, 0.0]),
+                                    y=np.array([1000.0, 0.0]))
+
+        fm = simulationResult.flow_map(XYGrid(resolution=50))
+        fm.plot_wake_map()
+        plt.show()
