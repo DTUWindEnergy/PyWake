@@ -25,7 +25,7 @@ def simple_wfm(deflectionModel):
 
 
 @pytest.mark.parametrize('deflectionModel,dy10d', [
-    (JimenezWakeDeflection, 0.5672964),
+    (JimenezWakeDeflection, 0.5687187382677713),
     ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00001000Zi=00400Zeta0=0.00E+00.nc')), 0.4625591892703828),
     ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00.nc')), 0.37719329354768527),
     ((lambda: FugaDeflection(tfp + 'fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc')), 0.32787746772608933),
@@ -138,6 +138,23 @@ def test_plot_deflection_grid(deflectionModel):
     if 0:
         plt.show()
     plt.close('all')
+
+
+def test_combined_tilt_and_yaw_deflection():
+    wfm = simple_wfm(JimenezWakeDeflection)
+    deflectionModel = wfm.deflectionModel
+
+    wfm([0, 500], [0, 0], yaw=30, tilt=0, wd=270, ws=10)
+    hcw = deflectionModel.hcw_ijlk
+    wfm([0, 500], [0, 0], yaw=0, tilt=30, wd=270, ws=10)
+    dh = deflectionModel.dh_ijlk
+    npt.assert_array_almost_equal(hcw, -dh)
+
+    # rotate 30deg yaw 20 deg around u direction
+    yaw = np.rad2deg(np.arctan(np.tan(np.deg2rad(30)) * np.cos(np.deg2rad(20))))
+    tilt = np.rad2deg(np.arctan(np.tan(np.deg2rad(30)) * np.sin(np.deg2rad(20))))
+    wfm([0, 500], [0, 0], yaw=yaw, tilt=tilt, wd=270, ws=10)
+    npt.assert_array_equal(hcw, np.hypot(deflectionModel.hcw_ijlk, deflectionModel.dh_ijlk))
 
 
 def test_upstream_deflection():

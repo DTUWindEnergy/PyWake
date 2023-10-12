@@ -102,11 +102,13 @@ class SimpleYawModel(AdditionalModel):
             output_keys=['power', 'ct'])
 
     def __call__(self, f, ws, yaw=None, tilt=None, **kwargs):
-        co = 1
-        if yaw is not None:
-            co *= np.cos(gradients.deg2rad(fix_shape(yaw, ws, True)))
-        if tilt is not None:
-            co *= np.cos(gradients.deg2rad(fix_shape(tilt, ws, True)))
+        if yaw is not None and tilt is not None:
+            y, t = gradients.deg2rad(fix_shape(yaw, ws, True)), gradients.deg2rad(fix_shape(tilt, ws, True))
+            co = np.cos(np.arctan(np.sqrt(np.tan(y)**2 + np.tan(t)**2)))
+        elif yaw is not None:
+            co = np.cos(gradients.deg2rad(fix_shape(yaw, ws, True)))
+        elif tilt is not None:
+            co = np.cos(gradients.deg2rad(fix_shape(tilt, ws, True)))
         power_ct_arr = f(ws * co, **kwargs)  # calculate for reduced ws (ws projection on rotor)
         if kwargs['run_only'] == 1:  # ct
             # multiply ct by cos(yaw)**2 to compensate for reduced thrust

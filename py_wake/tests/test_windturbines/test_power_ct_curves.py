@@ -392,6 +392,28 @@ def test_SimpleYawModel():
             npt.assert_allclose(dpctdu_lst[1], dpctdu_lst[2])
 
 
+def test_SimpleYawModel2():
+    u_p, p_c = np.asarray(hornsrev1.power_curve).T.copy()
+    _, ct_c = hornsrev1.ct_curve.T
+    curve = PowerCtTabular(ws=u_p, power=p_c, power_unit='w', ct=ct_c, method='linear')
+    u = np.arange(4, 25, 1.1)
+    yaw = 30
+    theta = np.deg2rad(yaw)
+    co = np.cos(theta)
+    p, ct = curve(u, yaw=yaw)
+    npt.assert_array_almost_equal(p, np.interp(u * co, u_p, p_c))
+    npt.assert_array_almost_equal(ct, np.interp(u * co, u_p, ct_c) * co**2)
+    p, ct = curve(u, tilt=yaw)
+    npt.assert_array_almost_equal(p, np.interp(u * co, u_p, p_c))
+    npt.assert_array_almost_equal(ct, np.interp(u * co, u_p, ct_c) * co**2)
+
+    y = np.rad2deg(np.arctan(np.tan(np.deg2rad(yaw)) * np.cos(np.deg2rad(20))))
+    t = np.rad2deg(np.arctan(np.tan(np.deg2rad(yaw)) * np.sin(np.deg2rad(20))))
+    p, ct = curve(u, tilt=t, yaw=y)
+    npt.assert_array_almost_equal(p, np.interp(u * co, u_p, p_c))
+    npt.assert_array_almost_equal(ct, np.interp(u * co, u_p, ct_c) * co**2)
+
+
 def test_DensityScaleAndSimpleYawModel():
     u_p, p_c = np.asarray(hornsrev1.power_curve).T.copy()
     _, ct_c = hornsrev1.ct_curve.T
