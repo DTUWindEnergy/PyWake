@@ -32,9 +32,9 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
     def k_ilk(self, **kwargs):
         return np.array([[[self._k]]])
 
-    def epsilon_ilk(self, ct_ilk, **_):
-        # not valid for CT >= 1.
-        sqrt1ct_ilk = np.sqrt(1 - np.minimum(0.999, ct_ilk))
+    def epsilon_ilk(self, ct_ilk, **kwargs):
+        # only valid for CT < 0.9.
+        sqrt1ct_ilk = np.sqrt(1 - np.minimum(0.89, ct_ilk))
         beta_ilk = 1 / 2 * (1 + sqrt1ct_ilk) / sqrt1ct_ilk
 
         return self._ceps * np.sqrt(beta_ilk)
@@ -42,7 +42,7 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
     def sigma_ijlk(self, D_src_il, dw_ijlk, ct_ilk, **kwargs):
         # dimensional wake expansion
         return self.k_ilk(**kwargs)[:, na] * dw_ijlk + \
-            self.epsilon_ilk(ct_ilk)[:, na] * D_src_il[:, na, :, na]
+            self.epsilon_ilk(ct_ilk, **kwargs)[:, na] * D_src_il[:, na, :, na]
 
     def ct_func(self, ct_ilk, **_):
         return ct_ilk[:, na]
@@ -184,6 +184,37 @@ class NiayifarGaussian(PropagateDownwind, DeprecatedModel):
                                    superpositionModel=superpositionModel, deflectionModel=deflectionModel,
                                    turbulenceModel=turbulenceModel)
         DeprecatedModel.__init__(self, 'py_wake.literature.gaussian_models.Niayifar_PorteAgel_2016')
+
+
+class CarbajofuertesGaussianDeficit(NiayifarGaussianDeficit):
+    """
+    Modified Zong version with Gaussian constants from:
+        Fernando Carbajo Fuertes, Corey D. Markfor and Fernando Porté-Agel
+        "Wind TurbineWake Characterization with Nacelle-MountedWind Lidars
+        for Analytical Wake Model Validation"
+        Remote Sens. 2018, 10, 668; doi:10.3390/rs10050668
+
+    Features:
+        - Empirical correlation for epsilon
+        - New constants for wake expansion factor equation
+
+    Description:
+        Carbajo Fuertes et al. derived Gaussian wake model parameters from
+        nacelle liadar measurements from a 2.5MW turbine and found a
+        variation of epsilon with wake expansion.
+
+    """
+
+    def __init__(self, ct2a=ct2a_madsen, a=[0.35, 0.], ceps=[-1.91, 0.34], use_effective_ws=False, use_effective_ti=True,
+                 rotorAvgModel=None, groundModel=None):
+        DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
+                              use_effective_ws=use_effective_ws, use_effective_ti=use_effective_ti)
+        self.a = a
+        self._ceps = ceps
+        self.ct2a = ct2a
+
+    def epsilon_ilk(self, ct_ilk, **kwargs):
+        return self._ceps[0] * self.k_ilk(**kwargs) + self._ceps[1]
 
 
 class IEA37SimpleBastankhahGaussianDeficit(BastankhahGaussianDeficit):
@@ -372,43 +403,6 @@ class ZongGaussian(PropagateDownwind, DeprecatedModel):
                                    superpositionModel=superpositionModel, deflectionModel=deflectionModel,
                                    turbulenceModel=turbulenceModel)
         DeprecatedModel.__init__(self, 'py_wake.literature.gaussian_models.Zong_PorteAgel_2020')
-
-
-class CarbajofuertesGaussianDeficit(ZongGaussianDeficit):
-    """
-    Modified Zong version with Gaussian constants from:
-        Fernando Carbajo Fuertes, Corey D. Markfor and Fernando Porté-Agel
-        "Wind TurbineWake Characterization with Nacelle-MountedWind Lidars
-        for Analytical Wake Model Validation"
-        Remote Sens. 2018, 10, 668; doi:10.3390/rs10050668
-
-    Features:
-        - Empirical correlation for epsilon
-        - New constants for wake expansion factor equation
-
-    Description:
-        Carbajo Fuertes et al. derived Gaussian wake model parameters from
-        nacelle liadar measurements from a 2.5MW turbine and found a
-        variation of epsilon with wake expansion, this in fact identical
-        to the formulation by Zong, only that the near-wake length is fixed
-        for Carbajo Fuertes at xth = 1.91 x/D. We took the relationships
-        found by them and incorporated them into the Zong formulation.
-
-    """
-
-    def __init__(self, ct2a=ct2a_madsen, a=[0.35, 0], deltawD=1. / np.sqrt(2), use_effective_ws=False, use_effective_ti=True,
-                 rotorAvgModel=None, groundModel=None):
-        DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
-                              use_effective_ws=use_effective_ws, use_effective_ti=use_effective_ti)
-        self.a = a
-        self.deltawD = deltawD
-        self.ct2a = ct2a
-
-    def epsilon_ilk(self, ct_ilk, **_):
-        return 0.34 * np.ones_like(ct_ilk)
-
-    def nw_length(self, ct_ilk, *args, **kwargs):
-        return 1.91 * np.ones_like(ct_ilk)
 
 
 class TurboGaussianDeficit(NiayifarGaussianDeficit):
