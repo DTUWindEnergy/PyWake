@@ -104,6 +104,14 @@ def pywasp_pwc_point():
 
 
 @pytest.fixture
+def pywasp_pwc_percent():
+    pwc_file = tfp + "pwc_parquo_fictio_small.nc"
+    ds = xr.open_dataset(pwc_file)
+    ds['wdfreq'] = ds['wdfreq'] * 100
+    return ds
+
+
+@pytest.fixture
 def pywasp_pwc_cuboid():
     pwc_file = tfp + "pwc_cuboid_small.nc"
     return xr.open_dataset(pwc_file)
@@ -685,6 +693,12 @@ def test_from_pwc_cuboid(pywasp_pwc_cuboid):
 def test_from_pwc_existing(pywasp_pwc_point):
     with pytest.raises(Exception):
         XRSite.from_pwc(pwc=pywasp_pwc_point, method_speedup='existing')
+
+
+def test_from_pwc_percentage(pywasp_pwc_percent):
+    npt.assert_allclose(pywasp_pwc_percent['wdfreq'].sum('sector'), 100, rtol=1e-4)
+    site = XRSite.from_pwc(pwc=pywasp_pwc_percent, method_speedup='global_weibull')
+    npt.assert_allclose(site.ds.Sector_frequency[:, :-1].sum('wd'), 1, rtol=1e-4)
 
 
 def test_gradients():

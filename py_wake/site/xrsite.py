@@ -279,6 +279,9 @@ class XRSite(Site):
 
         """
         pwc = pwc.copy()
+        # Check if sector probability is given in %
+        if np.isclose(pwc.wdfreq.sum('sector').mean(), 100):
+            pwc['wdfreq'] = pwc['wdfreq'] / 100
         if drop_vars is None:
             drop_vars = []
         # Drop coordinates that are not needed
