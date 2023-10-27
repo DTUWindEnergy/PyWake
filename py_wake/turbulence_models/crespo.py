@@ -17,7 +17,7 @@ class CrespoHernandez(TurbulenceModel, WakeRadiusTopHat):
 
     """
 
-    def __init__(self, ct2a=ct2a_madsen, c=[0.73, 0.8325, 0.0325, 0.32],
+    def __init__(self, ct2a=ct2a_madsen, c=[0.73, 0.8325, -0.0325, -0.32],
                  addedTurbulenceSuperpositionModel=SqrMaxSum(),
                  rotorAvgModel=AreaOverlapAvgModel(), groundModel=None):
         TurbulenceModel.__init__(self, addedTurbulenceSuperpositionModel, rotorAvgModel=rotorAvgModel,
@@ -41,6 +41,6 @@ class CrespoHernandez(TurbulenceModel, WakeRadiusTopHat):
         # added turbulence (Eq. 21)
         dw_ijlk_gt0 = np.maximum(dw_ijlk, 1e-10)  # avoid divide by zero and sqrt of negative number
         TI_add_ijlk = self.c[0] * a_ilk[:, na, :, :]**self.c[1] * TI_ilk[:, na, :, :]**self.c[2] * \
-            cabs(D_src_il[:, na, :, na] / dw_ijlk_gt0)**self.c[3] * (dw_ijlk > 0)
+            (dw_ijlk_gt0 / D_src_il[:, na, :, na])**self.c[3]
 
         return TI_add_ijlk * (cw_ijlk < wake_radius_ijlk) * (dw_ijlk > 0)  # ensure zero upstream

@@ -18,8 +18,8 @@ from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2A
 from py_wake.turbulence_models.gcl_turb import GCLTurbulence
 import matplotlib.pyplot as plt
 from py_wake.turbulence_models.crespo import CrespoHernandez
-from py_wake.deficit_models.gaussian import BastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit
-from py_wake.examples.data.hornsrev1 import Hornsrev1Site
+from py_wake.deficit_models.gaussian import BastankhahGaussian, IEA37SimpleBastankhahGaussianDeficit, NiayifarGaussian
+from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80, wt_y, wt_x
 from py_wake.rotor_avg_models.rotor_avg_model import EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.utils.model_utils import get_models
@@ -39,8 +39,8 @@ WindFarmModel.verbose = False
      [0.075, 0.075, 0.075, 0.215, 0.229, 0.179, 0.075, 0.075, 0.075, 0.075, 0.075, 0.075, 0.075, 0.215, 0.075, 0.075]),
     (GCLTurbulence(), [0.075, 0.075, 0.075, 0.117, 0.151, 0.135, 0.075, 0.075, 0.075,
                        0.075, 0.075, 0.075, 0.128, 0.127, 0.117, 0.128]),
-    (CrespoHernandez(ct2a=ct2a_mom1d), [0.075, 0.075, 0.075, 0.129, 0.17, 0.151, 0.075,
-                                        0.075, 0.075, 0.075, 0.075, 0.075, 0.143, 0.141, 0.13, 0.143])
+    (CrespoHernandez(ct2a=ct2a_mom1d), [0.075, 0.075, 0.075, 0.145, 0.195, 0.172, 0.075, 0.075, 0.075,
+                                        0.075, 0.075, 0.075, 0.163, 0.161, 0.146, 0.163])
 ])
 def test_models_with_noj(turbulence_model, ref_ti):
     # setup site, turbines and wind farm model
@@ -68,9 +68,8 @@ def test_models_with_noj(turbulence_model, ref_ti):
 @pytest.mark.parametrize('turbulence_model,ref_ti', [
     (GCLTurbulence(), [0.075, 0.075, 0.075, 0.097, 0.151, 0.135,
                        0.075, 0.075, 0.075, 0.075, 0.075, 0.075, 0.128, 0.123, 0.116, 0.128]),
-    (CrespoHernandez(ct2a=ct2a_mom1d), [0.075, 0.075, 0.075, 0.104, 0.17, 0.151, 0.075,
-                                        0.075, 0.075, 0.075, 0.075, 0.075, 0.143, 0.137, 0.129, 0.143])
-])
+    (CrespoHernandez(ct2a=ct2a_mom1d), [0.075, 0.075, 0.075, 0.114, 0.195, 0.172, 0.075, 0.075, 0.075,
+                                        0.075, 0.075, 0.075, 0.163, 0.155, 0.145, 0.163])])
 def test_models_with_BastankhahGaussian(turbulence_model, ref_ti):
     # setup site, turbines and wind farm model
     site = IEA37Site(16)
@@ -247,3 +246,26 @@ def test_XRLUTTurbulenceModel():
     npt.assert_array_almost_equal(res_ref.TI_eff, res_ref.TI_eff, 3, err_msg=str(wfm))
     # 0.32 is a high tolerance but due to the tophat-like turbulence profile
     npt.assert_allclose(fm_ref.TI_eff, fm.TI_eff, atol=0.32)
+
+
+@pytest.mark.parametrize('kwargs,ref', [
+                         ({}, [7.72, 16.7, 16.7, 16.7, 16.7, 16.7, 16.7, 16.7, 16.7, 16.7]),
+                         ({'c': [0.73, 0.8325, 0.0325, -0.32]},
+                          [7.8, 14.7, 14.8, 14.7, 14.7, 14.7, 14.7, 14.7, 14.7, 14.7])])
+def test_CrespoHernandez(kwargs, ref):
+    """Check that model gives results that matches
+
+    A short note on turbulence characteristics in wind-turbine wakes
+    Navid Zehtabiyan-Rezaie, Mahdi Abkar
+    https://doi.org/10.1016/j.jweia.2023.105504
+    """
+
+    wfm = NiayifarGaussian(UniformSite(), V80(), turbulenceModel=CrespoHernandez(**kwargs))
+    sim_res = wfm(wt_x, wt_y, wd=270, ws=8, TI=0.077)
+    ti = sim_res.TI_eff.values.reshape((10, 8)).mean(1) * 100
+    if 0:
+        plt.plot(ti, label='actual')
+        plt.plot(ref, label='ref')
+        plt.show()
+
+    npt.assert_allclose(ref, ti, atol=0.1)
