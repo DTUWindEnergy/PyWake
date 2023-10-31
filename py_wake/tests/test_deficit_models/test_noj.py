@@ -95,8 +95,15 @@ def test_NOJLocal_6_turbines_in_row():
 
 def test_NOJConvection():
     site = UniformSite([1], 0.1)
-    with pytest.raises(NotImplementedError, match='calc_deficit_convection not implemented for NOJ'):
+    with pytest.raises(AssertionError, match='WeightedSum and CumulativeWakeSum only works with NodeRotorAvgModel-based rotor average models'):
         wfm = NOJ(site, NibeA0(), superpositionModel=WeightedSum())
+        wfm([0, 500], [0, 0])
+
+
+def test_NOJConvection2():
+    site = UniformSite([1], 0.1)
+    with pytest.raises(NotImplementedError, match='calc_deficit_convection not implemented for NOJ'):
+        wfm = NOJ(site, NibeA0(), rotorAvgModel=None, superpositionModel=WeightedSum())
         wfm([0, 500], [0, 0])
 
 

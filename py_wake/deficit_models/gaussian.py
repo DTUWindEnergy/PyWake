@@ -79,9 +79,9 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
         return 2. * sigma_ijlk
 
     def calc_deficit_convection(self, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **kwargs):
-        if self.groundModel or (self.rotorAvgModel and not isinstance(self.rotorAvgModel, RotorCenter)):
+        if self.groundModel:
             raise NotImplementedError(
-                "calc_deficit_convection (WeightedSum) cannot be used in combination with rotorAvgModels and GroundModels")
+                "calc_deficit_convection (WeightedSum) cannot be used in combination with GroundModels")
         WS_ref_ijlk, sigma_sqr_ijlk, deficit_centre_ijlk, ctx_ijlk = self._calc_deficit(
             D_src_il, dw_ijlk, ct_ilk, **kwargs)
         # Convection velocity
