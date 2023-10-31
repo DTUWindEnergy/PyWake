@@ -20,7 +20,7 @@ def test_get_models():
     assert cls_in(SelfSimilarityDeficit, get_models(BlockageDeficitModel))
 
     assert (sorted([n.__name__ for n in get_models(SuperpositionModel)]) ==
-            ['LinearSum', 'MaxSum', 'SquaredSum', 'WeightedSum'])
+            ['CumulativeWakeSum', 'LinearSum', 'MaxSum', 'SquaredSum', 'WeightedSum'])
 
 
 def test_get_signature():

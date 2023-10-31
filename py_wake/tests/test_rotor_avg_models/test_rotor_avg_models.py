@@ -13,7 +13,7 @@ from py_wake.flow_map import HorizontalGrid, XYGrid, YZGrid
 from py_wake.rotor_avg_models import gauss_quadrature, PolarGridRotorAvg, \
     polar_gauss_quadrature, EqGridRotorAvg, GQGridRotorAvg, CGIRotorAvg, GridRotorAvg, WSPowerRotorAvg
 from py_wake.rotor_avg_models.gaussian_overlap_model import GaussianOverlapAvgModel
-from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel, RotorCenter, PolarRotorAvg
+from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel, RotorCenter, PolarRotorAvg, NodeRotorAvgModel
 from py_wake.site._site import UniformSite
 from py_wake.superposition_models import SquaredSum, LinearSum, WeightedSum
 from py_wake.tests import npt
@@ -413,16 +413,14 @@ def test_with_all_ti_models(turbulenceModel):
         assert wfm_w(**kwargs).TI_eff.sel(wt=1).item() < wfm_wo(**kwargs).TI_eff.sel(wt=1).item()
 
 
-@pytest.mark.parametrize('model', get_models(RotorAvgModel))
+@pytest.mark.parametrize('model', get_models(RotorAvgModel, exclude_None=True))
 def test_with_weighted_sum(model):
-    if model is None:
-        return
-    if model is RotorCenter:
+    if issubclass(model, NodeRotorAvgModel):
         wfm = All2AllIterative(UniformSite(), V80(), BastankhahGaussianDeficit(rotorAvgModel=model()),
                                superpositionModel=WeightedSum())
         wfm([0, 500], [0, 0])
     else:
-        with pytest.raises(AssertionError, match='WeightedSum only works with RotorCenter'):
+        with pytest.raises(AssertionError, match='WeightedSum and CumulativeWakeSum only works with NodeRotorAvgModel-based rotor average models'):
             wfm = All2AllIterative(UniformSite(), V80(), BastankhahGaussianDeficit(),
                                    superpositionModel=WeightedSum(), rotorAvgModel=model())
 

@@ -27,6 +27,9 @@ class SuperpositionModel(ABC):
             sum for xxx (see above)
         """
 
+    def superpose_deficit(self, deficit_jxxx, **kwargs):
+        return self(deficit_jxxx, **kwargs)
+
 
 class AddedTurbulenceSuperpositionModel():
     def calc_effective_TI(self, TI_xxx, add_turb_jxxx):
@@ -83,7 +86,7 @@ class WeightedSum(SuperpositionModel):
         # maximum number of iterations used in computing weights
         self.max_iter = max_iter
 
-    def __call__(self, WS_xxx, centerline_deficit_jxxx,
+    def __call__(self, centerline_deficit_jxxx, WS_xxx,
                  convection_velocity_jxxx,
                  sigma_sqr_jxxx, cw_jxxx, hcw_jxxx, dh_jxxx):
 
@@ -189,3 +192,58 @@ class WeightedSum(SuperpositionModel):
 
                 count += 1
         return Us + np.sum(np.where(~Il, us, 0), axis=0)
+
+
+class CumulativeWakeSum(SuperpositionModel):
+    """
+    Implemention of the cumulative wake model:
+    Majid Bastankhah, Bridget L. Welch, Luis A. Martínez-Tossas, Jennifer King and Paul Fleming
+    Analytical solution for the cumulative wake of wind turbines in wind farms
+    J. Fluid Mech. (2021), vol. 911, A53, doi:10.1017/jfm.2020.1037
+    """
+
+    def __init__(self, alpha=2.):
+        # somewhat empirical factor to scale results to fit LES predictions
+        self.alpha = alpha  # alpha in 8.3 (1 in eq 6.4 and 2 in eq 4.9)
+
+    def superpose_deficit(self, deficit_jxxx, **kwargs):
+        return self(**kwargs)
+
+    def __call__(self, WS0_xxx, WS_eff_xxx, ct_xxx, D_xx, sigma_sqr_jxxx, cw_jxxx, hcw_jxxx, dh_jxxx):
+
+        U0 = WS0_xxx
+        WS_eff = WS_eff_xxx
+        ct = ct_xxx
+        D = D_xx
+        downwind = (sigma_sqr_jxxx > 1e-10)
+        sigma_sqr = np.where(downwind, sigma_sqr_jxxx, 1)
+        cw = cw_jxxx * np.ones_like(sigma_sqr)
+        hcw = hcw_jxxx * np.ones_like(sigma_sqr)
+        dh = dh_jxxx * np.ones_like(sigma_sqr)
+
+        n_wt = sigma_sqr.shape[0]
+        lamCsum = np.zeros(sigma_sqr.shape[1:])
+
+        C_lst = []
+        for n in range(n_wt):
+            if n > 0:
+                sigma_sqr_tot = sigma_sqr[n:n + 1] + sigma_sqr[:n]
+                # eq 4.9
+                lam = self.alpha * sigma_sqr[:n] / sigma_sqr_tot * np.exp(-(hcw[n][na, ...] - hcw[:n])**2 / (
+                    2. * sigma_sqr_tot)) * np.exp(-(dh[n][na, ...] - dh[:n])**2 / (2. * sigma_sqr_tot))
+                # lambda sum term in 4.10
+                lamCsum = np.sum(lam * np.array(C_lst)[:n], axis=0)
+
+            # sqrt term in eq 4.10
+            sqrt_term = (U0[n] - lamCsum)**2 - (ct[n] * D[n, ..., na]**2 * WS_eff[n]**2) / (8. * sigma_sqr[n])
+            sqrt_term = np.maximum(sqrt_term, 0)
+            Clim = (WS_eff[n] * (1. - np.sqrt(np.maximum(0, 1. - ct[n]))))
+            C = (U0[n] - lamCsum) - np.sqrt(sqrt_term)  # Eq 4.10
+            C = np.where((sqrt_term > 0.) & (C <= Clim), C, Clim)
+            C *= downwind[n]
+            C_lst.append(C)
+        C = np.array(C_lst)
+
+        exponent = -1 / (2 * sigma_sqr) * cw**2
+
+        return np.sum(C * np.exp(exponent), axis=0)
