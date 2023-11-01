@@ -323,7 +323,7 @@ def run_wms(swc, test_cases=['Wieringermeer-West',
                                     turbulenceModel=STF2017TurbulenceModel())
             # simulation
             sim_res = wfm([0], [0], h=[100], wd=[270])
-            lw_j, WS_eff_jlk, TI_eff_jlk = wfm._flow_map(x_j, y_j, np.ones_like(x_j) * 100, sim_res)
+            lw_j, WS_eff_jlk, TI_eff_jlk = wfm._flow_map(x_j, y_j, np.full_like(x_j, 100.0), sim_res)
             deficit_name = modify_deficit_name_sw(wfm.wake_deficitModel, TI_eff_jlk)
             tmp['bar_label'] = modify_deficit_name(wfm.wake_deficitModel)
             tmp['WS_eff'] = WS_eff_jlk[:, 0, 0].reshape(ii, jj)

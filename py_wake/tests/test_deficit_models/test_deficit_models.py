@@ -537,7 +537,7 @@ def test_own_deficit_is_zero():
 def test_wake_blockage_split(upstream_only, ref):
     class MyWakeModel(WakeDeficitModel):
         def calc_deficit(self, dw_ijlk, **kwargs):
-            return np.ones_like(dw_ijlk) * 2
+            return np.full_like(dw_ijlk, 2.0)
 
     class MyBlockageModel(BlockageDeficitModel):
 

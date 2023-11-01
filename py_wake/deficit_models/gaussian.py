@@ -328,7 +328,7 @@ class ZongGaussianDeficit(NiayifarGaussianDeficit):
         return ctx_ijlk
 
     def epsilon_ilk(self, ct_ilk, **_):
-        return self.eps_coeff * np.ones_like(ct_ilk)
+        return np.full_like(ct_ilk, self.eps_coeff)
 
     def sigma_ijlk(self, D_src_il, dw_ijlk, ct_ilk, **kwargs):
         TI_ref_ilk = kwargs[self.TI_key]
@@ -405,10 +405,10 @@ class CarbajofuertesGaussianDeficit(ZongGaussianDeficit):
         self.ct2a = ct2a
 
     def epsilon_ilk(self, ct_ilk, **_):
-        return 0.34 * np.ones_like(ct_ilk)
+        return np.full_like(ct_ilk, 0.34)
 
     def nw_length(self, ct_ilk, *args, **kwargs):
-        return 1.91 * np.ones_like(ct_ilk)
+        return np.full_like(ct_ilk, 1.91)
 
 
 class TurboGaussianDeficit(NiayifarGaussianDeficit):

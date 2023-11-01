@@ -327,7 +327,7 @@ def test_additional_input():
     site = ParqueFicticioSite()
 
     x, y = site.initial_position.T
-    h = 70 * np.ones_like(x)
+    h = np.full_like(x, 70.0)
 
     lw = site.local_wind(x, y, h)
     ws_mean = site.interp(site.ds.ws_mean, lw)

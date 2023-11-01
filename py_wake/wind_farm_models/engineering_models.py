@@ -755,7 +755,7 @@ class All2AllIterative(EngineeringWindFarmModel):
         wt_kwargs = self.get_wt_kwargs(TI_eff_ilk, kwargs)
         ct_ilk = self.windTurbines.ct(ws=WS_ILK, **wt_kwargs)
         try:
-            ct_ilk_idle = self.windTurbines.ct(ws=0.1 * np.ones_like(WS_ILK), **wt_kwargs)
+            ct_ilk_idle = self.windTurbines.ct(ws=np.full_like(WS_ILK, 0.1), **wt_kwargs)
         except BaseException:
             ct_ilk_idle = 0
         unstable_lk = np.zeros((L, K), dtype=bool)
