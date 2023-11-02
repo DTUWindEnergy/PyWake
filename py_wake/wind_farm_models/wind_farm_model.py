@@ -647,10 +647,7 @@ class SimulationResult(xr.Dataset):
         x_j, y_j, h_j = X.flatten(), Y.flatten(), H.flatten()
 
         wd, ws = self._wd_ws(wd, ws)
-        lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(
-            x_j, y_j, h_j,
-            self.sel(wd=wd, ws=ws)
-        )
+        lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(x_j, y_j, h_j, self.sel(wd=wd, ws=ws))
 
         return FlowBox(self, X, Y, H, lw_j, WS_eff_jlk, TI_eff_jlk)
 
@@ -800,6 +797,12 @@ class SimulationResult(xr.Dataset):
                 sim_res[k] = v
 
         return sim_res
+
+    def sel(self, indexers=None, method=None, tolerance=None, drop=False, **indexers_kwargs):
+        res = xr.Dataset.sel(self, indexers=indexers, method=method, tolerance=tolerance, drop=drop, **indexers_kwargs)
+        for n in self.__slots__:
+            setattr(res, n, getattr(self, n, None))
+        return res
 
 
 def main():

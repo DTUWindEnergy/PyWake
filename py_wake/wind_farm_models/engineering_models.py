@@ -275,11 +275,12 @@ class EngineeringWindFarmModel(WindFarmModel):
             'IJLK': lambda l=slice(None), I=I, J=J, L=L, K=K: (I, J, len(np.arange(L)[l]), K)})
         for k in ['WS', 'WD', 'TI']:
             if k in sim_res_data:
-                if 'wt' not in sim_res_data[k].dims and 'i' not in sim_res_data[k].dims:
-                    lw_j.add_ilk(k + "_ilk", sim_res_data[k])
-                elif k + '_ilk' in sim_res_data.localWind.overwritten:
-                    warnings.warn(
-                        f"The WT dependent {k} that was provided for the simulation is not available at the flow map points and therefore ignored")
+                if k + '_ilk' in sim_res_data.localWind.overwritten:
+                    if 'wt' not in sim_res_data[k].dims and 'i' not in sim_res_data[k].dims:
+                        lw_j.add_ilk(k + "_ilk", sim_res_data[k])
+                    else:
+                        warnings.warn(
+                            f"The WT dependent {k} that was provided for the simulation is not available at the flow map points and therefore ignored")
         return map_arg_funcs, lw_j, wd, WD_il
 
     def _get_flow_l(self, model_kwargs, l, wt_x_ilk, wt_y_ilk, wt_h_ilk, lw_j, wd, WD_ilk):
