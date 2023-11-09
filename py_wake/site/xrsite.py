@@ -316,9 +316,11 @@ class XRSite(Site):
         elif method_speedup == 'global_weibull':
             median = pwc.median(dim=xy_dims)
             pwc["Speedup"] = ws_mean / xr.apply_ufunc(weibull.mean, median["A"], median["k"], dask="allowed")
-            pwc = pwc.drop_vars(['A', 'k'])
-            pwc['A'] = (tuple(set(ws_mean.dims) - set(xy_dims)), median['A'].values)
-            pwc['k'] = (tuple(set(ws_mean.dims) - set(xy_dims)), median['k'].values)
+            weib_dims = list(ws_mean.dims)
+            for dim in xy_dims:
+                weib_dims.remove(dim)
+            pwc['A'] = (weib_dims, median['A'].values)
+            pwc['k'] = (weib_dims, median['k'].values)
         elif method_speedup == 'existing':
             if "Speedup" not in pwc.data_vars:
                 raise Exception('with the method_speedup = "existing" "Speedup" needs to be present as a data variable')
