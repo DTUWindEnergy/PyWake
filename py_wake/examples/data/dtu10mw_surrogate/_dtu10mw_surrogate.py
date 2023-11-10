@@ -36,16 +36,18 @@ class DTU10MW_PowerCtSurrogate(PowerCtSurrogate):
                 return np.where(m, arr, self.ct_idle)
         else:
             # look up only needed values
-            kwargs = {k: fix_shape(v, ws)[m] for k, v in kwargs.items()}
-            arr_m = PowerCtSurrogate._power_ct(self, ws[m], run_only=run_only, **kwargs)
+            if np.any(m):
+                kwargs = {k: fix_shape(v, ws)[m] for k, v in kwargs.items()}
+                arr_m = PowerCtSurrogate._power_ct(self, ws[m], run_only=run_only, **kwargs)
+            else:
+                arr_m = np.array([])
             if run_only == 0:
                 power = np.zeros_like(ws, dtype=arr_m.dtype)
                 power[m] = arr_m
                 return power
             else:
                 ct = np.full(ws.shape, self.ct_idle, dtype=arr_m.dtype)
-                ct_m = arr_m
-                ct[m] = ct_m
+                ct[m] = arr_m
                 return ct
 
 
@@ -73,6 +75,7 @@ class DTU10MW_1WT_Surrogate(DTU10MW_Base):
             surrogate_path,
             input_parser=lambda ws, TI_eff=.1, Alpha=0.2, yaw=0: [ws, TI_eff * 100, Alpha, yaw])
         DTU10MW_Base.__init__(self, powerCtFunction=powerCtFunction, loadFunction=loadFunction)
+        self.ct_idle = powerCtFunction.ct_idle
 
 
 def main():
