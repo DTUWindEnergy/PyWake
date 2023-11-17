@@ -55,14 +55,22 @@ class DeflectionIntegrator(DeflectionModel):
         dw_ijlkx = dw_ijlk[..., na] * dw_lst[na, na, na, na, :]
 
         theta_yaw_ilk, theta_tilt_ilk = gradients.deg2rad(yaw_ilk), gradients.deg2rad(-tilt_ilk)
-        theta_ilk = np.arctan(gradients.hypot(np.tan(theta_yaw_ilk), np.tan(theta_tilt_ilk)))
-        theta_deflection_ilk = gradients.arctan2(np.tan(theta_tilt_ilk), np.tan(theta_yaw_ilk))
 
-        deflection_rate = self.get_deflection_rate(theta_ilk=theta_ilk, dw_ijlkx=dw_ijlkx,
+        # alternative formulation
+        # L = np.hypot(1, np.tan(theta_yaw_ilk))
+        # theta_ilk = np.arctan(gradients.hypot(np.tan(theta_yaw_ilk), np.tan(theta_tilt_ilk) * L))
+        # theta_deflection_ilk = gradients.arctan2(np.tan(theta_tilt_ilk) * L, np.tan(theta_yaw_ilk))
+
+        theta_total_ilk = np.arcsin(gradients.hypot(np.sin(theta_yaw_ilk) * np.cos(theta_tilt_ilk),
+                                                    np.sin(theta_tilt_ilk)))
+        theta_total_angle_ilk = gradients.arctan2(np.sin(theta_tilt_ilk),
+                                                  np.sin(theta_yaw_ilk) * np.cos(theta_tilt_ilk))
+
+        deflection_rate = self.get_deflection_rate(theta_ilk=theta_total_ilk, dw_ijlkx=dw_ijlkx,
                                                    yaw_ilk=yaw_ilk, tilt_ilk=tilt_ilk, **kwargs)
         deflection_ijlk = gradients.trapz(deflection_rate, dw_ijlkx, axis=4)
-        self.hcw_ijlk = hcw_ijlk + np.sign(dw_ijlk) * deflection_ijlk * np.cos(theta_deflection_ilk[:, na])
-        self.dh_ijlk = dh_ijlk + np.sign(dw_ijlk) * deflection_ijlk * np.sin(theta_deflection_ilk[:, na])
+        self.hcw_ijlk = hcw_ijlk + np.sign(dw_ijlk) * deflection_ijlk * np.cos(theta_total_angle_ilk[:, na])
+        self.dh_ijlk = dh_ijlk + np.sign(dw_ijlk) * deflection_ijlk * np.sin(theta_total_angle_ilk[:, na])
         return dw_ijlk, self.hcw_ijlk, self.dh_ijlk
 
     @abstractmethod

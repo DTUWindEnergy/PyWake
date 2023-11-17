@@ -104,7 +104,7 @@ class SimpleYawModel(AdditionalModel):
     def __call__(self, f, ws, yaw=None, tilt=None, **kwargs):
         if yaw is not None and tilt is not None:
             y, t = gradients.deg2rad(fix_shape(yaw, ws, True)), gradients.deg2rad(fix_shape(tilt, ws, True))
-            co = np.cos(np.arctan(np.sqrt(np.tan(y)**2 + np.tan(t)**2)))
+            co = np.cos(np.arcsin(np.sqrt((np.sin(y) * np.cos(t))**2 + np.sin(t)**2)))
         elif yaw is not None:
             co = np.cos(gradients.deg2rad(fix_shape(yaw, ws, True)))
         elif tilt is not None:
