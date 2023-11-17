@@ -150,11 +150,15 @@ def test_combined_tilt_and_yaw_deflection():
     dh = deflectionModel.dh_ijlk
     npt.assert_array_almost_equal(hcw, -dh)
 
-    # rotate 30deg yaw 20 deg around u direction
-    yaw = np.rad2deg(np.arctan(np.tan(np.deg2rad(30)) * np.cos(np.deg2rad(20))))
-    tilt = np.rad2deg(np.arctan(np.tan(np.deg2rad(30)) * np.sin(np.deg2rad(20))))
+    # rotate 30deg yaw, 20 deg around u direction
+    theta, gamma = np.deg2rad(30), np.deg2rad(20)
+    tilt = np.rad2deg(np.arcsin(np.sin(theta) * np.sin(gamma)))
+
+    yaw = np.rad2deg(np.arcsin(np.cos(gamma) * np.sin(theta) / np.sqrt(1 - (np.sin(gamma) * np.sin(theta))**2)))
+    # same as
+    yaw = np.rad2deg(np.arcsin(np.cos(gamma) * np.sin(theta) / np.cos(np.arcsin(np.sin(theta) * np.sin(gamma)))))
     wfm([0, 500], [0, 0], yaw=yaw, tilt=tilt, wd=270, ws=10)
-    npt.assert_array_equal(hcw, np.hypot(deflectionModel.hcw_ijlk, deflectionModel.dh_ijlk))
+    npt.assert_array_almost_equal(hcw, np.hypot(deflectionModel.hcw_ijlk, deflectionModel.dh_ijlk))
 
 
 def test_upstream_deflection():

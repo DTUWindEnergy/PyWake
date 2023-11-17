@@ -409,6 +409,11 @@ def test_SimpleYawModel2():
 
     y = np.rad2deg(np.arctan(np.tan(np.deg2rad(yaw)) * np.cos(np.deg2rad(20))))
     t = np.rad2deg(np.arctan(np.tan(np.deg2rad(yaw)) * np.sin(np.deg2rad(20))))
+    gamma = np.deg2rad(20)
+    theta = np.deg2rad(30)
+    t = np.rad2deg(np.arcsin(np.sin(theta) * np.sin(gamma)))
+    y = np.rad2deg(np.arcsin(np.cos(gamma) * np.sin(theta) / np.sqrt(1 - (np.sin(gamma) * np.sin(theta))**2)))
+
     p, ct = curve(u, tilt=t, yaw=y)
     npt.assert_array_almost_equal(p, np.interp(u * co, u_p, p_c))
     npt.assert_array_almost_equal(ct, np.interp(u * co, u_p, ct_c) * co**2)
