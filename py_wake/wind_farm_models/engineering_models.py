@@ -752,6 +752,7 @@ class All2AllIterative(EngineeringWindFarmModel):
         diff_lk = np.zeros((L, K))
         diff_lk_last = None
         dw_iilk, hcw_iilk, dh_iilk = self.site.distance(wd_l=wd, WD_ilk=WD_ilk)
+        kwargs['WD_ilk'] = WD_ilk
 
         wt_kwargs = self.get_wt_kwargs(TI_eff_ilk, kwargs)
         ct_ilk = self.windTurbines.ct(ws=WS_ILK, **wt_kwargs)

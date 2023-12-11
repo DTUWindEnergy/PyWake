@@ -153,7 +153,7 @@ class FunctionSurrogates(WindTurbineFunction, ABC):
         if input_keys[0] == 'self':
             input_keys = input_keys[1:]
         defaults = inspect.getfullargspec(self.get_input).defaults
-        optional_inputs = input_keys[1:] if defaults is None else input_keys[::-1][:len(defaults)]
+        optional_inputs = [] if defaults is None else input_keys[::-1][:len(defaults)]
 
         if output_keys is None:
             output_keys = [fs.output_names[0] for fs in self.function_surrogate_lst]
