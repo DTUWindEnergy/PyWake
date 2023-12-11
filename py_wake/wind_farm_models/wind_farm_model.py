@@ -208,8 +208,10 @@ class WindFarmModel(ABC):
             norm = 1
 
         if with_wake_loss is False:
-            power_ilk = self.windTurbines.power(ws=localWind.WS_ilk,
-                                                **self.get_wt_kwargs(localWind.TI.ilk(), kwargs_ilk))
+            wd, ws = self.site.get_defaults(wd, ws)
+            I, L, K, = len(x), len(np.atleast_1d(wd)), len(np.atleast_1d(ws))
+            power_ilk = np.broadcast_to(self.windTurbines.power(ws=localWind.WS_ilk,
+                                                                **self.get_wt_kwargs(localWind.TI.ilk(), kwargs_ilk)), (I, L, K))
         return (power_ilk * P_ilk / norm * 24 * 365 * 1e-9).sum()
 
     @abstractmethod
