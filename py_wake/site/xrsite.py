@@ -434,10 +434,8 @@ class GlobalWindAtlasSite(XRSite):
 
     def _read_gwc(self, lat, long):  # pragma: no cover
 
-        url_str = f'https://wps.globalwindatlas.info/?service=WPS&VERSION=1.0.0&REQUEST=Execute&IDENTIFIER=get_libfile&DataInputs=location={{"type":"Point","coordinates":[{long},{lat}]}}'
-        s = urllib.request.urlopen(url_str).read().decode()  # response contains link to generated file
-        url = s[s.index('http://wps.globalwindatlas.info'):].split('"')[0]
-        lines = urllib.request.urlopen(url).read().decode().strip().split("\r\n")
+        url = f'https://api.globalwindatlas.info/gwa3/v1/get-libfile-point?latitude={lat}&longitude={long}'
+        lines = urllib.request.urlopen(url).read().decode().strip().split("\n")
 
         # Read header information one line at a time
         # desc = txt[0].strip()  # File Description
