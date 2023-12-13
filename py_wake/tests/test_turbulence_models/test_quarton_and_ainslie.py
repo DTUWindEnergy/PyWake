@@ -2,7 +2,10 @@
 
 """
 
+import copy
+
 import pytest
+
 from py_wake import np
 from py_wake.turbulence_models.quarton_and_ainslie import (
     QuartonAndAinslieTurbulenceModel,
@@ -10,7 +13,7 @@ from py_wake.turbulence_models.quarton_and_ainslie import (
 
 
 @pytest.fixture
-def calc_added_turbulence_kwargs():
+def calc_added_turbulence_kwargs() -> dict[str, np.ndarray]:
     """Test case arguments to the wake added turbulence calculation."""
     return {
         "WS_ilk": np.array(
@@ -112,7 +115,7 @@ def calc_added_turbulence_kwargs():
 
 
 @pytest.fixture
-def expected_added_turbulence():
+def expected_added_turbulence() -> np.ndarray:
     """Expected array of added turbulence results."""
     return np.array(
         [
@@ -133,11 +136,11 @@ def expected_added_turbulence():
 @pytest.mark.parametrize("use_effective_ws", [True, False])
 @pytest.mark.parametrize("use_effective_ti", [True, False])
 def test_calc_added_turbulence(
-    use_effective_ws,
-    use_effective_ti,
-    calc_added_turbulence_kwargs,
-    expected_added_turbulence
-):
+    use_effective_ws: bool,
+    use_effective_ti: bool,
+    calc_added_turbulence_kwargs: dict[str, np.ndarray],
+    expected_added_turbulence: np.ndarray,
+) -> None:
     """Assert the turbulence model returns the correct values."""
     model = QuartonAndAinslieTurbulenceModel(
         use_effective_ws=use_effective_ws,
@@ -145,3 +148,53 @@ def test_calc_added_turbulence(
     )
     added_turbulence = model.calc_added_turbulence(**calc_added_turbulence_kwargs)
     assert np.allclose(added_turbulence, expected_added_turbulence)
+
+
+def test_invalid_negative_wind_speed_raises_error(
+    calc_added_turbulence_kwargs: dict[str, np.ndarray],
+) -> None:
+    model = QuartonAndAinslieTurbulenceModel(
+        use_effective_ws=True,
+        use_effective_ti=False,
+    )
+    calc_added_turbulence_invalid_kwargs = copy.deepcopy(calc_added_turbulence_kwargs)
+    calc_added_turbulence_invalid_kwargs["WS_eff_ilk"] = np.array(
+        [
+            [
+                [-2.0, 0.0, 2.0, 4.0, 6.0],
+                [-2.0, 0.0, 2.0, 4.0, 6.0],
+                [-2.0, 0.0, 2.0, 4.0, 6.0],
+            ]
+        ]
+    )
+
+    with pytest.raises(
+        expected_exception=ValueError,
+        match="Negative wind speed values are not valid",
+    ):
+        _ = model.calc_added_turbulence(**calc_added_turbulence_invalid_kwargs)
+
+
+def test_invalid_negative_turbulence_raises_error(
+    calc_added_turbulence_kwargs: dict[str, np.ndarray],
+) -> None:
+    model = QuartonAndAinslieTurbulenceModel(
+        use_effective_ws=True,
+        use_effective_ti=False,
+    )
+    calc_added_turbulence_invalid_kwargs = copy.deepcopy(calc_added_turbulence_kwargs)
+    calc_added_turbulence_invalid_kwargs["TI_ilk"] = np.array(
+        [
+            [
+                [0.05, 0.31, 0.11, 0.33, 0.09],
+                [0.02, 0.23, -0.11, 0.33, 0.09],
+                [0.08, 0.22, 0.11, 0.31, 0.09],
+            ]
+        ]
+    )
+
+    with pytest.raises(
+        expected_exception=ValueError,
+        match="Negative turbulence intensity values are not valid",
+    ):
+        _ = model.calc_added_turbulence(**calc_added_turbulence_invalid_kwargs)

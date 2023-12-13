@@ -54,7 +54,7 @@ class QuartonAndAinslieTurbulenceModel(TurbulenceModel):
     border, the radius should define where the conditions are
     substantially as in the freestream.
 
-    For the modified version of the model later proposed by Hasan, see
+    For the modified version of the model later proposed by Hassan, see
     ``ModifiedQuartonAndAinslieTurbulenceModel``.
     """
 
@@ -279,7 +279,7 @@ class QuartonAndAinslieTurbulenceModel(TurbulenceModel):
 
 
 class ModifiedQuartonAndAinslieTurbulenceModel(QuartonAndAinslieTurbulenceModel):
-    """The modified version of the model proposed by Hasan (1992).
+    """The modified version of the model proposed by Hassan (1992).
 
     This model is the same as the original model developed by Quarton
     and Ainslie (1990), except for adjusting the factor and stream-wise
