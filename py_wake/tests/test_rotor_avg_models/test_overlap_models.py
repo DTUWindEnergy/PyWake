@@ -21,6 +21,7 @@ from py_wake.wind_turbines._wind_turbines import WindTurbines
 from py_wake.wind_turbines.power_ct_functions import PowerCtFunction
 from py_wake.superposition_models import WeightedSum, SquaredSum
 import warnings
+from py_wake.ground_models.ground_models import Mirror
 
 
 def test_overlapping_area_factor_shapes():
@@ -96,9 +97,12 @@ def test_GaussianOverlapAvgModel_blockage(blockageDeficitModel):
 
 
 def test_GaussianOverlapAvgModel_WeightedSum():
-    wfm = PropagateDownwind(UniformSite(), V80(), BastankhahGaussianDeficit(rotorAvgModel=GaussianOverlapAvgModel()),
+    with pytest.raises(AssertionError, match=r"WeightedSum and CumulativeWakeSum only works with NodeRotorAvgModel-based rotor average models"):
+        wfm = PropagateDownwind(UniformSite(), V80(), BastankhahGaussianDeficit(rotorAvgModel=GaussianOverlapAvgModel()),
+                                WeightedSum())
+    wfm = PropagateDownwind(UniformSite(), V80(), BastankhahGaussianDeficit(groundModel=Mirror()),
                             WeightedSum())
-    with pytest.raises(NotImplementedError, match=r"calc_deficit_convection \(WeightedSum\) cannot be used in combination with rotorAvgModels and GroundModels"):
+    with pytest.raises(NotImplementedError, match=r"calc_deficit_convection \(WeightedSum\) cannot be used in combination with GroundModels"):
         wfm([0, 1000], [0, 0])
 
 

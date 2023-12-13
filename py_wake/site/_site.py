@@ -295,7 +295,7 @@ class Site(ABC):
 
         """
         if ax is None:
-            ax = plt
+            ax = plt.gca()
 
         lbl = "Wind direction: %d deg"
         if include_wd_distribution:
@@ -315,8 +315,8 @@ class Site(ABC):
             P = P.expand_dims({'wd': wd})
         for wd, p in zip(wd, P):
             ax.plot(ws, p * 10, label=lbl % wd)
-            ax.xlabel('Wind speed [m/s]')
-            ax.ylabel('Probability')
+            ax.set_xlabel('Wind speed [m/s]')
+            ax.set_ylabel('Probability')
         ax.legend(loc=1)
         return P
 

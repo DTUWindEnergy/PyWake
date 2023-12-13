@@ -204,7 +204,9 @@ class FlowMap(FlowBox):
     def plot_windturbines(self, normalize_with=1, ax=None):
         fm = self.windFarmModel
 
-        x_i, y_i = self.simulationResult.x.values, self.simulationResult.y.values
+        # mean over wd and ws if present
+        x_i = self.simulationResult.x.mean(set(self.simulationResult.x.dims) - {'wt'}).values
+        y_i = self.simulationResult.y.mean(set(self.simulationResult.x.dims) - {'wt'}).values
         type_i = self.simulationResult.type.data
         if self.plane[0] in ['XZ', "YZ"]:
             h_i = self.simulationResult.h.values

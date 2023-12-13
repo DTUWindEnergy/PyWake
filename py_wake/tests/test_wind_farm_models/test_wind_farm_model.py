@@ -1,6 +1,6 @@
 import pytest
 from py_wake import np
-from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit
+from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit, BastankhahGaussian
 from py_wake.deficit_models.noj import NOJ
 
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80, wt9_y, wt9_x, wt16_x, wt16_y
@@ -207,6 +207,23 @@ def test_aep_gradients_with_types():
     daep_cs = wfm.aep_gradients(cs, x=x, y=y, type=t)
     npt.assert_array_almost_equal(daep_autograd, daep_cs, 10)
     npt.assert_array_almost_equal(daep_autograd, daep_fd)
+
+
+def test_aep_vs_aep():
+    import numpy as np
+
+    windTurbines = V80()
+    site = Hornsrev1Site()
+    wf_model = BastankhahGaussian(site, windTurbines)
+
+    npt.assert_array_almost_equal(wf_model(wt16_x, wt16_y).aep(with_wake_loss=False).values.sum(),
+                                  wf_model.aep(wt16_x, wt16_y, with_wake_loss=False))
+    npt.assert_almost_equal(wf_model(wt16_x, wt16_y).aep(with_wake_loss=True).values.sum(),
+                            wf_model.aep(wt16_x, wt16_y, with_wake_loss=True))
+
+    npt.assert_array_almost_equal(wf_model.aep(wt16_x, wt16_y, with_wake_loss=True) /
+                                  wf_model.aep(wt16_x, wt16_y, with_wake_loss=False),
+                                  0.95, 2)
 
 
 @pytest.mark.parametrize('n_wt, shape,dims', [(16, (16,), ('wt',)),

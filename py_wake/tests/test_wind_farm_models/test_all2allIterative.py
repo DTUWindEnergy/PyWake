@@ -1,22 +1,25 @@
 import pytest
-from py_wake import np
-import xarray as xr
+
 import matplotlib.pyplot as plt
+from py_wake import np
 from py_wake.deficit_models.fuga import FugaDeficit
+from py_wake.deficit_models.no_wake import NoWakeDeficit
+from py_wake.deficit_models.noj import NOJDeficit
+from py_wake.deficit_models.rathmann import Rathmann
 from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
+from py_wake.examples.data import wtg_path
+from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80
 from py_wake.examples.data.iea37._iea37 import IEA37Site, IEA37_WindTurbines
 from py_wake.flow_map import XYGrid
 from py_wake.rotor_avg_models.rotor_avg_model import CGIRotorAvg
+from py_wake.site.xrsite import XRSite
 from py_wake.superposition_models import LinearSum
 from py_wake.wind_farm_models.engineering_models import All2AllIterative
-from py_wake.site.xrsite import XRSite
-from py_wake.deficit_models.rathmann import Rathmann
-from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.wind_turbines._wind_turbines import WindTurbines
-from py_wake.examples.data import wtg_path
-from py_wake.deficit_models.noj import NOJDeficit
-from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80
+import xarray as xr
+from py_wake.examples.data.iea34_130rwt._iea34_130rwt import IEA34_130_1WT_Surrogate
+from py_wake.turbulence_models.stf import STF2017TurbulenceModel
 
 
 class FugaDeficitCount(FugaDeficit):
@@ -93,6 +96,10 @@ def test_convergence_hornsrev():
         sim_res.flow_map().plot_wake_map()
         plt.show()
 
+
+def test_when_ct_idle_fails():
+    wt = IEA34_130_1WT_Surrogate()
+    sim_res = All2AllIterative(Hornsrev1Site(), wt, NOJDeficit(), turbulenceModel=STF2017TurbulenceModel())([0], [0], )
 
 # def test_convergence():
 #     """Unstable from beginning

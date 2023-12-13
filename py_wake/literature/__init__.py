@@ -7,3 +7,4 @@ from .gaussian_models import Niayifar_PorteAgel_2016
 from .noj import Jensen_1983
 from .gaussian_models import Zong_PorteAgel_2020
 from .gaussian_models import Blondel_Cathelain_2020
+from .cumulative_sum import CumulativeWake
