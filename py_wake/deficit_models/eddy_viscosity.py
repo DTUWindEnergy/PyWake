@@ -35,6 +35,16 @@ from py_wake.wind_turbines import WindTurbines
 DEFAULT_MAXIMUM_WAKE_DISTANCE: Final[float] = 50.0
 
 
+class EddyViscosityNearWakeUserWarning(UserWarning):
+    """Warning when using the EV model at distances below two rotors.
+
+    The EV model does not have a defined solution for the near wake,
+    within two rotor diameters of the source turbine.
+    """
+
+    pass
+
+
 class EddyViscosityDeficitModel(WakeDeficitModel):
     """Eddy Viscosity (EV) wake deficit model.
 
@@ -176,7 +186,7 @@ class EddyViscosityDeficitModel(WakeDeficitModel):
                     cw_norm_ijlk,
                     wake_width_ijlk,
                     where=~np.isclose(wake_width_ijlk, 0.0),
-                    out=np.zeros_like(
+                    out=-999999.0 * np.ones_like(
                         centre_frac_deficit_ijlk * cw_norm_ijlk * wake_width_ijlk
                     ),
                 )
@@ -200,9 +210,12 @@ class EddyViscosityDeficitModel(WakeDeficitModel):
 
         if np.any(np.logical_and(dw_norm_ijlk < 1.95, fractional_deficit_ijlk > 0.05)):
             warnings.warn(
-                "the Eddy Viscosity wake model is not appropriate for turbine spacings "
-                "less than two rotor diameters; the solution at two rotor diameters was "
-                "used for smaller distances"
+                message=(
+                    "The Eddy Viscosity wake model is not appropriate for turbine spacings "
+                    "less than two rotor diameters; the solution at two rotor diameters was "
+                    "used for smaller distances."
+                ),
+                category=EddyViscosityNearWakeUserWarning,
             )
 
         return deficit_ijlk
@@ -218,7 +231,7 @@ class EddyViscosityDeficitModel(WakeDeficitModel):
         ct_ilk: np.ndarray,
         **_: Any,
     ) -> np.ndarray:
-        """Calculate the estimate of the 'wake radius'.
+        """Calculate the dimensional estimate of the 'wake radius'.
 
         The ``wake_radius`` method is used for PyWake integration, so
         that the wake width parameter can be passed to the turbulence
@@ -243,6 +256,14 @@ class EddyViscosityDeficitModel(WakeDeficitModel):
         # Convert from dimensionless wake width to dimensional wake width in 'm'
         return wake_width_ijlk * D_src_il[:, na, :, na]
 
+    def sigma_ijlk(self, **kwargs: Any) -> np.ndarray:
+        """Calculate the dimensional sigma wake width parameter.
+
+        This width parameter is used by the other Gaussian deficit models
+        and by the rotor average models for Gaussian wake profiles.
+        """
+        return self.wake_radius(**kwargs) / np.sqrt(3.56)
+
     def _calc_deficit_terms(
         self,
         WS_ilk: np.ndarray,
@@ -252,16 +273,14 @@ class EddyViscosityDeficitModel(WakeDeficitModel):
         dw_ijlk: np.ndarray,
         D_src_il: np.ndarray,
         ct_ilk: np.ndarray,
-    ):
+    ) -> tuple[np.ndarray, np.ndarray]:
         if np.min(WS_ilk) < 0.0 or np.min(WS_eff_ilk) < 0.0:
-            raise ValueError("negative wind speed values are not valid")
+            raise ValueError("Negative wind speed values are not valid.")
 
         if np.min(ct_ilk) < 0.0:
-            raise ValueError("negative thrust coefficient (ct) values are not valid")
+            raise ValueError("Negative thrust coefficient (Ct) values are not valid.")
         if np.max(ct_ilk) > 1.4:
-            raise ValueError(
-                "thrust coefficient (ct) values higher than 1.4 are not supported"
-            )
+            raise ValueError("Thrust coefficient (Ct) values higher than 1.4 are not supported.")
 
         ti0_ilk: np.ndarray
         if self.use_effective_ti:
@@ -270,7 +289,7 @@ class EddyViscosityDeficitModel(WakeDeficitModel):
             ti0_ilk = TI_ilk
 
         if np.min(ti0_ilk) < 0.0:
-            raise ValueError("negative turbulence intensity values are not valid")
+            raise ValueError("Negative turbulence intensity values are not valid.")
 
         # Normalise the effective turbulence intensity to the waked wind speed
         if self.normalise_ti_to_waked_ws:
@@ -287,9 +306,7 @@ class EddyViscosityDeficitModel(WakeDeficitModel):
         dw_norm_ijlk = np.maximum(dw_norm_ijlk, 2.0)
         dw_norm_ijlk = np.minimum(dw_norm_ijlk, self.maximum_wake_distance)
 
-        product_shape = np.ones_like(
-            ti0_ilk[:, na, :, :] * ct_ilk[:, na, :, :] * dw_norm_ijlk
-        )
+        product_shape = np.ones_like(ti0_ilk[:, na, :, :] * ct_ilk[:, na, :, :] * dw_norm_ijlk)
         matched_ti = ti0_ilk[:, na, :, :] * product_shape
         matched_ct = ct_ilk[:, na, :, :] * product_shape
         matched_dw = dw_norm_ijlk * product_shape
@@ -302,9 +319,7 @@ class EddyViscosityDeficitModel(WakeDeficitModel):
 
         # Interpolate dimensionless centreline velocity deficit
         centre_frac_deficit = self.interpolator(interpolator_input)
-        centre_frac_deficit_ijlk = centre_frac_deficit.reshape(
-            interpolator_input_shape[:-1], order="C"
-        )
+        centre_frac_deficit_ijlk = centre_frac_deficit.reshape(interpolator_input_shape[:-1], order="C")
 
         wake_width_ijlk = np.sqrt(
             np.divide(
