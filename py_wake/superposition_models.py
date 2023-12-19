@@ -52,7 +52,7 @@ class AddedTurbulenceSuperpositionModel():
 
 class SquaredSum(SuperpositionModel, AddedTurbulenceSuperpositionModel):
     def __call__(self, value_jxxx):
-        return np.sqrt(np.sum(value_jxxx**2, 0))
+        return np.sqrt(np.sum(np.power(value_jxxx, 2), 0))
 
 
 class LinearSum(SuperpositionModel, AddedTurbulenceSuperpositionModel):
