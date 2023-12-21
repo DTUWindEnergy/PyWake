@@ -29,7 +29,7 @@ SMALL_COORDINATES: Final[LookupTableCoordinates] = LookupTableCoordinates(
 
 
 @pytest.fixture(scope="module")
-def expected_small_table_filepaths() -> dict[bool, Path]:
+def expected_small_table_filepaths():
     """Mapping of configurations to filepath of expected lookup tables."""
     return {
         True: Path(__file__).parent / "test_data" / "small_mixing_func_lut.nc",
@@ -38,7 +38,7 @@ def expected_small_table_filepaths() -> dict[bool, Path]:
 
 
 @pytest.fixture
-def calc_deficit_kwargs() -> dict[str, np.ndarray]:
+def calc_deficit_kwargs():
     """Test case arguments to the EV model deficit calculation."""
     return {
         "WS_ilk": np.array(
@@ -123,7 +123,7 @@ def calc_deficit_kwargs() -> dict[str, np.ndarray]:
 
 
 @pytest.fixture
-def expected_eddy_viscosity_deficit() -> dict[bool, np.ndarray]:
+def expected_eddy_viscosity_deficit():
     """Dictionary of expected array of wind speed deficit results."""
     return {
         True: np.array(
@@ -240,9 +240,9 @@ def test_calc_deficit_returns_correct_values(
     use_effective_ws: bool,
     use_effective_ti: bool,
     use_mixing_function: bool,
-    expected_small_table_filepaths: dict[bool, Path],
-    calc_deficit_kwargs: dict[str, np.ndarray],
-    expected_eddy_viscosity_deficit: dict[bool, np.ndarray],
+    expected_small_table_filepaths,
+    calc_deficit_kwargs,
+    expected_eddy_viscosity_deficit,
 ) -> None:
     """Assert the deficit model returns the correct values."""
     model = EddyViscosityDeficitModel(
@@ -344,7 +344,7 @@ def test_eddy_viscosity_wind_farm_model_calculates_correct_aep() -> None:
 def test_small_table_generation(
     tmp_path: Path,
     use_mixing_function: bool,
-    expected_small_table_filepaths: dict[bool, Path],
+    expected_small_table_filepaths,
 ) -> None:
     """Assert generator produces the expected small lookup tables.
 
