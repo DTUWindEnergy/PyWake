@@ -22,7 +22,10 @@ from py_wake.deficit_models.eddy_viscosity_formulations import (
 )
 from py_wake.deflection_models import DeflectionModel
 from py_wake.ground_models.ground_models import GroundModel
-from py_wake.rotor_avg_models.rotor_avg_model import GridRotorAvg, RotorAvgModel
+from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel
+from py_wake.rotor_avg_models.simplified_gaussian_rotor_average_model import (
+    SimplifiedGaussianRotorAverageModel,
+)
 from py_wake.site import XRSite
 from py_wake.superposition_models import MaxSum, SuperpositionModel
 from py_wake.turbulence_models.quarton_and_ainslie import (
@@ -54,7 +57,7 @@ class EddyViscosityDeficitModel(WakeDeficitModel):
 
     def __init__(
         self,
-        rotorAvgModel: Optional[RotorAvgModel] = GridRotorAvg(),
+        rotorAvgModel: Optional[RotorAvgModel] = SimplifiedGaussianRotorAverageModel(),
         groundModel: Optional[GroundModel] = None,
         use_effective_ws: bool = False,
         use_effective_ti: bool = True,

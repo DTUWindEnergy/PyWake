@@ -268,7 +268,7 @@ def test_eddy_viscosity_no_formulation_or_lookup_table_raises_error() -> None:
 
 
 def test_eddy_viscosity_invalid_negative_ws_raises_error() -> None:
-    with pytest.raises(ValueError, match=r"negative wind speed.*not valid"):
+    with pytest.raises(ValueError, match=r"Negative wind speed.*not valid"):
         model = EddyViscosityDeficitModel()
         model.calc_deficit(
             WS_ilk=np.array([[[-0.01]]]),  # Invalid
@@ -283,7 +283,7 @@ def test_eddy_viscosity_invalid_negative_ws_raises_error() -> None:
 
 
 def test_eddy_viscosity_invalid_negative_ct_raises_error() -> None:
-    with pytest.raises(ValueError, match=r"negative thrust coefficient.*not valid"):
+    with pytest.raises(ValueError, match=r"Negative thrust coefficient.*not valid"):
         model = EddyViscosityDeficitModel()
         model.calc_deficit(
             WS_ilk=np.array([[[10.0]]]),
@@ -298,7 +298,7 @@ def test_eddy_viscosity_invalid_negative_ct_raises_error() -> None:
 
 
 def test_eddy_viscosity_invalid_high_ct_raises_error() -> None:
-    with pytest.raises(ValueError, match=r"higher than .* are not supported"):
+    with pytest.raises(ValueError, match=r"Thrust coefficient.*higher than.*are not supported"):
         model = EddyViscosityDeficitModel()
         model.calc_deficit(
             WS_ilk=np.array([[[10.0]]]),
@@ -313,7 +313,7 @@ def test_eddy_viscosity_invalid_high_ct_raises_error() -> None:
 
 
 def test_eddy_viscosity_invalid_negative_ti_raises_error() -> None:
-    with pytest.raises(ValueError, match=r"negative turbulence intensity.*not valid"):
+    with pytest.raises(ValueError, match=r"Negative turbulence intensity.*not valid"):
         model = EddyViscosityDeficitModel()
         model.calc_deficit(
             WS_ilk=np.array([[[10.0]]]),
@@ -337,7 +337,7 @@ def test_eddy_viscosity_wind_farm_model_calculates_correct_aep() -> None:
         y=np.array([0.0, 0.0, 200.0]),
         h=np.array([60.0, 80.0, 100.0]),
     )
-    assert np.isclose(results.aep().sum().values.item(), 46.952268386759414)
+    assert np.isclose(results.aep().sum().values.item(), 46.51592261454573)
 
 
 @pytest.mark.parametrize("use_mixing_function", [True, False])

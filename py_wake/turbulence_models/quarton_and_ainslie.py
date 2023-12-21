@@ -139,11 +139,17 @@ class QuartonAndAinslieTurbulenceModel(TurbulenceModel):
         else:
             ws_ref_ilk = WS_ilk
 
+        if np.min(ws_ref_ilk) < 0.0:
+            raise ValueError("Negative wind speed values are not valid.")
+
         ti_ref_ilk: np.ndarray
         if self.use_effective_ti:
             ti_ref_ilk = TI_eff_ilk
         else:
             ti_ref_ilk = TI_ilk
+
+        if np.min(ti_ref_ilk) < 0.0:
+            raise ValueError("Negative turbulence intensity values are not valid.")
 
         near_wake_length_ilk = self.calc_near_wake_length_ilk(
             ws_ref_ilk=ws_ref_ilk,
