@@ -125,8 +125,7 @@ class SimplifiedGaussianRotorAverageModel(RotorAvgModel):
         r = np.arange(-0.495, 0.5, 0.01)[na, na, :]
 
         mean_fractional_deficit = np.exp(
-            -1.0
-            * np.square(
+            -1.0 * np.square(
                 np.divide(
                     delta + r,
                     sigma,
