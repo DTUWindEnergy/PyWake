@@ -27,7 +27,7 @@ from py_wake.turbulence_models.stf import STF2005TurbulenceModel
 from py_wake.utils.gradients import autograd, cs, fd, plot_gradients
 from py_wake.utils.model_utils import get_models
 from py_wake.utils.profiling import profileit
-from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind
+from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind, EngineeringWindFarmModel
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.wind_turbines import WindTurbines
 from py_wake.wind_turbines._wind_turbines import WindTurbine
@@ -503,7 +503,7 @@ def test_compare_wfm():
     x, y = w.site.initial_position.T
 
     res = []
-    for cls in get_models(WindFarmModel):
+    for cls in get_models(EngineeringWindFarmModel):
         wfm = cls(w.site, w.windTurbines, w.wake_deficitModel, w.superpositionModel)
         res.append(wfm(x, y).aep().sum().item())
     npt.assert_allclose(res, res[0])

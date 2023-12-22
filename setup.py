@@ -63,6 +63,7 @@ setup(name='py_wake',
           'pyyaml',  # for reading yaml files
           'scipy',  # constraints
           'tqdm',  # progressbar
+          'joblib>=1.3',  # for minimalistic calibrated correction function
       ],
       extras_require={
           'test': [

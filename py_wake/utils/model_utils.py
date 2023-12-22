@@ -146,6 +146,7 @@ def get_exclude_dict():
     from py_wake.site.jit_streamline_distance import JITStreamlineDistance
     return {
         "WindFarmModel": ([EngineeringWindFarmModel], [], PropagateDownwind),
+        "EngineeringWindFarmModel": ([], [], PropagateDownwind),
         "DeficitModel": ([ConvectionDeficitModel, BlockageDeficitModel, WakeDeficitModel, XRLUTDeficitModel],
                          [RotorAvgModel], NOJDeficit),
         "WakeDeficitModel": ([ConvectionDeficitModel, XRLUTDeficitModel], [RotorAvgModel], NOJDeficit),

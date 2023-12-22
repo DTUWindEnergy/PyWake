@@ -23,7 +23,7 @@ from py_wake.utils.gradients import autograd
 from py_wake.utils.model_utils import get_models
 from py_wake.utils.numpy_utils import Numpy32
 from py_wake.utils.profiling import profileit
-from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative, EngineeringWindFarmModel
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80
 
@@ -118,7 +118,7 @@ def check_numpy32(wfm, name):
 
 @pytest.mark.parametrize('model_type,model',
                          [(mt.__name__, m) for mt in [
-                             WindFarmModel,
+                             EngineeringWindFarmModel,
                              WakeDeficitModel,
                              BlockageDeficitModel,
                              SuperpositionModel,

@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from py_wake import np
 from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit,\
-    BastankhahGaussianDeficit, NiayifarGaussianDeficit, BlondelSuperGaussianDeficit2020, BlondelSuperGaussianDeficit2023
+    BastankhahGaussianDeficit, NiayifarGaussianDeficit
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deflection_models.deflection_model import DeflectionModel
 from py_wake.examples.data.ParqueFicticio._parque_ficticio import ParqueFicticioSite
@@ -24,7 +24,7 @@ from py_wake.turbulence_models.turbulence_model import TurbulenceModel
 from py_wake.utils import gradients
 from py_wake.utils.gradients import autograd, plot_gradients, fd, cs
 from py_wake.utils.model_utils import get_models
-from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative, EngineeringWindFarmModel
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.site.jit_streamline_distance import JITStreamlineDistance
@@ -111,7 +111,7 @@ def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110,
             raise
 
 
-@pytest.mark.parametrize('model', get_models(WindFarmModel))
+@pytest.mark.parametrize('model', get_models(EngineeringWindFarmModel))
 def test_wind_farm_models(model):
     check_gradients(lambda site, wt: model(site, wt, IEA37SimpleBastankhahGaussianDeficit()), model.__name__)
 

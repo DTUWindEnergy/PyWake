@@ -1,6 +1,7 @@
 from py_wake.examples.data.hornsrev1 import V80, Hornsrev1Site
 from py_wake.wind_turbines._wind_turbines import WindTurbine
-from py_wake.wind_turbines.generic_wind_turbines import GenericWindTurbine, GenericTIRhoWindTurbine
+from py_wake.wind_turbines.generic_wind_turbines import GenericWindTurbine, GenericTIRhoWindTurbine,\
+    SimpleGenericWindTurbine
 from py_wake.examples.data import wtg_path
 from py_wake.examples.data.dtu10mw import DTU10MW
 from py_wake import np
@@ -121,3 +122,26 @@ def test_GenericTIRhoWindTurbine():
         plt.show()
     npt.assert_array_almost_equal([1.040377569594173, 1.3934596754744593, 1.6322037609434554], p10)
     npt.assert_array_almost_equal([0.7987480617157162, 0.7762418395479502, 0.7282996179383272], ct10)
+
+
+def test_SimpleGenericWindTurbine():
+    wt1 = SimpleGenericWindTurbine(name='SimpleGeneric', diameter=80, hub_height=70, power_norm=2000, ws_cutin=0)
+
+    wt2 = GenericWindTurbine(name='Generic', diameter=80, hub_height=70, power_norm=2000, max_cp=.48,
+                             constant_ct=0.75, turbulence_intensity=0,
+                             gear_loss_const=0, gear_loss_var=0, generator_loss=0, converter_loss=0)
+
+    ws = np.linspace(0, 25)
+
+    if 0:
+        wt_lst = [wt1, wt2, V80()]
+        for wt in wt_lst:
+            plt.plot(ws, wt.power(ws), label=wt.name())
+        plt.legend()
+        plt.figure()
+        for wt in wt_lst:
+            plt.plot(ws, wt.ct(ws), label=wt.name())
+        plt.show()
+
+    npt.assert_allclose(wt1.power(ws), wt2.power(ws), atol=85)
+    npt.assert_allclose(wt1.ct(ws), wt2.ct(ws), atol=0.031)

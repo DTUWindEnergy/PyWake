@@ -512,3 +512,21 @@ class PowerCtSurrogate(PowerCtFunction, FunctionSurrogates):
 
     def _power_ct(self, ws, run_only=slice(None), **kwargs):
         return FunctionSurrogates.__call__(self, ws, run_only, **kwargs)
+
+
+class PowerCtWindPro(PowerCtTabular):
+    def __init__(self, ws_power_cp_str, ws_ct_str, power_idle=0, ct_idle=0, method='linear',
+                 additional_models=default_additional_models):
+        def read(s):
+            lines = s.strip().replace(",", "").split("\n")
+            if lines[0].startswith('Vindhastighed'):
+                lines = lines[1:]
+            return np.array([l.split() for l in lines], dtype=float).T
+        ws, power, cp = read(ws_power_cp_str)
+        ws, ct = read(ws_ct_str)
+        ws_cutin = ws[0]
+        ws_cutout = ws[-1]
+
+        PowerCtTabular.__init__(self, ws, power, 'kW', ct, ws_cutin=ws_cutin, ws_cutout=ws_cutout,
+                                power_idle=power_idle, ct_idle=ct_idle, method=method,
+                                additional_models=additional_models)

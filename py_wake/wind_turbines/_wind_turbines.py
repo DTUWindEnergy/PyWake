@@ -379,8 +379,8 @@ class WindTurbine(WindTurbines):
             Wind turbine powerCtFunction
         """
         self._names = np.array([name])
-        self._diameters = np.array([diameter])
-        self._hub_heights = np.array([hub_height])
+        self._diameters = np.array([diameter], dtype=float)
+        self._hub_heights = np.array([hub_height], dtype=float)
         self.powerCtFunction = powerCtFunction
         for k, v in windTurbineFunctions.items():
             setattr(self, k, v)
