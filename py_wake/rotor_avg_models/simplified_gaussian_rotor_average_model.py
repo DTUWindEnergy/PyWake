@@ -73,14 +73,12 @@ class SimplifiedGaussianRotorAverageModel(RotorAvgModel):
         D_dst_ijl: np.ndarray,
         **kwargs: Any,
     ) -> np.ndarray:
-        res_ijlk = func(hcw_ijlk=hcw_ijlk * 0.0, dh_ijlk=dh_ijlk * 0.0, cw_ijlk=cw_ijlk * 0.0, **kwargs)
-
-        if not hasattr(func.__self__, "sigma_ijlk"):  # type: ignore
+        if not hasattr(func.__self__, "sigma_ijlk"):
             raise AttributeError(
-                f"'{func.__self__.__class__.__name__}' has no attribute 'sigma_ijlk', "  # type: ignore
+                f"'{func.__self__.__class__.__name__}' has no attribute 'sigma_ijlk', "
                 f"which is needed by the 'SimplifiedGaussianRotorAverageModel'"
             )
-        sigma_ijlk = func.__self__.sigma_ijlk(**kwargs)  # type: ignore
+        sigma_ijlk = func.__self__.sigma_ijlk(**kwargs)
 
         rotor_average_factor_ijlk = self._interpolate_rotor_average_factor(
             cw_ijlk=cw_ijlk,
@@ -88,7 +86,21 @@ class SimplifiedGaussianRotorAverageModel(RotorAvgModel):
             sigma_ijlk=sigma_ijlk,
         )
 
-        return res_ijlk * rotor_average_factor_ijlk
+        return np.where(
+            np.isclose(D_dst_ijl, 0.0),
+            func(
+                hcw_ijlk=hcw_ijlk,
+                dh_ijlk=dh_ijlk,
+                cw_ijlk=cw_ijlk,
+                **kwargs,
+            ),
+            func(
+                hcw_ijlk=hcw_ijlk * 0.0,
+                dh_ijlk=dh_ijlk * 0.0,
+                cw_ijlk=cw_ijlk * 0.0,
+                **kwargs,
+            ) * rotor_average_factor_ijlk,
+        )
 
     def _interpolate_rotor_average_factor(
         self,
