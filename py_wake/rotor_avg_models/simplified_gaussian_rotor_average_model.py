@@ -112,7 +112,7 @@ class SimplifiedGaussianRotorAverageModel(RotorAvgModel):
             (dimensionless_offset * product_shape, dimensionless_sigma * product_shape), axis=-1
         )
         interpolator_input_shape = interpolator_input.shape
-        flat_dim = np.prod(interpolator_input_shape[:-1])
+        flat_dim = int(np.prod(interpolator_input_shape[:-1]))
         interpolator_input = interpolator_input.reshape((flat_dim, 2), order="C")
 
         rotor_average_factor = self._interpolator(interpolator_input)
