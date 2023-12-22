@@ -1,5 +1,5 @@
 from py_wake.wind_turbines._wind_turbines import WindTurbine
-from py_wake.wind_turbines.power_ct_functions import SimpleYawModel, PowerCtTabular, PowerCtNDTabular
+from py_wake.wind_turbines.power_ct_functions import SimpleYawModel, PowerCtTabular, PowerCtNDTabular, PowerCtFunctions
 from py_wake import np
 from py_wake.utils.generic_power_ct_curves import standard_power_ct_curve
 
@@ -133,3 +133,59 @@ class GenericTIRhoWindTurbine(WindTurbine):
                                 if v is not None},
             additional_models=additional_models)
         WindTurbine.__init__(self, name, diameter, hub_height, powerCtFunction)
+
+
+class SimpleGenericWindTurbine(WindTurbine):
+    def __init__(self, name, diameter, hub_height, power_norm, max_cp=.48, constant_ct=0.75, air_density=1.225,
+                 ws_cutin=4, ws_cutout=25, additional_models=[SimpleYawModel()]):
+        """Wind turbine with generic standard power curve based on max_cp, rated power and an empirical ct decay.
+
+        The model is formulated in
+        Sørensen, J.N.; Larsen, G.C. A Minimalistic Prediction Model to Determine Energy Production and
+        Costs of Offshore Wind Farms. Energies 2021, 14, 448. https://doi.org/10.3390/en14020448
+
+
+        Parameters
+        ----------
+        name : str
+            Wind turbine name
+        diameter : int or float
+            Diameter of wind turbine
+        power_norm : int or float
+            Nominal power [kW]
+        diameter : int or float
+            Rotor diameter [m]
+        air_density : float optional
+            Density of air [kg/m^3], defualt is 1.225
+        max_cp : float
+            Maximum power coefficient
+        constant_ct : float, optional
+            Ct value in constant-ct region
+        ws_cutin : number or None, optional
+            if number, then the range [0,ws_cutin[ will be set to power_idle and ct_idle
+        ws_cutout : number or None, optional
+            if number, then the range ]ws_cutout,100] will be set to power_idle and ct_idle
+        additional_models : list, optional
+            list of additional models.
+        """
+
+        power_norm = power_norm * 1000
+        D = diameter
+        Ur = (8 * power_norm / (np.pi * air_density * max_cp * D**2))**(1 / 3)  # [m/s] Rated wind speed, eq 4
+        self.max_cp = max_cp
+        self.ws_cutin = ws_cutin
+        self.ws_cutout = ws_cutout
+        self.air_density = air_density
+
+        def power(ws):
+            # reformulation of eq 1 + 2 + 5
+            ws = np.asarray(ws)
+            return np.where((ws_cutin <= ws) & (ws <= ws_cutout),
+                            np.minimum(power_norm / (Ur**3 - ws_cutin**3) * (ws**3 - ws_cutin**3), power_norm), 0)
+
+        def ct(ws):
+            # eq 6. The paper states 3/2 instead of 3.2 which is either a typo or an initial guess
+            return np.minimum(constant_ct, constant_ct * (Ur / np.asarray(ws))**(3.2))
+        WindTurbine.__init__(self, name, diameter, hub_height,
+                             powerCtFunction=PowerCtFunctions(power_function=power, power_unit='w', ct_function=ct,
+                                                              additional_models=additional_models))
