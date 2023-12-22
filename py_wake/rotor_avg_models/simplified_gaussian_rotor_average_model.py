@@ -87,7 +87,7 @@ class SimplifiedGaussianRotorAverageModel(RotorAvgModel):
         )
 
         return np.where(
-            np.isclose(D_dst_ijl, 0.0),
+            np.isclose(D_dst_ijl[:, :, :, na], 0.0),
             func(
                 hcw_ijlk=hcw_ijlk,
                 dh_ijlk=dh_ijlk,
