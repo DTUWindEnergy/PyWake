@@ -80,27 +80,30 @@ class SimplifiedGaussianRotorAverageModel(RotorAvgModel):
             )
         sigma_ijlk = func.__self__.sigma_ijlk(**kwargs)
 
-        rotor_average_factor_ijlk = self._interpolate_rotor_average_factor(
+        result_ijlk = func(
+            hcw_ijlk=hcw_ijlk * 0.0,
+            dh_ijlk=dh_ijlk * 0.0,
+            cw_ijlk=cw_ijlk * 0.0,
+            **kwargs,
+        ) * self._interpolate_rotor_average_factor(
             cw_ijlk=cw_ijlk,
             D_dst_ijl=D_dst_ijl,
             sigma_ijlk=sigma_ijlk,
         )
 
-        return np.where(
-            np.isclose(D_dst_ijl[:, :, :, na], 0.0),
-            func(
-                hcw_ijlk=hcw_ijlk,
-                dh_ijlk=dh_ijlk,
-                cw_ijlk=cw_ijlk,
-                **kwargs,
-            ),
-            func(
-                hcw_ijlk=hcw_ijlk * 0.0,
-                dh_ijlk=dh_ijlk * 0.0,
-                cw_ijlk=cw_ijlk * 0.0,
-                **kwargs,
-            ) * rotor_average_factor_ijlk,
-        )
+        if np.any(np.isclose(D_dst_ijl[:, :, :, na], 0.0)):
+            result_ijlk = np.where(
+                np.isclose(D_dst_ijl[:, :, :, na], 0.0),
+                func(
+                    hcw_ijlk=hcw_ijlk,
+                    dh_ijlk=dh_ijlk,
+                    cw_ijlk=cw_ijlk,
+                    **kwargs,
+                ),
+                result_ijlk,
+            )
+
+        return result_ijlk
 
     def _interpolate_rotor_average_factor(
         self,
