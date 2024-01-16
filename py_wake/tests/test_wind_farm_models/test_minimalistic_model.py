@@ -16,7 +16,7 @@ def test_MinimalisticWindFarmModel():
 
     site = Hornsrev1Site(ti=ti)
     x, y = site.initial_position.T
-    for wfm, eff, ref in [(MinimalisticWindFarmModel(site, wt, 3, 55), 1, 547.7503885327657),
+    for wfm, eff, ref in [(MinimalisticWindFarmModel(site, wt, 3, 55), 1, 547.179521),
                           (MinimalisticWindFarmModel(site, wt, CorrectionFactorCalibrated(), 55), .91, 586.5399377399355)]:
         res = wfm.aep(x, y) * eff
         npt.assert_allclose(res, ref, rtol=0.001)

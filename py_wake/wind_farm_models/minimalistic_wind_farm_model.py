@@ -126,12 +126,12 @@ class MinimalisticPredictionModel():
         def get_Py(Aw, Aw_out):  # Yearly power
             return alpha * Aw**3 * gamma(1 + 3 / kw) * (gammainc(1 + 3 / kw, (Ur / Aw)**kw) - gammainc(1 + 3 / kw, (Uin / Aw)**kw)) +\
                 beta * (np.exp(-(Uin / Aw)**kw) - np.exp(-(Ur / Aw)**kw)) + \
-                Pg * np.exp(-(Ur / Aw)**kw) - np.exp(-(Uout / Aw_out)**kw)
+                Pg * (np.exp(-(Ur / Aw)**kw) - np.exp(-(Uout / Aw_out)**kw))
 
         P_y = get_Py(Aw, Aw)
 
         # Mean velocity at hub height with wake effects
-        z0_lo = z0 * (1 - D / (2 * H))**(nu / (1 + nu))  # ???
+        z0_lo = z0  # / (1 - D / (2 * H))**(nu / (1 + nu))  # ???
         Uh = G / (1 + gam * np.sqrt(Ctau + (kappa / np.log(H / z0_lo))**2) / kappa)
 
         # eq 18. The paper states 3/2 instead of 3.2 which is either a typo or an initial guess
@@ -238,7 +238,7 @@ def main():
 
         site = Hornsrev1Site(ti=ti)
         x, y = site.initial_position.T
-        for wfm, eff, ref in [(MinimalisticWindFarmModel(site, wt, 3, 55), 1, 547.7503885327657),
+        for wfm, eff, ref in [(MinimalisticWindFarmModel(site, wt, 3, 55), 1, 547.179521),
                               (MinimalisticWindFarmModel(site, wt, CorrectionFactorCalibrated(), 55), .91, 586.5399377399355),
                               (NOJ(site, wt, k=0.032), .91, None),
                               (NOJLocal(site, wt), .91, None),
