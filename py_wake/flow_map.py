@@ -139,7 +139,7 @@ class FlowMap(FlowBox):
         return self.aep_xylk(normalize_probabilities, with_wake_loss, **wt_kwargs).sum(['wd', 'ws'])
 
     def plot(self, data, clabel, levels=100, cmap=None, plot_colorbar=True, plot_windturbines=True,
-             normalize_with=1, ax=None):
+             normalize_with=1, ax=None, norm=None):
         """Plot data as contouf map
 
         Parameters
@@ -171,12 +171,12 @@ class FlowMap(FlowBox):
                 y = self.y.values
                 x = np.zeros_like(y) + self.plane[1]
                 z = self.simulationResult.windFarmModel.site.elevation(x, y)
-                c = ax.contourf(self.X / n, (self.Y + z) / n, data.isel(x=0), levels=levels, cmap=cmap)
+                c = ax.contourf(self.X / n, (self.Y + z) / n, data.isel(x=0), levels=levels, cmap=cmap, norm=norm)
             elif self.plane[0] == 'XZ':
                 x = self.x.values
                 y = np.zeros_like(x) + self.plane[1]
                 z = self.simulationResult.windFarmModel.site.elevation(x, y)
-                c = ax.contourf(self.X / n, (self.Y + z) / n, data.isel(y=0), levels=levels, cmap=cmap)
+                c = ax.contourf(self.X / n, (self.Y + z) / n, data.isel(y=0), levels=levels, cmap=cmap, norm=norm)
 
             if plot_colorbar:
                 plt.colorbar(c, label=clabel, ax=ax)
@@ -189,7 +189,7 @@ class FlowMap(FlowBox):
 
             # xarray gives strange levels
             # c = data.isel(h=0).plot(levels=levels, cmap=cmap, ax=ax, add_colorbar=plot_colorbar)
-            c = ax.contourf(self.X / n, self.Y / n, data.squeeze().values, levels=levels, cmap=cmap)
+            c = ax.contourf(self.X / n, self.Y / n, data.squeeze().values, levels=levels, cmap=cmap, norm=norm)
             if plot_colorbar:
                 plt.colorbar(c, label=clabel, ax=ax)
         else:
@@ -249,7 +249,7 @@ class FlowMap(FlowBox):
                                     wd=self.wd.values, yaw=yaw, tilt=tilt, normalize_with=normalize_with, ax=ax)
 
     def plot_wake_map(self, levels=100, cmap=None, plot_colorbar=True, plot_windturbines=True,
-                      normalize_with=1, ax=None):
+                      normalize_with=1, ax=None, norm=None):
         """Plot effective wind speed contourf map
 
         Parameters
@@ -272,7 +272,7 @@ class FlowMap(FlowBox):
 
         return self.plot(WS_eff, clabel='wind speed [m/s]',
                          levels=levels, cmap=cmap, plot_colorbar=plot_colorbar,
-                         plot_windturbines=plot_windturbines, normalize_with=normalize_with, ax=ax)
+                         plot_windturbines=plot_windturbines, normalize_with=normalize_with, ax=ax, norm=norm)
 
     def plot_ti_map(self, levels=100, cmap=None, plot_colorbar=True, plot_windturbines=True, ax=None):
         """Plot effective turbulence intensity contourf map
