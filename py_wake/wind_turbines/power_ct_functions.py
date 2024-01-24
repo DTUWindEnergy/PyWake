@@ -496,10 +496,13 @@ class CubePowerSimpleCt(PowerCtFunctions):
 
 
 class PowerCtSurrogate(PowerCtFunction, FunctionSurrogates):
-    def __init__(self, power_surrogate, power_unit, ct_surrogate, input_parser, additional_models=[]):
+    def __init__(self, power_surrogate, power_unit, ct_surrogate, input_parser, additional_models=[], ws_cutin=None, ws_cutout=None):
 
         assert (not hasattr(power_surrogate, 'input_channel_names') or
                 power_surrogate.input_channel_names == ct_surrogate.input_channel_names)
+
+        self.ws_cutin = ws_cutin
+        self.ws_cutout = ws_cutout
 
         PowerCtFunction.__init__(
             self,
@@ -511,7 +514,12 @@ class PowerCtSurrogate(PowerCtFunction, FunctionSurrogates):
         FunctionSurrogates.__init__(self, [power_surrogate, ct_surrogate], input_parser, output_keys=['power', 'ct'])
 
     def _power_ct(self, ws, run_only=slice(None), **kwargs):
-        return FunctionSurrogates.__call__(self, ws, run_only, **kwargs)
+        y = FunctionSurrogates.__call__(self, ws, run_only, **kwargs)
+        if self.ws_cutin:
+            y = np.where(ws < self.ws_cutin, 0.0, y)
+        if self.ws_cutout:
+            y = np.where(ws > self.ws_cutout, 0.0, y)
+        return y
 
 
 class PowerCtWindPro(PowerCtTabular):
