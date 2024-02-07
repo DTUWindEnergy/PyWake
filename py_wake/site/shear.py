@@ -43,6 +43,7 @@ class LogShear(Shear):
         self.interp_method = interp_method
 
     def __call__(self, localWind, WS_ilk, h):
+        assert np.all(h > 0), f"LogShear invalid at z=0"
         z0 = self.z0.interp_ilk(localWind.coords, interp_method=self.interp_method)
         return np.log(h[:, na, na] / z0) / np.log(self.h_ref / z0) * WS_ilk
 

@@ -33,12 +33,4 @@ def farm_area(wt_x, wt_y):
         wind farm area [m^2]
     """
 
-    coordinates = np.array([wt_x, wt_y]).T
-
-    def PolyArea2D(pts):
-        lines = np.hstack([pts, np.roll(pts, -1, axis=0)])
-        area = 0.5 * abs(sum(x1 * y2 - x2 * y1 for x1, y1, x2, y2 in lines))
-        return area
-
-    corners_hull = ConvexHull(points=coordinates).vertices  # [-] Coordinates of the corners of the convex hull
-    return PolyArea2D(coordinates[corners_hull])
+    return ConvexHull(points=np.array([wt_x, wt_y]).T).volume
