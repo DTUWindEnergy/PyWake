@@ -38,16 +38,6 @@ from py_wake.wind_turbines import WindTurbines
 DEFAULT_MAXIMUM_WAKE_DISTANCE: Final[float] = 50.0
 
 
-class EddyViscosityNearWakeUserWarning(UserWarning):
-    """Warning when using the EV model at distances below two rotors.
-
-    The EV model does not have a defined solution for the near wake,
-    within two rotor diameters of the source turbine.
-    """
-
-    pass
-
-
 class EddyViscosityDeficitModel(WakeDeficitModel):
     """Eddy Viscosity (EV) wake deficit model.
 
@@ -202,24 +192,21 @@ class EddyViscosityDeficitModel(WakeDeficitModel):
         else:
             ws_ref_ilk = WS_ilk
 
-        # Convert dimensionless deficit to dimensional deficit in 'm/s'
-        deficit_ijlk = ws_ref_ilk[:, na] * fractional_deficit_ijlk
-
         # Limit wake impacts to the maximum wake distance
-        deficit_ijlk = np.where(dw_norm_ijlk <= self.maximum_wake_distance, deficit_ijlk, 0.0)
+        fractional_deficit_ijlk = np.where(
+            dw_norm_ijlk <= self.maximum_wake_distance,
+            fractional_deficit_ijlk,
+            0.0,
+        )
 
         # Filter to compute deficit only for positive downstream distances
-        deficit_ijlk = deficit_ijlk * np.logical_or(dw_norm_ijlk > 0.0, np.isclose(dw_norm_ijlk, 0.0))
+        fractional_deficit_ijlk = fractional_deficit_ijlk * np.logical_or(
+            dw_norm_ijlk > 0.0,
+            np.isclose(dw_norm_ijlk, 0.0),
+        )
 
-        if np.any(np.logical_and(dw_norm_ijlk < 1.95, fractional_deficit_ijlk > 0.05)):
-            warnings.warn(
-                message=(
-                    "The Eddy Viscosity wake model is not appropriate for turbine spacings "
-                    "less than two rotor diameters; the solution at two rotor diameters was "
-                    "used for smaller distances."
-                ),
-                category=EddyViscosityNearWakeUserWarning,
-            )
+        # Convert dimensionless deficit to dimensional deficit in 'm/s'
+        deficit_ijlk = ws_ref_ilk[:, na] * fractional_deficit_ijlk
 
         return deficit_ijlk
 
