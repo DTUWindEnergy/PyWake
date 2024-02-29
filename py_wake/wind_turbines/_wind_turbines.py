@@ -256,7 +256,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         ax.plot(ws, power, label='Power')
         ax.grid()
         t = wt_kwargs.get('type', 0)
-        ax.set_title(self.name(type=0))
+        ax.set_title(self.name(type=t))
         ax.set_xlabel('Wind speed [m/s]')
         ax.set_ylabel('Power [W]')
         ax2 = ax.twinx()
