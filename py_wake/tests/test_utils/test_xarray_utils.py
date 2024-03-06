@@ -1,7 +1,10 @@
-from py_wake.examples.data.hornsrev1 import Hornsrev1Site
+from py_wake.examples.data.hornsrev1 import Hornsrev1Site, V80
 from py_wake import np
 import pytest
 import pandas as pd
+import xarray as xr
+from py_wake.site.xrsite import XRSite
+from py_wake.tests import npt
 
 
 @pytest.mark.parametrize(['ti', 'dims'], [
@@ -67,3 +70,26 @@ def test_add_ilk_time_wrong_dim(shape):
 
     with pytest.raises(ValueError):
         lw.add_ilk('TI', np.full(shape, 0.1))
+
+
+def test_time_dims():
+    time = np.arange(5)
+    WS = np.array([[9, 8, 10, 11, 12],
+                   [9, 8, 10, 11, 12]])
+
+    # local WD in shape x, time (2, 5)
+    WD = np.array([[20, 25, 30, 45, 50],
+                   [20, 25, 30, 45, 50]])
+
+    ds = xr.Dataset(
+        data_vars=dict(TI=0.06, WS=(['x', "time"], WS), WD=(['x', "time"], WD), P=1 / len(time)),
+        coords=dict(x=("x", [0, 1000]), time=time),
+    )
+
+    site = XRSite(ds=ds, interp_method='linear')
+    lw = site.local_wind(x=0, y=0, wd=[0, 0, 0], ws=[0, 0, 0], time=[1, 2, 0])
+    npt.assert_array_equal(lw['WS_ilk'].flatten(), [8, 10, 9])
+    npt.assert_array_equal(lw['WD_ilk'].flatten(), [25, 30, 20])
+    lw = site.local_wind(x=0, y=0, wd=[0, 0, 0], ws=[0, 0, 0], time=[1.25])
+    npt.assert_array_equal(lw['WS_ilk'].flatten(), [8.5])
+    npt.assert_array_equal(lw['WD_ilk'].flatten(), [26.25])
