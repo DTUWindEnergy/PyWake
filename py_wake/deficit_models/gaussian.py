@@ -47,11 +47,7 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
     def ct_func(self, ct_ilk, **_):
         return ct_ilk[:, na]
 
-    def _calc_deficit(self, D_src_il, dw_ijlk, ct_ilk, **kwargs):
-        if self.WS_key == 'WS_jlk':
-            WS_ref_ijlk = kwargs[self.WS_key][na]
-        else:
-            WS_ref_ijlk = kwargs[self.WS_key][:, na]
+    def _calc_deficit(self, D_src_il, dw_ijlk, ct_ilk, WS_ref_ijlk, **kwargs):
 
         # dimensional wake expansion
         sigma_sqr_ijlk = (self.sigma_ijlk(D_src_il=D_src_il, dw_ijlk=dw_ijlk, ct_ilk=ct_ilk, **kwargs))**2
@@ -83,7 +79,7 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
             raise NotImplementedError(
                 "calc_deficit_convection (WeightedSum) cannot be used in combination with GroundModels")
         WS_ref_ijlk, sigma_sqr_ijlk, deficit_centre_ijlk, ctx_ijlk = self._calc_deficit(
-            D_src_il, dw_ijlk, ct_ilk, **kwargs)
+            D_src_il, dw_ijlk, ct_ilk, **kwargs, **self.get_WS_ref_kwargs(kwargs))
         # Convection velocity
         uc_ijlk = WS_ref_ijlk * (1. - self.ct2a(ctx_ijlk * D_src_il[:, na, :, na]**2 / (8. * sigma_sqr_ijlk)))
         sigma_sqr_ijlk = np.broadcast_to(sigma_sqr_ijlk, deficit_centre_ijlk.shape)
@@ -716,11 +712,11 @@ def main():
                                  dw_ijlk=x.reshape((1, len(x), 1, 1)),
                                  cw_ijlk=y.reshape((1, len(y), 1, 1)), ct_ilk=ct_ilk,
                                  wake_radius_ijlk=tj_wake_width)
-        tjg_def = tjg.calc_deficit(WS_ilk=WS_ilk, WS_eff_ilk=WS_ilk, D_src_il=D_src_il,
+        tjg_def = tjg.calc_deficit(WS_ref_ijlk=WS_ilk[:, na], D_src_il=D_src_il,
                                    TI_ilk=TI_ilk, TI_eff_ilk=TI_eff_ilk,
                                    dw_ijlk=x.reshape((1, len(x), 1, 1)),
                                    cw_ijlk=y.reshape((1, len(y), 1, 1)), ct_ilk=ct_ilk)
-        gau_def = gau.calc_deficit(WS_ilk=WS_ilk, WS_eff_ilk=WS_ilk, D_src_il=D_src_il,
+        gau_def = gau.calc_deficit(WS_ref_ijlk=WS_ilk[:, na], D_src_il=D_src_il,
                                    TI_ilk=TI_ilk, TI_eff_ilk=TI_eff_ilk,
                                    dw_ijlk=x.reshape((1, len(x), 1, 1)),
                                    cw_ijlk=y.reshape((1, len(y), 1, 1)), ct_ilk=ct_ilk)

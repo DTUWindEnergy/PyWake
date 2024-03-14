@@ -30,7 +30,7 @@ class DeficitModel(ABC, RotorAvgAndGroundModelContainer):
         args4deficit |= method_args(self._calc_layout_terms)
         args4deficit |= self.additional_args
 
-        return args4deficit
+        return args4deficit - {'WS_ref_ilk', 'WS_ref_ijlk'}
 
     def _calc_layout_terms(self, **_):
         """Calculate layout dependent terms, which is not updated during simulation"""
@@ -60,8 +60,18 @@ class DeficitModel(ABC, RotorAvgAndGroundModelContainer):
     #     else:
     #         return self.calc_deficit(yaw_ilk=yaw_ilk, **kwargs)
 
+    def get_WS_ref_kwargs(self, kwargs):
+        WS_key = self.WS_key
+        if WS_key not in kwargs:
+            return {}
+        if WS_key == 'WS_jlk':
+            return {'WS_ref_ijlk': kwargs[WS_key][na]}
+        else:
+            return {'WS_ref_ilk': kwargs[WS_key],
+                    'WS_ref_ijlk': kwargs[WS_key][:, na]}
+
     def __call__(self, **kwargs):
-        return self.wrap(self.calc_deficit)(**kwargs)
+        return self.wrap(self.calc_deficit)(**kwargs, **self.get_WS_ref_kwargs(kwargs))
 
     def calc_layout_terms(self, **kwargs):
         return self.wrap(self._calc_layout_terms, '_calc_layout_terms')(**kwargs)
@@ -72,7 +82,8 @@ class WakeRadiusTopHat():
 
 
 class BlockageDeficitModel(DeficitModel):
-    def __init__(self, upstream_only=False, superpositionModel=None, rotorAvgModel=None, groundModel=None):
+    def __init__(self, upstream_only=False, superpositionModel=None, rotorAvgModel=None, groundModel=None,
+                 use_effective_ws=False):
         """Parameters
         ----------
         upstream_only : bool, optional
@@ -81,7 +92,8 @@ class BlockageDeficitModel(DeficitModel):
             Superposition model used to sum blockage deficit.
             If None, the superposition model of the wind farm model is used
         """
-        DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel)
+        DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
+                              use_effective_ws=use_effective_ws)
         self.upstream_only = upstream_only
         self.superpositionModel = superpositionModel
 

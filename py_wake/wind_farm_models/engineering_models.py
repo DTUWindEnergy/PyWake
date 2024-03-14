@@ -140,7 +140,8 @@ class EngineeringWindFarmModel(WindFarmModel):
             deficit *= (dw_ijlk > rotor_pos)
             blockage = None
         elif (self.blockage_deficitModel != self.wake_deficitModel):
-            blockage = self.blockage_deficitModel.calc_blockage_deficit(dw_ijlk=dw_ijlk, **kwargs)
+            blockage = self.blockage_deficitModel.calc_blockage_deficit(
+                dw_ijlk=dw_ijlk, WS_ref_ilk=kwargs[self.blockage_deficitModel.WS_key], **kwargs)
             deficit *= (dw_ijlk > rotor_pos)
         else:
             # Same model for both wake and blockage
@@ -427,15 +428,16 @@ class EngineeringWindFarmModel(WindFarmModel):
                 raise ValueError(f"WindFarmModel an got unexpected keyword argument: '{n}'")
 
 
-class PropagateDownwind(EngineeringWindFarmModel):
+class PropagateUpDownIterative(EngineeringWindFarmModel):
     """Downstream wake deficits calculated and propagated in downstream direction.
     Very fast, but ignoring blockage effects
     """
 
     def __init__(self, site, windTurbines, wake_deficitModel,
                  superpositionModel=LinearSum(),
+                 blockage_deficitModel=None,
                  deflectionModel=None, turbulenceModel=None, rotorAvgModel=None,
-                 inputModifierModels=[]):
+                 inputModifierModels=[], convergence_tolerance=1e-6):
         """Initialize flow model
 
         Parameters
@@ -458,13 +460,66 @@ class PropagateDownwind(EngineeringWindFarmModel):
             Model describing the amount of added turbulence in the wake
         """
         EngineeringWindFarmModel.__init__(self, site, windTurbines, wake_deficitModel, superpositionModel, rotorAvgModel,
-                                          blockage_deficitModel=None, deflectionModel=deflectionModel,
+                                          blockage_deficitModel=blockage_deficitModel, deflectionModel=deflectionModel,
                                           turbulenceModel=turbulenceModel, inputModifierModels=inputModifierModels)
+        self.convergence_tolerance = convergence_tolerance
 
-    def _calc_wt_interaction(self, wd,
-                             WS_eff_ilk, TI_eff_ilk,
-                             D_i,
-                             I, L, K, **kwargs):
+    def _calc_wt_interaction(self, wd, WS_eff_ilk,
+                             **kwargs):
+        WS_ilk = kwargs.pop('WS_ilk')
+        blockage_deficit = WS_ilk * 0.
+        I = kwargs['I']
+        dw_order_indices_ld = self.site.distance.dw_order_indices(wd)[:, 0]
+
+        if self.blockage_deficitModel:
+            # use linear sum as default blockage superpositionModel
+            alt_model = [self.superpositionModel, LinearSum()][isinstance(
+                self.superpositionModel, (WeightedSum, CumulativeWakeSum))]
+            self.blockage_superpositionModel = self.blockage_deficitModel.superpositionModel or alt_model
+
+        WS_eff_ilk_last = WS_ilk
+        for j in tqdm(range(I), disable=I <= 1 or not self.verbose, desc="Calculate flow interaction", unit="wt"):
+            # wake deficit
+            self.direction = 'down'
+            WS_eff_wake_ilk, TI_eff_ilk, ct_ilk, res_kwargs = self._propagate_deficit(
+                wd, dw_order_indices_ld,
+                WS_ilk - blockage_deficit, **kwargs)
+            wake_deficit = (WS_ilk - blockage_deficit) - WS_eff_wake_ilk
+
+            # blockage deficit
+            self.direction = 'up'
+            WS_eff_blockage_ilk, TI_eff_ilk, ct_ilk, res_kwargs = self._propagate_deficit(
+                wd, dw_order_indices_ld[:, ::-1],
+                WS_ilk - wake_deficit, **kwargs)
+            blockage_deficit = (WS_ilk - wake_deficit) - WS_eff_blockage_ilk
+            WS_eff_ilk = WS_ilk - wake_deficit - blockage_deficit
+
+            # Check if converged
+            diff_ilk = cabs(WS_eff_ilk_last - WS_eff_ilk)
+            max_diff = np.max(diff_ilk.max(0))
+
+            if max_diff < 1e-6:
+                break
+            WS_eff_ilk_last = WS_eff_ilk
+        return WS_eff_ilk, TI_eff_ilk, ct_ilk, res_kwargs
+
+    def _calc_deficit(self, dw_ijlk, **kwargs):
+        """Calculate wake (and blockage) deficit"""
+        if self.direction == 'up':
+            deficit = dw_ijlk * 0
+            deficit, blockage = self._add_blockage(deficit, dw_ijlk, **kwargs)
+        else:
+            deficit = self.wake_deficitModel(dw_ijlk=dw_ijlk, **kwargs)
+            blockage = deficit * 0
+
+        return deficit, blockage
+
+    def _propagate_deficit(self, wd,
+                           wt_order_indices_ld,
+                           WS_ilk,
+                           TI_eff_ilk,
+                           D_i,
+                           I, L, K, **kwargs):
         """
         Additional suffixes:
 
@@ -474,6 +529,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
         """
 
         deficit_nk = []
+        blockage_nk = []
         uc_nk = []
         sigma_sqr_nk = []
         cw_nk = []
@@ -485,9 +541,8 @@ class PropagateDownwind(EngineeringWindFarmModel):
             _K = np.shape(v_ilk)[2]
             return np.broadcast_to(np.asarray(v_ilk).astype(dtype), (I, L, _K)).reshape((I * L, _K))
 
-        WS_ilk, WD_ilk = [kwargs[k + '_ilk'] for k in ['WS', 'WD']]
-
-        WS_mk, WD_mk, TI_mk, h_mk = [ilk2mk(kwargs[k + '_ilk']) for k in ['WS', 'WD', 'TI', 'h']]
+        WS_mk = ilk2mk(WS_ilk)
+        WD_mk, TI_mk, h_mk = [ilk2mk(kwargs[k + '_ilk']) for k in ['WD', 'TI', 'h']]
         WS_eff_mk, TI_eff_mk = [], []
         yaw_mk = ilk2mk(kwargs.get('yaw_ilk', [[[0]]]))
         tilt_mk = ilk2mk(kwargs.get('tilt_ilk', [[[0]]]))
@@ -501,13 +556,11 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
         i_wd_l = np.arange(L).astype(int)
 
-        dw_order_indices_ld = self.site.distance.dw_order_indices(wd)[:, 0]
-
         wt_kwargs = self.get_wt_kwargs(TI_eff_ilk, kwargs)
 
         # Iterate over turbines in down wind order
         for j in tqdm(range(I), disable=I <= 1 or not self.verbose, desc="Calculate flow interaction", unit="wt"):
-            i_wt_l = dw_order_indices_ld[:, j]
+            i_wt_l = wt_order_indices_ld[:, j]
             # current wt (j'th most upstream wts for all wdirs)
             m = i_wt_l * L + i_wd_l
 
@@ -544,6 +597,8 @@ class PropagateDownwind(EngineeringWindFarmModel):
                                           'D_xx': np.array(D_mk)})
 
                 WS_eff_lk = WS_mk[m] - self.superpositionModel.superpose_deficit(**sp_kwargs)
+                if self.blockage_deficitModel:
+                    WS_eff_lk -= self.blockage_superpositionModel(get_value2WT(blockage_nk))
                 WS_eff_mk.append(WS_eff_lk)
 
                 if self.turbulenceModel:
@@ -576,7 +631,7 @@ class PropagateDownwind(EngineeringWindFarmModel):
             ct_jlk.append(ct_lk)
 
             if j < I - 1 or len(self.inputModifierModels):
-                i_dw = dw_order_indices_ld[:, j + 1:]
+                i_dw = wt_order_indices_ld[:, j + 1:]
 
                 # Calculate required args4deficit parameters
                 arg_funcs = {'WS_ilk': lambda: WS_mk[m][na],
@@ -589,11 +644,11 @@ class PropagateDownwind(EngineeringWindFarmModel):
                              'D_src_il': lambda: D_i[i_wt_l][na],
                              'yaw_ilk': lambda: yaw_mk[m][na],
                              'tilt_ilk': lambda: tilt_mk[m][na],
-                             'D_dst_ijl': lambda: D_i[dw_order_indices_ld[:, j + 1:]].T[na],
+                             'D_dst_ijl': lambda: D_i[wt_order_indices_ld[:, j + 1:]].T[na],
                              'h_ilk': lambda: h_mk[m][na],
                              'ct_ilk': lambda: ct_lk[na],
                              'IJLK': lambda: (1, i_dw.shape[1], L, K),
-                             'WD_ilk': lambda: ilk2mk(WD_ilk)[m][na],
+                             'WD_ilk': lambda: WD_mk[m][na],
                              **{k + '_ilk': lambda k=k: ilk2mk(kwargs[k + '_ilk'])[m][na] for k in 'xyh'},
                              'type_il': lambda: kwargs['type_i'][i_wt_l][na]
 
@@ -657,8 +712,10 @@ class PropagateDownwind(EngineeringWindFarmModel):
                         sigma_sqr_nk.append(sigma_sqr[0])
                         deficit = np.zeros_like(sigma_sqr)
                 else:
-                    deficit, _ = self._calc_deficit(**model_kwargs)
+                    deficit, blockage = self._calc_deficit(**model_kwargs)
                 deficit_nk.append(deficit[0])
+                if self.blockage_deficitModel:
+                    blockage_nk.append(blockage[0])
 
                 if self.turbulenceModel:
 
@@ -667,20 +724,64 @@ class PropagateDownwind(EngineeringWindFarmModel):
 
         WS_eff_jlk, ct_jlk = np.array(WS_eff_mk), np.array(ct_jlk)
 
-        dw_inv_indices = (np.argsort(dw_order_indices_ld, 1).T * L + np.arange(L).astype(int)[na]).flatten()
-        WS_eff_ilk = WS_eff_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))
+        wt_inv_indices = (np.argsort(wt_order_indices_ld, 1).T * L + np.arange(L).astype(int)[na]).flatten()
+        WS_eff_ilk = WS_eff_jlk.reshape((I * L, K))[wt_inv_indices].reshape((I, L, K))
 
-        ct_ilk = ct_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))
+        ct_ilk = ct_jlk.reshape((I * L, K))[wt_inv_indices].reshape((I, L, K))
         if self.turbulenceModel:
             TI_eff_jlk = np.array(TI_eff_mk)
-            TI_eff_ilk = TI_eff_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))
+            TI_eff_ilk = TI_eff_jlk.reshape((I * L, K))[wt_inv_indices].reshape((I, L, K))
 
         if len(self.inputModifierModels):
             for k in modified_input_dict_mk[0].keys():
                 mi_jlk = np.array([mi_dict[k] for mi_dict in modified_input_dict_mk])
-                kwargs[k] = mi_jlk.reshape((I * L, K))[dw_inv_indices].reshape((I, L, K))
+                kwargs[k] = mi_jlk.reshape((I * L, K))[wt_inv_indices].reshape((I, L, K))
 
         return WS_eff_ilk, TI_eff_ilk, ct_ilk, kwargs
+
+
+class PropagateDownwind(PropagateUpDownIterative):
+    """Downstream wake deficits calculated and propagated in downstream direction.
+    Very fast, but ignoring blockage effects
+    """
+
+    def __init__(self, site, windTurbines, wake_deficitModel,
+                 superpositionModel=LinearSum(),
+                 deflectionModel=None, turbulenceModel=None, rotorAvgModel=None,
+                 inputModifierModels=[]):
+        """Initialize flow model
+
+        Parameters
+        ----------
+        site : Site
+            Site object
+        windTurbines : WindTurbines
+            WindTurbines object representing the wake generating wind turbines
+        wake_deficitModel : DeficitModel
+            Model describing the wake(downstream) deficit
+        rotorAvgModel : RotorAvgModel, optional
+            Model defining one or more points at the down stream rotors to
+            calculate the rotor average wind speeds from.\n
+            if None, default, the wind speed at the rotor center is used
+        superpositionModel : SuperpositionModel
+            Model defining how deficits sum up
+        deflectionModel : DeflectionModel
+            Model describing the deflection of the wake due to yaw misalignment, sheared inflow, etc.
+        turbulenceModel : TurbulenceModel
+            Model describing the amount of added turbulence in the wake
+        """
+        EngineeringWindFarmModel.__init__(self, site, windTurbines, wake_deficitModel, superpositionModel, rotorAvgModel,
+                                          blockage_deficitModel=None, deflectionModel=deflectionModel,
+                                          turbulenceModel=turbulenceModel, inputModifierModels=inputModifierModels)
+
+    def _calc_deficit(self, dw_ijlk, **kwargs):
+        return EngineeringWindFarmModel._calc_deficit(self, dw_ijlk, **kwargs)
+
+    def _calc_wt_interaction(self, wd, WS_eff_ilk, **kwargs):
+        WS_ilk = kwargs.pop('WS_ilk')
+
+        dw_order_indices_ld = self.site.distance.dw_order_indices(wd)[:, 0]
+        return self._propagate_deficit(wd, dw_order_indices_ld, WS_ilk, **kwargs)
 
 
 class All2AllIterative(EngineeringWindFarmModel):
@@ -740,9 +841,10 @@ class All2AllIterative(EngineeringWindFarmModel):
             # Initialize with PropagateDownwind
             blockage_deficitModel = self.blockage_deficitModel
             self.blockage_deficitModel = None
-            WS_eff_ilk = PropagateDownwind._calc_wt_interaction(
-                self, wd=wd, WD_ilk=WD_ilk, WS_ilk=WS_ilk, TI_ilk=TI_ilk, WS_eff_ilk=WS_eff_ilk, TI_eff_ilk=TI_eff_ilk,
-                D_i=D_i, I=I, L=L, K=K, **kwargs)[0]
+            dw_order_indices_ld = self.site.distance.dw_order_indices(wd)[:, 0]
+            WS_eff_ilk = PropagateUpDownIterative._propagate_deficit(
+                self, wd, dw_order_indices_ld, WD_ilk=WD_ilk, WS_ilk=WS_ilk, TI_ilk=TI_ilk,
+                WS_eff_ilk=WS_eff_ilk, TI_eff_ilk=TI_eff_ilk, D_i=D_i, I=I, L=L, K=K, **kwargs)[0]
             self.blockage_deficitModel = blockage_deficitModel
         elif WS_eff_ilk == 0:
             WS_eff_ilk = WS_ILK + 0.

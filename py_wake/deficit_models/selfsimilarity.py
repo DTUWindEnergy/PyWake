@@ -14,9 +14,10 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
 
     def __init__(self, ct2a=ct2a_madsen, ss_gamma=1.1, ss_lambda=0.587, ss_eta=1.32, ss_alpha=8. / 9., ss_beta=np.sqrt(2),
                  limiter=1e-10, exclude_wake=True, superpositionModel=None, rotorAvgModel=None, groundModel=None,
-                 upstream_only=False):
+                 upstream_only=False, use_effective_ws=False):
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
-                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel,
+                                      use_effective_ws=use_effective_ws)
         # function constants defined in [1]
         self.ss_gamma = ss_gamma
         self.ss_lambda = ss_lambda
@@ -73,11 +74,12 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
         self.feps_ijlk = self.f_eps(x_ijlk, cw_ijlk, R_ijlk)
         self.ct2af_ijlk = self.ct2af(x_ijlk)
 
-    def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):
+    def calc_deficit(self, WS_ref_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **kwargs):
         """
         Deficit as function of axial and radial coordinates.
         Eq. (5) in [1].
         """
+
         R_ijlk = (D_src_il / 2)[:, na, :, na]
         x_ijlk = - cabs(dw_ijlk) / R_ijlk
 
@@ -88,7 +90,7 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
 
         ct2ax_ijlk = self.ct2a0(x_ijlk, ct_ilk) * self.ct2af_ijlk
         # deficit
-        deficit_ijlk = WS_ilk[:, na] * ct2ax_ijlk * self.feps_ijlk
+        deficit_ijlk = WS_ref_ilk[:, na] * ct2ax_ijlk * self.feps_ijlk
         deficit_ijlk = np.negative(deficit_ijlk, out=deficit_ijlk, where=dw_ijlk > 0)  # deficit[dw] = -deficit[dw]
 
         # only activate the model upstream of the rotor
@@ -209,11 +211,11 @@ def main():
 
         x, y = -np.arange(200), np.array([0])
         # original model
-        deficit = ss.calc_deficit(WS_ilk=WS_ilk, D_src_il=D_src_il,
+        deficit = ss.calc_deficit(WS_ref_ilk=WS_ilk, D_src_il=D_src_il,
                                   dw_ijlk=x.reshape((1, len(x), 1, 1)),
                                   cw_ijlk=y.reshape((1, len(y), 1, 1)), ct_ilk=ct_ilk)
         # updated method
-        deficit20 = ss20.calc_deficit(WS_ilk=WS_ilk, D_src_il=D_src_il,
+        deficit20 = ss20.calc_deficit(WS_ref_ilk=WS_ilk, D_src_il=D_src_il,
                                       dw_ijlk=x.reshape((1, len(x), 1, 1)),
                                       cw_ijlk=y.reshape((1, len(y), 1, 1)), ct_ilk=ct_ilk)
         plt.figure()
@@ -230,12 +232,12 @@ def main():
         x_j, y_j = X.flatten(), Y.flatten()
         dw_ijlk = x_j.reshape((1, -1, 1, 1))
         cw_ijlk = cabs(y_j.reshape((1, -1, 1, 1)))
-        deficit = ss.calc_deficit(WS_ilk=WS_ilk, D_src_il=D_src_il,
-                                  dw_ijlk=dw_ijlk,
-                                  cw_ijlk=cw_ijlk, ct_ilk=ct_ilk)
-        deficit20 = ss20.calc_deficit(WS_ilk=WS_ilk, D_src_il=D_src_il,
-                                      dw_ijlk=dw_ijlk,
-                                      cw_ijlk=cw_ijlk, ct_ilk=ct_ilk)
+        deficit = ss(WS_ilk=WS_ilk, D_src_il=D_src_il,
+                     dw_ijlk=dw_ijlk,
+                     cw_ijlk=cw_ijlk, ct_ilk=ct_ilk)
+        deficit20 = ss20(WS_ilk=WS_ilk, D_src_il=D_src_il,
+                         dw_ijlk=dw_ijlk,
+                         cw_ijlk=cw_ijlk, ct_ilk=ct_ilk)
         plt.title('Fig 10 from [1]')
         r12 = ss.r12(x / R)
         r12_20 = ss20.r12(x / R)
