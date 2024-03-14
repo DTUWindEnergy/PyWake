@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 
 [project]
-name = "PyWake"
+name = "py_wake"
 authors = [
   { name="DTU Wind Energy"},
   { name="Mads M. Pedersen", email="mmpe@dtu.dk" },
