@@ -17,7 +17,7 @@ class TensorFlowModel(SITensorFlowModel):
     @set_gradient_function(predict_gradients)
     def predict_output(self, x):
         if np.iscomplexobj(x):
-            output, gradients = self.predict_output_and_jacobian(x)
+            output, gradients = self.predict_output_and_jacobian(x.real)
             # assuming only one output channel so we take the first element of second dimension
             return (output[:, 0] + 1j * np.sum(x.imag * gradients[:, 0], 1))
         else:

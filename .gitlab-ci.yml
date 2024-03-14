@@ -100,12 +100,7 @@ build_pages:  # "pages" is a job specifically for GitLab pages [1]
   - apt-get update
   - apt-get -y install make pandoc graphviz
   - pip install --upgrade pip
-  - pip install pypandoc
-  - pip install sphinx --upgrade
-  - pip install nbsphinx --upgrade
-  - pip install nbconvert --upgrade
-  - pip install git+https://gitlab.windenergy.dtu.dk/TOPFARM/TopFarm2.git
-  - pip install -e .[test]
+  - pip install -e .[test,docs]
   - cd docs/validation_report
   - python generate_validation_figures.py
   - cd report
@@ -160,19 +155,15 @@ pypi_linux:
     - test_pypi
   script:
     - apt-get update
-    - apt-get install -y pandoc
     - pip install --upgrade pip
-    - pip install pypandoc
-    - pip install -e .[test] --upgrade
-    - python -c 'from git_utils import get_tag; get_tag(verbose=True)'
-    - python -m pip install -U setuptools wheel
-    - python setup.py sdist bdist_wheel
-    - python -m pip install -U twine
-    - python -c 'from git_utils import rename_dist_file; rename_dist_file()'
+    - pip install -e . --upgrade
+    - pip install --upgrade build
+    - pip install --upgrade twine
+    - python3 -m build
     - twine upload dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD
-    #- twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD # for testing purposes
   tags:
   - ci-ubuntu
+
 
 build_conda:
   stage: build
