@@ -27,7 +27,7 @@ For installation instructions, please see the :ref:`Installation Guide <installa
 
 Source code repository and issue tracker:
     https://gitlab.windenergy.dtu.dk/TOPFARM/PyWake
-    
+
 License:
     MIT_
 
@@ -70,16 +70,16 @@ PyWake 2.5.0: An open-source wind farm simulation tool. DTU Wind, Technical Univ
     .. toctree::
         :maxdepth: 1
 	:caption: Contents
-    
+
         installation
-        notebooks/Overview  
+        notebooks/Overview
         notebooks/ChangeLog
         notebooks/Publications
-               
+
     .. toctree::
         :maxdepth: 1
 	:caption: Main Components
-       
+
         notebooks/Quickstart
         notebooks/Site
         notebooks/WindTurbines
@@ -95,7 +95,7 @@ PyWake 2.5.0: An open-source wind farm simulation tool. DTU Wind, Technical Univ
     .. toctree::
         :maxdepth: 1
 	:caption: Features
-       
+
         notebooks/RunWindFarmSimulation
         notebooks/gradients_parallellization
         notebooks/Optimization
@@ -105,29 +105,30 @@ PyWake 2.5.0: An open-source wind farm simulation tool. DTU Wind, Technical Univ
     .. toctree::
         :maxdepth: 1
 	:caption: Examples
-       
+
         notebooks/exercises/CombineModels
         notebooks/exercises/Validation
         notebooks/exercises/Improve_layout
-        notebooks/exercises/WakeDeflection     
+        notebooks/exercises/WakeDeflection
 
     .. toctree::
         :maxdepth: 1
-	:caption: Model Verification       
+	:caption: Model Verification
 
         notebooks/literature_verification/TurbOPark
-	notebooks/literature_verification/SuperGaussian
-        
+	    notebooks/literature_verification/SuperGaussian
+        notebooks/literature_verification/Gaussian
+
     .. toctree::
         :maxdepth: 2
 	:caption: Validation
-    
+
         validation
-        
+
     .. toctree::
         :maxdepth: 1
 	:caption: API Reference
-            
+
         api/WindTurbines
         api/Site
         api/WindFarmModel
@@ -135,5 +136,5 @@ PyWake 2.5.0: An open-source wind farm simulation tool. DTU Wind, Technical Univ
         api/PredefinedEngineeringWindFarmModels
         api/SimulationResult
         api/FlowMap
-        
+
 

@@ -21,20 +21,21 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
     J. Renew. Energy. 2014;70:116-23.
     """
 
-    def __init__(self, ct2a=ct2a_madsen, k=0.0324555, ceps=.2,
+    def __init__(self, ct2a=ct2a_madsen, k=0.0324555, ceps=.2, ctlim=0.899,
                  use_effective_ws=False, rotorAvgModel=None, groundModel=None):
         ConvectionDeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
                                         use_effective_ws=use_effective_ws)
         self._k = k
         self._ceps = ceps
+        self._ctlim = ctlim
         self.ct2a = ct2a
 
     def k_ilk(self, **kwargs):
         return np.array([[[self._k]]])
 
-    def epsilon_ilk(self, ct_ilk, **_):
-        # not valid for CT >= 1.
-        sqrt1ct_ilk = np.sqrt(1 - np.minimum(0.999, ct_ilk))
+    def epsilon_ilk(self, ct_ilk, **kwargs):
+        # only valid for CT < 0.9.
+        sqrt1ct_ilk = np.sqrt(1 - np.minimum(self._ctlim, ct_ilk))
         beta_ilk = 1 / 2 * (1 + sqrt1ct_ilk) / sqrt1ct_ilk
 
         return self._ceps * np.sqrt(beta_ilk)
@@ -42,7 +43,7 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
     def sigma_ijlk(self, D_src_il, dw_ijlk, ct_ilk, **kwargs):
         # dimensional wake expansion
         return self.k_ilk(**kwargs)[:, na] * dw_ijlk + \
-            self.epsilon_ilk(ct_ilk)[:, na] * D_src_il[:, na, :, na]
+            self.epsilon_ilk(ct_ilk, **kwargs)[:, na] * D_src_il[:, na, :, na]
 
     def ct_func(self, ct_ilk, **_):
         return ct_ilk[:, na]
@@ -90,7 +91,7 @@ class BastankhahGaussianDeficit(ConvectionDeficitModel):
 class BastankhahGaussian(PropagateDownwind, DeprecatedModel):
     """Predefined wind farm model"""
 
-    def __init__(self, site, windTurbines, k=0.0324555, ceps=.2, ct2a=ct2a_madsen, use_effective_ws=False,
+    def __init__(self, site, windTurbines, k=0.0324555, ceps=.2, ctlim=0.899, ct2a=ct2a_madsen, use_effective_ws=False,
                  rotorAvgModel=None, superpositionModel=SquaredSum(),
                  deflectionModel=None, turbulenceModel=None, groundModel=None):
         """
@@ -114,7 +115,7 @@ class BastankhahGaussian(PropagateDownwind, DeprecatedModel):
             Model describing the amount of added turbulence in the wake
         """
         PropagateDownwind.__init__(self, site, windTurbines,
-                                   wake_deficitModel=BastankhahGaussianDeficit(ct2a=ct2a, k=k, ceps=ceps,
+                                   wake_deficitModel=BastankhahGaussianDeficit(ct2a=ct2a, k=k, ceps=ceps, ctlim=ctlim,
                                                                                use_effective_ws=use_effective_ws,
                                                                                rotorAvgModel=rotorAvgModel,
                                                                                groundModel=groundModel),
@@ -142,11 +143,12 @@ class NiayifarGaussianDeficit(BastankhahGaussianDeficit):
 
     """
 
-    def __init__(self, ct2a=ct2a_madsen, a=[0.38, 4e-3], ceps=.2, use_effective_ws=False, use_effective_ti=True,
+    def __init__(self, ct2a=ct2a_madsen, a=[0.38, 4e-3], ceps=.2, ctlim=0.899, use_effective_ws=False, use_effective_ti=True,
                  rotorAvgModel=None, groundModel=None):
         DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
                               use_effective_ws=use_effective_ws, use_effective_ti=use_effective_ti)
         self._ceps = ceps
+        self._ctlim = ctlim
         self.a = a
         self.ct2a = ct2a
 
@@ -157,7 +159,7 @@ class NiayifarGaussianDeficit(BastankhahGaussianDeficit):
 
 
 class NiayifarGaussian(PropagateDownwind, DeprecatedModel):
-    def __init__(self, site, windTurbines, a=[0.38, 4e-3], ceps=.2, superpositionModel=SquaredSum(),
+    def __init__(self, site, windTurbines, a=[0.38, 4e-3], ceps=.2, ctlim=0.899, superpositionModel=SquaredSum(),
                  deflectionModel=None, turbulenceModel=None, rotorAvgModel=None, groundModel=None):
         """
         Parameters
@@ -174,12 +176,43 @@ class NiayifarGaussian(PropagateDownwind, DeprecatedModel):
             Model describing the amount of added turbulence in the wake
         """
         PropagateDownwind.__init__(self, site, windTurbines,
-                                   wake_deficitModel=NiayifarGaussianDeficit(a=a, ceps=ceps,
+                                   wake_deficitModel=NiayifarGaussianDeficit(a=a, ceps=ceps, ctlim=ctlim,
                                                                              rotorAvgModel=rotorAvgModel,
                                                                              groundModel=groundModel),
                                    superpositionModel=superpositionModel, deflectionModel=deflectionModel,
                                    turbulenceModel=turbulenceModel)
         DeprecatedModel.__init__(self, 'py_wake.literature.gaussian_models.Niayifar_PorteAgel_2016')
+
+
+class CarbajofuertesGaussianDeficit(NiayifarGaussianDeficit):
+    """
+    Modified Zong version with Gaussian constants from:
+        Fernando Carbajo Fuertes, Corey D. Markfor and Fernando Porté-Agel
+        "Wind TurbineWake Characterization with Nacelle-MountedWind Lidars
+        for Analytical Wake Model Validation"
+        Remote Sens. 2018, 10, 668; doi:10.3390/rs10050668
+
+    Features:
+        - Empirical correlation for epsilon
+        - New constants for wake expansion factor equation
+
+    Description:
+        Carbajo Fuertes et al. derived Gaussian wake model parameters from
+        nacelle liadar measurements from a 2.5MW turbine and found a
+        variation of epsilon with wake expansion.
+
+    """
+
+    def __init__(self, ct2a=ct2a_madsen, a=[0.35, 0.], ceps=[-1.91, 0.34], use_effective_ws=False, use_effective_ti=True,
+                 rotorAvgModel=None, groundModel=None):
+        DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
+                              use_effective_ws=use_effective_ws, use_effective_ti=use_effective_ti)
+        self._ceps = ceps
+        self.a = a
+        self.ct2a = ct2a
+
+    def epsilon_ilk(self, ct_ilk, **kwargs):
+        return self._ceps[0] * self.k_ilk(**kwargs) + self._ceps[1]
 
 
 class IEA37SimpleBastankhahGaussianDeficit(BastankhahGaussianDeficit):
@@ -275,7 +308,7 @@ class ZongGaussianDeficit(NiayifarGaussianDeficit):
 
     """
 
-    def __init__(self, ct2a=ct2a_madsen, a=[0.38, 4e-3], deltawD=1. / np.sqrt(2), eps_coeff=1. / np.sqrt(8.), lam=7.5, B=3,
+    def __init__(self, ct2a=ct2a_madsen, a=[0.38, 4e-3], ctlim=0.899, deltawD=1. / np.sqrt(2), eps_coeff=1. / np.sqrt(8.), lam=7.5, B=3,
                  use_effective_ws=False, use_effective_ti=True, rotorAvgModel=None, groundModel=None):
         DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
                               use_effective_ws=use_effective_ws, use_effective_ti=use_effective_ti)
@@ -287,6 +320,7 @@ class ZongGaussianDeficit(NiayifarGaussianDeficit):
         self.lam = lam
         self.B = B
         self.ct2a = ct2a
+        self._ctlim = ctlim
 
     def nw_length(self, ct_ilk, D_src_il, TI_eff_ilk, **_):
         """
@@ -344,7 +378,7 @@ class ZongGaussianDeficit(NiayifarGaussianDeficit):
 
 
 class ZongGaussian(PropagateDownwind, DeprecatedModel):
-    def __init__(self, site, windTurbines, a=[0.38, 4e-3], deltawD=1. / np.sqrt(2), lam=7.5, B=3,
+    def __init__(self, site, windTurbines, a=[0.38, 4e-3], ctlim=0.899, deltawD=1. / np.sqrt(2), lam=7.5, B=3,
                  rotorAvgModel=None,
                  superpositionModel=SquaredSum(), deflectionModel=None, turbulenceModel=None, groundModel=None):
         """
@@ -362,7 +396,7 @@ class ZongGaussian(PropagateDownwind, DeprecatedModel):
             Model describing the amount of added turbulence in the wake
         """
         PropagateDownwind.__init__(self, site, windTurbines,
-                                   wake_deficitModel=ZongGaussianDeficit(a=a, deltawD=deltawD, lam=lam, B=B,
+                                   wake_deficitModel=ZongGaussianDeficit(a=a, ctlim=ctlim, deltawD=deltawD, lam=lam, B=B,
                                                                          rotorAvgModel=rotorAvgModel,
                                                                          groundModel=groundModel),
                                    superpositionModel=superpositionModel, deflectionModel=deflectionModel,
@@ -370,47 +404,10 @@ class ZongGaussian(PropagateDownwind, DeprecatedModel):
         DeprecatedModel.__init__(self, 'py_wake.literature.gaussian_models.Zong_PorteAgel_2020')
 
 
-class CarbajofuertesGaussianDeficit(ZongGaussianDeficit):
-    """
-    Modified Zong version with Gaussian constants from:
-        Fernando Carbajo Fuertes, Corey D. Markfor and Fernando Porté-Agel
-        "Wind TurbineWake Characterization with Nacelle-MountedWind Lidars
-        for Analytical Wake Model Validation"
-        Remote Sens. 2018, 10, 668; doi:10.3390/rs10050668
-
-    Features:
-        - Empirical correlation for epsilon
-        - New constants for wake expansion factor equation
-
-    Description:
-        Carbajo Fuertes et al. derived Gaussian wake model parameters from
-        nacelle liadar measurements from a 2.5MW turbine and found a
-        variation of epsilon with wake expansion, this in fact identical
-        to the formulation by Zong, only that the near-wake length is fixed
-        for Carbajo Fuertes at xth = 1.91 x/D. We took the relationships
-        found by them and incorporated them into the Zong formulation.
-
-    """
-
-    def __init__(self, ct2a=ct2a_madsen, a=[0.35, 0], deltawD=1. / np.sqrt(2), use_effective_ws=False, use_effective_ti=True,
-                 rotorAvgModel=None, groundModel=None):
-        DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
-                              use_effective_ws=use_effective_ws, use_effective_ti=use_effective_ti)
-        self.a = a
-        self.deltawD = deltawD
-        self.ct2a = ct2a
-
-    def epsilon_ilk(self, ct_ilk, **_):
-        return 0.34 * np.ones_like(ct_ilk)
-
-    def nw_length(self, ct_ilk, *args, **kwargs):
-        return 1.91 * np.ones_like(ct_ilk)
-
-
 class TurboGaussianDeficit(NiayifarGaussianDeficit):
     """Implemented similar to Ørsted's TurbOPark model (https://github.com/OrstedRD/TurbOPark/blob/main/TurbOPark%20description.pdf)"""
 
-    def __init__(self, ct2a=ct2a_madsen, A=.04, cTI=[1.5, 0.8], ceps=.25, use_effective_ws=False,
+    def __init__(self, ct2a=ct2a_madsen, A=.04, cTI=[1.5, 0.8], ceps=.25, ctlim=0.999, use_effective_ws=False,
                  use_effective_ti=False, rotorAvgModel=None, groundModel=Mirror()):
         """
         Parameters
@@ -422,8 +419,9 @@ class TurboGaussianDeficit(NiayifarGaussianDeficit):
                               use_effective_ws=use_effective_ws, use_effective_ti=use_effective_ti)
         self.A = A
         self.cTI = cTI
-        self._ceps = ceps
         self.ct2a = ct2a
+        self._ceps = ceps
+        self._ctlim = ctlim
 
     def sigma_ijlk(self, D_src_il, dw_ijlk, ct_ilk, **kwargs):
         # dimensional wake expansion
@@ -469,7 +467,7 @@ class BlondelSuperGaussianDeficit2020(WakeDeficitModel):
     """
 
     def __init__(self, a_s=0.17, b_s=0.005, c_s=0.2,
-                 b_f=-0.68, c_f=2.41, use_effective_ws=False,
+                 b_f=-0.68, c_f=2.41, ctlim=0.999, use_effective_ws=False,
                  use_effective_ti=True, rotorAvgModel=None, groundModel=None):
         DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
                               use_effective_ws=use_effective_ws, use_effective_ti=use_effective_ti)
@@ -478,13 +476,14 @@ class BlondelSuperGaussianDeficit2020(WakeDeficitModel):
         self.c_s = c_s
         self.b_f = b_f
         self.c_f = c_f
+        self._ctlim = ctlim
 
     def a_f(self, ct_ilk, **kwargs):
         return 3.11
 
     def beta_ilk(self, ct_ilk, **_):
         # not valid for CT >= 1.
-        sqrt1ct_ilk = np.sqrt(1 - np.minimum(0.999, ct_ilk))
+        sqrt1ct_ilk = np.sqrt(1 - np.minimum(self._ctlim, ct_ilk))
         beta_ilk = 1 / 2 * (1 + sqrt1ct_ilk) / sqrt1ct_ilk
         return beta_ilk
 
@@ -568,7 +567,7 @@ class BlondelSuperGaussianDeficit2023(BlondelSuperGaussianDeficit2020):
     """
 
     def __init__(self, a_s=0.28, b_s=0.01, c_s=[0.1, 0.1],
-                 b_f=[-25.98, -1.06], c_f=2, use_effective_ws=False,
+                 b_f=[-25.98, -1.06], c_f=2, ctlim=0.999, use_effective_ws=False,
                  use_effective_ti=True, rotorAvgModel=None, groundModel=None):
         DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
                               use_effective_ws=use_effective_ws, use_effective_ti=use_effective_ti)
@@ -577,6 +576,7 @@ class BlondelSuperGaussianDeficit2023(BlondelSuperGaussianDeficit2020):
         self.c_s = c_s
         self.b_f = b_f
         self.c_f = c_f
+        self._ctlim = ctlim
 
     def a_f(self, ct_ilk, **kwargs):
         a_f = -8.2635 * ct_ilk ** 3 + 8.5939 * ct_ilk ** 2 - 8.9691 * ct_ilk + 10.7286
