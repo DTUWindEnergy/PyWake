@@ -283,7 +283,10 @@ class WindFarmModel(ABC):
         if n_cpu > 1:
             map_func = get_pool_map(n_cpu)
         else:
-            map_func = map
+            from tqdm import tqdm
+
+            def map_func(f, iter):
+                return tqdm(map(f, iter), total=len(iter), disable=not self.verbose)
 
         if time is False:
             # (wd x ws) matrix

@@ -2,12 +2,11 @@ import numpy as np
 from py_wake.turbulence_models.crespo import CrespoHernandez
 from py_wake.superposition_models import CumulativeWakeSum
 from py_wake.deficit_models.gaussian import NiayifarGaussianDeficit
-from py_wake.rotor_avg_models import GQGridRotorAvg
+from py_wake.rotor_avg_models import CGIRotorAvg
 from py_wake.deficit_models.utils import ct2a_mom1d
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 from py_wake.wind_turbines import WindTurbine
-from py_wake.rotor_avg_models.rotor_avg_model import CGIRotorAvg
 
 
 class CumulativeWake(PropagateDownwind):
@@ -21,10 +20,9 @@ class CumulativeWake(PropagateDownwind):
     def __init__(self, site, windTurbines):
 
         PropagateDownwind.__init__(self, site, windTurbines,
-                                   wake_deficitModel=NiayifarGaussianDeficit(
-                                       ct2a=ct2a_mom1d, a=[0.31, 0.], ceps=.2,
-                                       use_effective_ws=True, use_effective_ti=True,
-                                       rotorAvgModel=GQGridRotorAvg(4, 3)),
+                                   wake_deficitModel=NiayifarGaussianDeficit(ct2a=ct2a_mom1d, a=[0.31, 0.], ceps=.2,
+                                                                             use_effective_ws=True, use_effective_ti=True,
+                                                                             rotorAvgModel=CGIRotorAvg(21)),
                                    superpositionModel=CumulativeWakeSum(),
                                    turbulenceModel=CrespoHernandez(c=[0.66, 0.83, 0.03, -0.32]))
 

@@ -9,10 +9,12 @@ import pandas as pd
 from py_wake import NOJ, examples
 from py_wake import np
 from py_wake.deficit_models.fuga import FugaDeficit
+from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit, BastankhahGaussian
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
+from py_wake.deficit_models.utils import ct2a_mom1d
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
 from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y, V80
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
@@ -27,14 +29,12 @@ from py_wake.turbulence_models.stf import STF2005TurbulenceModel
 from py_wake.utils.gradients import autograd, cs, fd, plot_gradients
 from py_wake.utils.model_utils import get_models
 from py_wake.utils.profiling import profileit
-from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind, EngineeringWindFarmModel
+from py_wake.wind_farm_models.engineering_models import All2AllIterative, PropagateDownwind, EngineeringWindFarmModel, PropagateUpDownIterative
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.wind_turbines import WindTurbines
 from py_wake.wind_turbines._wind_turbines import WindTurbine
 from py_wake.wind_turbines.power_ct_functions import PowerCtFunctionList, PowerCtTabular, PowerCtFunctions
-
 import xarray as xr
-from py_wake.deficit_models.utils import ct2a_mom1d
 
 
 WindFarmModel.verbose = False
@@ -513,3 +513,18 @@ def test_check_input():
     wfm = IEA37CaseStudy1(16, deflectionModel=JimenezWakeDeflection())
     with pytest.raises(ValueError, match="'tilt' needed by JimenezWakeDeflection is missing"):
         wfm([0], [0], yaw=0)
+
+
+def test_PropagateUpDownIterative():
+    use_effective_ws = True
+    propdef = PropagateUpDownIterative(site=UniformSite(),
+                                       windTurbines=V80(),
+                                       wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=use_effective_ws),
+                                       blockage_deficitModel=SelfSimilarityDeficit(use_effective_ws=use_effective_ws))
+    all2all = All2AllIterative(site=UniformSite(), windTurbines=V80(),
+                               wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=use_effective_ws),
+                               blockage_deficitModel=SelfSimilarityDeficit(use_effective_ws=use_effective_ws))
+
+    x = np.array([0, 400, 800])
+    y = x * 0
+    npt.assert_array_almost_equal(propdef(x, y, wd=270).WS_eff, all2all(x, y, wd=270).WS_eff, 5)

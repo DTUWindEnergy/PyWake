@@ -116,6 +116,10 @@ class interp_ilk():
             ip_data_dims = [n for n, l in [('i', ['x', 'y', 'h', 'i']), (l_name, ['wd']), ('ws', ['ws'])]
                             if any([l_ in ip_dims for l_ in l])]
             shape = [l for d, l in [('i', I), (l_name, L), ('ws', K)] if d in ip_data_dims]
+            if 'time' in ip_dims:
+                xp.append(np.tile(coords['time'].repeat(K), I))
+            elif 'time' in data_dims:
+                shape.append(data.shape[data_dims.index('time')])
             if 'wd' in ip_dims:
                 xp.append(np.tile(coords['wd'].repeat(K), I))
             elif 'wd' in data_dims:

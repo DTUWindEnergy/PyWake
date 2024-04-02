@@ -42,7 +42,8 @@ class GCLHillDeflection(DeflectionIntegrator):
                                    dw_ijlk=dw_ijlkx, hcw_ijlk=z, cw_ijlk=z, dh_ijlk=z,
                                    tilt_ilk=tilt_ilk[..., na],
                                    IJLK=IJLK,))
-        U_w_ijlx = self.wake_deficitModel.calc_deficit(**deficit_kwargs)
+        U_w_ijlx = self.wake_deficitModel.calc_deficit(**deficit_kwargs,
+                                                       **self.wake_deficitModel.get_WS_ref_kwargs(deficit_kwargs))
         U_d_ijlkx = 0.4 * U_w_ijlx * np.sin(theta_ilk)[:, na, :, :, na]
         U_a_ijlkx = WS_eff_ilk[:, na, :, :, na] - 0.4 * U_w_ijlx * np.cos(theta_ilk)[:, na, :, :, na]
 
