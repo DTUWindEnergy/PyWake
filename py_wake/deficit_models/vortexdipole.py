@@ -36,7 +36,7 @@ class VortexDipole(BlockageDeficitModel):
         self.exclude_wake = exclude_wake
         self.ct2a = ct2a
 
-    def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):
+    def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, wake_radius_ijlk, **_):
         """
         The analytical relationships can be found in [1,2].
         """
@@ -58,15 +58,8 @@ class VortexDipole(BlockageDeficitModel):
             deficit_ijlk = gammat_ilk[:, na] / 4. * R_il[:, na, :, na]**2 * (-dw_ijlk / r_ijlk**3)
 
         if self.exclude_wake:
-            # indices on rotor plane and in wake region
-            iw = ((dw_ijlk / R_il[:, na, :, na] >= -self.limiter) &
-                  (cabs(cw_ijlk) <= R_il[:, na, :, na])) * np.full(deficit_ijlk.shape, True)
-            deficit_ijlk = np.where(iw, 0., deficit_ijlk)
-            # Close to the rotor the induced velocities become unphysical and are
-            # limited to the induction in the rotor plane estimated by BEM.
-            ilim = deficit_ijlk > gammat_ilk[:, na] / 2.
-            deficit_ijlk = np.where(ilim, gammat_ilk[:, na] / 2. * np.sign(deficit_ijlk), deficit_ijlk)
-
+            deficit_ijlk = self.remove_wake(deficit_ijlk, dw_ijlk, cw_ijlk, D_src_il, wake_radius_ijlk,
+                                            induc_ijlk=gammat_ilk[:, na] / 2)
         return deficit_ijlk
 
 

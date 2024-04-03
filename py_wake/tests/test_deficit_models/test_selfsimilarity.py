@@ -8,7 +8,7 @@ from py_wake.examples.data.hornsrev1 import Hornsrev1Site
 from py_wake.tests import npt
 
 
-debug = False
+debug = 0
 
 
 @pytest.fixture(scope='module')
@@ -33,10 +33,10 @@ def test_selfsimilarity_reference_figures(setup):
     x1, y1 = -np.arange(200), np.array([0])
     deficit_centerline = ss(WS_ilk=WS_ilk, D_src_il=D_src_il,
                             dw_ijlk=x1.reshape((1, len(x1), 1, 1)),
-                            cw_ijlk=y1.reshape((1, len(y1), 1, 1)), ct_ilk=ct_ilk)[0, :, 0, 0]
+                            cw_ijlk=y1.reshape((1, len(y1), 1, 1)), ct_ilk=ct_ilk, wake_radius_ijlk=0)[0, :, 0, 0]
     deficit20_centerline = ss20(WS_ilk=WS_ilk, D_src_il=D_src_il,
                                 dw_ijlk=x1.reshape((1, len(x1), 1, 1)),
-                                cw_ijlk=y1.reshape((1, len(y1), 1, 1)), ct_ilk=ct_ilk)[0, :, 0, 0]
+                                cw_ijlk=y1.reshape((1, len(y1), 1, 1)), ct_ilk=ct_ilk, wake_radius_ijlk=0)[0, :, 0, 0]
 
     x, y = np.array([-2 * R]), np.arange(200)
     x2, y2 = x, y
@@ -46,10 +46,10 @@ def test_selfsimilarity_reference_figures(setup):
     cw_ijlk = np.abs(y_j.reshape((1, -1, 1, 1)))
     deficit_radial = ss(WS_ilk=WS_ilk, D_src_il=D_src_il,
                         dw_ijlk=dw_ijlk,
-                        cw_ijlk=cw_ijlk, ct_ilk=ct_ilk)[0, :, 0, 0]
+                        cw_ijlk=cw_ijlk, ct_ilk=ct_ilk, wake_radius_ijlk=0)[0, :, 0, 0]
     deficit20_radial = ss20(WS_ilk=WS_ilk, D_src_il=D_src_il,
                             dw_ijlk=dw_ijlk,
-                            cw_ijlk=cw_ijlk, ct_ilk=ct_ilk)[0, :, 0, 0]
+                            cw_ijlk=cw_ijlk, ct_ilk=ct_ilk, wake_radius_ijlk=0)[0, :, 0, 0]
 
     # r12 = np.sqrt(ss.lambda_ * (ss.eta + (x2 / R) ** 2))   # Eq. (13) from [1]
     r12 = ss.r12(x2 / R)

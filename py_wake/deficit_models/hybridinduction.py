@@ -42,15 +42,15 @@ class HybridInduction(BlockageDeficitModel):
         self.near_rotor = near_rotor or SelfSimilarityDeficit2020()
         self.far_field = far_field or VortexDipole()
 
-    def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):
+    def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, wake_radius_ijlk, **_):
 
         # deficit given by near-rotor model
         dnr_ijlk = self.near_rotor.calc_deficit(
-            WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk)
+            WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, wake_radius_ijlk)
 
         # deficit given by far-field model
         dff_ijlk = self.far_field.calc_deficit(
-            WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk)
+            WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, wake_radius_ijlk)
 
         # apply deficits in specified regions
         R_il = (D_src_il / 2)

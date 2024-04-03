@@ -162,13 +162,13 @@ def test_huge_distance_blockage(deficitModel):
     ref = {"FugaDeficit": 9.8,
            "FugaYawDeficit": 9.8,
            "FugaMultiLUTDeficit": 9.8,
-           "HybridInduction": 9.799999,
-           "SelfSimilarityDeficit2020": 9.799999,
-           "VortexDipole": 9.799999,
+           "HybridInduction": 9.800001,
+           "SelfSimilarityDeficit2020": 9.800001,
+           "VortexDipole": 9.800001,
            "RankineHalfBody": 9.799999,
-           "Rathmann": 9.799999,
-           "RathmannScaled": 9.799999,
-           "SelfSimilarityDeficit": 9.799999,
+           "Rathmann": 9.800001,
+           "RathmannScaled": 9.800001,
+           "SelfSimilarityDeficit": 9.800001,
            "VortexCylinder": 9.799999, }
     site = IEA37Site(16)
 
@@ -413,9 +413,9 @@ def test_deficitModel_wake_map_convection(deficitModel, ref):
 
 @pytest.mark.parametrize(
     'deficitModel,ref',
-    # test that the result is equal to last run (no evidens that  these number are correct)
+    # test that the result is equal to last run (no evidence that  these number are correct)
     [(ZongGaussianDeficit(ct2a=ct2a_mom1d, eps_coeff=0.35),
-      [6.34, 7.05, 8.18, 8.25, 7.49, 6.2, 5.2, 5.26, 6.37, 7.33, 7.7, 7.54, 7.34, 7.18, 7.32, 7.7, 8.16])
+      [6.34, 7.05, 7.9, 8.23, 7.48, 6.2, 5.2, 5.26, 6.37, 7.31, 7.7, 7.54, 7.34, 7.18, 7.32, 7.7, 8.16])
      ])
 def test_deficitModel_wake_map_convection_all2all(deficitModel, ref):
     site = IEA37Site(16)
