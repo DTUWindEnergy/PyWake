@@ -509,8 +509,6 @@ class PropagateUpDownIterative(EngineeringWindFarmModel):
             deficit = dw_ijlk * 0
             deficit, blockage = self._add_blockage(deficit, dw_ijlk, **kwargs)
         else:
-            deficit = self.wake_deficitModel(dw_ijlk=dw_ijlk, **kwargs)
-            blockage = deficit * 0
             deficit, blockage = EngineeringWindFarmModel._calc_deficit(self, dw_ijlk=dw_ijlk, **kwargs)
 
         return deficit, blockage
