@@ -501,6 +501,7 @@ class PropagateUpDownIterative(EngineeringWindFarmModel):
             if max_diff < 1e-6:
                 break
             WS_eff_ilk_last = WS_eff_ilk
+        self.direction = 'down'
         return WS_eff_ilk, TI_eff_ilk, ct_ilk, res_kwargs
 
     def _calc_deficit(self, dw_ijlk, **kwargs):

@@ -122,9 +122,10 @@ class SelfSimilarityDeficit2020(SelfSimilarityDeficit):
                  ngp=np.array([-1.381, 2.627, -1.524, 1.336]),
                  fgp=np.array([-0.06489, 0.4911, 1.116, -0.1577]),
                  limiter=1e-10, exclude_wake=True, superpositionModel=None,
-                 rotorAvgModel=None, groundModel=None, upstream_only=False):
+                 rotorAvgModel=None, groundModel=None, upstream_only=False, use_effective_ws=False):
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
-                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel,
+                                      use_effective_ws=use_effective_ws)
         # original constants from [1]
         self.ss_alpha = ss_alpha
         self.ss_beta = ss_beta

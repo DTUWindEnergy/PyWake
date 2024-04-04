@@ -27,7 +27,7 @@ class HybridInduction(BlockageDeficitModel):
 
     def __init__(self, switch_radius=6.,
                  near_rotor=None, far_field=None, superpositionModel=None,
-                 rotorAvgModel=None, groundModel=None, upstream_only=False):
+                 rotorAvgModel=None, groundModel=None, upstream_only=False, use_effective_ws=False):
         """
         Parameters
         ----------
@@ -37,7 +37,8 @@ class HybridInduction(BlockageDeficitModel):
             If None (default), the VortexDipole will be used
         """
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
-                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel,
+                                      use_effective_ws=use_effective_ws)
         self.switch_radius = switch_radius
         self.near_rotor = near_rotor or SelfSimilarityDeficit2020()
         self.far_field = far_field or VortexDipole()

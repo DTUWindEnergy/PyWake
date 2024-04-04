@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from py_wake import NOJ, examples
 from py_wake import np
-from py_wake.deficit_models.fuga import FugaDeficit
+from py_wake.deficit_models.fuga import FugaDeficit, FugaMultiLUTDeficit, FugaYawDeficit
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit, BastankhahGaussian
 from py_wake.deficit_models.no_wake import NoWakeDeficit
@@ -18,14 +18,14 @@ from py_wake.deficit_models.utils import ct2a_mom1d
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
 from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y, V80
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines, IEA37Site
-from py_wake.flow_map import HorizontalGrid
+from py_wake.flow_map import HorizontalGrid, XYGrid
 from py_wake.literature.iea37_case_study1 import IEA37CaseStudy1
 from py_wake.rotor_avg_models.rotor_avg_model import CGIRotorAvg
 from py_wake.site._site import UniformSite
 from py_wake.superposition_models import LinearSum
 from py_wake.superposition_models import SquaredSum, WeightedSum
 from py_wake.tests import npt
-from py_wake.turbulence_models.stf import STF2005TurbulenceModel
+from py_wake.turbulence_models.stf import STF2005TurbulenceModel, STF2017TurbulenceModel
 from py_wake.utils.gradients import autograd, cs, fd, plot_gradients
 from py_wake.utils.model_utils import get_models
 from py_wake.utils.profiling import profileit
@@ -35,6 +35,12 @@ from py_wake.wind_turbines import WindTurbines
 from py_wake.wind_turbines._wind_turbines import WindTurbine
 from py_wake.wind_turbines.power_ct_functions import PowerCtFunctionList, PowerCtTabular, PowerCtFunctions
 import xarray as xr
+from py_wake.deficit_models.deficit_model import WakeDeficitModel, BlockageDeficitModel
+from py_wake.deficit_models.hybridinduction import HybridInduction
+from py_wake.deficit_models.vortexdipole import VortexDipole
+from py_wake.deficit_models.rankinehalfbody import RankineHalfBody
+from py_wake.deficit_models.rathmann import Rathmann, RathmannScaled
+from py_wake.deficit_models.vortexcylinder import VortexCylinder
 
 
 WindFarmModel.verbose = False
@@ -517,14 +523,70 @@ def test_check_input():
 
 def test_PropagateUpDownIterative():
     use_effective_ws = True
-    propdef = PropagateUpDownIterative(site=UniformSite(),
-                                       windTurbines=V80(),
-                                       wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=use_effective_ws),
-                                       blockage_deficitModel=SelfSimilarityDeficit(use_effective_ws=use_effective_ws))
+    pudi = PropagateUpDownIterative(site=UniformSite(),
+                                    windTurbines=V80(),
+                                    wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=use_effective_ws),
+                                    blockage_deficitModel=SelfSimilarityDeficit(use_effective_ws=use_effective_ws))
     all2all = All2AllIterative(site=UniformSite(), windTurbines=V80(),
                                wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=use_effective_ws),
                                blockage_deficitModel=SelfSimilarityDeficit(use_effective_ws=use_effective_ws))
 
-    x = np.array([0, 400, 800])
-    y = x * 0
-    npt.assert_array_almost_equal(propdef(x, y, wd=270).WS_eff, all2all(x, y, wd=270).WS_eff, 5)
+    x = np.array([0, 400, 800, 800])
+    y = [0, 0, 100, -200]
+    npt.assert_array_almost_equal(pudi(x, y, wd=270).WS_eff, all2all(x, y, wd=270).WS_eff, 5)
+
+    grid = XYGrid(x=np.linspace(-100, 900, 10), y=[0, -100])
+    if 0:
+        for wfm in [pudi, all2all]:
+            plt.figure()
+            sim_res = wfm(x, y, wd=270)
+            sim_res.flow_map().plot_wake_map()
+            fm = sim_res.flow_map(grid)
+            for x_, y_ in zip(fm.X, fm.Y):
+                plt.plot(x_, y_, '.-')
+        plt.show()
+    npt.assert_array_almost_equal(pudi(x, y, wd=270).flow_map(grid).WS_eff.squeeze(),
+                                  all2all(x, y, wd=270).flow_map(grid).WS_eff.squeeze())
+
+
+@pytest.mark.parametrize('wake_deficitModel', get_models(WakeDeficitModel))
+def test_PropagateUpDownIterative_wake_deficitModels(wake_deficitModel):
+    if wake_deficitModel in [NOJDeficit, FugaDeficit, FugaMultiLUTDeficit,
+                             FugaYawDeficit, IEA37SimpleBastankhahGaussianDeficit]:
+        return
+    pudi = PropagateUpDownIterative(site=UniformSite(),
+                                    windTurbines=V80(),
+                                    wake_deficitModel=wake_deficitModel(use_effective_ws=True),
+                                    blockage_deficitModel=SelfSimilarityDeficit(use_effective_ws=True),
+                                    turbulenceModel=STF2017TurbulenceModel())
+    all2all = All2AllIterative(site=UniformSite(), windTurbines=V80(),
+                               wake_deficitModel=wake_deficitModel(use_effective_ws=True),
+                               blockage_deficitModel=SelfSimilarityDeficit(use_effective_ws=True),
+                               turbulenceModel=STF2017TurbulenceModel())
+
+    x = np.array([0, 400, 800, 800])
+    y = [0, 0, 100, -200]
+    npt.assert_array_almost_equal(pudi(x, y, wd=270).WS_eff, all2all(x, y, wd=270).WS_eff, 5)
+
+
+@pytest.mark.parametrize('blockage_deficitModel', get_models(BlockageDeficitModel))
+def test_PropagateUpDownIterative_blockage_deficitModels(blockage_deficitModel):
+    if blockage_deficitModel in [None, FugaDeficit, FugaMultiLUTDeficit, FugaYawDeficit]:
+        return
+    pudi = PropagateUpDownIterative(site=UniformSite(),
+                                    windTurbines=V80(),
+                                    wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=True),
+                                    blockage_deficitModel=blockage_deficitModel(use_effective_ws=True),
+                                    turbulenceModel=STF2017TurbulenceModel())
+    all2all = All2AllIterative(site=UniformSite(), windTurbines=V80(),
+                               wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=True),
+                               blockage_deficitModel=blockage_deficitModel(use_effective_ws=True),
+                               turbulenceModel=STF2017TurbulenceModel())
+
+    x = np.array([0, 400, 800, 800])
+    y = [0, 0, 100, -200]
+    atol = 1e-5
+    if blockage_deficitModel in [HybridInduction, VortexDipole,
+                                 RankineHalfBody, Rathmann, RathmannScaled, VortexCylinder]:
+        atol = 0.01
+    npt.assert_allclose(pudi(x, y, wd=270).WS_eff, all2all(x, y, wd=270).WS_eff, atol=atol)

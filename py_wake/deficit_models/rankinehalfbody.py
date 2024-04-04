@@ -17,9 +17,10 @@ class RankineHalfBody(BlockageDeficitModel):
     """
 
     def __init__(self, ct2a=ct2a_madsen, limiter=1e-10, exclude_wake=True, superpositionModel=None,
-                 rotorAvgModel=None, groundModel=None, upstream_only=False):
+                 rotorAvgModel=None, groundModel=None, upstream_only=False, use_effective_ws=False):
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
-                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel,
+                                      use_effective_ws=use_effective_ws)
         # limiter to avoid singularities
         self.limiter = limiter
         # if used in a wind farm simulation, set deficit in wake region to
