@@ -15,9 +15,9 @@ from py_wake.utils.model_utils import DeprecatedModel
 
 class NOJDeficit(NiayifarGaussianDeficit, WakeRadiusTopHat):
 
-    def __init__(self, ct2a=ct2a_madsen, k=.1, rotorAvgModel=AreaOverlapAvgModel(), groundModel=None):
+    def __init__(self, ct2a=ct2a_madsen, k=.1, rotorAvgModel=AreaOverlapAvgModel(), groundModel=None, use_effective_ws=False):
         DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
-                              use_effective_ws=False, use_effective_ti=False)
+                              use_effective_ws=use_effective_ws, use_effective_ti=False)
         self.a = [0, k]
         self.ct2a = ct2a
 
