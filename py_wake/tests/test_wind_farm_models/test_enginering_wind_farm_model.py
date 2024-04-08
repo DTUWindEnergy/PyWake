@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from py_wake import NOJ, examples
 from py_wake import np
+from py_wake.deficit_models.eddy_viscosity import EddyViscosityDeficitModel
 from py_wake.deficit_models.fuga import FugaDeficit, FugaMultiLUTDeficit, FugaYawDeficit
 from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit, BastankhahGaussian
@@ -552,7 +553,8 @@ def test_PropagateUpDownIterative():
 @pytest.mark.parametrize('wake_deficitModel', get_models(WakeDeficitModel))
 def test_PropagateUpDownIterative_wake_deficitModels(wake_deficitModel):
     if wake_deficitModel in [NOJDeficit, FugaDeficit, FugaMultiLUTDeficit,
-                             FugaYawDeficit, IEA37SimpleBastankhahGaussianDeficit]:
+                             FugaYawDeficit, IEA37SimpleBastankhahGaussianDeficit,
+                             EddyViscosityDeficitModel]:
         return
     pudi = PropagateUpDownIterative(site=UniformSite(),
                                     windTurbines=V80(),
