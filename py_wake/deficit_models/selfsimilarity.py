@@ -74,7 +74,7 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
         self.feps_ijlk = self.f_eps(x_ijlk, cw_ijlk, R_ijlk)
         self.ct2af_ijlk = self.ct2af(x_ijlk)
 
-    def calc_deficit(self, WS_ref_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **kwargs):
+    def calc_deficit(self, WS_ref_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, wake_radius_ijlk, **kwargs):
         """
         Deficit as function of axial and radial coordinates.
         Eq. (5) in [1].
@@ -95,7 +95,7 @@ class SelfSimilarityDeficit(BlockageDeficitModel):
 
         # only activate the model upstream of the rotor
         if self.exclude_wake:
-            deficit_ijlk = self.remove_wake(deficit_ijlk, dw_ijlk, cw_ijlk, D_src_il)
+            deficit_ijlk = self.remove_wake(deficit_ijlk, dw_ijlk, cw_ijlk, D_src_il, wake_radius_ijlk)
 
         return deficit_ijlk
 
@@ -122,9 +122,10 @@ class SelfSimilarityDeficit2020(SelfSimilarityDeficit):
                  ngp=np.array([-1.381, 2.627, -1.524, 1.336]),
                  fgp=np.array([-0.06489, 0.4911, 1.116, -0.1577]),
                  limiter=1e-10, exclude_wake=True, superpositionModel=None,
-                 rotorAvgModel=None, groundModel=None, upstream_only=False):
+                 rotorAvgModel=None, groundModel=None, upstream_only=False, use_effective_ws=False):
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
-                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel,
+                                      use_effective_ws=use_effective_ws)
         # original constants from [1]
         self.ss_alpha = ss_alpha
         self.ss_beta = ss_beta
@@ -213,11 +214,13 @@ def main():
         # original model
         deficit = ss.calc_deficit(WS_ref_ilk=WS_ilk, D_src_il=D_src_il,
                                   dw_ijlk=x.reshape((1, len(x), 1, 1)),
-                                  cw_ijlk=y.reshape((1, len(y), 1, 1)), ct_ilk=ct_ilk)
+                                  cw_ijlk=y.reshape((1, len(y), 1, 1)), ct_ilk=ct_ilk,
+                                  wake_radius_ijlk=0)
         # updated method
         deficit20 = ss20.calc_deficit(WS_ref_ilk=WS_ilk, D_src_il=D_src_il,
                                       dw_ijlk=x.reshape((1, len(x), 1, 1)),
-                                      cw_ijlk=y.reshape((1, len(y), 1, 1)), ct_ilk=ct_ilk)
+                                      cw_ijlk=y.reshape((1, len(y), 1, 1)), ct_ilk=ct_ilk,
+                                      wake_radius_ijlk=0)
         plt.figure()
         plt.title('Fig 11 from [1]')
         plt.xlabel('x/R')
@@ -234,10 +237,12 @@ def main():
         cw_ijlk = cabs(y_j.reshape((1, -1, 1, 1)))
         deficit = ss(WS_ilk=WS_ilk, D_src_il=D_src_il,
                      dw_ijlk=dw_ijlk,
-                     cw_ijlk=cw_ijlk, ct_ilk=ct_ilk)
+                     cw_ijlk=cw_ijlk, ct_ilk=ct_ilk,
+                     wake_radius_ijlk=0)
         deficit20 = ss20(WS_ilk=WS_ilk, D_src_il=D_src_il,
                          dw_ijlk=dw_ijlk,
-                         cw_ijlk=cw_ijlk, ct_ilk=ct_ilk)
+                         cw_ijlk=cw_ijlk, ct_ilk=ct_ilk,
+                         wake_radius_ijlk=0)
         plt.title('Fig 10 from [1]')
         r12 = ss.r12(x / R)
         r12_20 = ss20.r12(x / R)

@@ -129,8 +129,8 @@ def test_diff_wake_blockage_superposition():
 
 @pytest.mark.parametrize(
     'superpositionModel,ref',
-    [(WeightedSum(), 782.90749001),
-     (CumulativeWakeSum(), 797.62894662),
+    [(WeightedSum(), 782.7222806),
+     (CumulativeWakeSum(), 797.4772703),
      ])
 def test_complex_superposition_blockage(superpositionModel, ref):
     site = IEA37Site(16)

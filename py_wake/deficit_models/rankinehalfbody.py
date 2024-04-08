@@ -17,9 +17,10 @@ class RankineHalfBody(BlockageDeficitModel):
     """
 
     def __init__(self, ct2a=ct2a_madsen, limiter=1e-10, exclude_wake=True, superpositionModel=None,
-                 rotorAvgModel=None, groundModel=None, upstream_only=False):
+                 rotorAvgModel=None, groundModel=None, upstream_only=False, use_effective_ws=False):
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
-                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel,
+                                      use_effective_ws=use_effective_ws)
         # limiter to avoid singularities
         self.limiter = limiter
         # if used in a wind farm simulation, set deficit in wake region to
@@ -43,7 +44,7 @@ class RankineHalfBody(BlockageDeficitModel):
         iout = val <= -1.
         return iout
 
-    def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):
+    def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, wake_radius_ijlk, **_):
         # source strength as given on p.7
         ct2a_ilk = self.ct2a(ct_ilk)
         R_il = D_src_il / 2.
@@ -59,11 +60,9 @@ class RankineHalfBody(BlockageDeficitModel):
                                 -m_ilk[:, na] / (4 * np.pi) * dw_ijlk / (r_ijlk + (r_ijlk == 0))**3)
 
         if self.exclude_wake:
-            deficit_ijlk = self.remove_wake(deficit_ijlk, dw_ijlk, cw_ijlk, D_src_il)
-            # Close to the rotor the induced velocities become unphysical and are
-            # limited to the induction in the rotor plane estimated by BEM.
-            induc = (WS_ilk * self.ct2a(ct_ilk))[:, na]
-            deficit_ijlk = np.where(deficit_ijlk > induc, induc * np.sign(deficit_ijlk), deficit_ijlk)
+            induc_ijlk = (WS_ilk * self.ct2a(ct_ilk))[:, na]
+            deficit_ijlk = self.remove_wake(deficit_ijlk, dw_ijlk, cw_ijlk, D_src_il,
+                                            wake_radius_ijlk, induc_ijlk=induc_ijlk)
 
         return deficit_ijlk
 

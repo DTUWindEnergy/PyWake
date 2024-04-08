@@ -25,9 +25,10 @@ class Rathmann(BlockageDeficitModel):
     """
 
     def __init__(self, ct2a=ct2a_madsen, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None,
-                 rotorAvgModel=None, groundModel=None, upstream_only=False):
+                 rotorAvgModel=None, groundModel=None, upstream_only=False, use_effective_ws=False):
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
-                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel,
+                                      use_effective_ws=use_effective_ws)
         # limiter to avoid singularities
         self.limiter = limiter
         # coefficient for scaling the effective forcing
@@ -75,7 +76,7 @@ class Rathmann(BlockageDeficitModel):
 
         return G_ijlk
 
-    def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):
+    def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, wake_radius_ijlk, **_):
         """
         The deficit is determined from a streamwise and radial shape function, whereas
         the strength is given from vortex and BEM theory.
@@ -92,7 +93,7 @@ class Rathmann(BlockageDeficitModel):
         np.negative(deficit_ijlk, out=deficit_ijlk, where=dw_ijlk > 0)
 
         if self.exclude_wake:
-            deficit_ijlk = self.remove_wake(deficit_ijlk, dw_ijlk, cw_ijlk, D_src_il)
+            deficit_ijlk = self.remove_wake(deficit_ijlk, dw_ijlk, cw_ijlk, D_src_il, wake_radius_ijlk)
 
         return deficit_ijlk
 
@@ -111,9 +112,10 @@ class RathmannScaled(Rathmann):
     """
 
     def __init__(self, ct2a=ct2a_madsen, sct=1.0, limiter=1e-10, exclude_wake=True, superpositionModel=None,
-                 rotorAvgModel=None, groundModel=None, upstream_only=False):
+                 rotorAvgModel=None, groundModel=None, upstream_only=False, use_effective_ws=False):
         BlockageDeficitModel.__init__(self, upstream_only=upstream_only, superpositionModel=superpositionModel,
-                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel)
+                                      rotorAvgModel=rotorAvgModel, groundModel=groundModel,
+                                      use_effective_ws=use_effective_ws)
         # limiter to avoid singularities
         self.limiter = limiter
         # coefficient for scaling the effective forcing
@@ -139,9 +141,9 @@ class RathmannScaled(Rathmann):
 
         return boost_ijlk
 
-    def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_):
+    def calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, wake_radius_ijlk, **_):
         boost_ijlk = self.deficit_scaling(D_src_il, dw_ijlk, cw_ijlk, ct_ilk)
-        return boost_ijlk * Rathmann.calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, **_)
+        return boost_ijlk * Rathmann.calc_deficit(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, ct_ilk, wake_radius_ijlk)
 
 
 def main():

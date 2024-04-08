@@ -104,11 +104,17 @@ class BlockageDeficitModel(DeficitModel):
             deficit_ijlk *= (dw_ijlk < rotor_pos)
         return deficit_ijlk
 
-    def remove_wake(self, deficit_ijlk, dw_ijlk, cw_ijlk, D_src_il):
-        # indices in wake region
+    def remove_wake(self, deficit_ijlk, dw_ijlk, cw_ijlk, D_src_il, wake_radius_ijlk, induc_ijlk=None):
+        # indices in downstream where cw < wake_radius
         R_ijlk = (D_src_il / 2)[:, na, :, na]
-        iw = ((dw_ijlk / R_ijlk >= -self.limiter) & (cabs(cw_ijlk) <= R_ijlk))
-        return np.where(iw, 0., deficit_ijlk)
+        iw = ((dw_ijlk / R_ijlk >= -self.limiter) & (cabs(cw_ijlk) <= wake_radius_ijlk))
+        deficit_ijlk = np.where(iw, 0., deficit_ijlk)
+
+        if induc_ijlk is not None:
+            # Close to the rotor the induced velocities become unphysical in some models and are
+            # limited to the induction in the rotor plane estimated by BEM.
+            deficit_ijlk = np.where(np.abs(deficit_ijlk) > induc_ijlk, induc_ijlk * np.sign(deficit_ijlk), deficit_ijlk)
+        return deficit_ijlk
 
 
 class WakeDeficitModel(DeficitModel, ABC):

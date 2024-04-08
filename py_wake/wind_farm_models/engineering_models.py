@@ -501,6 +501,7 @@ class PropagateUpDownIterative(EngineeringWindFarmModel):
             if max_diff < 1e-6:
                 break
             WS_eff_ilk_last = WS_eff_ilk
+        self.direction = 'down'
         return WS_eff_ilk, TI_eff_ilk, ct_ilk, res_kwargs
 
     def _calc_deficit(self, dw_ijlk, **kwargs):
@@ -509,8 +510,7 @@ class PropagateUpDownIterative(EngineeringWindFarmModel):
             deficit = dw_ijlk * 0
             deficit, blockage = self._add_blockage(deficit, dw_ijlk, **kwargs)
         else:
-            deficit = self.wake_deficitModel(dw_ijlk=dw_ijlk, **kwargs)
-            blockage = deficit * 0
+            deficit, blockage = EngineeringWindFarmModel._calc_deficit(self, dw_ijlk=dw_ijlk, **kwargs)
 
         return deficit, blockage
 
@@ -846,7 +846,7 @@ class All2AllIterative(EngineeringWindFarmModel):
                 self, wd, dw_order_indices_ld, WD_ilk=WD_ilk, WS_ilk=WS_ilk, TI_ilk=TI_ilk,
                 WS_eff_ilk=WS_eff_ilk, TI_eff_ilk=TI_eff_ilk, D_i=D_i, I=I, L=L, K=K, **kwargs)[0]
             self.blockage_deficitModel = blockage_deficitModel
-        elif WS_eff_ilk == 0:
+        elif isinstance(WS_eff_ilk, (int, float)) and WS_eff_ilk == 0:
             WS_eff_ilk = WS_ILK + 0.
 
         WS_eff_ilk = WS_eff_ilk.astype(dtype)
