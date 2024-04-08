@@ -28,7 +28,7 @@ DEFAULT_LOOKUP_TABLE_COORDINATES: Final[
 ] = LookupTableCoordinates(
     ti0=np.arange(0.0, 0.51, 0.01),
     ct=np.arange(0.0, 1.42, 0.02),
-    dw=np.arange(2.0, 51.0, 0.1),
+    dw=np.exp(np.arange(np.log(2.0), np.log(205.0), 0.0125)),
 )
 
 
@@ -64,18 +64,21 @@ def generate_lookup_table(
         table to; if set to ``None``, the lookup table is not saved
         to file
     """
+    if np.isclose(coordinates.dw[0], 2.0):
+        coordinates.dw[0] = 2.0
+
     if np.any(coordinates.ti0 < 0.0):
-        raise ValueError("turbulence intensity values less than zero are not valid")
+        raise ValueError("Turbulence intensity values less than zero are not valid.")
     if np.any(coordinates.ct < 0.0):
-        raise ValueError("thrust coefficient values less than zero are not valid")
+        raise ValueError("Thrust coefficient values less than zero are not valid.")
     if np.any(coordinates.dw < 2.0):
         raise ValueError(
-            "the Eddy Viscosity (EV) model formulations are not defined "
-            "below a dimensionless distance of 2.0"
+            "The Eddy Viscosity (EV) model formulations are not defined "
+            "below a dimensionless distance of 2.0."
         )
     for coords in coordinates:
         if np.any(np.diff(coords) <= 0.0):
-            raise ValueError("all coordinate values must be monotonic increasing")
+            raise ValueError("All coordinate values must be monotonic increasing.")
 
     # Solve only for non-zero values of ct
     ct_non_zero: np.ndarray

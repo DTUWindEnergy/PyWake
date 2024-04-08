@@ -2,7 +2,6 @@
 
 """
 
-import warnings
 from pathlib import Path
 from typing import Any, Final, Optional
 
@@ -35,7 +34,7 @@ from py_wake.turbulence_models.turbulence_model import TurbulenceModel
 from py_wake.wind_farm_models import PropagateDownwind
 from py_wake.wind_turbines import WindTurbines
 
-DEFAULT_MAXIMUM_WAKE_DISTANCE: Final[float] = 50.0
+DEFAULT_MAXIMUM_WAKE_DISTANCE: Final[float] = 200.0
 
 
 class EddyViscosityDeficitModel(WakeDeficitModel):
@@ -107,7 +106,7 @@ class EddyViscosityDeficitModel(WakeDeficitModel):
         if lookup_table_filepath is None:
             if formulation is None:
                 raise ValueError(
-                    "either a formulation or a lookup table path must be provided"
+                    "Either a formulation or a lookup table path must be provided."
                 )
             lookup_table = eddy_viscosity_lookup_table_generator.generate_lookup_table(
                 formulation=formulation,
@@ -115,6 +114,12 @@ class EddyViscosityDeficitModel(WakeDeficitModel):
             )
         else:
             lookup_table = xr.open_dataarray(lookup_table_filepath, engine="h5netcdf")
+
+        if maximum_wake_distance > lookup_table.coords["dw"].max():
+            raise ValueError(
+                "The maximum wake distance cannot be larger than the maximum "
+                "downstream distance coordinate in the lookup table."
+            )
 
         # The lookup table interpolator can perhaps be replaced
         # by the standard PyWake lookup table solution

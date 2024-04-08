@@ -249,6 +249,7 @@ def test_calc_deficit_returns_correct_values(
         use_effective_ws=use_effective_ws,
         use_effective_ti=use_effective_ti,
         use_mixing_function=use_mixing_function,
+        maximum_wake_distance=40.0,
         formulation=None,
         lookup_table_filepath=expected_small_table_filepaths[use_mixing_function],
     )
@@ -259,16 +260,24 @@ def test_calc_deficit_returns_correct_values(
 def test_eddy_viscosity_no_formulation_or_lookup_table_raises_error() -> None:
     with pytest.raises(
         ValueError,
-        match=r"either.*formulation.*lookup.*must be provided",
+        match="Either.*formulation.*lookup.*must be provided",
     ):
-        EddyViscosityDeficitModel(
+        _ = EddyViscosityDeficitModel(
             formulation=None,
             lookup_table_filepath=None,
         )
 
 
+def test_eddy_viscosity_invalid_maximum_wake_distance_raises_error() -> None:
+    with pytest.raises(
+        ValueError,
+        match="maximum wake distance cannot be larger than.*maximum downstream distance",
+    ):
+        _ = EddyViscosityDeficitModel(maximum_wake_distance=1000.0)
+
+
 def test_eddy_viscosity_invalid_negative_ws_raises_error() -> None:
-    with pytest.raises(ValueError, match=r"Negative wind speed.*not valid"):
+    with pytest.raises(ValueError, match="Negative wind speed.*not valid"):
         model = EddyViscosityDeficitModel()
         model.calc_deficit(
             WS_ilk=np.array([[[-0.01]]]),  # Invalid
@@ -283,7 +292,7 @@ def test_eddy_viscosity_invalid_negative_ws_raises_error() -> None:
 
 
 def test_eddy_viscosity_invalid_negative_ct_raises_error() -> None:
-    with pytest.raises(ValueError, match=r"Negative thrust coefficient.*not valid"):
+    with pytest.raises(ValueError, match="Negative thrust coefficient.*not valid"):
         model = EddyViscosityDeficitModel()
         model.calc_deficit(
             WS_ilk=np.array([[[10.0]]]),
@@ -298,7 +307,7 @@ def test_eddy_viscosity_invalid_negative_ct_raises_error() -> None:
 
 
 def test_eddy_viscosity_invalid_high_ct_raises_error() -> None:
-    with pytest.raises(ValueError, match=r"Thrust coefficient.*higher than.*are not supported"):
+    with pytest.raises(ValueError, match="Thrust.*higher than.*not supported"):
         model = EddyViscosityDeficitModel()
         model.calc_deficit(
             WS_ilk=np.array([[[10.0]]]),
@@ -313,7 +322,7 @@ def test_eddy_viscosity_invalid_high_ct_raises_error() -> None:
 
 
 def test_eddy_viscosity_invalid_negative_ti_raises_error() -> None:
-    with pytest.raises(ValueError, match=r"Negative turbulence intensity.*not valid"):
+    with pytest.raises(ValueError, match="Negative turbulence intensity.*not valid"):
         model = EddyViscosityDeficitModel()
         model.calc_deficit(
             WS_ilk=np.array([[[10.0]]]),
@@ -373,7 +382,7 @@ def test_eddy_viscosity_lookup_table_generator_invalid_negative_ti_raises_error(
         ct=np.arange(0.1, 0.9, 0.02),
         dw=np.arange(2.0, 60.0, 0.1),
     )
-    with pytest.raises(ValueError, match=r".*turbulence.*not valid.*"):
+    with pytest.raises(ValueError, match="Turbulence.*not valid"):
         eddy_viscosity_lookup_table_generator.generate_lookup_table(
             formulation=SimplifiedEddyViscosityDeficitFormulation(),
             use_mixing_function=True,
@@ -387,7 +396,7 @@ def test_eddy_viscosity_lookup_table_generator_invalid_negative_ct_raises_error(
         ct=np.arange(-0.1, 0.9, 0.02),
         dw=np.arange(2.0, 60.0, 0.1),
     )
-    with pytest.raises(ValueError, match=r".*thrust.*not valid.*"):
+    with pytest.raises(ValueError, match="Thrust.*not valid"):
         eddy_viscosity_lookup_table_generator.generate_lookup_table(
             formulation=SimplifiedEddyViscosityDeficitFormulation(),
             use_mixing_function=True,
@@ -401,7 +410,7 @@ def test_eddy_viscosity_lookup_table_generator_invalid_small_dw_raises_error() -
         ct=np.arange(0.1, 0.9, 0.02),
         dw=np.arange(1.0, 60.0, 0.1),
     )
-    with pytest.raises(ValueError, match=r".*not defined.*below.*2.*"):
+    with pytest.raises(ValueError, match="not defined.*below.*2"):
         eddy_viscosity_lookup_table_generator.generate_lookup_table(
             formulation=SimplifiedEddyViscosityDeficitFormulation(),
             use_mixing_function=True,
@@ -415,7 +424,7 @@ def test_eddy_viscosity_lookup_table_generator_invalid_coordinates_raises_error(
         ct=np.arange(0.1, 0.9, 0.02),
         dw=np.array([20.0, 15.0, 10.0]),
     )
-    with pytest.raises(ValueError, match=r".*must be monotonic increasing"):
+    with pytest.raises(ValueError, match="must be monotonic increasing"):
         eddy_viscosity_lookup_table_generator.generate_lookup_table(
             formulation=SimplifiedEddyViscosityDeficitFormulation(),
             use_mixing_function=True,
