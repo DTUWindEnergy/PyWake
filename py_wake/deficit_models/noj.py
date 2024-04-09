@@ -15,9 +15,9 @@ from py_wake.utils.model_utils import DeprecatedModel
 
 class NOJDeficit(NiayifarGaussianDeficit, WakeRadiusTopHat):
 
-    def __init__(self, ct2a=ct2a_madsen, k=.1, rotorAvgModel=AreaOverlapAvgModel(), groundModel=None, use_effective_ws=False):
+    def __init__(self, ct2a=ct2a_madsen, k=.1, rotorAvgModel=AreaOverlapAvgModel(), groundModel=None):
         DeficitModel.__init__(self, rotorAvgModel=rotorAvgModel, groundModel=groundModel,
-                              use_effective_ws=use_effective_ws, use_effective_ti=False)
+                              use_effective_ws=False, use_effective_ti=False)
         self.a = [0, k]
         self.ct2a = ct2a
 
@@ -94,7 +94,8 @@ class NOJLocalDeficit(NOJDeficit):
     inflow wind speed and turbulence intensity. The latter input is a also a new
     addition as the wake expansion factor, k, is now a function of the local
     TI. The relationship between TI and k is taken from the linear connection
-    Niayifar and Porte-Agel (2016) estbalished for the Gaussian wake model.
+    Niayifar and Porte-Agel (2016) estbalished for the Gaussian wake model:
+         k_ilk = self.a[0] * TI_ref_ilk + self.a[1]
     The expansion rates in the Jensen and Gaussian describe the same process.
     """
 
