@@ -488,7 +488,7 @@ class PropagateUpDownIterative(EngineeringWindFarmModel):
 
             # blockage deficit
             self.direction = 'up'
-            WS_eff_blockage_ilk, TI_eff_ilk, ct_ilk, res_kwargs = self._propagate_deficit(
+            WS_eff_blockage_ilk, _, _, _ = self._propagate_deficit(
                 wd, dw_order_indices_ld[:, ::-1],
                 WS_ilk - wake_deficit, **kwargs)
             blockage_deficit = (WS_ilk - wake_deficit) - WS_eff_blockage_ilk
