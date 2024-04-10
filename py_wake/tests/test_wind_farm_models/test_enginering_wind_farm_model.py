@@ -526,10 +526,12 @@ def test_PropagateUpDownIterative():
     pudi = PropagateUpDownIterative(site=UniformSite(),
                                     windTurbines=V80(),
                                     wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=use_effective_ws),
-                                    blockage_deficitModel=SelfSimilarityDeficit(use_effective_ws=use_effective_ws))
+                                    blockage_deficitModel=SelfSimilarityDeficit(use_effective_ws=use_effective_ws),
+                                    turbulenceModel=STF2017TurbulenceModel())
     all2all = All2AllIterative(site=UniformSite(), windTurbines=V80(),
                                wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=use_effective_ws),
-                               blockage_deficitModel=SelfSimilarityDeficit(use_effective_ws=use_effective_ws))
+                               blockage_deficitModel=SelfSimilarityDeficit(use_effective_ws=use_effective_ws),
+                               turbulenceModel=STF2017TurbulenceModel())
 
     x = np.array([0, 400, 800, 800])
     y = [0, 0, 100, -200]
@@ -545,8 +547,15 @@ def test_PropagateUpDownIterative():
             for x_, y_ in zip(fm.X, fm.Y):
                 plt.plot(x_, y_, '.-')
         plt.show()
-    npt.assert_array_almost_equal(pudi(x, y, wd=270).flow_map(grid).WS_eff.squeeze(),
-                                  all2all(x, y, wd=270).flow_map(grid).WS_eff.squeeze())
+
+    sim_res_pudi, sim_res_all2all = pudi(x, y, wd=270), all2all(x, y, wd=270)
+    for n in sim_res_pudi:
+        npt.assert_allclose(sim_res_pudi[n], sim_res_all2all[n], rtol=1e-6)
+    fm_pudi, fm_all2all = sim_res_pudi.flow_map(grid), sim_res_all2all.flow_map(grid)
+    npt.assert_array_almost_equal(fm_pudi.WS_eff.squeeze(),
+                                  fm_all2all.WS_eff.squeeze())
+    npt.assert_array_almost_equal(fm_pudi.TI_eff.squeeze(),
+                                  fm_all2all.TI_eff.squeeze())
 
 
 @pytest.mark.parametrize('wake_deficitModel', get_models(WakeDeficitModel))
