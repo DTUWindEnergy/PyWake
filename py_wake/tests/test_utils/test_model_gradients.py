@@ -113,7 +113,7 @@ def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110,
 
 @pytest.mark.parametrize('model', get_models(EngineeringWindFarmModel))
 def test_wind_farm_models(model):
-    check_gradients(lambda site, wt: model(site, wt, IEA37SimpleBastankhahGaussianDeficit()), model.__name__)
+    check_gradients(lambda site, wt: model(site, wt, BastankhahGaussianDeficit(use_effective_ws=True)), model.__name__)
 
 
 @pytest.mark.parametrize('model', get_models(WakeDeficitModel))

@@ -14,6 +14,7 @@ from py_wake.utils.model_utils import check_model, fix_shape
 from py_wake.utils.gradients import hypot
 import warnings
 from py_wake.input_modifier_models.input_modifier_model import InputModifierModel
+from py_wake.deficit_models.no_wake import NoWakeDeficit
 
 
 class EngineeringWindFarmModel(WindFarmModel):
@@ -462,6 +463,10 @@ class PropagateUpDownIterative(EngineeringWindFarmModel):
         EngineeringWindFarmModel.__init__(self, site, windTurbines, wake_deficitModel, superpositionModel, rotorAvgModel,
                                           blockage_deficitModel=blockage_deficitModel, deflectionModel=deflectionModel,
                                           turbulenceModel=turbulenceModel, inputModifierModels=inputModifierModels)
+        msg = 'PropagateUpDownIterative requires a wake deficit model that scales with the effective wind speed. For most models this can be achieved by setting the argument use_effective_ws=True'
+        assert isinstance(wake_deficitModel, NoWakeDeficit) or wake_deficitModel.WS_key == 'WS_eff_ilk', msg
+        msg = "PropagateUpDownIterative only works with blockage deficit models that scales with the effective wind speed. For most models this can be achieved by setting the argument use_effective_ws=True"
+        assert blockage_deficitModel is None or blockage_deficitModel.WS_key == 'WS_eff_ilk', msg
         self.convergence_tolerance = convergence_tolerance
 
     def _calc_wt_interaction(self, wd, WS_eff_ilk,
@@ -845,7 +850,7 @@ class All2AllIterative(EngineeringWindFarmModel):
                 self, wd, dw_order_indices_ld, WD_ilk=WD_ilk, WS_ilk=WS_ilk, TI_ilk=TI_ilk,
                 WS_eff_ilk=WS_eff_ilk, TI_eff_ilk=TI_eff_ilk, D_i=D_i, I=I, L=L, K=K, **kwargs)[0]
             self.blockage_deficitModel = blockage_deficitModel
-        elif isinstance(WS_eff_ilk, (int, float)) and WS_eff_ilk == 0:
+        elif np.all(WS_eff_ilk == 0):
             WS_eff_ilk = WS_ILK + 0.
 
         WS_eff_ilk = WS_eff_ilk.astype(dtype)

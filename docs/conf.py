@@ -86,6 +86,7 @@ exclude_patterns = [
     #'notebooks/neural_network_with_tfds_data.ipynb',
     # ipynb checkpoints
     'notebooks/.ipynb_checkpoints/*.ipynb',
+    'notebooks/figure_notebooks/*.ipynb',
     'build/*'
 ]
 
