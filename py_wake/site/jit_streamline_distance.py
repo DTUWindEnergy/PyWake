@@ -60,7 +60,7 @@ class JITStreamlineDistance(StraightDistance):
                 zip(dw_mj, dw_is, hcw_is, dist_xyz[:, :, 2], length_is)):
             dw = dw_j > 0
             hcw_mj[m, dw] += np.interp(dw_j[dw], dw_s, hcw_s)
-            dh_mj[m, dw] += np.interp(dw_j[dw], dw_s, dh_s)
+            dh_mj[m, dw] -= np.interp(dw_j[dw], dw_s, dh_s)
             dw_mj[m, dw] = np.interp(dw_j[dw], dw_s, length_s)
 
         if len(np.shape(dst_idx)) == 2:
