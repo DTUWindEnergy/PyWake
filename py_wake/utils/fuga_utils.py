@@ -123,6 +123,7 @@ After that pass the new netcdf file to Fuga instead of the old folder""",
     def load_luts(self, UVLT=['UL', 'UT', 'VL', 'VT'], zlevels=None):
         if hasattr(self, 'dataset_path'):
             dataset = xr.load_dataset(self.dataset_path)
+            self.diameter = dataset.diameter.item()
             return np.array([dataset[k].load().transpose('z', 'y', 'x').values for k in UVLT])
         else:
             luts = np.array([[np.fromfile(str(self.path / (self.prefix + '%04d%s.dat' % (j, uvlt))), np.dtype('<f'), -1)
