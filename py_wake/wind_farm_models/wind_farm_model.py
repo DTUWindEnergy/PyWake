@@ -313,6 +313,8 @@ class WindFarmModel(ABC):
                 return arg[:, wd_slice]
             elif s in {(I, L, K), (1, L, K)}:
                 return arg[:, wd_slice][:, :, ws_slice]
+            elif s in {(I, 1, K), (1, 1, K)}:
+                return arg[:, :, ws_slice]
             elif s == (L,):
                 return arg[wd_slice]
             # elif s == (L, K):

@@ -204,11 +204,24 @@ class EngineeringWindFarmModel(WindFarmModel):
 
         ri, oi = self.windTurbines.function_inputs
 
+        kwargs.update({'WD_ilk': lw.WD_ilk,
+                       'WS_ilk': lw.WS_ilk,
+                       'WS_eff_ilk': WS_eff_ilk,
+                       'D_i': D_i,
+                       'I': I, 'L': L, 'K': K,
+                       **{k + '_ilk': self.site.interp(self.site.ds[k], lw) for k in ri + oi if k in self.site.ds},
+                       })
+        if hasattr(lw, 'TI_ilk'):
+            kwargs['TI_ilk'] = lw.TI_ilk
+            kwargs['TI_eff_ilk'] = lw.TI_ilk + 0.  # autograd-friendly copy
+
+        self._check_input(kwargs)
+
         if n_cpu != 1 or wd_chunks or ws_chunks > 1:
             # parallel execution
             map_func, arg_lst, wd_chunks, ws_chunks = self._multiprocessing_chunks(
                 n_cpu=n_cpu, wd_chunks=wd_chunks, ws_chunks=ws_chunks,
-                WS_eff_ilk=WS_eff_ilk, **kwargs)
+                **kwargs)
 
             WS_eff_ilk, TI_eff_ilk, power_ilk, ct_ilk, _, kwargs = list(
                 zip(*map_func(self._calc_wt_interaction_args, arg_lst)))
@@ -225,19 +238,6 @@ class EngineeringWindFarmModel(WindFarmModel):
                     [lw,
                      {'type_i': kwargs[0]['type_i'],
                       **{k: concatenate([wt_i[k] for wt_i in kwargs]) for k in kwargs[0] if k.endswith('_ilk')}}])
-
-        kwargs.update({'WD_ilk': lw.WD_ilk,
-                       'WS_ilk': lw.WS_ilk,
-                       'WS_eff_ilk': WS_eff_ilk,
-                       'D_i': D_i,
-                       'I': I, 'L': L, 'K': K,
-                       **{k + '_ilk': self.site.interp(self.site.ds[k], lw) for k in ri + oi if k in self.site.ds},
-                       })
-        if hasattr(lw, 'TI_ilk'):
-            kwargs['TI_ilk'] = lw.TI_ilk
-            kwargs['TI_eff_ilk'] = lw.TI_ilk + 0.  # autograd-friendly copy
-
-        self._check_input(kwargs)
 
         # Calculate down-wind and cross-wind distances
         self.site.distance.setup(kwargs['x_ilk'], kwargs['y_ilk'], kwargs['h_ilk'])

@@ -6,6 +6,7 @@ from numpy import newaxis as na
 from py_wake.site._site import Site
 import warnings
 from py_wake.utils.grid_interpolator import GridInterpolator
+import py_wake
 
 
 class Model():
@@ -167,7 +168,7 @@ def cls_in(A, cls_lst):
     return str(A) in map(str, cls_lst)
 
 
-def get_models(base_class, exclude_None=False):
+def get_models(base_class, exclude_None=False, include_dirs=[]):
     if base_class is Site:
         from py_wake.examples.data.iea37._iea37 import IEA37Site
         from py_wake.examples.data.hornsrev1 import Hornsrev1Site
@@ -177,10 +178,15 @@ def get_models(base_class, exclude_None=False):
 
     model_lst = []
     base_class_module = inspect.getmodule(base_class)
-    for loader, module_name, is_pkg in pkgutil.walk_packages([os.path.dirname(base_class_module.__file__)]):
+    for loader, module_name, is_pkg in pkgutil.walk_packages(
+            [os.path.dirname(base_class_module.__file__)] + include_dirs):
         if 'test' in module_name:
             continue
-        module_name = base_class_module.__package__ + '.' + module_name
+        parent_module = os.path.relpath(loader.path, os.path.dirname(
+            py_wake.__file__) + "/../").replace("\\", '.').replace("/", '.')
+        if parent_module.startswith("..."):  # pragma: no cover
+            continue
+        module_name = parent_module + '.' + module_name
         import importlib
         try:
             _module = importlib.import_module(module_name)

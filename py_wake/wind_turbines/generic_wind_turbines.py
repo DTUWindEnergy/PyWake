@@ -169,23 +169,27 @@ class SimpleGenericWindTurbine(WindTurbine):
             list of additional models.
         """
 
-        power_norm = power_norm * 1000
+        self.power_norm = power_norm * 1000
         D = diameter
-        Ur = (8 * power_norm / (np.pi * air_density * max_cp * D**2))**(1 / 3)  # [m/s] Rated wind speed, eq 4
+        self.Ur = (8 * self.power_norm / (np.pi * air_density * max_cp * D**2))**(1 / 3)  # [m/s] Rated wind speed, eq 4
         self.max_cp = max_cp
+        self.constant_ct = constant_ct
         self.ws_cutin = ws_cutin
         self.ws_cutout = ws_cutout
         self.air_density = air_density
 
-        def power(ws):
-            # reformulation of eq 1 + 2 + 5
-            ws = np.asarray(ws)
-            return np.where((ws_cutin <= ws) & (ws <= ws_cutout),
-                            np.minimum(power_norm / (Ur**3 - ws_cutin**3) * (ws**3 - ws_cutin**3), power_norm), 0)
-
-        def ct(ws):
-            # eq 6. The paper states 3/2 instead of 3.2 which is either a typo or an initial guess
-            return np.minimum(constant_ct, constant_ct * (Ur / np.asarray(ws))**(3.2))
         WindTurbine.__init__(self, name, diameter, hub_height,
-                             powerCtFunction=PowerCtFunctions(power_function=power, power_unit='w', ct_function=ct,
+                             powerCtFunction=PowerCtFunctions(power_function=self._power, power_unit='w',
+                                                              ct_function=self._ct,
                                                               additional_models=additional_models))
+
+    def _power(self, ws):
+        # reformulation of eq 1 + 2 + 5
+        ws = np.asarray(ws)
+        return np.where((self.ws_cutin <= ws) & (ws <= self.ws_cutout),
+                        np.minimum(self.power_norm / (self.Ur**3 - self.ws_cutin**3) * (ws**3 - self.ws_cutin**3),
+                                   self.power_norm), 0)
+
+    def _ct(self, ws):
+        # eq 6. The paper states 3/2 instead of 3.2 which is either a typo or an initial guess
+        return np.minimum(self.constant_ct, self.constant_ct * (self.Ur / np.asarray(ws))**(3.2))

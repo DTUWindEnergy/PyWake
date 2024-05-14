@@ -63,6 +63,19 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
                 return du_interpolator.ev(x, y)
             self.lut_interpolator = interp
 
+        X, Y = np.meshgrid(self.x, self.y)
+        self.lut_interpolator([X, Y, X * 0 + self.zHub])
+        du_zhub = self.lut_interpolator([X, Y, X * 0 + self.zHub])
+        self.setup_wake_radius(du_zhub)
+
+    def setup_wake_radius(self, du_zhub):
+        # set wake limit center_deficit * np.exp(-2)), corresponding to value of 2 sigma for a gaussian profile
+        wake_radius_arr = self.y[np.argmin((du_zhub > (du_zhub[0] * np.exp(-2))), 0)]
+
+        rp = len(self.x) // 4
+        wake_radius_arr[:rp] = 0  # set upstream to 0
+        self.wake_radius_arr = wake_radius_arr
+
     def load(self):
         du = self.init_lut(self.load_luts(['UL'])[0],
                            smooth2zero_x=self.smooth2zero_x, smooth2zero_y=self.smooth2zero_y,
@@ -82,8 +95,7 @@ class FugaDeficit(WakeDeficitModel, BlockageDeficitModel, FugaUtils):
         return self.mdu_ijlk * (ct_ilk * WS_eff_ilk**2 / WS_ilk)[:, na]
 
     def wake_radius(self, D_src_il, dw_ijlk, **_):
-        # Set at twice the source radius for now
-        return np.zeros_like(dw_ijlk) + D_src_il[:, na, :, na]
+        return np.interp(dw_ijlk, self.x, self.wake_radius_arr)
 
 
 class FugaYawDeficit(FugaDeficit):
@@ -138,6 +150,10 @@ class FugaYawDeficit(FugaDeficit):
                 assert np.all(z == self.z[0]), f'LUT table contains z={self.z} only'
                 return np.moveaxis([UL_interpolator.ev(x, y), UT_interpolator.ev(x, y)], 0, -1)
             self.lut_interpolator = interp
+        X, Y = np.meshgrid(self.x, self.y)
+        self.lut_interpolator([X, Y, X * 0 + self.zHub])
+        du_zhub = self.lut_interpolator([X, Y, X * 0 + self.zHub])[:, :, 0]
+        self.setup_wake_radius(du_zhub)
 
     def _calc_layout_terms(self, dw_ijlk, hcw_ijlk, z_ijlk, D_src_il, **_):
         self.mdu_ijlk = (self.interpolate(dw_ijlk, cabs(hcw_ijlk), z_ijlk))
@@ -248,12 +264,17 @@ class FugaMultiLUTDeficit(XRLUTDeficitModel, FugaDeficit):
         attrs = merge_attrs([da.attrs for da in da_lst], combine_attrs='drop_conflicts')
         da = xr.combine_by_coords(da_lst, combine_attrs='drop').squeeze()
         da.attrs = attrs
+        self.x, self.y = da.x.values, da.y.values
         self._args4model = {k + "_ilk" for k in ['zeta0', 'zi'] if k in da.dims}
 
         method = ['nearest'] + (['linear'] * (len(da.dims) - 1))
         XRLUTDeficitModel.__init__(self, da, get_input=self.get_input, method=method, bounds=bounds,
                                    rotorAvgModel=rotorAvgModel, groundModel=groundModel,
                                    use_effective_ws=False, use_effective_ti=use_effective_ti)
+
+    def wake_radius(self, D_src_il, dw_ijlk, **_):
+        # Set at twice the source radius for now
+        return np.zeros_like(dw_ijlk) + D_src_il[:, na, :, na]
 
     def calc_deficit(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk, z_ijlk, ct_ilk, D_src_il, **kwargs):
         # bypass XRLUTDeficitModel.calc_deficit

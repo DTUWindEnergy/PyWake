@@ -7,7 +7,7 @@ import pytest
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
 from py_wake import NOJ
 from py_wake.examples.data.ParqueFicticio import ParqueFicticioSite
-from py_wake.flow_map import HorizontalGrid, XYGrid
+from py_wake.flow_map import HorizontalGrid, XYGrid, XZGrid, Points
 import matplotlib.pyplot as plt
 from py_wake.utils.streamline import VectorField3D
 from py_wake.site.jit_streamline_distance import JITStreamlineDistance
@@ -15,7 +15,7 @@ from py_wake.examples.data.hornsrev1 import V80
 
 from py_wake.tests.test_wind_farm_models.test_enginering_wind_farm_model import OperatableV80
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
-from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit
+from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit, BastankhahGaussian
 from py_wake.deficit_models.utils import ct2a_mom1d
 import warnings
 
@@ -314,9 +314,57 @@ def test_JITStreamlinesparquefictio():
                                  y=np.linspace(site.ds.y[0], site.ds.y[-1], 500)))
     stream_lines = vf3d.stream_lines(wd=np.full(x.shape, wd), start_points=np.array([x, y, np.full(x.shape, 70)]).T,
                                      dw_stop=y - 6504700)
-    if 0:
+    if 1:
         fm.plot_wake_map()
         for sl in stream_lines:
             plt.plot(sl[:, 0], sl[:, 1])
 
         plt.show()
+
+    print()
+
+
+def test_JITStreamlinesparquefictio_yz():
+    site = ParqueFicticioSite()
+    site.ds.Turning[:] *= 0
+    site.ds.flow_inc[:] *= 5
+    wt = IEA37_WindTurbines()
+    vf3d = VectorField3D.from_WaspGridSite(site)
+    site.distance = JITStreamlineDistance(vf3d)
+
+    x, y = site.initial_position[3:5].T
+    y[1] = y[0]
+    x[1] = x[0] + 500
+    wfm = BastankhahGaussian(site, wt, k=0.03)
+    wd = np.array([270])
+    sim_res = wfm(x, y, wd=wd, ws=10)
+    dw = site.distance(wd_l=wd, WD_ilk=np.repeat(wd[na, na], len(x), 0))[0][:, :, 0, 0]
+    # streamline downwind distance (positive numbers, upper triangle) cannot be shorter than
+    # straight line distances in opposite direction (negative numbers, lower triangle)
+    assert (dw + dw.T).min() >= 0
+    # average downwind distance increase around 5 m
+    # npt.assert_almost_equal((dw + dw.T)[0, 1], 2, 0)
+
+    fm = sim_res.flow_map(XZGrid(x=np.linspace(site.ds.x[0] + 1000, site.ds.x[-1], 500),
+                                 z=np.linspace(30, 200, 50), y=y[0]))
+    stream_lines = vf3d.stream_lines(wd=np.full(x.shape, wd), start_points=np.array([x, y, np.full(x.shape, wt.hub_height())]).T,
+                                     dw_stop=np.array([700, 100]))
+    px, py, pz = stream_lines[0, 7]
+
+    z_lst = np.linspace(-20, 20, 9)
+    fm_points = sim_res.flow_map(Points(z_lst * 0 + px, z_lst * 0 + y[0], z_lst + pz))
+
+    if 0:
+        fm.plot_wake_map()
+        for sl in stream_lines:
+            plt.plot(sl[:, 0], sl[:, 2] + site.elevation(sl[:, 0], sl[:, 1]))
+        plt.plot(fm.x, site.elevation(fm.x, fm.x.values * 0 + fm.y.values))
+        plt.plot(px, pz + site.elevation(px, py), '.')
+        plt.figure()
+        fm_points.WS_eff.plot()
+        plt.show()
+
+    assert np.argmin(fm_points.WS_eff.values) == 4  # minimum WS_eff should be at streamline
+
+    fm = sim_res.flow_map(Points(x[1:] - 1e-6, y[1:], [wt.hub_height()]))
+    npt.assert_allclose(fm.WS_eff, sim_res.WS_eff.sel(wt=1))
