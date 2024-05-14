@@ -14,7 +14,7 @@ from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit
 from py_wake.deficit_models.gaussian import IEA37SimpleBastankhahGaussianDeficit, BastankhahGaussian
 from py_wake.deficit_models.no_wake import NoWakeDeficit
 from py_wake.deficit_models.noj import NOJDeficit
-from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit
+from py_wake.deficit_models.selfsimilarity import SelfSimilarityDeficit, SelfSimilarityDeficit2020
 from py_wake.deficit_models.utils import ct2a_mom1d
 from py_wake.deflection_models.jimenez import JimenezWakeDeflection
 from py_wake.examples.data.hornsrev1 import HornsrevV80, Hornsrev1Site, wt_x, wt_y, V80
@@ -511,6 +511,8 @@ def test_compare_wfm():
 
     res = []
     for cls in get_models(EngineeringWindFarmModel):
+        if cls == PropagateUpDownIterative:
+            continue
         wfm = cls(w.site, w.windTurbines, w.wake_deficitModel, w.superpositionModel)
         res.append(wfm(x, y).aep().sum().item())
     npt.assert_allclose(res, res[0])
@@ -524,13 +526,12 @@ def test_check_input():
 
 def test_PropagateUpDownIterative():
     use_effective_ws = True
-    pudi = PropagateUpDownIterative(site=UniformSite(),
-                                    windTurbines=V80(),
-                                    wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=use_effective_ws),
-                                    blockage_deficitModel=SelfSimilarityDeficit(use_effective_ws=use_effective_ws))
-    all2all = All2AllIterative(site=UniformSite(), windTurbines=V80(),
-                               wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=use_effective_ws),
-                               blockage_deficitModel=SelfSimilarityDeficit(use_effective_ws=use_effective_ws))
+    kwargs = dict(site=UniformSite(), windTurbines=V80(),
+                  wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=use_effective_ws),
+                  blockage_deficitModel=SelfSimilarityDeficit(use_effective_ws=use_effective_ws),
+                  turbulenceModel=STF2017TurbulenceModel())
+    pudi = PropagateUpDownIterative(**kwargs)
+    all2all = All2AllIterative(**kwargs)
 
     x = np.array([0, 400, 800, 800])
     y = [0, 0, 100, -200]
@@ -546,8 +547,15 @@ def test_PropagateUpDownIterative():
             for x_, y_ in zip(fm.X, fm.Y):
                 plt.plot(x_, y_, '.-')
         plt.show()
-    npt.assert_array_almost_equal(pudi(x, y, wd=270).flow_map(grid).WS_eff.squeeze(),
-                                  all2all(x, y, wd=270).flow_map(grid).WS_eff.squeeze())
+
+    sim_res_pudi, sim_res_all2all = pudi(x, y, wd=270), all2all(x, y, wd=270)
+    for n in sim_res_pudi:
+        npt.assert_allclose(sim_res_pudi[n], sim_res_all2all[n], rtol=1e-6)
+    fm_pudi, fm_all2all = sim_res_pudi.flow_map(grid), sim_res_all2all.flow_map(grid)
+    npt.assert_array_almost_equal(fm_pudi.WS_eff.squeeze(),
+                                  fm_all2all.WS_eff.squeeze())
+    npt.assert_array_almost_equal(fm_pudi.TI_eff.squeeze(),
+                                  fm_all2all.TI_eff.squeeze())
 
 
 @pytest.mark.parametrize('wake_deficitModel', get_models(WakeDeficitModel))
@@ -555,6 +563,11 @@ def test_PropagateUpDownIterative_wake_deficitModels(wake_deficitModel):
     if wake_deficitModel in [NOJDeficit, FugaDeficit, FugaMultiLUTDeficit,
                              FugaYawDeficit, IEA37SimpleBastankhahGaussianDeficit,
                              EddyViscosityDeficitModel]:
+        with pytest.raises(AssertionError, match="PropagateUpDownIterative requires a wake deficit model that scales with the effective wind speed. For most models this can be achieved by setting the argument use_effective_ws=True"):
+            PropagateUpDownIterative(site=UniformSite(),
+                                     windTurbines=V80(),
+                                     wake_deficitModel=wake_deficitModel(),
+                                     turbulenceModel=STF2017TurbulenceModel())
         return
     pudi = PropagateUpDownIterative(site=UniformSite(),
                                     windTurbines=V80(),
@@ -573,16 +586,27 @@ def test_PropagateUpDownIterative_wake_deficitModels(wake_deficitModel):
 
 @pytest.mark.parametrize('blockage_deficitModel', get_models(BlockageDeficitModel))
 def test_PropagateUpDownIterative_blockage_deficitModels(blockage_deficitModel):
-    if blockage_deficitModel in [None, FugaDeficit, FugaMultiLUTDeficit, FugaYawDeficit]:
+    if blockage_deficitModel in [FugaDeficit, FugaMultiLUTDeficit, FugaYawDeficit]:
+
+        with pytest.raises(AssertionError, match="PropagateUpDownIterative only works with blockage deficit models that scales with the effective wind speed. For most models this can be achieved by setting the argument use_effective_ws=True"):
+            PropagateUpDownIterative(site=UniformSite(),
+                                     windTurbines=V80(),
+                                     wake_deficitModel=NoWakeDeficit(),
+                                     blockage_deficitModel=blockage_deficitModel(),
+                                     turbulenceModel=STF2017TurbulenceModel())
         return
+    if blockage_deficitModel is None:
+        bm = blockage_deficitModel
+    else:
+        bm = blockage_deficitModel(use_effective_ws=True)
     pudi = PropagateUpDownIterative(site=UniformSite(),
                                     windTurbines=V80(),
                                     wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=True),
-                                    blockage_deficitModel=blockage_deficitModel(use_effective_ws=True),
+                                    blockage_deficitModel=bm,
                                     turbulenceModel=STF2017TurbulenceModel())
     all2all = All2AllIterative(site=UniformSite(), windTurbines=V80(),
                                wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=True),
-                               blockage_deficitModel=blockage_deficitModel(use_effective_ws=True),
+                               blockage_deficitModel=bm,
                                turbulenceModel=STF2017TurbulenceModel())
 
     x = np.array([0, 400, 800, 800])

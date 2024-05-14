@@ -226,7 +226,7 @@ class FugaMultiLUTDeficit(XRLUTDeficitModel, FugaDeficit):
     def __init__(self, LUT_path_lst=tfp + 'fuga/2MW/multilut/LUTs_Zeta0=0.00e+00_16_32_*_zi400_z0=0.00001000_z9.8-207.9_UL_nx128_ny128_dx20.0_dy5.0.nc',
                  z_lst=None, TI_ref_height=None, bounds='limit',
                  rotorAvgModel=None, groundModel=None,
-                 use_effective_ws=True, use_effective_ti=False):
+                 use_effective_ti=False):
 
         if isinstance(LUT_path_lst, str):
             da_lst = [FugaXRLUT(f).UL for f in glob.glob(LUT_path_lst)]
@@ -253,7 +253,7 @@ class FugaMultiLUTDeficit(XRLUTDeficitModel, FugaDeficit):
         method = ['nearest'] + (['linear'] * (len(da.dims) - 1))
         XRLUTDeficitModel.__init__(self, da, get_input=self.get_input, method=method, bounds=bounds,
                                    rotorAvgModel=rotorAvgModel, groundModel=groundModel,
-                                   use_effective_ws=use_effective_ws, use_effective_ti=use_effective_ti)
+                                   use_effective_ws=False, use_effective_ti=use_effective_ti)
 
     def calc_deficit(self, WS_ilk, WS_eff_ilk, dw_ijlk, hcw_ijlk, z_ijlk, ct_ilk, D_src_il, **kwargs):
         # bypass XRLUTDeficitModel.calc_deficit
