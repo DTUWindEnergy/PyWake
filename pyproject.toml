@@ -59,7 +59,7 @@ docs = [
           "ipympl", 
           "ipykernel",
           "pypandoc",
-          "topfarm @ git+https://gitlab.windenergy.dtu.dk/TOPFARM/TopFarm2.git",
+          "topfarm",
         ]
 
 [tool.setuptools]
