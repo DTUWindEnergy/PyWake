@@ -45,7 +45,7 @@ test  = [ 'pytest',  # for testing
           'memory_profiler',  # memory profiling
           'line_profiler',  # to check speed
           'scikit-learn',  # MinMaxScaler
-          'surrogates-interface @ git+https://gitlab.windenergy.dtu.dk/surrogate-models/surrogate-models-interface.git',
+          'surrogates-interface',
           'tensorflow',  # load surrogates
         ] 
 docs = [
