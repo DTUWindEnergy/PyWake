@@ -6,7 +6,8 @@ from py_wake.utils.grid_interpolator import GridInterpolator
 
 class ISONoiseModel:
 
-    def __init__(self, src_x, src_y, src_h, freqs, sound_power_level, elevation_function=None):
+    def __init__(self, src_x, src_y, src_h, freqs, sound_power_level,
+                 elevation_function=lambda x, y: np.zeros(np.shape(x))):
         """ISONoise model based on
 
         DSF/ISO/DIS 9613-2
@@ -41,11 +42,10 @@ class ISONoiseModel:
 
         """
 
-        if elevation_function:
-            src_h += elevation_function(src_x, src_y)
         self.elevation_function = elevation_function
         self.src_x, self.src_y = src_x, src_y
         self.src_h = np.zeros_like(src_x) + src_h
+        self.src_z = elevation_function(src_x, src_y)
         self.n_src = len(src_x)
         self.distance = StraightDistance()
         self.freqs = freqs
@@ -146,9 +146,8 @@ class ISONoiseModel:
     def transmission_loss(self, rec_x, rec_y, rec_h, ground_type, Temp, RHum):
         # transmission loss = ground effects + atmospheric absorption
         rec_h = np.zeros_like(rec_x) + rec_h
-        if self.elevation_function:
-            rec_h += self.elevation_function(rec_x, rec_y)
-        self.distance.setup(self.src_x, self.src_y, self.src_h, [rec_x, rec_y, rec_h])
+        rec_z = self.elevation_function(rec_x, rec_y)
+        self.distance.setup(self.src_x, self.src_y, self.src_h, self.src_z, [rec_x, rec_y, rec_h, rec_z])
         ground_distance_ijlk = np.sqrt(self.distance.dx_ijlk**2 + self.distance.dy_ijlk**2)
         distance_ijlk = np.sqrt(self.distance.dx_ijlk**2 + self.distance.dy_ijlk**2 + self.distance.dh_ijlk**2)
 

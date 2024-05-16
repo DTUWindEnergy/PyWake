@@ -240,7 +240,8 @@ class EngineeringWindFarmModel(WindFarmModel):
                       **{k: concatenate([wt_i[k] for wt_i in kwargs]) for k in kwargs[0] if k.endswith('_ilk')}}])
 
         # Calculate down-wind and cross-wind distances
-        self.site.distance.setup(kwargs['x_ilk'], kwargs['y_ilk'], kwargs['h_ilk'])
+        z_ilk = self.site.elevation(kwargs['x_ilk'], kwargs['y_ilk'])
+        self.site.distance.setup(kwargs['x_ilk'], kwargs['y_ilk'], kwargs['h_ilk'], z_ilk)
 
         WS_eff_ilk, TI_eff_ilk, ct_ilk, kwargs = self._calc_wt_interaction(**kwargs)
 
@@ -286,7 +287,9 @@ class EngineeringWindFarmModel(WindFarmModel):
         return map_arg_funcs, lw_j, wd, WD_il
 
     def _get_flow_l(self, model_kwargs, l, wt_x_ilk, wt_y_ilk, wt_h_ilk, lw_j, wd, WD_ilk):
-        self.site.distance.setup(wt_x_ilk, wt_y_ilk, wt_h_ilk, (lw_j.x, lw_j.y, lw_j.h))
+        wt_z_ilk = self.site.elevation(wt_x_ilk, wt_y_ilk)
+        z_j = self.site.elevation(lw_j.x, lw_j.y)
+        self.site.distance.setup(wt_x_ilk, wt_y_ilk, wt_h_ilk, wt_z_ilk, (lw_j.x, lw_j.y, lw_j.h, z_j))
         dw_ijlk, hcw_ijlk, dh_ijlk = self.site.distance(wd_l=wd, WD_ilk=WD_ilk)
 
         WS_jlk = lw_j.WS_ilk[:, [l, slice(0, 1)][lw_j.WS_ilk.shape[1] == 1]]
@@ -927,7 +930,8 @@ class All2AllIterative(EngineeringWindFarmModel):
                 modified_input_dict = inputModidifierModel(**model_kwargs)
                 model_kwargs.update(modified_input_dict)
                 if any([k in modified_input_dict for k in ['x_ilk', 'y_ilk']]):
-                    self.site.distance.setup(model_kwargs['x_ilk'], model_kwargs['y_ilk'], model_kwargs['h_ilk'])
+                    z_ilk = self.site.elevation(model_kwargs['x_ilk'], model_kwargs['y_ilk'])
+                    self.site.distance.setup(model_kwargs['x_ilk'], model_kwargs['y_ilk'], model_kwargs['h_ilk'], z_ilk)
                     model_kwargs.update({k: v for k, v in zip(['dw_ijlk', 'hcw_ijlk', 'dh_ijlk'],
                                                               self.site.distance(wd_l=wd, WD_ilk=WD_ilk))})
                     model_kwargs['cw_ijlk'] = hypot(model_kwargs['dh_ijlk'], model_kwargs['hcw_ijlk'])
