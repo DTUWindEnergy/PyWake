@@ -441,7 +441,7 @@ class PropagateUpDownIterative(EngineeringWindFarmModel):
                  superpositionModel=LinearSum(),
                  blockage_deficitModel=None,
                  deflectionModel=None, turbulenceModel=None, rotorAvgModel=None,
-                 inputModifierModels=[], convergence_tolerance=1e-6):
+                 inputModifierModels=[], convergence_tolerance=1e-6, max_iter=10):
         """Initialize flow model
 
         Parameters
@@ -471,6 +471,7 @@ class PropagateUpDownIterative(EngineeringWindFarmModel):
         msg = "PropagateUpDownIterative only works with blockage deficit models that scales with the effective wind speed. For most models this can be achieved by setting the argument use_effective_ws=True"
         assert blockage_deficitModel is None or blockage_deficitModel.WS_key == 'WS_eff_ilk', msg
         self.convergence_tolerance = convergence_tolerance
+        self.max_iter = max_iter
 
     def _calc_wt_interaction(self, wd, WS_eff_ilk,
                              **kwargs):
@@ -484,8 +485,7 @@ class PropagateUpDownIterative(EngineeringWindFarmModel):
             alt_model = [self.superpositionModel, LinearSum()][isinstance(
                 self.superpositionModel, (WeightedSum, CumulativeWakeSum))]
             self.blockage_superpositionModel = self.blockage_deficitModel.superpositionModel or alt_model
-
-        WS_eff_ilk_last = WS_ilk
+        
         for j in tqdm(range(I), disable=I <= 1 or not self.verbose, desc="Calculate flow interaction", unit="wt"):
             # wake deficit
             self.direction = 'down'
@@ -493,21 +493,34 @@ class PropagateUpDownIterative(EngineeringWindFarmModel):
                 wd, dw_order_indices_ld,
                 WS_ilk - blockage_deficit, **kwargs)
             wake_deficit = (WS_ilk - blockage_deficit) - WS_eff_wake_ilk
-
+             
+            if j == 0:
+                # set initial value to wakes-only
+                WS_eff_ilk_last = WS_ilk - wake_deficit
+                # initialize 
+                diff_ilk_last = WS_eff_ilk_last * 1e6
+                iconverging = np.ones_like(WS_eff_ilk_last, dtype=bool)
+                
             # blockage deficit
             self.direction = 'up'
             WS_eff_blockage_ilk = self._propagate_deficit(wd, dw_order_indices_ld[:, ::-1],
                                                           WS_ilk - wake_deficit, **kwargs)[0]
             blockage_deficit = (WS_ilk - wake_deficit) - WS_eff_blockage_ilk
             WS_eff_ilk = WS_ilk - wake_deficit - blockage_deficit
-
-            # Check if converged
+            
+            # check convergence of local turbine inflow wind speed
             diff_ilk = cabs(WS_eff_ilk_last - WS_eff_ilk)
-            max_diff = np.max(diff_ilk.max(0))
-
-            if max_diff < 1e-6:
+            # compare convergence rate to previous iteration to check if converging
+            iconverging &= (diff_ilk - diff_ilk_last) <= 0.
+            # compute max difference of all converging cases
+            max_diff = diff_ilk[iconverging].max()
+            # convergence check 
+            if (max_diff < self.convergence_tolerance) or ((j + 1) >= self.max_iter):
                 break
+            # update and keep iterating 
+            diff_ilk_last = diff_ilk
             WS_eff_ilk_last = WS_eff_ilk
+
         self.direction = 'down'
         return WS_eff_ilk, TI_eff_ilk, ct_ilk, res_kwargs
 
