@@ -449,6 +449,8 @@ class SimulationResult(xr.Dataset):
             if n[-4:] == '_ilk':
                 if n[:-4] not in data_vars:
                     data_vars[n[:-4]] = getattr(localWind, n[:-4])
+                    if 'i' in data_vars[n[:-4]].dims:
+                        data_vars[n[:-4]] = data_vars[n[:-4]].rename(i='wt')
             elif n in ['ws_lower', 'ws_upper']:
                 if 'time' not in lw:
                     v = localWind[n]
