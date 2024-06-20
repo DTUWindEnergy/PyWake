@@ -1,6 +1,10 @@
 import numpy
 import py_wake
-from numpy.lib.index_tricks import RClass
+try:
+    # numpy 2.0
+    from numpy.lib._index_tricks_impl import RClass
+except ModuleNotFoundError:
+    from numpy.lib.index_tricks import RClass
 import inspect
 import autograd.numpy as autograd_numpy
 

@@ -45,7 +45,7 @@ test  = [ 'pytest',  # for testing
           'memory_profiler',  # memory profiling
           'line_profiler',  # to check speed
           'scikit-learn',  # MinMaxScaler
-          'surrogates-interface @ git+https://gitlab.windenergy.dtu.dk/surrogate-models/surrogate-models-interface.git',
+          'surrogates-interface',
           'tensorflow',  # load surrogates
         ] 
 docs = [
@@ -59,7 +59,7 @@ docs = [
           "ipympl", 
           "ipykernel",
           "pypandoc",
-          "topfarm @ git+https://gitlab.windenergy.dtu.dk/TOPFARM/TopFarm2.git",
+          "topfarm",
         ]
 
 [tool.setuptools]
@@ -68,9 +68,7 @@ packages = ["py_wake"]
 [tool.setuptools.package-data]
 py_wake = ['examples/data/iea37/*.yaml',
            'examples/data/*.npz',
-           'tests/test_files/fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00/*.*',
-           'tests/test_files/fuga/2MW/Z0=0.00408599Zi=00400Zeta0=0.00E+00/*.*',
-           'tests/test_files/fuga/2MW/*.nc',
+           'tests/test_files/fuga/2MW/Z0=0.03000000Zi=00401Zeta0=0.00E+00.nc',
            'examples/data/iea34_130rwt/*/*/*.h5',
            'examples/data/iea34_130rwt/*/*/*.json',
            'examples/data/ParqueFicticio/*.grd',

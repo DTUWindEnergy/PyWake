@@ -198,8 +198,8 @@ def test_wasp_resources_grid_point(site):
 def test_distances(distance, dw_ref):
     site = ParqueFicticioSite(distance)
     x, y = site.initial_position.T
-    site.distance.setup(src_x_ilk=x, src_y_ilk=y, src_h_ilk=np.array([70]),
-                        dst_xyh_j=(x, y, np.array([70])))
+    site.distance.setup(src_x_ilk=x, src_y_ilk=y, src_h_ilk=np.array([70]), src_z_ilk=x * 0,
+                        dst_xyhz_j=(x, y, np.array([70]), x * 0))
     dw_ijlk, cw_ijlk, dh_ijlk = site.distance(wd_l=[0])
     npt.assert_almost_equal(dw_ijlk[0, :, 0, 0], dw_ref)
 

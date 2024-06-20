@@ -449,6 +449,8 @@ class SimulationResult(xr.Dataset):
             if n[-4:] == '_ilk':
                 if n[:-4] not in data_vars:
                     data_vars[n[:-4]] = getattr(localWind, n[:-4])
+                    if 'i' in data_vars[n[:-4]].dims:
+                        data_vars[n[:-4]] = data_vars[n[:-4]].rename(i='wt')
             elif n in ['ws_lower', 'ws_upper']:
                 if 'time' not in lw:
                     v = localWind[n]
@@ -681,7 +683,8 @@ class SimulationResult(xr.Dataset):
                     if k in self:
                         wt_kwargs[k] = self[k].ilk()
                     elif k in {'dw_ijlk', 'hcw_ijlk', 'cw_ijlk', 'dh_ijlk'}:
-                        self.windFarmModel.site.distance.setup(self.x.ilk(), self.y.ilk(), self.h.ilk())
+                        z_ilk = self.windFarmModel.site.elevation(self.x.ilk(), self.y.ilk())
+                        self.windFarmModel.site.distance.setup(self.x.ilk(), self.y.ilk(), self.h.ilk(), z_ilk)
                         dist = {k: v for k, v in zip(['dw_ijlk', 'hcw_ijlk', 'cw_ijlk'],
                                                      self.windFarmModel.site.distance(WD_ilk=self.WD.ilk(),
                                                                                       wd_l=self.wd.values))}

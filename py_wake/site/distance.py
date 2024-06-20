@@ -56,27 +56,29 @@ class StraightDistance():
             ax.axis('equal')
             ax.legend()
 
-    def setup(self, src_x_ilk, src_y_ilk, src_h_ilk, dst_xyh_j=None):
+    def setup(self, src_x_ilk, src_y_ilk, src_h_ilk, src_z_ilk, dst_xyhz_j=None):
         # ensure 3d and
         # +.0 ensures float or complex
-        src_x_ilk, src_y_ilk, src_h_ilk = [np.expand_dims(v, tuple(range(len(np.shape(v)), 3))) + .0
-                                           for v in [src_x_ilk, src_y_ilk, src_h_ilk]]
+        src_x_ilk, src_y_ilk, src_h_ilk, src_z_ilk = [np.expand_dims(v, tuple(range(len(np.shape(v)), 3))) + .0
+                                                      for v in [src_x_ilk, src_y_ilk, src_h_ilk, src_z_ilk]]
         self.src_x_ilk, self.src_y_ilk, self.src_h_ilk = src_x_ilk, src_y_ilk, src_h_ilk
 
         self.dx_iilk = src_x_ilk - src_x_ilk[:, na]
         self.dy_iilk = src_y_ilk - src_y_ilk[:, na]
         self.dh_iilk = src_h_ilk - src_h_ilk[:, na]
-        if dst_xyh_j is None:
-            dst_x_j, dst_y_j, dst_h_j = src_x_ilk, src_y_ilk, src_h_ilk
-            self.dx_ijlk, self.dy_ijlk, self.dh_ijlk = self.dx_iilk, self.dy_iilk, self.dh_iilk
+        self.dz_iilk = src_z_ilk - src_z_ilk[:, na]
+        if dst_xyhz_j is None:
+            dst_x_j, dst_y_j, dst_h_j, dst_z_j = src_x_ilk, src_y_ilk, src_h_ilk, src_z_ilk
+            self.dx_ijlk, self.dy_ijlk, self.dh_ijlk, self.dz_ijlk = self.dx_iilk, self.dy_iilk, self.dh_iilk, self.dz_iilk
             self.src_eq_dst = True
         else:
-            dst_x_j, dst_y_j, dst_h_j = map(np.asarray, dst_xyh_j)
+            dst_x_j, dst_y_j, dst_h_j, dst_z_j = map(np.asarray, dst_xyhz_j)
             self.dx_ijlk = dst_x_j[na, :, na, na] - src_x_ilk[:, na]
             self.dy_ijlk = dst_y_j[na, :, na, na] - src_y_ilk[:, na]
             self.dh_ijlk = dst_h_j[na, :, na, na] - src_h_ilk[:, na]
+            self.dz_ijlk = dst_z_j[na, :, na, na] - src_z_ilk[:, na]
             self.src_eq_dst = False
-        self.dst_x_j, self.dst_y_j, self.dst_h_j = dst_x_j, dst_y_j, dst_h_j
+        self.dst_x_j, self.dst_y_j, self.dst_h_j, self.dst_z_j = dst_x_j, dst_y_j, dst_h_j, dst_z_j
 
     def __getstate__(self):
         return {k: v for k, v in self.__dict__.items()
@@ -131,8 +133,8 @@ class TerrainFollowingDistance(StraightDistance):
         super().__init__(wind_direction=wind_direction, **kwargs)
         self.distance_resolution = distance_resolution
 
-    def setup(self, src_x_ilk, src_y_ilk, src_h_ilk, dst_xyh_j=None):
-        StraightDistance.setup(self, src_x_ilk, src_y_ilk, src_h_ilk, dst_xyh_j=dst_xyh_j)
+    def setup(self, src_x_ilk, src_y_ilk, src_h_ilk, src_z_ilk, dst_xyhz_j=None):
+        StraightDistance.setup(self, src_x_ilk, src_y_ilk, src_h_ilk, src_z_ilk, dst_xyhz_j=dst_xyhz_j)
         if len(src_x_ilk) == 0:
             return
         # Calculate distance between src and dst and project to the down wind direction

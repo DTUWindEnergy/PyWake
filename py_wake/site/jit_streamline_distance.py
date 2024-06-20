@@ -36,13 +36,22 @@ class JITStreamlineDistance(StraightDistance):
             dw_jl, hcw_jl, dh_jl = [v[0, :, :, 0] for v in StraightDistance.__call__(self, wd_l=wd_l,
                                                                                      src_idx=src_idx, dst_idx=dst_idx)]
             dw_mj, hcw_mj, dh_mj = [np.moveaxis(v, 0, 1) for v in [dw_jl, hcw_jl, dh_jl]]
+
+            i_wd_l = np.arange(np.shape(dst_idx)[1])
+            dz_jlk = self.dz_iilk[src_idx, dst_idx, np.minimum(i_wd_l, self.dh_iilk.shape[2] - 1).astype(int)]
+            dz_mj = np.moveaxis(dz_jlk[:, :, 0], 0, 1)
+
             wd_m = wd_l
         else:
             # dst_idx independent of wind direction
             dw_ijlk, hcw_ijlk, dh_ijlk = StraightDistance.__call__(self, wd_l=wd_l,
                                                                    src_idx=src_idx, dst_idx=dst_idx)
+            # +0 ~ autograd safe copy (broadcast_to returns readonly array)
+            dz_ijlk = np.broadcast_to(self.dz_ijlk[src_idx][:, dst_idx], dw_ijlk.shape) + 0
             I, J, L, K = dw_ijlk.shape
-            dw_mj, hcw_mj, dh_mj = [np.moveaxis(v, 1, 2).reshape(I * L, J) for v in [dw_ijlk, hcw_ijlk, dh_ijlk]]
+            dw_mj, hcw_mj, dh_mj, dz_mj = [np.moveaxis(v, 1, 2).reshape(I * L, J)
+                                           for v in [dw_ijlk, hcw_ijlk, dh_ijlk, dz_ijlk]]
+
             wd_m = np.tile(wd_l, I)
             start_points_m = np.repeat(start_points_m, L, 0)
 
@@ -63,8 +72,13 @@ class JITStreamlineDistance(StraightDistance):
             dh_mj[m, dw] -= np.interp(dw_j[dw], dw_s, dh_s)
             dw_mj[m, dw] = np.interp(dw_j[dw], dw_s, length_s)
 
+        # streamline dh contains absolute height different, but pywake needs differences relative to ground, so
+        # we need to subtract elevation differences, dz
+        dh_mj += dz_mj
+
         if len(np.shape(dst_idx)) == 2:
-            return [np.moveaxis(v, 0, 1)[na, :, :, na] for v in [dw_mj, hcw_mj, dh_mj]]
+
+            return np.array([np.moveaxis(v, 0, 1)[na, :, :, na] for v in [dw_mj, hcw_mj, dh_mj]])
         else:
             return [v.reshape((I, J, L, K)) for v in [dw_mj, hcw_mj, dh_mj]]
 

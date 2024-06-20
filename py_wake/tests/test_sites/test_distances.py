@@ -54,10 +54,11 @@ def test_flat_distances(distance):
     x = [0, 50, 100, 100, 0]
     y = [100, 100, 100, 0, 0]
     h = [0, 10, 20, 30, 0]
+    z = [0, 0, 0, 0]
     wdirs = [0, 30, 90]
 
     site = FlatSite(distance=distance)
-    site.distance.setup(src_x_ilk=x, src_y_ilk=y, src_h_ilk=h)
+    site.distance.setup(src_x_ilk=x, src_y_ilk=y, src_h_ilk=h, src_z_ilk=z)
     dw_ijlk, hcw_ijlk, dh_ijlk = site.distance(wd_l=np.array(wdirs), WD_ilk=None, src_idx=[0, 1, 2, 3], dst_idx=[4])
     dw_indices_lkd = site.distance.dw_order_indices(np.array(wdirs))
 
@@ -88,10 +89,11 @@ def test_flat_distances_src_neq_dst(distance):
     x = [0, 50, 100]
     y = [100, 100, 0]
     h = [0, 10, 20]
+    z = [0, 0, 0]
     wdirs = [0, 30]
 
     site = FlatSite(distance=distance)
-    site.distance.setup(src_x_ilk=x, src_y_ilk=y, src_h_ilk=h, dst_xyh_j=(x, y, [1, 2, 3]))
+    site.distance.setup(src_x_ilk=x, src_y_ilk=y, src_h_ilk=h, src_z_ilk=z, dst_xyhz_j=(x, y, [1, 2, 3], z))
     dw_ijlk, hcw_ijlk, dh_ijlk = site.distance(wd_l=np.array(wdirs), WD_ilk=None)
     dw_indices_lkd = distance.dw_order_indices(wdirs)
     if 0:
@@ -131,7 +133,7 @@ def test_iea37_distances():
     lw = site.local_wind(x=x, y=y,
                          wd=site.default_wd,
                          ws=site.default_ws)
-    site.distance.setup(x, y, np.zeros_like(x))
+    site.distance.setup(x, y, np.zeros_like(x), np.zeros_like(x))
     dw_iilk, hcw_iilk, _ = site.wt2wt_distances(WD_ilk=lw.WD_ilk, wd_l=None)
     # Wind direction.
     wdir = np.rad2deg(np.arctan2(hcw_iilk, dw_iilk))
@@ -204,8 +206,8 @@ def test_terrain_following_half_cylinder():
     dst_x, dst_y = np.array([100, 200, 300, 400]), [0, 0, 0, 0]
     x = np.arange(-150, 150)
 
-    hc.distance.setup(src_x_ilk=src_x, src_y_ilk=src_y, src_h_ilk=src_x * 0,
-                      dst_xyh_j=(dst_x, dst_y, dst_x * 0))
+    hc.distance.setup(src_x_ilk=src_x, src_y_ilk=src_y, src_h_ilk=src_x * 0, src_z_ilk=src_x * 0,
+                      dst_xyhz_j=(dst_x, dst_y, dst_x * 0, dst_x * 0))
     dw_ijlk, hcw_ijlk, _ = hc.distance(wd_l=np.array([0, 90]), WD_ilk=None)
 
     if 0:
@@ -261,7 +263,7 @@ def test_distance_over_rectangle2():
 
     x_j = np.arange(-200, 500, 10)
     y_j = x_j * 0
-    site.distance.setup([-200], [0], [130], (x_j, y_j, y_j + 130))
+    site.distance.setup([-200], [0], [130], [0], (x_j, y_j, y_j + 130, y_j * 0))
     d = site.distance(wd_l=[270])[0][0, :, 0, 0]
 
     ref = x_j - x_j[0]
@@ -284,9 +286,10 @@ def test_distance_plot():
     x = [0, 50, 100, 100, 0]
     y = [100, 100, 100, 0, 0]
     h = [0, 10, 20, 30, 0]
+    z = [0, 0, 0, 0, 0]
     wdirs = [0, 30, 90]
     distance = StraightDistance()
-    distance.setup(src_x_ilk=x, src_y_ilk=y, src_h_ilk=h)
+    distance.setup(src_x_ilk=x, src_y_ilk=y, src_h_ilk=h, src_z_ilk=z)
     distance.plot(wd_l=np.array(wdirs), src_idx=[0], dst_idx=[3])
     if 0:
         plt.show()
@@ -327,44 +330,47 @@ def test_JITStreamlinesparquefictio():
 def test_JITStreamlinesparquefictio_yz():
     site = ParqueFicticioSite()
     site.ds.Turning[:] *= 0
-    site.ds.flow_inc[:] *= 5
+    # site.ds.flow_inc[:] *= 5
     wt = IEA37_WindTurbines()
     vf3d = VectorField3D.from_WaspGridSite(site)
     site.distance = JITStreamlineDistance(vf3d)
 
-    x, y = site.initial_position[3:5].T
-    y[1] = y[0]
-    x[1] = x[0] + 500
+    x, y = site.initial_position[3].T
+    wt_x = np.r_[x - 500, x, x + 500]
+    wt_y = np.r_[y, y, y]
     wfm = BastankhahGaussian(site, wt, k=0.03)
     wd = np.array([270])
-    sim_res = wfm(x, y, wd=wd, ws=10)
-    dw = site.distance(wd_l=wd, WD_ilk=np.repeat(wd[na, na], len(x), 0))[0][:, :, 0, 0]
+    sim_res = wfm(wt_x, wt_y, wd=wd, ws=10)
+    dw = site.distance(wd_l=wd, WD_ilk=np.repeat(wd[na, na], len(wt_x), 0))[0][:, :, 0, 0]
     # streamline downwind distance (positive numbers, upper triangle) cannot be shorter than
     # straight line distances in opposite direction (negative numbers, lower triangle)
     assert (dw + dw.T).min() >= 0
     # average downwind distance increase around 5 m
     # npt.assert_almost_equal((dw + dw.T)[0, 1], 2, 0)
 
-    fm = sim_res.flow_map(XZGrid(x=np.linspace(site.ds.x[0] + 1000, site.ds.x[-1], 500),
-                                 z=np.linspace(30, 200, 50), y=y[0]))
-    stream_lines = vf3d.stream_lines(wd=np.full(x.shape, wd), start_points=np.array([x, y, np.full(x.shape, wt.hub_height())]).T,
-                                     dw_stop=np.array([700, 100]))
+    fm = sim_res.flow_map(XZGrid(x=np.linspace(x - 700, x + 700, 500),
+                                 z=np.linspace(30, 200, 50), y=y))
+    stream_lines = vf3d.stream_lines(wd=wd, start_points=np.array([wt_x, wt_y, np.full(wt_x.shape, wt.hub_height())]).T,
+                                     dw_stop=np.array([1200, 700, 200]))
     px, py, pz = stream_lines[0, 7]
+    pz -= np.diff(site.elevation(*stream_lines[0, (0, 7), :2].T))
 
     z_lst = np.linspace(-20, 20, 9)
-    fm_points = sim_res.flow_map(Points(z_lst * 0 + px, z_lst * 0 + y[0], z_lst + pz))
+    fm_points = sim_res.flow_map(Points(z_lst * 0 + px, z_lst * 0 + y, z_lst + pz))
 
     if 0:
         fm.plot_wake_map()
         for sl in stream_lines:
-            plt.plot(sl[:, 0], sl[:, 2] + site.elevation(sl[:, 0], sl[:, 1]))
+            plt.plot(sl[:, 0], sl[:, 2] + site.elevation(sl[0, 0], sl[0, 1]), '.-')
         plt.plot(fm.x, site.elevation(fm.x, fm.x.values * 0 + fm.y.values))
-        plt.plot(px, pz + site.elevation(px, py), '.')
+        plt.plot(fm.x, site.elevation(fm.x, fm.x.values * 0 + fm.y.values) + 110, '--k')
+        site.ds.flow_inc.interp(y=y, wd=270)
+        plt.plot(z_lst * 0 + px, z_lst + pz + site.elevation(px, py), '.')
         plt.figure()
         fm_points.WS_eff.plot()
         plt.show()
 
     assert np.argmin(fm_points.WS_eff.values) == 4  # minimum WS_eff should be at streamline
 
-    fm = sim_res.flow_map(Points(x[1:] - 1e-6, y[1:], [wt.hub_height()]))
-    npt.assert_allclose(fm.WS_eff, sim_res.WS_eff.sel(wt=1))
+    fm = sim_res.flow_map(Points(wt_x[1:] - 1e-6, wt_y[1:], np.full_like(wt_x[1:], wt.hub_height())))
+    npt.assert_allclose(fm.WS_eff, sim_res.WS_eff.sel(wt=[1, 2]).squeeze())
