@@ -22,7 +22,7 @@ To set up Anaconda, you should:
 
 It is recommended to create a new environment to install PyWake if you have other Python programs. This ensures that the dependencies for the different packages do not conflict with one another. In the command prompt, create and active an environment with::
 
-   conda create --name pywake python=3.8
+   conda create --name pywake python=3.8 hdf5 netcdf4
    activate pywake
 
 
