@@ -4,7 +4,6 @@ An open source wind farm simulation tool capable of calculating wind farm flow f
 power production and annual energy production (AEP) of wind farms.
 """
 
-import pkg_resources
 import numpy
 from py_wake.utils.numpy_utils import NumpyWrapper
 np = numpy
@@ -20,12 +19,6 @@ from py_wake.flow_map import HorizontalGrid, XYGrid, YZGrid, XZGrid  # nopep8
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel  # nopep8
 from py_wake.deficit_models.deficit_model import DeficitModel  # nopep8
 
-
-plugins = {
-    entry_point.name: entry_point.load()
-    for entry_point
-    in pkg_resources.iter_entry_points('py_wake.plugins')
-}
 
 try:  # pragma: no cover
     # version.py created when installing py_wake
