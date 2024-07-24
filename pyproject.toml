@@ -22,7 +22,7 @@ classifiers = [
 ]
 dependencies = [
   "matplotlib",
-  "numpy",
+  "numpy<2",
   "xarray", "netcdf4", "h5netcdf",
   "autograd",
   "pyyaml",
