@@ -113,7 +113,7 @@ class EddyViscosityDeficitModel(WakeDeficitModel):
                 use_mixing_function=use_mixing_function,
             )
         else:
-            lookup_table = xr.open_dataarray(lookup_table_filepath, engine="h5netcdf")
+            lookup_table = xr.open_dataarray(lookup_table_filepath)
 
         if maximum_wake_distance > lookup_table.coords["dw"].max():
             raise ValueError(

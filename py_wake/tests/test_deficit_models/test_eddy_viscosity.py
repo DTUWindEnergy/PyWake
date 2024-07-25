@@ -368,10 +368,9 @@ def test_small_table_generation(
         coordinates=SMALL_COORDINATES,
         output_filepath=tmp_result_table_filepath,
     )
-    lookup_table = xr.open_dataarray(tmp_result_table_filepath, engine="h5netcdf")
+    lookup_table = xr.open_dataarray(tmp_result_table_filepath)
     expected_lookup_table = xr.open_dataarray(
         expected_small_table_filepaths[use_mixing_function],
-        engine="h5netcdf",
     )
     xrt.assert_allclose(lookup_table, expected_lookup_table)
 

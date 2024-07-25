@@ -156,6 +156,6 @@ def generate_lookup_table(
     data_array.attrs["formulation"] = str(formulation)
 
     if output_filepath is not None:
-        data_array.to_netcdf(output_filepath, engine="h5netcdf")
+        data_array.to_netcdf(output_filepath)
 
     return data_array
