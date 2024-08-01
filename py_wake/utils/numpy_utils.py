@@ -1,8 +1,21 @@
 import numpy
 import py_wake
-try:
+
+try:  # pragma: no cover
     # numpy 2.0
     from numpy.lib._index_tricks_impl import RClass
+
+    # fix autograd issues related to numpy 2
+    numpy.msort = numpy.sort
+    import numpy as np
+
+    def __init__(self, value):
+        value = np.array(value)
+        self.shape = value.shape
+        self.dtype = value.dtype
+
+    from autograd.numpy import numpy_vspaces
+    numpy_vspaces.ArrayVSpace.__init__ = __init__
 except ModuleNotFoundError:
     from numpy.lib.index_tricks import RClass
 import inspect
