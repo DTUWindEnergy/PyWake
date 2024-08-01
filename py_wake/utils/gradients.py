@@ -1,36 +1,39 @@
 from py_wake import np
 from numpy import asarray as np_asarray
-# from numpy import asanyarray as np_asanyarray
-import numpy
-import autograd.numpy as anp
-from autograd.numpy.numpy_boxes import ArrayBox
+
+import numpy as nnp
+# import autograd.numpy as anp
+
+# from autograd.numpy.numpy_boxes import ArrayBox
 import inspect
-from autograd.core import defvjp, primitive
-from autograd.differential_operators import jacobian, elementwise_grad
+# from autograd.core import defvjp, primitive
+# from autograd.differential_operators import jacobian, elementwise_grad
 from inspect import signature
 from functools import wraps
 from xarray.core.dataarray import DataArray
 from xarray.core import variable
-from py_wake.utils import gradients
+
 from scipy.interpolate._cubic import PchipInterpolator as scipy_PchipInterpolator
 
-from itertools import count
 from scipy.interpolate import UnivariateSpline as scipy_UnivariateSpline
 
 
-from py_wake.utils.numpy_utils import AutogradNumpy
-from autograd.numpy.numpy_vjps import unbroadcast_f
+from py_wake.utils.numpy_utils import JaxNumpy
+# from autograd.numpy.numpy_vjps import unbroadcast_f
 from scipy.special import gamma as sgamma
-from autograd.scipy.special import gamma as agamma
+from jax.scipy.special import gamma as jgamma
+from jax import custom_vjp
+from jax._src.core import Tracer
+from jax import numpy as jnp
 
 
-def asarray(x, dtype=None, order=None):
-    if isinstance(x, (ArrayBox)):
-        return x
-    elif isinstance(x, DataArray) and isinstance(x.values, ArrayBox):  # pragma: no cover
-        # only needed or called with some versions of xarray
-        return x.values
-    return np_asarray(x, dtype, order)
+# def asarray(x, dtype=None, order=None):
+#     if isinstance(x, (ArrayBox)):
+#         return x
+#     elif isinstance(x, DataArray) and isinstance(x.values, ArrayBox):  # pragma: no cover
+#         # only needed or called with some versions of xarray
+#         return x.values
+#     return np_asarray(x, dtype, order)
 
 
 # def asanyarray(x, dtype=None, order=None):
@@ -42,35 +45,42 @@ def asarray(x, dtype=None, order=None):
 
 
 def minimum(x1, x2, out=None, where=True, **kwargs):
-    if isinstance(x1, ArrayBox) or isinstance(x2, ArrayBox):
-        return anp.where((x2 < x1) & where, x2, x1)  # @UndefinedVariable
+    if isinstance(x1, Tracer) or isinstance(x2, Tracer):
+        return jnp.where((x2 < x1) & where, x2, x1)
     else:
-        return numpy.minimum(x1, x2, out=out, where=where, **kwargs)
+        return nnp.minimum(x1, x2, out=out, where=where, **kwargs)
 
 
 def negative(x1, out=None, where=True, **kwargs):
-    # if out is None:
-    #     return numpy.negative(x1, out=out, where=where, **kwargs)
-    # else:
     assert out is not None
-    return anp.where(where, -x1, x1)  # @UndefinedVariable
+    return jnp.where(where, -x1, x1)  # @UndefinedVariable
+
+
+eps = 2 * np.finfo(float).eps ** 2
+jnp._sqrt = jnp.sqrt
+
+
+def sqrt(x):
+    # avoid divide by zero if x=0
+    if isinstance(x, Tracer):
+        x = np.where(x == 0, eps, x)
+    return jnp._sqrt(x)
 
 
 # replace functions to support autograd
-anp.asarray = asarray
-anp.minimum = minimum
-anp.negative = negative
+# anp.asarray = asarray
+jnp.minimum = minimum
+jnp.negative = negative
+jnp.sqrt = sqrt
 
 
-variable.np.asarray = gradients.asarray
+# variable.np.asarray = gradients.asarray
 
 
-# replace dsqrt to avoid divide by zero if x=0
-eps = 2 * np.finfo(float).eps ** 2
-defvjp(anp.sqrt, lambda ans, x: lambda g: g * 0.5 * np.where(x == 0, eps, x)**-0.5)  # @UndefinedVariable
-defvjp(anp.arctan2,  # @UndefinedVariable
-       lambda ans, x, y: unbroadcast_f(x, lambda g: g * y / (x**2 + np.where(y != 0, y, 1)**2)),
-       lambda ans, x, y: unbroadcast_f(y, lambda g: g * -x / (np.where(x != 0, x, 1)**2 + y**2)))
+# jnp.sqrt.defvjp(anp.sqrt, lambda ans, x: lambda g: g * 0.5 * np.where(x == 0, eps, x)**-0.5)  # @UndefinedVariable
+# defvjp(anp.arctan2,  # @UndefinedVariable
+#        lambda ans, x, y: unbroadcast_f(x, lambda g: g * y / (x**2 + np.where(y != 0, y, 1)**2)),
+#        lambda ans, x, y: unbroadcast_f(y, lambda g: g * -x / (np.where(x != 0, x, 1)**2 + y**2)))
 
 
 def set_gradient_function(df):
@@ -78,27 +88,25 @@ def set_gradient_function(df):
         if not isinstance(df, (list, tuple)):
             df_lst = [df_lst]
 
-        vjp = [lambda ans, *args, df=df, **kwargs: lambda g: g * df(*args, **kwargs) for df in df_lst]
-        first_arg = int(len(inspect.getfullargspec(f).args) > 0 and inspect.getfullargspec(f).args[0] == 'self')
+        def fwd(x, *args, **kwargs):
+            return (f(x, *args, **kwargs), tuple([df(x, *args, **kwargs) for df in df_lst]))
+            # (x,) + args)
 
-        return set_vjp(vjp, first_arg)(f)
+        def bwd(*args):
+            df_res_lst = args[-2]
+            g = args[-1]
+            return tuple([g * df_res for df_res in df_res_lst])
+        n_args = len(inspect.getfullargspec(f).args)
+        first_arg = int(n_args > 0 and inspect.getfullargspec(f).args[0] == 'self')
+        nondiff_argnums = tuple(range(first_arg)) + tuple(range(first_arg + len(df_lst), n_args))
 
-    return get_func
+        pf = custom_vjp(f, nondiff_argnums=nondiff_argnums)
+        pf.defvjp(fwd, bwd)
+        if first_arg == 0:
+            return pf
+        else:
+            return lambda self, *args, pf=pf, **kwargs, : pf(self, *args, **kwargs)
 
-
-def set_vjp(vjp_lst, first_arg=0):
-    # set vjp (vector jacobian product) similar to this
-    # lambda ans, *args, **kwargs: lambda g: g * gradient_function(*args, **kwargs)
-    def get_func(f, vjp_lst=vjp_lst):
-
-        pf = primitive(f)
-
-        def fkwargs(*args, **kwargs):
-            args, kwargs = kwargs2args(f, *args, **kwargs)
-            return pf(*args, **kwargs)
-
-        defvjp(pf, *vjp_lst, argnums=count(first_arg))
-        return fkwargs
     return get_func
 
 
@@ -154,6 +162,7 @@ def kwargs2args(f, *args, **kwargs):
 
 
 def autograd(f, vector_interdependence=True, argnum=0):
+    from jax import jacrev
     if isinstance(argnum, (list, tuple)):
         # Calculating with respect to a merged xy list instead of first x then y takes around 40% less time
         # Here wrap collects the <argnum> arguments into one vector, computes the gradients wrt. this vector
@@ -162,9 +171,9 @@ def autograd(f, vector_interdependence=True, argnum=0):
             args, kwargs = kwargs2args(f, *args, **kwargs)
             wrt_args = [args[i] for i in argnum]
             args = [a for i, a in enumerate(args) if i not in argnum]
-            wrt_arg_shape = [np.shape(arg) for arg in wrt_args]
+            wrt_arg_shape = [np.array(np.shape(arg)) for arg in wrt_args]
             wrt_1arg = np.concatenate([np.ravel(a) for a in wrt_args])
-            wrt_arg_i = np.r_[0, np.cumsum([np.prod(s) for s in wrt_arg_shape]).astype(int)]
+            wrt_arg_i = np.r_[0, np.cumsum(np.array([np.prod(s) for s in wrt_arg_shape])).astype(int)]
 
             def wrap_1inp(inp, *args):
                 wrt_args = [inp[i0:i1].reshape(s) for i0, i1, s in zip(wrt_arg_i[:-1], wrt_arg_i[1:], wrt_arg_shape)]
@@ -173,22 +182,27 @@ def autograd(f, vector_interdependence=True, argnum=0):
                     args.insert(i, wrt_arg)
                 return f(*args, **kwargs)
             wrap_1inp.org_f = f
-            dfdinp = autograd(wrap_1inp, vector_interdependence=vector_interdependence)(wrt_1arg, *args)
-            return [dfdinp[i0:i1].reshape(s) for i0, i1, s in zip(wrt_arg_i[:-1], wrt_arg_i[1:], wrt_arg_shape)]
+            dfdinp = autograd(wrap_1inp, vector_interdependence=True)(wrt_1arg, *args)
+            if vector_interdependence:
+                return [dfdinp[i0:i1].reshape(s) for i0, i1, s in zip(wrt_arg_i[:-1], wrt_arg_i[1:], wrt_arg_shape)]
+            else:
+                return [np.diag(dfdinp[:, i0:i1]).reshape(s)
+                        for i0, i1, s in zip(wrt_arg_i[:-1], wrt_arg_i[1:], wrt_arg_shape)]
         return wrap
     else:
-        if vector_interdependence:
-            grad_func = jacobian(f, argnum)
-        else:
-            grad_func = elementwise_grad(f, argnum)
+        grad_func = jacrev(f, argnums=argnum)
 
         @wraps(grad_func)
-        def wrap2(*args, **kwargs):
-            with AutogradNumpy():
+        def wrap(*args, **kwargs):
+            with JaxNumpy():
                 args, kwargs = kwargs2args(f, *args, **kwargs)
-                return grad_func(*(args[:argnum] + (np.asarray(args[argnum], dtype=np.float),) + args[argnum + 1:]),  # @UndefinedVariable
-                                 **kwargs)
-        return wrap2
+                res = grad_func(*(args[:argnum] + (np.asarray(args[argnum], dtype=np.float),) + args[argnum + 1:]),  # @UndefinedVariable
+                                **kwargs)
+
+                if vector_interdependence is False and len(np.shape(res)) > 1:
+                    res = np.diag(res)
+                return res
+        return wrap
 
 
 color_dict = {}
@@ -225,9 +239,7 @@ def hypot(a, b):
     c : real or complex array_like
         The hypotenuse of the triangle(s).
     """
-    if isinstance(a, ArrayBox) or isinstance(b, ArrayBox):
-        return anp.sqrt(a**2 + b**2)  # @UndefinedVariable
-    elif np.isrealobj(a) and np.isrealobj(b):
+    if np.isrealobj(a) and np.isrealobj(b):
         return np.hypot(a, b)
     else:
         return np.sqrt(a**2 + b**2)
@@ -235,15 +247,14 @@ def hypot(a, b):
 
 def cabs(a):
     """Absolute (non-negative) value for both real and complex number"""
-    if isinstance(a, ArrayBox):
-        return anp.abs(a)  # @UndefinedVariable
-    elif np.isrealobj(a):
+    if np.isrealobj(a):
         return np.abs(a)
     else:
         return np.where(a < 0, -a, a)
 
 
 def dinterp_dxp(xp, x, y):
+    xp, x, y = np.asarray(xp), np.asarray(x), np.asarray(y)
     if len(x) > 1:
         return np.interp(xp, np.repeat(x, 2)[1:-1], np.repeat(np.diff(y) / np.diff(x), 2))
     else:
@@ -253,7 +264,7 @@ def dinterp_dxp(xp, x, y):
 @set_gradient_function([dinterp_dxp])
 def interp(xp, x, y, *args, **kwargs):
     if all([np.isrealobj(v) for v in [xp, x, y]]):
-        return np.interp(xp, x, y, *args, **kwargs)
+        return np.interp(np.asarray(xp), np.asarray(x), np.asarray(y), *args, **kwargs)
     else:
         # yp = np.interp(xp.real, x.real, y.real, *args, **kwargs)
         # dyp_dxp = dinterp_dxp(xp.real, x.real, y.real)
@@ -267,10 +278,8 @@ def interp(xp, x, y, *args, **kwargs):
 
 
 def logaddexp(x, y):
-    if isinstance(x, ArrayBox) or isinstance(y, ArrayBox):
-        return anp.logaddexp(x, y)  # @UndefinedVariable
-    elif np.isrealobj(x) and np.isrealobj(y):
-        return np.logaddexp(x, y)
+    if np.isrealobj(x) and np.isrealobj(y):
+        return np.logaddexp(np.asarray(x), np.asarray(y))
     else:
         x, y = map(np.asarray, [x, y])
         ans = np.logaddexp(x.real, y.real)
@@ -304,9 +313,9 @@ class UnivariateSpline(scipy_UnivariateSpline):
 
 
 def erf(z):
-    if isinstance(z, ArrayBox):
-        from autograd.scipy.special import erf as autograd_erf
-        return autograd_erf(z)
+    if isinstance(z, Tracer):
+        from jax.scipy.special import erf as jax_erf
+        return jax_erf(z)
     else:
         from scipy.special import erf as scipy_erf
         return scipy_erf(z)
@@ -315,8 +324,8 @@ def erf(z):
 # def get_dtype(arg_lst):
 #     return (float, np.complex128)[any([np.iscomplexobj(v) for v in arg_lst])]
 def trapz(y, x, axis=-1):
-    if isinstance(y, ArrayBox) or isinstance(x, ArrayBox):
-        x, y = asarray(x), asarray(y)
+    if isinstance(y, Tracer) or isinstance(x, Tracer):
+        x, y = np.asarray(x), np.asarray(y)
         axis = np.arange(len(np.shape(y)))[axis]
         # Silly implementation but np.take, np.diff and np.trapz did not seem to work with autograd
         # I tried to implement gradients of np.trapz manually but failed to make it work for arbitrary axis
@@ -337,19 +346,17 @@ def trapz(y, x, axis=-1):
 def mod(x1, x2):
     if np.iscomplexobj(x1):
         return np.mod(np.real(x1), x2) + x1.imag * 1j
-    elif isinstance(x1, ArrayBox) or isinstance(x2, ArrayBox):
-        return anp.mod(x1, x2)  # @UndefinedVariable
     else:
         return np.mod(x1, x2)
 
 
 def modf(i):
-    if isinstance(i, ArrayBox):
-        i0 = i._value.astype(int)
+    if isinstance(i, Tracer):
+        i0 = np.floor(i)
     else:
-        i0 = np.real(i).astype(int)
+        i0 = np.real(np.asarray(i))
     i_f = i - i0
-    return i_f, i0
+    return i_f, i0.astype(int)
 
 
 def arctan2(y, x):
@@ -364,8 +371,8 @@ def arctan2(y, x):
         r[(x.real < 0) & (y.real >= 0)] += np.pi
         r[(x.real < 0) & (y.real < 0)] -= np.pi
         return np.reshape(r, np.shape(y))
-    elif isinstance(y, ArrayBox) or isinstance(x, ArrayBox):
-        return anp.arctan2(y, x)  # @UndefinedVariable
+    # elif isinstance(y, ArrayBox) or isinstance(x, ArrayBox):
+    #     return anp.arctan2(y, x)  # @UndefinedVariable
     else:
         return np.arctan2(y, x)
 
@@ -379,7 +386,7 @@ def deg2rad(deg):
 
 
 def gamma(x):
-    if isinstance(x, ArrayBox):
-        return agamma(x)
+    if isinstance(x, Tracer):
+        return jgamma(x)
     else:
         return sgamma(x)

@@ -55,7 +55,7 @@ class WindFarmModel(ABC):
     def _run(self, x, y, h=None, type=0, wd=None, ws=None, time=False, verbose=False,  # @ReservedAssignment
              n_cpu=1, wd_chunks=None, ws_chunks=1, **kwargs):
         if time is False and np.ndim(wd):
-            wd = np.sort(wd)
+            wd = np.sort(np.asarray(wd))
         assert len(x) == len(y)
         self.verbose = verbose
         h, _ = self.windTurbines.get_defaults(len(x), type, h)

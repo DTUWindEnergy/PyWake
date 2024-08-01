@@ -1,7 +1,9 @@
 from py_wake import np
+import numpy as nnp
 from numpy import newaxis as na
 from py_wake.utils import gradients
-from autograd.numpy.numpy_boxes import ArrayBox
+from jax._src.core import Tracer
+# from autograd.numpy.numpy_boxes import ArrayBox
 
 
 class GridInterpolator(object):
@@ -35,11 +37,11 @@ class GridInterpolator(object):
         for i in self.irregular_axes_indexes:
             self.x[i] = np.r_[self.x[i], self.x[i][-1] + 1]
         self.V = np.asarray(V)
-        if not np.all(self.V.shape[:len(self.n)] == self.n):
+        if not np.all(np.array(self.V.shape[:len(self.n)]) == self.n):
             raise ValueError("Lengths of x does not match shape of V")
-        ui = np.array([[0], [1]])
+        ui = nnp.array([[0], [1]])
         for _ in range(len(x) - 1):
-            ui = np.array([(np.r_[ui, 0], np.r_[ui, 1]) for ui in ui])
+            ui = nnp.array([(np.r_[ui, 0], np.r_[ui, 1]) for ui in ui])
             ui = ui.reshape((ui.shape[0] * ui.shape[1], ui.shape[2]))
         ui[:, dx == 0] = 0
         self.ui = ui.astype(int)
@@ -58,10 +60,10 @@ class GridInterpolator(object):
         """
         if len(np.atleast_1d(xp)) == 0:
             return np.array([])
-        method = np.atleast_1d(method or self.method)
-        assert np.all([m in ['linear', 'nearest'] for m in method]), 'method must be "linear" or "nearest"'
+        method = nnp.atleast_1d(method or self.method)
+        assert nnp.all([m in ['linear', 'nearest'] for m in method]), 'method must be "linear" or "nearest"'
         assert len(method) in [1, len(self.x)]
-        linear = [method[min(len(method) - 1, i)] == 'linear' for i in range(len(self.x))]
+        linear = np.array([method[min(len(method) - 1, i)] == 'linear' for i in range(len(self.x))], dtype=int)
         bounds = bounds or self.bounds
         assert bounds in ['check', 'limit', 'ignore'], 'bounds must be "check", "limit" or "ignore"'
         xp = np.atleast_2d(xp)
@@ -69,7 +71,7 @@ class GridInterpolator(object):
         assert xp_shape[-1] == len(self.x), xp_shape
         xp = np.reshape(xp, (-1, xp_shape[-1]))
         if len(self.irregular_axes_indexes):
-            xpi0 = np.array([np.clip(np.searchsorted(x, xp, side='right') - 1, 0, n - 2, dtype=int)
+            xpi0 = np.array([np.clip(np.searchsorted(x, xp, side='right') - 1, 0, n - 2).astype(int)
                              for x, xp, n in zip(self.x, xp.T, self.n)], dtype=int)
             xp0 = np.array([np.asarray(x)[xpi0] for x, xpi0 in zip(self.x, xpi0)])
             xp1 = np.array([np.asarray(x)[xpi0 + 1] for x, xpi0 in zip(self.x, xpi0)])
@@ -94,12 +96,12 @@ class GridInterpolator(object):
         xpif, xpi0 = gradients.modf(xpi)
 
         int_box_axes = [[0, (0, 1)][l] for l in linear]
-        ui = np.moveaxis(np.meshgrid(*int_box_axes, indexing='ij'), 0, -1)
+        ui = nnp.moveaxis(nnp.meshgrid(*int_box_axes, indexing='ij'), 0, -1)
 
         ui = ui.reshape((-1, len(self.x)))
         indexes = (ui.T[:, :, na] + xpi0.T[:, na])
 
-        indexes = np.minimum(indexes, (self.n - 1)[:, na, na], dtype=int)
+        indexes = np.minimum(indexes, (self.n - 1)[:, na, na]).astype(int)
         v = np.moveaxis(self.V[tuple(indexes)], [0, 1], [-2, -1])
         if deg:
             v = (v + 180) % 360 - 180  # -180..180 > 0-360
@@ -156,7 +158,7 @@ class EqDistRegGrid2DInterpolator():
             yi0 = np.minimum(np.maximum(yi0, self.yi_valid_min), self.yi_valid_max - 2)
         xi1 = xi0 + (xif > 0)
         yi1 = yi0 + (yif > 0)
-        if isinstance(xp, ArrayBox) or isinstance(yp, ArrayBox):
+        if isinstance(xp, Tracer) or isinstance(yp, Tracer):
             valid = slice(None)
         else:
             valid = (xif >= 0) & (yif >= 0) & (xi1 < len(self.x)) & (yi1 < len(self.y))
@@ -167,9 +169,9 @@ class EqDistRegGrid2DInterpolator():
         z11 = self.Z[xi1, yi1]
         z0 = z00 + (z10 - z00) * xif
         z1 = z01 + (z11 - z01) * xif
-        if isinstance(xp, ArrayBox) or isinstance(yp, ArrayBox):
+        if isinstance(xp, Tracer) or isinstance(yp, Tracer):
             z = z0 + (z1 - z0) * yif
         else:
-            z = np.full(xp.shape, np.nan, dtype=xp.dtype)
+            z = nnp.full(xp.shape, np.nan, dtype=xp.dtype)
             z[valid] = z0 + (z1 - z0) * yif
         return z

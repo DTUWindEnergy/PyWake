@@ -1,7 +1,8 @@
-import autograd.numpy as np
+
 import yaml
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 from py_wake.wind_turbines._wind_turbines import WindTurbine
+from py_wake import np
 
 
 def floris_yaml_to_pywake_turbine(yamlFile, interpolation_method='linear',

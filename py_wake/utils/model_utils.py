@@ -76,7 +76,7 @@ class XRLUTModel(Model):
 
     def __call__(self, **kwargs):
         input_ijlk = self.get_input(**kwargs)
-        IJLK = tuple(np.max([inp.shape for inp in input_ijlk], 0))
+        IJLK = tuple(np.max(np.array([inp.shape for inp in input_ijlk]), 0))
         output_ijlk = self.interp(np.array([np.broadcast_to(inp, IJLK).flatten()
                                             for inp in input_ijlk]).T).reshape(IJLK)
         return self.get_output(output_ijlk, **kwargs)

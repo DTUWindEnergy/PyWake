@@ -1,4 +1,5 @@
 from py_wake import np
+import numpy as nnp
 from numpy import newaxis as na
 import matplotlib
 from py_wake.utils.functions import mean_deg
@@ -181,8 +182,8 @@ class TerrainFollowingDistance(StraightDistance):
 
             # same as above without item assignment
             n = len(src_x_ilk)
-            d_ij = np.array([np.concatenate([[0] * (i + 1),
-                                             s[int(n * i - (i * (i + 1) / 2)):][:n - i - 1]])
+            d_ij = np.array([nnp.concatenate([[0] * (i + 1),
+                                              s[int(n * i - (i * (i + 1) / 2)):][:n - i - 1]])
                              for i in range(n)])  # set upper and lower triangle
             d_ij += d_ij.T
         else:

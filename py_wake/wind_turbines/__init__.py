@@ -1,2 +1,1 @@
 from ._wind_turbines import WindTurbines, WindTurbine
-from .wind_turbines_deprecated import DeprecatedOneTypeWindTurbines as OneTypeWindTurbines

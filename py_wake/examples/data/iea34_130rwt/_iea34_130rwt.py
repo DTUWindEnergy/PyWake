@@ -1,5 +1,6 @@
 from py_wake.wind_turbines import WindTurbine
 from py_wake import np
+import numpy as nnp
 from pathlib import Path
 import inspect
 from py_wake.wind_turbines.power_ct_functions import PowerCtSurrogate
@@ -7,8 +8,8 @@ from py_wake.wind_turbines.wind_turbine_functions import FunctionSurrogates
 from py_wake.examples.data import example_data_path
 from py_wake.utils.model_utils import fix_shape
 from py_wake.utils.gradients import hypot
-from autograd.numpy.numpy_boxes import ArrayBox
 from py_wake.utils.tensorflow_surrogate_utils import TensorFlowModel
+from jax._src.core import Tracer
 
 
 class IEA34_130_PowerCtSurrogate(PowerCtSurrogate):
@@ -29,7 +30,7 @@ class IEA34_130_PowerCtSurrogate(PowerCtSurrogate):
     def _power_ct(self, ws, run_only, **kwargs):
         ws = np.atleast_1d(ws)
         m = (ws > self.ws_cutin) & (ws < self.ws_cutout)
-        if any([isinstance(v, ArrayBox) for v in [ws] + list(kwargs.values())]):
+        if any([isinstance(v, Tracer) for v in [ws] + list(kwargs.values())]):
             # look up all values to avoid item assignment which is not supported by autograd
             arr = PowerCtSurrogate._power_ct(self, ws, run_only=run_only, **kwargs)
             if run_only == 0:
@@ -45,7 +46,7 @@ class IEA34_130_PowerCtSurrogate(PowerCtSurrogate):
                 power[m] = arr_m
                 return power
             else:
-                ct = np.full(ws.shape, self.ct_idle, dtype=arr_m.dtype)
+                ct = nnp.full(ws.shape, self.ct_idle, dtype=arr_m.dtype)
                 ct_m = arr_m * 1000 / (1 / 2 * 1.225 * (65**2 * np.pi) * ws[m]**2)
                 ct[m] = ct_m
                 return ct

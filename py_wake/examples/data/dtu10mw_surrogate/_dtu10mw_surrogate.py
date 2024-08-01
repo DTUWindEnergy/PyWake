@@ -7,7 +7,6 @@ from py_wake.wind_turbines.power_ct_functions import PowerCtSurrogate
 from py_wake.wind_turbines.wind_turbine_functions import FunctionSurrogates
 from py_wake.examples.data import example_data_path
 from py_wake.utils.model_utils import fix_shape
-from autograd.numpy.numpy_boxes import ArrayBox
 
 
 class DTU10MW_PowerCtSurrogate(PowerCtSurrogate):

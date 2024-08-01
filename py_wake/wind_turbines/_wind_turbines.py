@@ -10,18 +10,6 @@ from xarray.core.dataarray import DataArray
 class WindTurbines():
     """Set of multiple type wind turbines"""
 
-    def __new__(cls, *args, **kwargs):
-        from py_wake.wind_turbines.wind_turbines_deprecated import DeprecatedWindTurbines
-        if cls != WindTurbines:
-            return super(WindTurbines, cls).__new__(cls)
-        try:
-            inspect.getcallargs(DeprecatedWindTurbines.__init__, None, *args, **kwargs)
-            warnings.warn("""WindTurbines(names, diameters, hub_heights, ct_funcs, power_funcs, power_unit=None) is deprecated.
-Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", DeprecationWarning, stacklevel=2)
-            return DeprecatedWindTurbines(*args, **kwargs)
-        except TypeError:
-            return super(WindTurbines, cls).__new__(cls)
-
     def __init__(self, names, diameters, hub_heights, powerCtFunctions, **windTurbineFunctions):
         """Initialize WindTurbines
 
@@ -112,7 +100,7 @@ Use WindTurbines(names, diameters, hub_heights, power_ct_funcs) instead""", Depr
         d_i : array_lie or None, optional
             Rotor diameter. If None: default diameter (set in WindTurbines)
         """
-        type_i = np.zeros(N, dtype=int) + type_i
+        type_i = np.zeros(N, dtype=int) + np.asarray(type_i)
         if h_i is None:
             h_i = self.hub_height(type_i)
         elif isinstance(h_i, (int, float)):

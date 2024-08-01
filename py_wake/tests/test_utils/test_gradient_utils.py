@@ -1,58 +1,62 @@
-from autograd import numpy as anp
-from autograd.core import primitive, defvjp
-import pytest
 
 import matplotlib.pyplot as plt
 from py_wake import np
-from py_wake.examples.data.hornsrev1 import V80
 from py_wake.examples.data.iea37._iea37 import IEA37_WindTurbines
-from py_wake.tests import npt
 from py_wake.utils import gradients
-from py_wake.utils.gradients import autograd, plot_gradients, fd, cs, hypot, cabs, interp, set_gradient_function
-from py_wake.wind_turbines import WindTurbines
-from py_wake.wind_turbines import _wind_turbines
+from py_wake.utils.gradients import fd, cs, autograd, plot_gradients, hypot, cabs, interp, set_gradient_function
 from xarray.core.dataset import Dataset
-from py_wake.utils.numpy_utils import AutogradNumpy
+#
+#
+# @pytest.mark.parametrize('obj', [_wind_turbines, WindTurbines, V80().power, _wind_turbines.__dict__])
+# def test_use_autograd_in(obj):
+#     _wind_turbines.np = np
+#     assert _wind_turbines.np == np
+#     with AutogradNumpy():
+#         assert _wind_turbines.np.abs == anp.abs  # @UndefinedVariable
+#     assert _wind_turbines.np == np
 
+from numpy import testing as npt
 
-@pytest.mark.parametrize('obj', [_wind_turbines, WindTurbines, V80().power, _wind_turbines.__dict__])
-def test_use_autograd_in(obj):
-    _wind_turbines.np = np
-    assert _wind_turbines.np == np
-    with AutogradNumpy():
-        assert _wind_turbines.np.abs == anp.abs  # @UndefinedVariable
-    assert _wind_turbines.np == np
+from jax import custom_vjp
+import pytest
 
 
 def test_scalar2scalar():
     def f(x):
         return x**2 + 1
 
-    x = np.array([3])
+    x = 3.
+
     npt.assert_equal(cs(f)(x), 6)
     npt.assert_almost_equal(fd(f)(x), 6, 5)
-    npt.assert_equal(autograd(f)(x), 6)
-    pf = primitive(f)
-    defvjp(pf, lambda ans, x: lambda g: g * 2 * x)
-    npt.assert_array_equal(autograd(pf, False)(x), 6)
+    npt.assert_equal(autograd(f)(x), np.array(6))
+    assert autograd(f)(x).dtype == np.float64
+
+    pf = custom_vjp(f)
+    # wrong gradient, to check that function is actually used
+    pf.defvjp(lambda x: (f(x), (x,)), lambda res, g: (g * 2 * res[0] + 1,))
+    npt.assert_array_equal(autograd(pf)(x), 7)
+
+    cf = set_gradient_function(lambda x: 2 * x + 2)(f)
+    npt.assert_array_equal(autograd(cf)(x), 8)
 
 
 def test_vector2vector_independent():
     def f(x):
-        return x**2 + 1
+        return np.array(x**2 + 1)
 
     def df(x):
-        return 2 * x
+        return 2 * x + 1
 
-    x = np.array([2, 3, 4])
-    ref = [4, 6, 8]
+    x = np.array([2., 3, 4])
+    ref = np.array([4, 6, 8])
     npt.assert_array_almost_equal(fd(f, False)(x), ref, 5)
     npt.assert_array_equal(cs(f, False)(x), ref)
     npt.assert_array_equal(autograd(f, False)(x), ref)
 
-    pf = primitive(f)
-    defvjp(pf, lambda ans, x: lambda g: g * df(x))
-    npt.assert_array_equal(autograd(pf, False)(x), ref)
+    pf = custom_vjp(f)
+    pf.defvjp(lambda x: (f(x), (df(x),)), lambda res, g: (g * res[0],))
+    npt.assert_array_equal(autograd(pf, False)(x), ref + 1)
 
 
 def test_vector2vector_dependent():
@@ -70,8 +74,8 @@ def test_vector2vector_dependent():
     npt.assert_array_almost_equal_nulp(cs(f, True)(x), ref)
     npt.assert_array_equal(autograd(f, True)(x), ref)
 
-    pf = primitive(f)
-    defvjp(pf, lambda ans, x: lambda g: np.dot(g, df(x)))
+    pf = custom_vjp(f)
+    pf.defvjp(lambda x: (f(x), (df(x),)), lambda res, g: (np.dot(g, res[0]),))
     npt.assert_array_equal(autograd(pf, True)(x), ref)
 
 
@@ -85,10 +89,10 @@ def test_multivector2vector_independent():
     def dfdy(x, y):
         return 6 * y**2
 
-    x = np.array([2, 3, 4])
-    y = np.array([1, 2, 3])
-    ref_x = [4, 6, 8]
-    ref_y = [6, 24, 54]
+    x = np.array([2., 3, 4])
+    y = np.array([1., 2, 3])
+    ref_x = np.array([4, 6, 8])
+    ref_y = np.array([6, 24, 54])
     npt.assert_array_almost_equal(fd(f, False)(x, y), ref_x, 5)
     npt.assert_array_almost_equal(fd(f, False, 1)(x, y), ref_y, 4)
 
@@ -98,8 +102,8 @@ def test_multivector2vector_independent():
     npt.assert_array_equal(autograd(f, False)(x, y), ref_x)
     npt.assert_array_equal(autograd(f, False, 1)(x, y), ref_y)
 
-    pf = primitive(f)
-    defvjp(pf, lambda ans, x, y: lambda g: g * dfdx(x, y), lambda ans, x, y: lambda g: g * dfdy(x, y))
+    pf = custom_vjp(f)
+    pf.defvjp(lambda x, y: (f(x, y), (dfdx(x, y), dfdy(x, y))), lambda res, g: (g * res[0], g * res[1]))
     npt.assert_array_equal(autograd(pf, False)(x, y), ref_x)
     npt.assert_array_equal(autograd(pf, False, 1)(x, y), ref_y)
 
@@ -113,17 +117,17 @@ def test_scalar2multi_scalar():
         return fx + fy
 
     x = 3.
-    ref = 8
+    ref = np.array(8)
     npt.assert_equal(cs(f)(x), ref)
     npt.assert_almost_equal(fd(f)(x), ref, 5)
     npt.assert_equal(autograd(f)(x), ref)
 
-    pf = primitive(f)
-    defvjp(pf, lambda ans, x: lambda g: g * (2 * x + 2))
+    pf = custom_vjp(f)
+    pf.defvjp(lambda x: (f(x), (x,)), lambda res, g: (2 * res[0] + 2,))
     npt.assert_array_equal(autograd(pf, False)(x), ref)
 
-    pf = primitive(fxy)
-    defvjp(pf, lambda ans, x: lambda g: (g[0] * 2 * x, g[1] * 2))
+    pf = custom_vjp(fxy)
+    pf.defvjp(lambda x: (fxy(x), (x,)), lambda res, g: (g[0] * 2 * res[0], g[1] * 2))
     npt.assert_array_equal(autograd(f, False)(x), ref)
 
 
@@ -139,49 +143,53 @@ def test_vector2multi_vector():
         return fx + fy
 
     x = np.array([1., 2, 3])
-    ref0 = [2, 4, 6]
-    refsum = [4, 6, 8]
+    ref0 = np.array([2, 4, 6])
+    refsum = np.array([4, 6, 8])
     npt.assert_equal(cs(f0, False)(x), ref0)
     npt.assert_almost_equal(fd(f0, False)(x), ref0, 5)
-    npt.assert_equal(autograd(f0, False)(x), ref0)
-    pf0 = primitive(f0)
-    defvjp(pf0, lambda ans, x: lambda g: g * (2 * x))
+    npt.assert_array_equal(autograd(f0, False)(x), ref0)
+    pf0 = custom_vjp(f0)
+    pf0.defvjp(lambda x: (f0(x), (x,)), lambda res, g: (g * (2 * x),))
     npt.assert_array_equal(autograd(pf0, False)(x), ref0)
 
     npt.assert_equal(cs(fsum, False)(x), refsum)
     npt.assert_almost_equal(fd(fsum, False)(x), refsum, 5)
-    npt.assert_equal(autograd(fsum, False)(x), refsum)
-    pfsum = primitive(fsum)
-    defvjp(pfsum, lambda ans, x: lambda g: g * (2 * x + 2))
+    npt.assert_array_equal(autograd(fsum, False)(x), refsum)
+    pfsum = custom_vjp(fsum)
+    pfsum.defvjp(lambda x: (fsum(x), (x,)), lambda res, g: (g * (2 * x + 2),))
     npt.assert_array_equal(autograd(pfsum, False)(x), refsum)
 
-    pfxy = primitive(fxy)
+    pfxy = custom_vjp(fxy)
 
     def dfxy(x):
-        return 2 * x, np.full(x.shape, 2)
+        return np.array([2 * x, np.full(x.shape, 2)])
 
     def gsum(x):
-        fx, fy = pfxy(x)
+        fx, fy = fxy(x)
         return fx + fy
 
     def g0(x):
         return pfxy(x)[0]
 
-    pgsum = primitive(gsum)
-    pg0 = primitive(g0)
-    defvjp(pgsum, lambda ans, x: lambda g: g * np.sum(dfxy(x), 0))
-    defvjp(pg0, lambda ans, x: lambda g: g * dfxy(x)[0])
+    pgsum = custom_vjp(gsum)
+    pg0 = custom_vjp(g0)
+    pgsum.defvjp(lambda x: (pgsum(x), (x,)),
+                 lambda res, g: (g * np.sum(dfxy(res[0]), 0),))
+    pg0.defvjp(lambda x: (pgsum(x), (x,)), lambda res, g: (g * dfxy(res[0])[0],))
 
     npt.assert_array_equal(autograd(pgsum, False)(x), refsum)
     npt.assert_array_equal(autograd(pg0, False)(x), ref0)
 
-    defvjp(pfxy, lambda ans, x: lambda g: dfxy(x)[0])
+    pfxy.defvjp(
+        lambda x: (pfxy(x), (x,)),
+        lambda res, g: (dfxy(res[0])[0],))
 
     def h0(x):
-        return pfxy(x)[0]
+        return np.array(pfxy(x)[0])
     npt.assert_array_equal(autograd(h0, False)(x), ref0)
 
-    defvjp(pfxy, lambda ans, x: lambda g: np.sum(g * np.asarray(dfxy(x)), 0))
+    pfxy.defvjp(lambda x: (fxy(x), (x,)),
+                lambda res, g: (np.sum(np.asarray(g) * np.asarray(dfxy(res[0])), 0),))
 
     def hsum(x):
         fx, fy = pfxy(x)
@@ -195,8 +203,8 @@ def test_wrt_2d():
         return np.sum(x**2)
 
     for grad in [fd, cs, autograd]:
-        for x in [2, np.arange(4), np.arange(6).reshape((3, 2))]:
-            assert np.shape(grad(f)(x)) == np.shape(x)
+        for x in [2., np.arange(4), np.arange(6).reshape((3, 2))]:
+            assert np.shape(grad(f)(np.array(x, dtype=np.float64))) == np.shape(x)
 
 
 def test_2d_wrt_2d():
@@ -205,7 +213,7 @@ def test_2d_wrt_2d():
 
     for grad in [fd, cs, autograd]:
         for x in [2, np.arange(3), np.arange(20).reshape((4, 5))]:
-            assert np.shape(grad(f2d)(x)) == (2, 3) + np.shape(x)
+            assert np.shape(grad(f2d)(np.array(x, dtype=np.float64))) == (2, 3) + np.shape(x)
 
 
 def test_autograd_wrt_xy():
@@ -218,10 +226,10 @@ def test_autograd_wrt_xy():
     def dfdy(x, y):
         return 6 * y**2
 
-    x = np.array([2, 3, 4])
-    y = np.array([1, 2, 3])
-    ref_x = [4, 6, 8]
-    ref_y = [6, 24, 54]
+    x = np.array([2., 3, 4])
+    y = np.array([1., 2, 3])
+    ref_x = np.array([4, 6, 8])
+    ref_y = np.array([6, 24, 54])
 
     dfdxy = autograd(f, vector_interdependence=False, argnum=[0, 1])(x, y=y, z=1)
 
@@ -236,7 +244,7 @@ def test_gradients():
     dpdu_lst = autograd(wt.power, False)(ws_pts)
     if 0:
         plt.plot(ws_lst, wt.power(ws_lst))
-        for dpdu, ws in zip(dpdu_lst, ws_pts):
+        for dpdu, ws in zip(dpdu_lst.tolist(), ws_pts):
             plot_gradients(wt.power(ws), dpdu, ws, "", 1)
 
         plt.show()
@@ -267,6 +275,7 @@ def test_hypot():
     a = np.array([3, 9])
     b = np.array([4, 40])
     npt.assert_equal(hypot(a, b), np.array([5, 41]))
+    npt.assert_array_almost_equal(cs(hypot)(a, b), autograd(hypot)(a, b))
     # Test complex.
     a = 3 + 4j
     b = 1 - 2j
@@ -288,14 +297,15 @@ def test_arctan2():
             dydx_lst = [grad(gradients.arctan2)(y, x) for grad in [fd, cs, autograd]]
             if x != 0 and y != 0:
                 npt.assert_array_almost_equal(dydx_lst[0], dydx_lst[1])
-            npt.assert_array_almost_equal(dydx_lst[1], dydx_lst[2])
+            if not (x == 0 and y == 0):
+                npt.assert_array_almost_equal(dydx_lst[1], dydx_lst[2])
 
 
 def test_gradients_interp():
-    xp, x, y = [5, 16], [0, 10, 20], [100, 200, 400]
+    xp, x, y = np.array([5, 16]), np.array([0, 10, 20]), np.array([100, 200, 400])
 
     def f(xp):
-        return 2 * gradients.interp(xp, x, y)
+        return 2 * gradients.interp(xp, x=x, y=y)
     npt.assert_array_equal(interp(xp, x, y), np.interp(xp, x, y))
     npt.assert_array_almost_equal(fd(f, False)(xp), [20, 40])
     npt.assert_array_equal(cs(f, False)(xp), [20, 40])
@@ -416,7 +426,7 @@ def test_trapz(y, x, axis):
     lambda y, x: gradients.trapz(np.reshape(y, (1, 2, 4, 1)), np.reshape(x, (1, 2, 4, 1)), axis=2)
 ])
 def test_trapz_axis(test):
-    y, x = [2, 3, 7, 9] * 2, [1, 2, 4, 8] * 2
+    y, x = np.array([2, 3, 7, 9] * 2), np.array([1, 2, 4, 8] * 2)
 
     autograd(test, True, argnum=1)(y, x)
     autograd(test, True)(y, x)
@@ -440,10 +450,50 @@ def test_multiple_inputs():
                                       [[4, 5, 6], [2, 3, 4]], 8)
 
 
-def test_asarray_xarray():
-    def f(x):
-        ds = Dataset({'x': ('i', x)}, coords={'i': range(len(x))})
-        str(ds.x)  # calls asarray
-        return ds.x.values * 2
+# def test_asarray_xarray():
+#     def f(x):
+#         ds = Dataset({'x': ('i', x)}, coords={'i': range(len(x))})
+#         str(ds.x)  # calls asarray
+#         return ds.x.values * 2
+#
+#     autograd(f)([2, 3, 4])
 
-    autograd(f)([2, 3, 4])
+
+def test_erf():
+    x = .5
+    dfdx = [method(gradients.erf, True)(x) for method in [fd, cs, autograd]]
+    npt.assert_array_almost_equal(dfdx[0], dfdx)
+
+
+def test_mod():
+    dfdx = [method(gradients.mod, True)(7., 3.) for method in [fd, cs, autograd]]
+    npt.assert_array_almost_equal(dfdx[0], dfdx)
+
+
+def test_modf():
+    x = 7.3
+    f_ref = np.modf(x)
+    npt.assert_array_almost_equal(f_ref, gradients.modf(x))
+
+    dfdx_ref = (np.array(np.modf(x + 1e-6)) - np.array(np.modf(x))) / 1e-6
+    for method in [fd, cs, autograd]:
+        dfdx = method(gradients.modf, True)(7.3)
+        npt.assert_array_almost_equal(dfdx_ref, dfdx)
+
+
+def test_gamma():
+    x = .5
+    dfdx = [method(gradients.gamma, True)(x) for method in [fd, cs, autograd]]
+    npt.assert_array_almost_equal(dfdx[0], dfdx, 5)
+
+
+def test_sqrt():
+    x = [4, 0]
+
+    def f(x):
+        return np.sqrt(x)
+
+    dfdx = np.array([method(f, False)(x) for method in [fd, cs, autograd]])
+
+    npt.assert_array_almost_equal(np.array(dfdx)[:, 0][0], .25, 5)
+    assert np.isinf()

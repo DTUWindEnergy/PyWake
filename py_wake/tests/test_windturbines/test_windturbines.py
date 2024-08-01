@@ -12,7 +12,7 @@ from py_wake.tests import npt
 from py_wake.utils import gradients
 from py_wake.utils.gradients import autograd, plot_gradients
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative
-from py_wake.wind_turbines import WindTurbines, WindTurbine, OneTypeWindTurbines
+from py_wake.wind_turbines import WindTurbines, WindTurbine
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 import warnings
 from py_wake.deficit_models.utils import ct2a_mom1d
@@ -24,34 +24,6 @@ def get_wfms(wt, site=Hornsrev1Site(), wake_model=NOJDeficit(ct2a=ct2a_mom1d), s
     wfm2.verbose = False
     wfm1.verbose = False
     return wfm1, wfm2
-
-
-class V80Deprecated(OneTypeWindTurbines):
-    def __init__(self):
-
-        OneTypeWindTurbines.__init__(self, name='V80', diameter=80, hub_height=70, ct_func=self.ct_func,
-                                     power_func=self.power_func, power_unit='w')
-
-    def ct_func(self, ws, **_):
-        return np.interp(ws, hornsrev1.ct_curve[:, 0], hornsrev1.ct_curve[:, 1])
-
-    def power_func(self, ws, **_):
-        return np.interp(ws, hornsrev1.power_curve[:, 0], hornsrev1.power_curve[:, 1])
-
-
-def test_DeprecatedWindTurbines():
-    v80 = V80Deprecated()
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', category=DeprecationWarning)
-        v80d = WindTurbines(names=['V80'], diameters=[80], hub_heights=[70],
-                            ct_funcs=v80._ct_funcs, power_funcs=v80._power_funcs, power_unit='w')
-
-    for wts in [v80, v80d]:
-
-        types0 = [0] * 9
-        for wfm in get_wfms(wts):
-            npt.assert_array_equal(wts.types(), [0])
-            npt.assert_almost_equal(wfm.aep(wt9_x, wt9_y, type=types0, yaw=0), 81.2066072392765)
 
 
 def test_WindTurbines():

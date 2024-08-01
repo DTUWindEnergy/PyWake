@@ -26,7 +26,7 @@ class Mirror(GroundModel):
 
         def add_mirror_wt(k, v):
             if (np.shape(v)[0] > 1 or ('_ijlk' in k and I == 1)) and '_jlk' not in k:
-                return np.concatenate([v, v], 0)
+                return np.concatenate(np.array([v, v]), 0)
             else:
                 return v
         new_kwargs = {k: add_mirror_wt(k, v) for k, v in kwargs.items()}

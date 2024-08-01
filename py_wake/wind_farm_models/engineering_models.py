@@ -190,7 +190,7 @@ class EngineeringWindFarmModel(WindFarmModel):
         wd, ws = self.site.get_defaults(wd, ws)
         I, L, K, = len(x_ilk), len(wd), (1, len(ws))[time is False]
         kwargs.update(dict(x_ilk=x_ilk, y_ilk=y_ilk, h_ilk=h_i[:, na, na], wd=wd, ws=ws, time=time,
-                           type_i=np.zeros_like(D_i) + type_i))
+                           type_i=np.zeros_like(D_i) + np.asarray(type_i)))
 
         for inputModifierModel in self.inputModifierModels:
             kwargs.update(inputModifierModel.setup(**kwargs))

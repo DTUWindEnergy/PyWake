@@ -11,7 +11,7 @@ from py_wake.utils.ieawind37_utils import iea37_names
 from py_wake.utils.grid_interpolator import GridInterpolator, EqDistRegGrid2DInterpolator
 import urllib.request
 import warnings
-from autograd.numpy.numpy_boxes import ArrayBox
+# from autograd.numpy.numpy_boxes import ArrayBox
 
 
 class XRSite(Site):
@@ -163,7 +163,7 @@ class XRSite(Site):
 
         if self.shear:
             assert 'h' in lw and np.all(lw.h != None), "Height must be specified and not None"  # nopep8
-            if isinstance(lw.h, ArrayBox):
+            if 0:  # isinstance(lw.h, ArrayBox):
                 WS = self.shear(lw, WS, lw.h)
             else:
                 h = np.unique(lw.h)

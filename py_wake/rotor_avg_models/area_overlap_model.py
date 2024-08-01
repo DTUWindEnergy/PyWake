@@ -2,8 +2,9 @@ from py_wake.rotor_avg_models.rotor_avg_model import RotorAvgModel
 from py_wake import np
 from numpy import newaxis as na
 from py_wake.utils.gradients import cabs
-from autograd.numpy.numpy_boxes import ArrayBox
+# from autograd.numpy.numpy_boxes import ArrayBox
 from py_wake.deficit_models.deficit_model import WakeRadiusTopHat
+from jax._src.core import Tracer
 
 
 class AreaOverlapAvgModel(RotorAvgModel):
@@ -81,7 +82,7 @@ class AreaOverlapAvgModel(RotorAvgModel):
             Overlapping area [m^2]
         """
         # treat all input as array
-        shape = tuple(np.max([R1.shape, R2.shape, d.shape], 0))
+        shape = tuple(np.max(np.array([R1.shape, R2.shape, d.shape]), 0))
         R1, R2, d = [np.broadcast_to(a, shape) for a in [R1, R2, d]]
 
         # make sure R_big >= R_small
@@ -90,12 +91,12 @@ class AreaOverlapAvgModel(RotorAvgModel):
 
         # full wake cases
         index_fullwake = (d <= (Rmax - Rmin))
-        dtype = (float, np.complex128)[bool(np.any([np.iscomplexobj(x) for x in [R1, R2, d]]))]
+        dtype = (float, np.complex128)[bool(np.any(np.array([np.iscomplexobj(x) for x in [R1, R2, d]])))]
         A_ol_f = np.where(index_fullwake, 1, 0).astype(dtype)
 
         # partial wake cases
         mask = (d > (Rmax - Rmin)) & (d < (Rmin + Rmax))
-        if any([isinstance(x, ArrayBox) for x in [R1, R2, d]]):
+        if any([isinstance(x, Tracer) for x in [R1, R2, d]]):
             p_wake_mask = mask
             mask = slice(None)
         else:

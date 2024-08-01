@@ -391,7 +391,7 @@ class LUTInterpolator(object):
         zif, zi0 = gradients.modf(gradients.interp(zp, self.z, np.arange(self.nz)))
 
         nx, ny = self.nx, self.ny
-        idx = zi0 * nx * ny + yi0 * nx + xi0
+        idx = (zi0 * nx * ny + yi0 * nx + xi0).astype(int)
         v000, v001, v010, v011, v100, v101, v110, v111 = self.V000[:, idx]
         if len(self.V000.shape) == 3:
             # Both UL and UT

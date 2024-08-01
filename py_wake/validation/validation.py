@@ -1,6 +1,5 @@
 from py_wake.wind_farm_models.engineering_models import PropagateDownwind
 from py_wake.site._site import UniformSite
-from py_wake.wind_turbines import OneTypeWindTurbines
 from py_wake.flow_map import XYGrid
 from matplotlib.pyplot import cm
 from py_wake import np
@@ -24,7 +23,7 @@ class ValidationSite(UniformSite):
         UniformSite.__init__(self, p_wd=[1], ti=0.075)
 
 
-class ValidationWindTurbines(OneTypeWindTurbines):
+class ValidationWindTurbines(WindTurbine):
     """Dummy wind turbine, used when instantiating the WindFarmModels to validadate.
     Will be replaced during the validation"""
 

@@ -24,7 +24,8 @@ from py_wake.turbulence_models.turbulence_model import TurbulenceModel
 from py_wake.utils import gradients
 from py_wake.utils.gradients import autograd, plot_gradients, fd, cs
 from py_wake.utils.model_utils import get_models
-from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative, EngineeringWindFarmModel
+from py_wake.wind_farm_models.engineering_models import PropagateDownwind, All2AllIterative, EngineeringWindFarmModel,\
+    All2All
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.deficit_models.noj import NOJDeficit
 from py_wake.site.jit_streamline_distance import JITStreamlineDistance
@@ -55,7 +56,6 @@ def check_gradients(wfm, name, wt_x=[-1300, -650, 0], wt_y=[0, 0, 0], wt_h=[110,
             return fd(*args, **kwargs, step=fd_step)
         output_func, output_label = output
         output_func = output_func(wfm)
-
         dOutputdx_lst = [grad(output_func, True, 0)(xp, wt_y, **kwargs)[2] for grad in [fdstep, cs, autograd]]
         npt.assert_almost_equal(dOutputdx_lst[0], dOutputdx_lst[1], fd_decimal)
         npt.assert_almost_equal(dOutputdx_lst[1], dOutputdx_lst[2], ad_decimal)

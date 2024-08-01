@@ -1,12 +1,13 @@
 import numpy
 import py_wake
+import jax
 try:
     # numpy 2.0
     from numpy.lib._index_tricks_impl import RClass
 except ModuleNotFoundError:
     from numpy.lib.index_tricks import RClass
 import inspect
-import autograd.numpy as autograd_numpy
+import jax.numpy as jax_numpy
 
 
 class NumpyBackend():
@@ -52,23 +53,25 @@ class Numpy32(NumpyBackend):
         self.complex = numpy.complex64
 
 
-class AutogradNumpy32(Numpy32):
-    backend = autograd_numpy
+class JaxNumpy32(Numpy32):
+    backend = jax_numpy
 
 
-class AutogradNumpy(NumpyBackend):
+class JaxNumpy(NumpyBackend):
 
     def __enter__(self):
         self.old_backend = py_wake.np.backend
 
         if isinstance(self.old_backend, Numpy32):
-            py_wake.np.set_backend(AutogradNumpy32())
+            py_wake.np.set_backend(JaxNumpy32())
         else:
-            py_wake.np.set_backend(autograd_numpy)
+            py_wake.np.set_backend(jax_numpy)
             py_wake.np.backend.float = numpy.float64
+            jax.config.update("jax_enable_x64", True)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         py_wake.np.set_backend(self.old_backend)
+        jax.config.update("jax_enable_x64", False)
 
 
 class NumpyWrapper():

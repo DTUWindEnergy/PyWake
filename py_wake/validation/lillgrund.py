@@ -1,6 +1,5 @@
 from py_wake import np
 from py_wake.site._site import UniformWeibullSite
-from py_wake.wind_turbines import OneTypeWindTurbines
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 from py_wake.wind_turbines._wind_turbines import WindTurbine
 

@@ -1,6 +1,5 @@
 import os
 
-from autograd.numpy.numpy_boxes import ArrayBox
 from numpy import newaxis as na
 import pytest
 
