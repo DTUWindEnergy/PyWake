@@ -668,7 +668,7 @@ class SimulationResult(xr.Dataset):
             if 'h' not in self.dims or len(np.atleast_1d(self.h.values)) == 0:
                 h = self.windFarmModel.windTurbines.hub_height()
 
-            grid = grid(x_i=self.x, y_i=self.y, h_i=h,
+            grid = grid(x_i=self.x.values, y_i=self.y.values, h_i=h,
                         d_i=self.windFarmModel.windTurbines.diameter(self.type))
         else:
             plane = (None,)
