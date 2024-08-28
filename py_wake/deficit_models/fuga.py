@@ -258,7 +258,9 @@ class FugaMultiLUTDeficit(XRLUTDeficitModel, FugaDeficit):
 
         if z_lst is None:
             z_lst = np.sort(np.unique([da.z for da in da_lst]))
-        da_lst = [da.interp(z=z_lst) for da in da_lst]
+        x_lst = np.sort(np.unique([da.x for da in da_lst]))
+        y_lst = np.sort(np.unique([da.y for da in da_lst]))
+        da_lst = [da.interp(z=z_lst, x=x_lst, y=y_lst) for da in da_lst]
 
         # combine_by_coords does not always merge attributes correctly
         attrs = merge_attrs([da.attrs for da in da_lst], combine_attrs='drop_conflicts')
