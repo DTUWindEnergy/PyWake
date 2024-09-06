@@ -82,7 +82,7 @@ class XRSite(Site):
             ds.attrs['initial_position'] = initial_position
 
         # add 360 deg to all wd dependent datavalues
-        if 'wd' in ds and ds.wd[-1] != 360 and 360 - ds.wd[-1] == sector_width:
+        if 'wd' in ds and (ds.wd.size > 1 or ds.wd == 0) and ds.wd[-1] != 360 and 360 - ds.wd[-1] == sector_width:
             ds = xr.concat([ds, ds.sel(wd=0)], 'wd', data_vars='minimal')
             ds.update({'wd': np.r_[ds.wd[:-1], 360]})
         if 'Elevation' in ds:

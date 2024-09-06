@@ -1,6 +1,6 @@
 from py_wake import np
 from py_wake.site.shear import PowerShear
-from py_wake.site.xrsite import XRSite, GlobalWindAtlasSite
+from py_wake.site.xrsite import XRSite, GlobalWindAtlasSite, UniformSite
 import xarray as xr
 from py_wake.tests import npt
 import pytest
@@ -478,6 +478,23 @@ def test_neighbour_farm_speed():
     sim_res_wake_site, _ = timeit(wf_model_wake_site, verbose=False)(wt_x, wt_y, ws=9.8, wd=wd_lst)
     npt.assert_allclose(sim_res.aep().sel(wt=np.arange(len(wt_x))).sum(), sim_res_wake_site.aep().sum(), rtol=0.0005)
     npt.assert_array_almost_equal(sim_res.aep().sel(wt=np.arange(len(wt_x))), sim_res_wake_site.aep(), 2)
+
+
+def test_from_flowbox():
+    wts = V80()
+
+    x, y = np.random.random([2, 20]) * 1000
+    site = UniformSite(p_wd=[1], ti=0.1, ws=8)
+
+    wf_model = PropagateDownwind(site, wts,
+                                 wake_deficitModel=BastankhahGaussianDeficit(),
+                                 superpositionModel=LinearSum())
+
+    sim_res = wf_model(x - 2000, y, wd=[270])  # wd = [wdir, wdir+1] does not cause an error
+
+    flow_box = sim_res.flow_box(x, y, V80()._hub_heights[0])
+
+    wake_site = XRSite.from_flow_box(flow_box)
 
 
 @pytest.mark.parametrize('h,wd,ws,h_i,wd_l,ws_k', [
