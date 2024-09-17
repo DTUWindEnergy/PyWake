@@ -245,6 +245,8 @@ def test_FlowBox():
     x, y = wfm.site.initial_position.T
     sim_res = wfm(x, y)
     sim_res.flow_box(x=np.arange(0, 100, 10), y=np.arange(0, 100, 10), h=np.arange(0, 100, 10))
+    sim_res_time = wfm(x, y, ws=[5, 6, 7], wd=[0, 3, 5], time=True)
+    sim_res_time.flow_box(x=np.arange(0, 100, 10), y=np.arange(0, 100, 10), h=np.arange(0, 100, 10), time=[1, 2])
 
 
 def test_min_ws_eff_line():

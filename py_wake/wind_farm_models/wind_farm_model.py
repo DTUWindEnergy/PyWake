@@ -651,12 +651,16 @@ class SimulationResult(xr.Dataset):
                                                     spl_jlkf.reshape(X.shape + (spl_jlkf.shape[1:])))},
                           coords={'x': X[0], 'y': Y[:, 0], 'wd': self.wd, 'ws': self.ws, 'freq': nm.freqs})
 
-    def flow_box(self, x, y, h, wd=None, ws=None):
+    def flow_box(self, x, y, h, wd=None, ws=None, time=None):
         X, Y, H = np.meshgrid(x, y, h)
         x_j, y_j, h_j = X.flatten(), Y.flatten(), H.flatten()
 
-        wd, ws = self._wd_ws(wd, ws)
-        lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(x_j, y_j, h_j, self.sel(wd=wd, ws=ws))
+        if time is not None:
+
+            lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(x_j, y_j, h_j, self.sel(time=time))
+        else:
+            wd, ws = self._wd_ws(wd, ws)
+            lw_j, WS_eff_jlk, TI_eff_jlk = self.windFarmModel._flow_map(x_j, y_j, h_j, self.sel(wd=wd, ws=ws))
 
         return FlowBox(self, X, Y, H, lw_j, WS_eff_jlk, TI_eff_jlk)
 
