@@ -434,7 +434,6 @@ class EngineeringWindFarmModel(WindFarmModel):
 
 class PropagateUpDownIterative(EngineeringWindFarmModel):
     """Downstream wake deficits calculated and propagated in downstream direction.
-    Very fast, but ignoring blockage effects
     """
 
     def __init__(self, site, windTurbines, wake_deficitModel,
