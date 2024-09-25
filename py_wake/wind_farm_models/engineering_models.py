@@ -873,6 +873,7 @@ class All2AllIterative(EngineeringWindFarmModel):
         D_src_il = D_i[:, na]
         model_kwargs = {'WS_ilk': WS_ilk,
                         'WS_eff_ilk': WS_eff_ilk,
+                        'WS_jlk': WS_ilk,
                         'WD_ilk': WD_ilk,
                         'TI_ilk': TI_ilk,
                         'TI_eff_ilk': TI_eff_ilk,
