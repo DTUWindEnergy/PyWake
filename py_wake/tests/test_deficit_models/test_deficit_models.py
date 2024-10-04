@@ -589,9 +589,10 @@ def test_flow_map_symmetry(deficitModel):
 
     if 0:
         ax1, ax2 = plt.subplots(2)[1]
-        ws.plot(ax=ax1, label=deficitModel.__name__)
+        plt.suptitle(deficitModel.__name__)
+        ws.plot(marker='.', ax=ax1, label=deficitModel.__name__)
         ax1.legend()
-        ws_center.plot(ax=ax2)
+        ws_center.plot(marker='.', ax=ax2)
         plt.show()
     npt.assert_array_almost_equal(ws[:10], ws[10:][::-1])
     if deficitModel is not NoWakeDeficit:

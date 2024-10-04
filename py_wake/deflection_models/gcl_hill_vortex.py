@@ -1,6 +1,7 @@
 from numpy import newaxis as na
 from py_wake import np
 from py_wake.deflection_models.deflection_model import DeflectionIntegrator
+from py_wake.utils import gradients
 
 
 class GCLHillDeflection(DeflectionIntegrator):
@@ -38,7 +39,7 @@ class GCLHillDeflection(DeflectionIntegrator):
     def get_deflection_rate(self, theta_ilk, dw_ijlkx, WS_eff_ilk, yaw_ilk, tilt_ilk, IJLK, **kwargs):
         z = np.zeros_like(dw_ijlkx)
         deficit_kwargs = {k: v[..., na] for k, v in kwargs.items()}
-        deficit_kwargs.update(dict(WS_eff_ilk=(WS_eff_ilk * np.cos(np.deg2rad(yaw_ilk)))[..., na],
+        deficit_kwargs.update(dict(WS_eff_ilk=(WS_eff_ilk * np.cos(gradients.deg2rad(yaw_ilk)))[..., na],
                                    dw_ijlk=dw_ijlkx, hcw_ijlk=z, cw_ijlk=z, dh_ijlk=z,
                                    tilt_ilk=tilt_ilk[..., na],
                                    IJLK=IJLK,))
