@@ -231,7 +231,6 @@ class IEA37SimpleBastankhahGaussianDeficit(BastankhahGaussianDeficit):
         return self.k_ilk(WS_ilk=WS_ilk) * dw_ijlk * (dw_ijlk > eps) + (D_src_il / np.sqrt(8.))[:, na, :, na]
 
     def _calc_layout_terms(self, WS_ilk, D_src_il, dw_ijlk, cw_ijlk, **_):
-        eps = 1e-10
         sigma_ijlk = self.sigma_ijlk(WS_ilk, dw_ijlk, D_src_il)
         self.layout_factor_ijlk = WS_ilk[:, na] * (np.exp(-0.5 * (cw_ijlk / sigma_ijlk)**2))
         self.denominator_ijlk = 8. * (sigma_ijlk / D_src_il[:, na, :, na])**2
@@ -491,7 +490,7 @@ class BlondelSuperGaussianDeficit2020(WakeDeficitModel):
         # compute normalized characteristic wake width
         TI_ref_ijlk = kwargs[self.TI_key][:, na, :, :]
         beta_ilk = self.beta_ilk(ct_ilk)
-        sigma_ijlk = (self.a_s * TI_ref_ijlk + self.b_s) * (dw_ijlk / D_src_il[:, na, :, na]) + \
+        sigma_ijlk = (self.a_s * TI_ref_ijlk + self.b_s) * (np.maximum(dw_ijlk, 0) / D_src_il[:, na, :, na]) + \
             self.c_s * np.sqrt(beta_ilk)[:, na, :, :]
         return sigma_ijlk
 
@@ -501,7 +500,7 @@ class BlondelSuperGaussianDeficit2020(WakeDeficitModel):
     def supG_n(self, dw_ijlk, D_src_il, ct_ilk, **kwargs):
         # term inside exponent
         ctx_ijlk = self.ct_func(ct_ilk=ct_ilk, dw_ijlk=dw_ijlk, D_src_il=D_src_il)
-        exp_TI_ijlk = self.b_f * (dw_ijlk / D_src_il[:, na, :, na])
+        exp_TI_ijlk = self.b_f * (np.maximum(dw_ijlk, 0) / D_src_il[:, na, :, na])
 
         # compute super gaussian n order
         n = self.a_f(ctx_ijlk, **kwargs) * np.exp(exp_TI_ijlk) + self.c_f
