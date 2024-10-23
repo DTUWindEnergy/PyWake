@@ -63,7 +63,10 @@ docs = [
         ]
 
 [tool.setuptools]
-packages = ["py_wake"]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+
 
 [tool.setuptools.package-data]
 py_wake = ['examples/data/iea37/*.yaml',
