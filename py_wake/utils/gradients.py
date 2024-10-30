@@ -24,13 +24,14 @@ from scipy.special import gamma as sgamma
 from autograd.scipy.special import gamma as agamma
 
 
-def asarray(x, dtype=None, order=None):
+def asarray(x, dtype=None, order=None, **kwargs):
+    # kwargs: copy, like, etc introduced in numpy >=2
     if isinstance(x, (ArrayBox)):
         return x
     elif isinstance(x, DataArray) and isinstance(x.values, ArrayBox):  # pragma: no cover
         # only needed or called with some versions of xarray
         return x.values
-    return np_asarray(x, dtype, order)
+    return np_asarray(x, dtype, order, **kwargs)
 
 
 # def asanyarray(x, dtype=None, order=None):

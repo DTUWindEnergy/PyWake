@@ -55,7 +55,7 @@ def test_flat_distances(distance):
     y = [100, 100, 100, 0, 0]
     h = [0, 10, 20, 30, 0]
     z = [0, 0, 0, 0]
-    wdirs = [0, 30, 90]
+    wdirs = [-1e-10, 30, 90 + 1e-10]
 
     site = FlatSite(distance=distance)
     site.distance.setup(src_x_ilk=x, src_y_ilk=y, src_h_ilk=h, src_z_ilk=z)
@@ -78,9 +78,9 @@ def test_flat_distances(distance):
                                                     [[-10, -10, -10]],
                                                     [[-20, -20, -20]],
                                                     [[-30, -30, -30]]])
-    npt.assert_array_equal(dw_indices_lkd[:, 0, :4], [[2, 1, 0, 3],
-                                                      [2, 1, 0, 3],
-                                                      [2, 3, 1, 0]])
+    npt.assert_array_equal(dw_indices_lkd[:, 0, :], [[0, 1, 2, 4, 3],
+                                                     [2, 1, 0, 3, 4],
+                                                     [3, 2, 1, 4, 0]])
 
 
 @pytest.mark.parametrize('distance', [StraightDistance(),
