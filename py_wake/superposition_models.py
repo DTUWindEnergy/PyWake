@@ -52,6 +52,7 @@ class AddedTurbulenceSuperpositionModel():
 
 class SquaredSum(SuperpositionModel, AddedTurbulenceSuperpositionModel):
     def __call__(self, value_jxxx):
+        assert not np.any(value_jxxx < 0), "SquaredSum only works for deficit - not speedups"
         return np.sqrt(np.sum(np.power(value_jxxx, 2), 0))
 
 

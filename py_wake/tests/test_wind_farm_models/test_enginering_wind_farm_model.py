@@ -614,3 +614,16 @@ def test_PropagateUpDownIterative_blockage_deficitModels(blockage_deficitModel):
                                  RankineHalfBody, Rathmann, RathmannScaled, VortexCylinder]:
         atol = 0.01
     npt.assert_allclose(pudi(x, y, wd=270).WS_eff, all2all(x, y, wd=270).WS_eff, atol=atol)
+
+
+def test_PropagateUpDownIterative_SquaredSum():
+    class MyBlockage(SelfSimilarityDeficit):
+        def calc_blockage_deficit(self, dw_ijlk, **kwargs):
+            return np.abs(SelfSimilarityDeficit.calc_blockage_deficit(self, dw_ijlk, **kwargs))
+    wfm = PropagateUpDownIterative(site=UniformSite(),
+                                   windTurbines=V80(),
+                                   wake_deficitModel=BastankhahGaussianDeficit(use_effective_ws=True),
+                                   blockage_deficitModel=MyBlockage(exclude_wake=False, use_effective_ws=True),
+                                   superpositionModel=SquaredSum())
+    with pytest.raises(AssertionError, match='PropagateDownwind does not work with SquaredSum when the blockage model has both up and downstream effects'):
+        wfm([0, 200, 400], [0, 0, 0], wd=270)

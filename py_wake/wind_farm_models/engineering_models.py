@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from numpy import newaxis as na
 from py_wake import np
-from py_wake.superposition_models import SuperpositionModel, LinearSum, WeightedSum, CumulativeWakeSum
+from py_wake.superposition_models import SuperpositionModel, LinearSum, WeightedSum, CumulativeWakeSum, SquaredSum
 from py_wake.wind_farm_models.wind_farm_model import WindFarmModel
 from py_wake.deflection_models.deflection_model import DeflectionModel
 from py_wake.utils.gradients import cabs
@@ -483,6 +483,9 @@ class PropagateUpDownIterative(EngineeringWindFarmModel):
             alt_model = [self.superpositionModel, LinearSum()][isinstance(
                 self.superpositionModel, (WeightedSum, CumulativeWakeSum))]
             self.blockage_superpositionModel = self.blockage_deficitModel.superpositionModel or alt_model
+            msg = "PropagateDownwind does not work with SquaredSum when the blockage model has both up and downstream effects"
+            assert self.blockage_deficitModel.upstream_only or not isinstance(
+                self.blockage_superpositionModel, SquaredSum), msg
 
         WS_eff_ilk_last = WS_ilk
         for j in tqdm(range(I), disable=I <= 1 or not self.verbose, desc="Calculate flow interaction", unit="wt"):
@@ -1069,7 +1072,7 @@ def main():
 
         # NOJ wake and selfsimilarity blockage
         noj_ss = All2AllIterative(site, windTurbines, wake_deficitModel=NOJDeficit(), superpositionModel=SquaredSum(),
-                                  blockage_deficitModel=SelfSimilarityDeficit())
+                                  blockage_deficitModel=SelfSimilarityDeficit(upstream_only=True))
 
         # Zong convection superposition
         zongp = PropagateDownwind(site, windTurbines, wake_deficitModel=ZongGaussianDeficit(), superpositionModel=WeightedSum(),
