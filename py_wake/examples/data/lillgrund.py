@@ -1,6 +1,7 @@
 from py_wake import np
 from py_wake.site._site import UniformWeibullSite
-from py_wake.wind_turbines import OneTypeWindTurbines
+from py_wake.wind_turbines import WindTurbine
+from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 
 wt_x = [361469, 361203, 360936, 360670, 360404, 360137,
         359871, 361203, 360936, 360670, 360404, 360137,
@@ -68,16 +69,17 @@ ct_curve = np.array([[3.0, 0.0],
                      [25.0, 0.05]])
 
 
-class SWT23(OneTypeWindTurbines):   # Siemens 2.3 MW
-    def __init__(self):
-        OneTypeWindTurbines.__init__(self, 'SWT23', diameter=93, hub_height=65,
-                                     ct_func=self._ct, power_func=self._power, power_unit='kW')
-
-    def _ct(self, u):
-        return np.interp(u, ct_curve[:, 0], ct_curve[:, 1])
-
-    def _power(self, u):
-        return np.interp(u, power_curve[:, 0], power_curve[:, 1])
+class SWT23(WindTurbine):   # Siemens 2.3 MW
+    def __init__(self, method='linear'):
+        """
+        Parameters
+        ----------
+        method : {'linear', 'pchip'}
+            linear(fast) or pchip(smooth and gradient friendly) interpolation
+        """
+        WindTurbine.__init__(self, name='SWT23', diameter=93, hub_height=65,
+                             powerCtFunction=PowerCtTabular(power_curve[:, 0], power_curve[:, 1], 'kw',
+                                                            ct_curve[:, 1], method=method))
 
 
 LillgrundSWT23 = SWT23
