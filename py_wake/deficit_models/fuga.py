@@ -259,7 +259,7 @@ class FugaMultiLUTDeficit(XRLUTDeficitModel, FugaDeficit):
         self.TI_ref_height = TI_ref_height
 
         if z_lst is None:
-            z_lst = np.sort(np.unique([da.z for da in da_lst]))
+            z_lst = np.sort(np.unique([z for da in da_lst for z in da.z.values]))
         x_lst = np.sort(np.unique([da.x for da in da_lst]))
         x_lst = x_lst[(x_lst >= np.max([da.x[0] for da in da_lst])) & (x_lst <= np.min([da.x[-1] for da in da_lst]))]
         y_lst = np.sort(np.unique([da.y for da in da_lst]))
