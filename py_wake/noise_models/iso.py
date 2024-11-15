@@ -143,7 +143,9 @@ class ISONoiseModel:
         ISO_alpha = alpha_ps[na, na] * 20.0 / np.log(10.0) * distance_ij[:, :, na]
         return ISO_alpha
 
-    def transmission_loss(self, rec_x, rec_y, rec_h, ground_type, Temp, RHum):
+    def transmission_loss(self, rec_x, rec_y, rec_h, ground_type, patm, Temp, RHum):
+        patm /= 101325.0  # convert unit of atmospheric pressure from pascal to atmosphere
+
         # transmission loss = ground effects + atmospheric absorption
         rec_h = np.zeros_like(rec_x) + rec_h
         rec_z = self.elevation_function(rec_x, rec_y)
@@ -154,9 +156,9 @@ class ISONoiseModel:
         atm_abs_ijlkf = self.atmab(distance_ijlk, T0=Temp, RH0=RHum)  # The atmospheric absorption term
         ground_eff_ijlkf = self.ground_eff(ground_distance_ijlk, distance_ijlk, ground_type)
 
-        return ground_eff_ijlkf - atm_abs_ijlkf  # Delta_SPL
+        return ground_eff_ijlkf - atm_abs_ijlkf * patm  # Delta_SPL
 
-    def __call__(self, rec_x, rec_y, rec_h, Temp, RHum, ground_type):
+    def __call__(self, rec_x, rec_y, rec_h, patm, Temp, RHum, ground_type):
         """Calculate the sound pressure level at a list of reveicers
 
         Parameters
@@ -167,6 +169,8 @@ class ISONoiseModel:
             y coordinate, [m], of receivers
         rec_h : array_like or float
             height, [m], of receivers (typically 2m)
+        patm : float
+            atmospheric pressure (Pa)
         Temp : float
             Temperature (deg celcius)
         RHum : float
@@ -185,7 +189,7 @@ class ISONoiseModel:
         """
 
         # Computing total transmission loss
-        Delta_SPL_ijlkf = self.transmission_loss(rec_x, rec_y, rec_h, ground_type, Temp, RHum)
+        Delta_SPL_ijlkf = self.transmission_loss(rec_x, rec_y, rec_h, ground_type, patm, Temp, RHum)
         sound_power_ijlkf = np.expand_dims(self.sound_power_level,
                                            tuple(range(1, 6 - len(np.shape(self.sound_power_level)))))
 
@@ -220,7 +224,7 @@ def main():
         ax1.plot([x[0]], [1000], '.', label='Receiver 1')
         ax1.plot([x[-1]], [1000], '.', label='Receiver 2')
         ax1.legend()
-        total_sp_jlk, spl_jlkf = nm(rec_x=[x[0], x[-1]], rec_y=[1000, 1000], rec_h=2, Temp=20, RHum=80, ground_type=0.0)
+        total_sp_jlk, spl_jlkf = nm(rec_x=[x[0], x[-1]], rec_y=[1000, 1000], rec_h=2, patm=101325, Temp=20, RHum=80, ground_type=0.0)
         ax2.plot(nm.freqs, spl_jlkf[0, 0, 0], label='Receiver 1')
         ax2.plot(nm.freqs, spl_jlkf[1, 0, 0], label='Receiver 2')
         setup_plot(xlabel='Frequency [Hz]', ylabel='Sound pressure level [dB]', ax=ax2)

@@ -36,8 +36,8 @@ def test_iso_noise_model():
     sound_power_level = np.array([[89.4, 93.6, 97.2, 98.6, 101., 102.3, 96.7, 84.1],
                                   [89.2, 93.2, 96.2, 97.6, 100., 101.3, 95.7, 83.1]])
     iso = ISONoiseModel(src_x=source_x, src_y=source_y, src_h=z_hub, freqs=freqs, sound_power_level=sound_power_level)
-
-    Delta_SPL = iso.transmission_loss(rec_x, rec_y, z_rec, ground_type, Temp, RHum)
+    patm = 101325.0  # atmospheric pressure in pascal
+    Delta_SPL = iso.transmission_loss(rec_x, rec_y, z_rec, ground_type, patm, Temp, RHum)
     delta_SPL_ref = [[[-74.18868997998351, -82.6237111823142, -85.106899362965, -84.78075941279131, -87.47936788035022,
                        -95.0531580482448, -119.90461076531315, -216.18076560019855],
                       [-77.78341234414849, -86.43781608834009, -89.6588031834609, -91.0544347291193, -96.14098255652445,
@@ -51,7 +51,7 @@ def test_iso_noise_model():
                       [-79.70589475152278, -89.3092674680563, -93.29138286495427, -96.46309784962982, -104.01291072740128,
                          -119.40308086820056, -169.44754252350324, -363.32306335554176]]]
     npt.assert_array_almost_equal(delta_SPL_ref, Delta_SPL[:, :, 0, 0], 8)
-    total_spl, spl = iso(rec_x, rec_y, z_rec, ground_type=ground_type, Temp=Temp, RHum=RHum)
+    total_spl, spl = iso(rec_x, rec_y, z_rec, ground_type=ground_type, patm=patm, Temp=Temp, RHum=RHum)
     npt.assert_array_almost_equal([23.068816073636583, 18.034141554900494, 15.043308370722233],
                                   total_spl[:, 0, 0])
 
@@ -63,7 +63,8 @@ def test_iso_noise_map():
     sim_res = wfm(x, y, wd=270, ws=8, mode=0)
 
     nm = sim_res.noise_model()
-    total_spl_jlk, spl_jlkf = nm(rec_x=[x[0], x[-1]], rec_y=[1000, 1000], rec_h=2, Temp=20, RHum=80, ground_type=0.0)
+    total_spl_jlk, spl_jlkf = nm(rec_x=[x[0], x[-1]], rec_y=[1000, 1000], rec_h=2,
+                                 patm=101325.0, Temp=20, RHum=80, ground_type=0.0)
     sim_res.noise_map()  # cover default grid
     nmap = sim_res.noise_map(grid=XYGrid(x=np.linspace(-1000, 4000, 100), y=np.linspace(-1000, 1000, 50), h=2))
 

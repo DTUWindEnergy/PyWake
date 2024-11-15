@@ -639,12 +639,14 @@ class SimulationResult(xr.Dataset):
                           freqs=freqs, sound_power_level=sound_power_level,
                           elevation_function=self.windFarmModel.site.elevation)
 
-    def noise_map(self, noiseModel=ISONoiseModel, grid=None, ground_type=0, temperature=20, relative_humidity=80):
+    def noise_map(self, noiseModel=ISONoiseModel, grid=None, ground_type=0,
+                  atmopheric_pressure=101325.0, temperature=20, relative_humidity=80):
         if grid is None:
             grid = HorizontalGrid(h=2)
         nm = self.noise_model(noiseModel)
         X, Y, x_j, y_j, h_j, _ = self._get_grid(grid)
-        spl_jlk, spl_jlkf = nm(x_j, y_j, h_j, temperature, relative_humidity, ground_type=ground_type)
+        spl_jlk, spl_jlkf = nm(x_j, y_j, h_j, atmopheric_pressure, temperature,
+                               relative_humidity, ground_type=ground_type)
         return xr.Dataset({'Total sound pressure level': (('y', 'x', 'wd', 'ws'),
                                                           spl_jlk.reshape(X.shape + (spl_jlk.shape[1:]))),
                            'Sound pressure level': (('y', 'x', 'wd', 'ws', 'freq'),
