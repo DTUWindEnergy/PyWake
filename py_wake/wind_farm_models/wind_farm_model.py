@@ -677,7 +677,7 @@ class SimulationResult(xr.Dataset):
             grid = grid(x_i=self.x.values, y_i=self.y.values, h_i=h,
                         d_i=self.windFarmModel.windTurbines.diameter(self.type))
         else:
-            plane = (None,)
+            raise NotImplementedError('The grid must be instance of Grid or None')
         return grid + (plane, )
 
     @property
@@ -746,10 +746,8 @@ class SimulationResult(xr.Dataset):
 
         Parameters
         ----------
-        grid : Grid or tuple(X, Y, x, y, h)
-            Grid, e.g. HorizontalGrid or\n
-            tuple(X, Y, x, y, h) where X, Y is the meshgrid for visualizing data\n
-            and x, y, h are the flattened grid points
+        grid : Grid
+            Grid, e.g. XYGrid, YZGrid, XZGrid or Points\n
         wd : int, float, array_like or None
             Wind directions to include in the flow map (if more than one, an weighted average will be computed)
             The simulation result must include the requested wind directions.

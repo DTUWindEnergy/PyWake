@@ -235,6 +235,11 @@ def test_not_implemented_plane():
     x, y = wfm.site.initial_position.T
     sim_res = wfm(x, y)
     grid = YZGrid(x=-100, y=None, resolution=100, extend=.1)
+    grid.plane = 'missng'
+    with pytest.raises(NotImplementedError):
+        sim_res.flow_map(grid=grid, wd=270, ws=None).plot_wake_map()
+
+    # wrong kind of grid
     grid = grid(x, y, wfm.windTurbines.hub_height(x * 0), wfm.windTurbines.hub_height(x * 0))
     with pytest.raises(NotImplementedError):
         sim_res.flow_map(grid=grid, wd=270, ws=None).plot_wake_map()
